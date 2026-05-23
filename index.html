@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduMaster Uganda - Advanced School Management Portal</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- SIDEBAR -->
+
+<aside class="sidebar">
+
+<div class="logo">
+<i class="fas fa-school"></i>
+<h2>EduMaster UG</h2>
+</div>
+
+<p class="menu-title">Main</p>
+<ul class="nav-links">
+<li><a class="active"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a></li>
+</ul>
+
+<p class="menu-title">Academic</p>
+<ul class="nav-links">
+    <li><a><i class="fas fa-user-graduate"></i><span>Students</span></a></li>
+    <li><a><i class="fas fa-chalkboard-teacher"></i><span>Teachers</span></a></li>
+    <li><a><i class="fas fa-book"></i><span>Curriculum</span></a></li>
+    <li><a><i class="fas fa-file-lines"></i><span>UNEB Exams</span></a></li>
+    <li><a><i class="fas fa-book-reader"></i><span>Library</span></a></li>
+</ul>
+
+<p class="menu-title">Operations</p>
+<ul class="nav-links">
+    <li><a><i class="fas fa-calendar-days"></i><span>Attendance</span></a></li>
+    <li><a><i class="fas fa-bed"></i><span>Boarding</span></a></li>
+    <li><a><i class="fas fa-bus"></i><span>Transport</span></a></li>
+    <li><a><i class="fas fa-boxes-stacked"></i><span>Inventory</span></a></li>
+</ul>
+
+<p class="menu-title">Finance</p>
+<ul class="nav-links">
+    <li><a><i class="fas fa-money-check-dollar"></i><span>Fees</span></a></li>
+    <li><a><i class="fas fa-hand-holding-dollar"></i><span>Payroll</span></a></li>
+    <li><a><i class="fas fa-receipt"></i><span>Expenses</span></a></li>
+</ul>
+
+<p class="menu-title">Communication</p>
+<ul class="nav-links">
+    <li><a><i class="fas fa-users"></i><span>Parents</span></a></li>
+    <li><a><i class="fas fa-bell"></i><span>SMS Alerts</span></a></li>
+    <li><a><i class="fas fa-bullhorn"></i><span>Notice Board</span></a></li>
+</ul>
+
+<p class="menu-title">System</p>
+<ul class="nav-links">
+    <li><a><i class="fas fa-chart-line"></i><span>Analytics</span></a></li>
+    <li><a><i class="fas fa-gear"></i><span>Settings</span></a></li>
+    <li><a><i class="fas fa-moon" id="darkToggle"></i><span>Dark Mode</span></a></li>
+</ul>
+
+</aside>
+
+<!-- MAIN -->
+
+<main class="main">
+
+<!-- TOPBAR -->
+
+<div class="topbar">
+
+<div class="welcome">
+<h1>Uganda School Management Portal</h1>
+<p>Modern Professional Responsive School ERP System</p>
+</div>
+
+<div class="top-actions">
+
+<button class="btn-primary" id="addStudentBtn"><i class="fas fa-plus"></i> Add Student</button>
+
+<div class="search-box">
+<i class="fas fa-search"></i>
+<input type="text" placeholder="Search here...">
+</div>
+
+<div class="profile">
+<img src="https://i.pravatar.cc/100?img=12">
+<div>
+<h4>Administrator</h4>
+<p class="profile-role">Head Teacher</p>
+</div>
+</div>
+
+</div>
+
+</div>
+
+<!-- DASHBOARD -->
+
+<section class="dashboard">
+
+<div class="card">
+<div class="card-top">
+<div>
+<h3>Total Students</h3>
+<h2>4,560</h2>
+</div>
+<div class="icon bg1">
+<i class="fas fa-user-graduate"></i>
+</div>
+</div>
+<p>+12% Increase</p>
+</div>
+
+<div class="card">
+<div class="card-top">
+<div>
+<h3>Total Teachers</h3>
+<h2>186</h2>
+</div>
+<div class="icon bg2">
+<i class="fas fa-chalkboard-teacher"></i>
+</div>
+</div>
+<p>+6 New Staff</p>
+</div>
+
+<div class="card">
+<div class="card-top">
+<div>
+<h3>Fees Collected</h3>
+<h2>UGX 98M</h2>
+</div>
+<div class="icon bg3">
+<i class="fas fa-wallet"></i>
+</div>
+</div>
+<p>82% Paid</p>
+</div>
+
+<div class="card">
+<div class="card-top">
+<div>
+<h3>Attendance</h3>
+<h2>94%</h2>
+</div>
+<div class="icon bg4">
+<i class="fas fa-calendar-check"></i>
+</div>
+</div>
+<p>Excellent</p>
+</div>
+
+</section>
+
+<!-- MODULES -->
+
+<section class="modules">
+
+<div class="module">
+<div class="module-icon bg1">
+<i class="fas fa-user-graduate"></i>
+</div>
+<h3>Student Management</h3>
+<p>Admissions, student records, discipline, transfers, and student profiles.</p>
+<button class="bg1">Open Module</button>
+</div>
+
+<div class="module">
+<div class="module-icon bg2">
+<i class="fas fa-file-lines"></i>
+</div>
+<h3>UNEB Examinations</h3>
+<p>Manage assessments, grading, report cards, UNEB analytics and ranking.</p>
+<button class="bg2">View Exams</button>
+</div>
+
+<div class="module">
+<div class="module-icon bg3">
+<i class="fas fa-money-check-dollar"></i>
+</div>
+<h3>Finance & Fees</h3>
+<p>School fees collection, payroll, budgeting and finance reporting.</p>
+<button class="bg3">Open Finance</button>
+</div>
+
+<div class="module">
+<div class="module-icon bg4">
+<i class="fas fa-bed"></i>
+</div>
+<h3>Boarding Section</h3>
+<p>Dormitories, meals, welfare, health records and accommodation.</p>
+<button class="bg4">Open Boarding</button>
+</div>
+
+<div class="module">
+<div class="module-icon bg2">
+<i class="fas fa-bus"></i>
+</div>
+<h3>Transport System</h3>
+<p>School buses, transport routes, fuel management and driver records.</p>
+<button class="bg2">Transport</button>
+</div>
+
+<div class="module">
+<div class="module-icon bg1">
+<i class="fas fa-book"></i>
+</div>
+<h3>Academics</h3>
+<p>Subjects, timetables, lesson plans and syllabus tracking.</p>
+<button class="bg1">Open Academics</button>
+</div>
+
+</section>
+
+<!-- CHARTS -->
+
+<section class="charts">
+
+<div class="chart-card">
+    <div class="chart-header">
+        <h3>Student Enrollment</h3>
+        <div class="chart-toggle">
+            <button class="toggle-btn" data-period="weekly">W</button>
+            <button class="toggle-btn" data-period="monthly">M</button>
+            <button class="toggle-btn active" data-period="yearly">Y</button>
+        </div>
+    </div>
+<canvas id="lineChart"></canvas>
+</div>
+
+<div class="chart-card">
+<h3>School Fees Analytics</h3>
+<canvas id="pieChart"></canvas>
+</div>
+
+<div class="chart-card">
+<h3>Attendance by Stream</h3>
+<canvas id="barChart"></canvas>
+</div>
+
+<div class="chart-card">
+<h3>Performance Overview</h3>
+<canvas id="radarChart"></canvas>
+</div>
+
+</section>
+
+<!-- TABLE -->
+
+<section class="table-card">
+
+<h3 class="table-title">Recent Fee Payments</h3>
+
+<table>
+
+<thead>
+<tr>
+<th>Student</th>
+<th>Class</th>
+<th>Amount</th>
+<th>Status</th>
+<th>Date</th>
+</tr>
+</thead>
+
+<tbody>
+
+<tr>
+<td>Sarah Namugenyi</td>
+<td>S.4 Blue</td>
+<td>UGX 850,000</td>
+<td><span class="badge paid">Paid</span></td>
+<td>23 May 2026</td>
+</tr>
+
+<tr>
+<td>Brian Okello</td>
+<td>P.7 East</td>
+<td>UGX 600,000</td>
+<td><span class="badge pending">Pending</span></td>
+<td>22 May 2026</td>
+</tr>
+
+<tr>
+<td>Mercy Achieng</td>
+<td>S.2 Red</td>
+<td>UGX 920,000</td>
+<td><span class="badge paid">Paid</span></td>
+<td>21 May 2026</td>
+</tr>
+
+<tr>
+<td>David Mugisha</td>
+<td>P.5 West</td>
+<td>UGX 450,000</td>
+<td><span class="badge pending">Pending</span></td>
+<td>20 May 2026</td>
+</tr>
+
+</tbody>
+
+</table>
+
+</section>
+
+<div class="footer">
+© 2026 EduMaster Uganda | Advanced School ERP Portal
+</div>
+
+</main>
+
+</div>
+
+<!-- ADD STUDENT MODAL -->
+<div class="modal-overlay" id="studentModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add New Student</h3>
+            <i class="fas fa-times close-modal"></i>
+        </div>
+        <form id="addStudentForm">
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" placeholder="Enter student name" required>
+            </div>
+            <div class="form-group">
+                <label>Class/Stream</label>
+                <select>
+                    <option>S.1 Blue</option>
+                    <option>S.2 Red</option>
+                    <option>S.3 Green</option>
+                    <option>S.4 Yellow</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Parent/Guardian Contact</label>
+                <input type="tel" placeholder="+256 ...">
+            </div>
+            <div class="form-group">
+                <label>Gender</label>
+                <select>
+                    <option>Male</option>
+                    <option>Female</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">Register Student</button>
+        </form>
+    </div>
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
