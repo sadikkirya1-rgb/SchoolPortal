@@ -59,11 +59,15 @@ font-weight:700;
 }
 
 .menu-title{
-margin:14px 0 6px;
+margin:20px 0 10px;
 font-size:11px;
-color:#94a3b8;
+color:var(--primary);
 text-transform:uppercase;
 letter-spacing:1px;
+font-weight:700;
+display:flex;
+align-items:center;
+gap:8px;
 }
 
 .nav-links{
