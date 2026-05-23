@@ -117,6 +117,14 @@ font-weight:500;
 font-size:14px;
 }
 
+.nav-links a i {
+    transition: transform 0.2s ease;
+}
+
+.nav-links a:hover i {
+    transform: scale(1.15);
+}
+
 .nav-links a:hover,
 .nav-links .active{
 background:linear-gradient(90deg,#4f46e5,#06b6d4);
@@ -131,6 +139,22 @@ border-radius: 50px;
 margin-left:310px;
 width:calc(100% - 310px);
 padding:20px;
+}
+
+/* Collapsed Sidebar Logic */
+.sidebar.collapsed {
+    width: 90px !important;
+}
+
+.sidebar.collapsed .logo h2,
+.sidebar.collapsed .menu-title,
+.sidebar.collapsed .nav-links span {
+    display: none;
+}
+
+.main.expanded {
+    margin-left: 90px !important;
+    width: calc(100% - 90px) !important;
 }
 
 /* TOPBAR */

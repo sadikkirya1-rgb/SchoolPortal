@@ -19,9 +19,11 @@
     }
     .sidebar {
         width: var(--sidebar-width) !important;
+        transition: all 0.3s ease !important;
     }
     .main {
         margin-left: var(--sidebar-width) !important;
+        transition: all 0.3s ease !important;
     }
     .nav-links li a {
         display: flex !important;
@@ -43,6 +45,7 @@
 <div class="logo">
 <i class="fas fa-school"></i>
 <h2>EduMaster UG</h2>
+<i class="fas fa-bars" id="sidebarToggle" style="cursor: pointer; margin-left: auto; font-size: 18px; color: #38bdf8;"></i>
 </div>
 
 <p class="menu-title pulse-main"><i class="fas fa-house"></i>Main</p>

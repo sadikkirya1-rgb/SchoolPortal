@@ -185,4 +185,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+
+    // Sidebar Toggle Functionality
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebar = document.querySelector('.sidebar');
+    const main = document.querySelector('.main');
+
+    if (sidebarToggle && sidebar && main) {
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            main.classList.toggle('expanded');
+        });
+    }
 });
