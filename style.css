@@ -157,7 +157,7 @@ border-radius: 50px;
 .main{
 margin-left:310px;
 width:calc(100% - 310px);
-padding:20px;
+padding:15px;
 }
 
 /* Collapsed Sidebar Logic */
@@ -279,20 +279,20 @@ color:#64748b;
 
 .dashboard{
 display:grid;
-grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-gap:10px;
+grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+gap:8px;
 margin-bottom:15px;
 }
 
 .card{
 background:rgba(255,255,255,0.85);
 backdrop-filter:blur(10px);
-padding:12px;
+padding:10px;
 border-radius:16px;
 box-shadow:0 10px 25px rgba(0,0,0,0.08);
 position:relative;
 overflow:hidden;
-transition:0.3s;
+transition:0.2s;
 }
 
 .card:hover{
@@ -318,14 +318,14 @@ margin-bottom:12px;
 }
 
 .icon{
-width:40px;
-height:40px;
+width:34px;
+height:34px;
 display:flex;
 align-items:center;
 justify-content:center;
 border-radius:14px;
 color:white;
-font-size:19px;
+font-size:16px;
 }
 
 .bg1{background:linear-gradient(135deg,#4f46e5,#6366f1);}
@@ -335,17 +335,17 @@ font-size:19px;
 
 .card h3{
 color:#64748b;
-font-size:12px;
+font-size:11px;
 }
 
 .card h2{
 margin-top:4px;
-font-size:20px;
+font-size:18px;
 }
 
 .card p{
 margin-top:8px;
-font-size:12px;
+font-size:11px;
 color:#16a34a;
 font-weight:600;
 }
@@ -354,14 +354,14 @@ font-weight:600;
 
 .modules{
 display:grid;
-grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-gap:10px;
+grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+gap:8px;
 margin-bottom:20px;
 }
 
 .module{
 background:white;
-padding:12px;
+padding:10px;
 border-radius:16px;
 box-shadow:0 10px 25px rgba(0,0,0,0.06);
 transition:0.3s;
@@ -373,38 +373,38 @@ box-shadow:0 12px 30px rgba(79,70,229,0.12);
 }
 
 .module-icon{
-width:48px;
-height:48px;
+width:40px;
+height:40px;
 display:flex;
 align-items:center;
 justify-content:center;
 border-radius:16px;
 color:white;
-font-size:24px;
+font-size:20px;
 margin-bottom:10px;
 }
 
 .module h3{
 margin-bottom:6px;
-font-size:16px;
+font-size:14px;
 }
 
 .module p{
 color:#64748b;
-line-height:1.6;
+line-height:1.5;
 margin-bottom:12px;
-font-size:14px;
+font-size:12px;
 }
 
 .module button{
-padding:10px 16px;
+padding:8px 14px;
 border:none;
 border-radius:12px;
 color:white;
 font-weight:600;
 cursor:pointer;
 transition:0.3s;
-font-size:14px;
+font-size:13px;
 }
 
 .module button:hover{
@@ -422,7 +422,7 @@ margin-bottom:15px;
 
 .chart-card{
 background:white;
-padding:20px;
+padding:15px;
 border-radius:16px;
 box-shadow:0 10px 25px rgba(0,0,0,0.06);
 transition: 0.3s;
@@ -472,7 +472,7 @@ box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 
 .chart-card canvas{
 width:100% !important;
-height:180px !important;
+height:150px !important;
 }
 
 /* TABLE */
