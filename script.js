@@ -197,4 +197,53 @@ document.addEventListener('DOMContentLoaded', () => {
             main.classList.toggle('expanded');
         });
     }
+
+    // --- Role-Based Permissions Logic ---
+    const rolePermissions = {
+        'Head Teacher': ['Main', 'Front Office Department', 'Academic Department', 'E-Learning Department', 'Operations Department', 'Student Life Department', 'Human Resources Department', 'Payroll Department', 'Finance Department', 'Procurement Department', 'Assets & Security Department', 'Communication Department', 'System'],
+        'Teacher': ['Main', 'Academic Department', 'E-Learning Department', 'Student Life Department', 'Communication Department', 'System'],
+        'Bursar': ['Main', 'Payroll Department', 'Finance Department', 'Procurement Department', 'System'],
+        'Secretary': ['Main', 'Front Office Department', 'Communication Department', 'System']
+    };
+
+    function applyPermissions(role) {
+        // 1. Sidebar Sections Visibility
+        const titles = document.querySelectorAll('.menu-title');
+        const permitted = rolePermissions[role] || [];
+
+        titles.forEach(title => {
+            const sectionName = title.innerText.trim();
+            const navList = title.nextElementSibling;
+            const isVisible = permitted.includes(sectionName);
+            
+            title.style.display = isVisible ? 'flex' : 'none';
+            if (navList && navList.classList.contains('nav-links')) {
+                navList.style.display = isVisible ? 'block' : 'none';
+            }
+        });
+        
+        // 2. Dashboard Card Visibility (Sensitive Finance Data)
+        const cards = document.querySelectorAll('.dashboard .card');
+        if (cards.length >= 3) {
+            // Index 2 is the "Fees Collected" card
+            cards[2].style.display = (role === 'Head Teacher' || role === 'Bursar') ? 'block' : 'none';
+        }
+
+        // 3. Action Button Visibility
+        const addBtn = document.getElementById('addStudentBtn');
+        if (addBtn) addBtn.style.display = (role === 'Head Teacher' || role === 'Secretary') ? 'flex' : 'none';
+
+        // 4. Update Profile Display
+        document.querySelector('.profile-role').textContent = role;
+        document.querySelector('.profile h4').textContent = role === 'Head Teacher' ? 'Administrator' : role;
+    }
+
+    // Demo: Cycle roles on profile click
+    const profile = document.querySelector('.profile');
+    let roleIndex = 0;
+    const roles = Object.keys(rolePermissions);
+    profile.addEventListener('click', () => {
+        roleIndex = (roleIndex + 1) % roles.length;
+        applyPermissions(roles[roleIndex]);
+    });
 });
