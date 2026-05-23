@@ -107,15 +107,36 @@ margin-bottom:4px;
 .nav-links a{
 display:flex;
 align-items:center;
-gap:12px;
-padding:10px 14px;
-border-radius:14px;
+gap:14px;
+padding:12px 16px;
+border-radius:12px;
 text-decoration:none;
 color:#e2e8f0;
 transition:0.3s;
 font-weight:500;
 font-size:14px;
+margin: 4px 0;
+cursor:pointer;
 }
+
+.nav-links a i {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 16px;
+    background: rgba(255, 255, 255, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Modern Colored Icon Buttons */
+.nav-links li:nth-child(5n+1) a i { color: #818cf8; background: rgba(129, 140, 248, 0.15); }
+.nav-links li:nth-child(5n+2) a i { color: #2dd4bf; background: rgba(45, 212, 191, 0.15); }
+.nav-links li:nth-child(5n+3) a i { color: #fbbf24; background: rgba(251, 191, 36, 0.15); }
+.nav-links li:nth-child(5n+4) a i { color: #f472b6; background: rgba(244, 114, 182, 0.15); }
+.nav-links li:nth-child(5n+5) a i { color: #38bdf8; background: rgba(56, 189, 248, 0.15); }
 
 /* Sidebar Toggle Button */
 #sidebarToggle {
@@ -136,20 +157,24 @@ font-size:14px;
     transform: scale(1.1);
 }
 
-.nav-links a i {
-    transition: transform 0.2s ease;
+.nav-links a:hover,
+.nav-links .active{
+background: rgba(255, 255, 255, 0.05);
+transform: translateX(4px);
+color: white;
+}
+
+.nav-links .active {
+background: rgba(255, 255, 255, 0.1);
+box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+border-radius: 12px;
 }
 
 .nav-links a:hover i {
-    transform: scale(1.15);
-}
-
-.nav-links a:hover,
-.nav-links .active{
-background:linear-gradient(90deg,#4f46e5,#06b6d4);
-transform:translateX(2px);
-box-shadow: 0 0 15px rgba(79, 70, 229, 0.5), 0 10px 20px rgba(79,70,229,0.2);
-border-radius: 50px;
+    transform: scale(1.1) rotate(5deg);
+    background: white !important;
+    color: var(--dark) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
 /* MAIN */
@@ -258,6 +283,7 @@ background:white;
 padding:8px 14px;
 border-radius:16px;
 box-shadow:0 10px 25px rgba(0,0,0,0.05);
+cursor:pointer;
 }
 
 .profile img{
@@ -293,6 +319,7 @@ box-shadow:0 10px 25px rgba(0,0,0,0.08);
 position:relative;
 overflow:hidden;
 transition:0.2s;
+cursor:pointer;
 }
 
 .card:hover{
@@ -365,6 +392,7 @@ padding:10px;
 border-radius:16px;
 box-shadow:0 10px 25px rgba(0,0,0,0.06);
 transition:0.3s;
+cursor:pointer;
 }
 
 .module:hover{
@@ -426,6 +454,7 @@ padding:15px;
 border-radius:16px;
 box-shadow:0 10px 25px rgba(0,0,0,0.06);
 transition: 0.3s;
+cursor:pointer;
 }
 
 .chart-card:hover {
