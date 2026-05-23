@@ -1,0 +1,2 @@
+# SchoolPortal
+School Management Portal
