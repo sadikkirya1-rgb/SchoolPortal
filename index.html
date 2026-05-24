@@ -122,7 +122,7 @@
 
 <p class="menu-title pulse-main"><i class="fas fa-house"></i>Main</p>
 <ul class="nav-links">
-<li><a class="active"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a></li>
+<li><a class="active" id="dashboardBtn"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a></li>
 </ul>
 
 <p class="menu-title"><i class="fas fa-building"></i>Front Office Department</p>
@@ -222,7 +222,7 @@
 <p class="menu-title"><i class="fas fa-sliders"></i>System</p>
 <ul class="nav-links">
     <li><a><i class="fas fa-chart-line"></i><span>Analytics</span></a></li>
-    <li><a><i class="fas fa-user-shield"></i><span>User Roles</span></a></li>
+    <li><a id="userRolesBtn"><i class="fas fa-user-shield"></i><span>User Roles</span></a></li>
     <li><a><i class="fas fa-clipboard-list"></i><span>Audit Logs</span></a></li>
     <li><a><i class="fas fa-database"></i><span>Backups</span></a></li>
     <li><a><i class="fas fa-gear"></i><span>Settings</span></a></li>
@@ -262,6 +262,65 @@
 </div>
 
 </div>
+
+<!-- User Roles Section -->
+<section id="userRolesSection" class="module hidden">
+    <div class="module-header">
+        <h2>User Roles & Accounts</h2>
+        <p>Create users, assign roles, set permissions and sections they manage.</p>
+        <div class="module-actions">
+            <button class="btn-secondary" id="rolesBackBtn">Back to Dashboard</button>
+        </div>
+    </div>
+
+    <div class="user-roles-content">
+        <form id="addUserForm" class="user-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="fullNameInput">Full Name</label>
+                    <input id="fullNameInput" type="text" placeholder="e.g. Jane Doe">
+                </div>
+                <div class="form-group">
+                    <label for="userIdInputNew">User ID</label>
+                    <input id="userIdInputNew" type="text" placeholder="e.g. jdoe">
+                </div>
+                <div class="form-group">
+                    <label for="passwordInputNew">Password</label>
+                    <input id="passwordInputNew" type="password" placeholder="set a password">
+                </div>
+                <div class="form-group">
+                    <label for="roleSelect">Role</label>
+                    <select id="roleSelect"></select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group sections-group">
+                    <label>Sections / Groups</label>
+                    <div id="sectionsContainer" class="sections-list"></div>
+                </div>
+                <div class="form-group perms-group">
+                    <label>Permissions</label>
+                    <div class="perm-row"><label><input type="checkbox" id="canView"> View</label></div>
+                    <div class="perm-row"><label><input type="checkbox" id="canEdit"> Edit</label></div>
+                    <div class="perm-row"><label><input type="checkbox" id="canDelete"> Delete</label></div>
+                </div>
+            </div>
+
+            <div class="form-row actions-row">
+                <button class="btn-primary" id="addUserBtn">Add User</button>
+            </div>
+        </form>
+
+        <div class="users-table-wrap">
+            <h3>Existing Users</h3>
+            <table class="users-table" id="usersTable">
+                <thead><tr><th>Name</th><th>User ID</th><th>Role</th><th>Sections</th><th>Perms</th><th>Actions</th></tr></thead>
+                <tbody id="usersTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</section>
 
 <!-- DASHBOARD -->
 

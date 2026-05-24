@@ -215,6 +215,208 @@ document.addEventListener('DOMContentLoaded', () => {
 
     restoreSession();
 
+    // --- User Roles Management ---
+    const userRolesBtn = document.getElementById('userRolesBtn');
+    const dashboardBtn = document.getElementById('dashboardBtn');
+    const userRolesSection = document.getElementById('userRolesSection');
+    const rolesBackBtn = document.getElementById('rolesBackBtn');
+
+    const roleSelectEl = document.getElementById('roleSelect');
+    const sectionsContainerEl = document.getElementById('sectionsContainer');
+    const addUserForm = document.getElementById('addUserForm');
+    const usersTableBody = document.getElementById('usersTableBody');
+
+    const usersKey = 'edumasterUsers';
+    let editingUserId = null;
+
+    function hideAllContentAreas(){
+        // hide dashboard, user roles and any generated modules
+        document.querySelectorAll('.dashboard, .modules, .charts, .table-card, .module, #userRolesSection').forEach(el => {
+            if (el) el.classList.add('hidden');
+        });
+    }
+
+    function showSection(sectionId){
+        hideAllContentAreas();
+        const el = document.getElementById(sectionId);
+        if (el) el.classList.remove('hidden');
+    }
+
+    function showDashboard(){
+        hideAllContentAreas();
+        document.querySelectorAll('.dashboard, .modules, .charts, .table-card').forEach(el => {
+            if (el) el.classList.remove('hidden');
+        });
+    }
+
+    userRolesBtn?.addEventListener('click', () => {
+        populateRoleOptions();
+        populateSectionsList();
+        renderUsersTable();
+        showSection('userRolesSection');
+    });
+
+    dashboardBtn?.addEventListener('click', () => showDashboard());
+    rolesBackBtn?.addEventListener('click', () => showDashboard());
+
+    function loadUsers(){
+        try{ return JSON.parse(localStorage.getItem(usersKey)) || []; }catch(e){return []}
+    }
+    function saveUsers(users){ localStorage.setItem(usersKey, JSON.stringify(users)); }
+
+    function populateRoleOptions(){
+        const roles = Array.from(new Set(Object.keys(rolePermissions).concat(['Administrator'])));
+        roleSelectEl.innerHTML = '';
+        roles.forEach(r => {
+            const opt = document.createElement('option'); opt.value = r; opt.textContent = r; roleSelectEl.appendChild(opt);
+        });
+    }
+
+    function populateSectionsList(){
+        sectionsContainerEl.innerHTML = '';
+        const titles = Array.from(document.querySelectorAll('.menu-title')).map(t => t.innerText.trim());
+        titles.forEach(name => {
+            const id = 'sec_' + name.replace(/\s+/g,'_');
+            const label = document.createElement('label');
+            label.innerHTML = `<input type="checkbox" value="${name}" id="${id}"> ${name}`;
+            sectionsContainerEl.appendChild(label);
+        });
+    }
+
+    function renderUsersTable(){
+        const users = loadUsers();
+        usersTableBody.innerHTML = '';
+        users.forEach(u => {
+            const tr = document.createElement('tr');
+            const perms = [];
+            if (u.perms?.view) perms.push('V');
+            if (u.perms?.edit) perms.push('E');
+            if (u.perms?.delete) perms.push('D');
+            tr.innerHTML = `<td>${u.fullName}</td><td>${u.userId}</td><td>${u.role}</td><td>${(u.sections||[]).join(', ')}</td><td class="small">${perms.join(', ')}</td><td>
+                <button class="btn-secondary action-btn" data-action="edit" data-id="${u.id}">Edit</button>
+                <button class="btn-secondary action-btn" data-action="delete" data-id="${u.id}">Delete</button>
+            </td>`;
+            usersTableBody.appendChild(tr);
+        });
+    }
+
+    function clearForm(){
+        addUserForm.reset(); editingUserId = null;
+    }
+
+    addUserForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const fullName = document.getElementById('fullNameInput').value.trim();
+        const userId = document.getElementById('userIdInputNew').value.trim();
+        const password = document.getElementById('passwordInputNew').value;
+        const role = document.getElementById('roleSelect').value;
+        const sections = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"]:checked')).map(i=>i.value);
+        const perms = { view: !!document.getElementById('canView').checked, edit: !!document.getElementById('canEdit').checked, delete: !!document.getElementById('canDelete').checked };
+        if (!fullName || !userId) return alert('Please provide name and user ID.');
+        const users = loadUsers();
+        if (editingUserId){
+            const idx = users.findIndex(u=>u.id===editingUserId);
+            if (idx>=0){ users[idx] = { ...users[idx], fullName, userId, password, role, sections, perms }; saveUsers(users); renderUsersTable(); clearForm(); return; }
+        }
+        const id = 'u_' + Date.now();
+        users.push({ id, fullName, userId, password, role, sections, perms });
+        saveUsers(users); renderUsersTable(); clearForm();
+    });
+
+    usersTableBody.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        const action = btn.getAttribute('data-action');
+        const id = btn.getAttribute('data-id');
+        const users = loadUsers();
+        if (action === 'delete'){
+            if (!confirm('Delete this user?')) return;
+            const updated = users.filter(u=>u.id!==id); saveUsers(updated); renderUsersTable();
+            return;
+        }
+        if (action === 'edit'){
+            const u = users.find(x=>x.id===id); if (!u) return;
+            document.getElementById('fullNameInput').value = u.fullName;
+            document.getElementById('userIdInputNew').value = u.userId;
+            document.getElementById('passwordInputNew').value = u.password;
+            document.getElementById('roleSelect').value = u.role;
+            // sections
+            sectionsContainerEl.querySelectorAll('input[type="checkbox"]').forEach(ch => ch.checked = u.sections?.includes(ch.value));
+            document.getElementById('canView').checked = !!u.perms.view;
+            document.getElementById('canEdit').checked = !!u.perms.edit;
+            document.getElementById('canDelete').checked = !!u.perms.delete;
+            editingUserId = u.id;
+            window.scrollTo({ top: addUserForm.offsetTop - 80, behavior: 'smooth' });
+        }
+    });
+
+    // Ensure all sidebar nav links trigger their actions (more robust than single element listeners)
+    const navLinks = document.querySelectorAll('.nav-links a');
+    navLinks.forEach(link => {
+        link.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            // set active styling
+            navLinks.forEach(n => n.classList.remove('active'));
+            link.classList.add('active');
+
+            if (link.id === 'userRolesBtn'){
+                populateRoleOptions(); populateSectionsList(); renderUsersTable(); showSection('userRolesSection');
+                return;
+            }
+            if (link.id === 'dashboardBtn'){
+                showDashboard();
+                return;
+            }
+            // default: show the module for the menu-title this link belongs to
+            const parentUl = link.closest('ul.nav-links');
+            let sectionName = null;
+            if (parentUl && parentUl.previousElementSibling) {
+                sectionName = parentUl.previousElementSibling.innerText.trim();
+            }
+            if (!sectionName) {
+                // fallback to link text
+                sectionName = (link.innerText || '').trim();
+            }
+
+            if (sectionName) {
+                const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+                const moduleId = 'module_' + slugify(sectionName);
+                const ensureModuleFor = (name, id) => {
+                    if (document.getElementById(id)) return document.getElementById(id);
+                    const titleEls = Array.from(document.querySelectorAll('.menu-title'));
+                    const titleEl = titleEls.find(t => t.innerText.trim() === name);
+                    const listEl = titleEl ? titleEl.nextElementSibling : null;
+
+                    const sec = document.createElement('section');
+                    sec.className = 'module';
+                    sec.id = id;
+                    const items = [];
+                    if (listEl) {
+                        listEl.querySelectorAll('li a span').forEach(s => items.push(s.innerText.trim()));
+                    }
+                    sec.innerHTML = `
+                        <div class="module-header">
+                            <h2>${name}</h2>
+                            <p>Section: ${name}</p>
+                        </div>
+                        <div class="module-body">
+                            <p>This area shows content for <strong>${name}</strong>.</p>
+                            <ul class="section-links">
+                                ${items.map(i => `<li>${i}</li>`).join('')}
+                            </ul>
+                        </div>`;
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl && dashboardEl.parentNode) dashboardEl.parentNode.insertBefore(sec, dashboardEl);
+                    return sec;
+                };
+
+                ensureModuleFor(sectionName, moduleId);
+                showSection(moduleId);
+            }
+        });
+    });
+
+
     // Global Chart Defaults
     Chart.defaults.font.family = "'Poppins', sans-serif";
     Chart.defaults.font.size = 12;
