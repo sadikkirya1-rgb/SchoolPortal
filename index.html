@@ -11,7 +11,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" type="text/css" href="./style.css">
 <style>
     /* Layout Adjustments for Sidebar Width */
     :root {
@@ -36,7 +36,79 @@
 
 <body>
 
-<div class="container">
+<div class="login-screen active" id="loginScreen">
+    <div class="login-wrapper">
+        <div class="login-marketing">
+            <div class="marketing-badge">School Admin ERP</div>
+            <h1>EduMaster Admin Portal</h1>
+            <p>Modern school management built for Ugandan schools. Secure dashboard, attendance, finance, admissions and analytics in one powerful system.</p>
+            <ul class="marketing-features">
+                <li><i class="fas fa-check-circle"></i>Two-step school login</li>
+                <li><i class="fas fa-check-circle"></i>Secure admin dashboard</li>
+                <li><i class="fas fa-check-circle"></i>Persistent login state</li>
+                <li><i class="fas fa-check-circle"></i>Smart role-based access</li>
+            </ul>
+            <div class="marketing-cta">
+                <strong>Enter your School ID first.</strong>
+                <p>Then choose one of the sample school user IDs to continue.</p>
+            </div>
+        </div>
+        <div class="login-card">
+            <div class="brand-panel">
+                <div class="brand-icon"><i class="fas fa-shield-alt"></i></div>
+                <div>
+                    <h2>School Admin Access</h2>
+                    <p>Login in two steps for stronger protection.</p>
+                </div>
+            </div>
+            <div class="login-steps">
+                <span class="step active">School ID</span>
+                <span class="step hidden">User Login</span>
+            </div>
+
+            <div class="login-panel" id="schoolStep">
+                <h3>Step 1: Enter School ID</h3>
+                <p>Start by entering your registered school identifier.</p>
+                <div class="form-group">
+                    <label for="schoolIdInput">School ID</label>
+                    <input type="text" id="schoolIdInput" placeholder="e.g. SCH-UG-2026">
+                </div>
+                <button class="btn-primary" id="schoolNextBtn">Continue</button>
+                <p class="field-note">Format: <strong>SCH-UG-2026</strong> or <strong>SCH-001</strong></p>
+                <p class="error-message" id="schoolError"></p>
+            </div>
+
+            <div class="login-panel hidden" id="adminStep">
+                <h3>Step 2: School User Login</h3>
+                <p>Sign in with the user ID and password assigned to this school.</p>
+                <div class="form-group">
+                    <label for="adminUserInput">User ID</label>
+                    <input type="text" id="adminUserInput" placeholder="Enter your user ID">
+                </div>
+                <div class="form-group">
+                    <label for="adminPassInput">Password</label>
+                    <input type="password" id="adminPassInput" placeholder="Enter your password">
+                </div>
+                <div class="button-row">
+                    <button class="btn-primary" id="adminLoginBtn">Login</button>
+                    <button class="btn-secondary" id="backToSchoolBtn" type="button">Back</button>
+                </div>
+                <div class="sample-users hidden" id="sampleUsers">
+                    <h4>Sample login</h4>
+                    <div class="user-sample"><span>User ID</span><span id="sampleUserValue"></span></div>
+                    <div class="user-sample"><span>Password</span><span id="samplePasswordValue"></span></div>
+                </div>
+                <p class="error-message" id="adminError"></p>
+            </div>
+
+            <div class="login-footer">
+                <p>Admin access is protected. Only authorized school staff may continue.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container hidden">
 
 <!-- SIDEBAR -->
 
@@ -176,17 +248,15 @@
 
 <button class="btn-primary" id="addStudentBtn"><i class="fas fa-plus"></i> Add Student</button>
 
-<div class="search-box">
-<i class="fas fa-search"></i>
-<input type="text" placeholder="Search here...">
-</div>
+<!-- search removed to keep header compact -->
 
 <div class="profile">
-<img src="https://i.pravatar.cc/100?img=12">
-<div>
-<h4>Administrator</h4>
-<p class="profile-role">Head Teacher</p>
-</div>
+    <img src="https://i.pravatar.cc/100?img=12">
+    <div>
+        <h4>Administrator</h4>
+        <p class="profile-role">Head Teacher</p>
+    </div>
+    <button class="btn-secondary logout-inline" id="logoutBtn"><i class="fas fa-right-from-bracket"></i> Logout</button>
 </div>
 
 </div>

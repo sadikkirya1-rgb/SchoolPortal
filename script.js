@@ -10,6 +10,211 @@ document.addEventListener('DOMContentLoaded', () => {
         text: '#64748b'
     };
 
+    // --- Admin Login Flow ---
+    const loginScreen = document.getElementById('loginScreen');
+    const container = document.querySelector('.container');
+    const schoolStep = document.getElementById('schoolStep');
+    const adminStep = document.getElementById('adminStep');
+    const schoolIdInput = document.getElementById('schoolIdInput');
+    const adminUserInput = document.getElementById('adminUserInput');
+    const adminPassInput = document.getElementById('adminPassInput');
+    const schoolError = document.getElementById('schoolError');
+    const adminError = document.getElementById('adminError');
+    const schoolNextBtn = document.getElementById('schoolNextBtn');
+    const adminLoginBtn = document.getElementById('adminLoginBtn');
+    const backToSchoolBtn = document.getElementById('backToSchoolBtn');
+    const stepIndicators = document.querySelectorAll('.login-steps .step');
+
+    const schoolAccounts = {
+        'SCH-UG-2026': { schoolName: 'EduMaster Uganda', adminUser: 'Admin', password: 'admin', role: 'Head Teacher' },
+        'SCH-001': { schoolName: 'Central Campus', adminUser: 'Principal', password: 'principal', role: 'Head Teacher' }
+    };
+    let currentSchool = null;
+
+    const logoutBtn = document.getElementById('logoutBtn');
+    const storageKey = 'edumasterAdminSession';
+
+    const normalizeSchoolId = (value) => {
+        return value
+            .replace(/[\u200B-\u200D\uFEFF]/g, '') // strip hidden unicode chars
+            .replace(/\s+/g, '')
+            .toUpperCase();
+    };
+
+    const sampleUsersContainer = document.getElementById('sampleUsers');
+    const sampleUserValue = document.getElementById('sampleUserValue');
+    const samplePasswordValue = document.getElementById('samplePasswordValue');
+
+    const loginCard = document.querySelector('.login-card');
+
+    const updateStep = (stepIndex) => {
+        stepIndicators.forEach((step, index) => {
+            step.classList.toggle('active', index === stepIndex);
+            if (index === 1) {
+                step.classList.toggle('hidden', stepIndex !== 1);
+            }
+        });
+        loginCard.classList.toggle('show-login-step', stepIndex === 1);
+        schoolStep.classList.toggle('hidden', stepIndex !== 0);
+        adminStep.classList.toggle('hidden', stepIndex !== 1);
+    };
+
+    const showError = (element, message) => {
+        element.textContent = message || '';
+    };
+
+    const saveSession = (session) => {
+        localStorage.setItem(storageKey, JSON.stringify(session));
+    };
+
+    const clearSession = () => {
+        localStorage.removeItem(storageKey);
+    };
+
+    const loadSession = () => {
+        try {
+            return JSON.parse(localStorage.getItem(storageKey));
+        } catch (err) {
+            return null;
+        }
+    };
+
+    const resetLoginScreen = () => {
+        updateStep(0);
+        schoolIdInput.value = '';
+        adminUserInput.value = '';
+        adminPassInput.value = '';
+        sampleUsersContainer?.classList.add('hidden');
+        showError(schoolError, '');
+        showError(adminError, '');
+    };
+
+    const showSampleUser = (schoolData) => {
+        if (!sampleUsersContainer || !schoolData) return;
+        sampleUserValue.textContent = schoolData.adminUser;
+        samplePasswordValue.textContent = schoolData.password;
+        sampleUsersContainer.classList.remove('hidden');
+    };
+
+    const hideSampleUser = () => {
+        sampleUsersContainer?.classList.add('hidden');
+    };
+
+    const unlockDashboard = (schoolData) => {
+        loginScreen.classList.remove('active');
+        container.classList.remove('hidden');
+        document.querySelector('.welcome h1').textContent = `${schoolData.schoolName} Admin Dashboard`;
+        document.querySelector('.welcome p').textContent = 'Welcome back, School Admin. Your dashboard is ready.';
+        document.querySelector('.profile h4').textContent = 'School Admin';
+        document.querySelector('.profile-role').textContent = schoolData.role;
+    };
+
+    const restoreSession = () => {
+        const session = loadSession();
+        if (!session || !session.schoolId) return;
+
+        const schoolId = normalizeSchoolId(session.schoolId);
+        const schoolData = schoolAccounts[schoolId];
+        if (!schoolData) {
+            clearSession();
+            return;
+        }
+
+        if (session.authenticated) {
+            currentSchool = schoolData;
+            unlockDashboard(schoolData);
+            return;
+        }
+
+        schoolIdInput.value = session.schoolId;
+        if (session.step === 1) {
+            currentSchool = schoolData;
+            updateStep(1);
+            showSampleUser(currentSchool);
+            adminUserInput.focus();
+        } else {
+            updateStep(0);
+        }
+    };
+
+    schoolNextBtn.addEventListener('click', () => {
+        const schoolId = normalizeSchoolId(schoolIdInput.value);
+        if (!schoolId) {
+            showError(schoolError, 'Please enter your school ID.');
+            return;
+        }
+        if (schoolId.includes(',')) {
+            showError(schoolError, 'Enter only one school ID at a time. Examples: SCH-UG-2026 or SCH-001.');
+            return;
+        }
+        const schoolData = schoolAccounts[schoolId];
+        if (!schoolData) {
+            showError(schoolError, 'School ID not recognized. Please enter a valid registered School ID.');
+            return;
+        }
+        currentSchool = schoolData;
+        showError(schoolError, '');
+        showError(adminError, '');
+        saveSession({ schoolId, step: 1, authenticated: false });
+        updateStep(1);
+        showSampleUser(currentSchool);
+        setTimeout(() => adminUserInput.focus(), 100);
+    });
+
+    const normalizeUserId = (value) => value.trim().toLowerCase();
+
+    adminLoginBtn.addEventListener('click', () => {
+        const userId = normalizeUserId(adminUserInput.value);
+        const password = adminPassInput.value.trim();
+        if (!userId || !password) {
+            showError(adminError, 'Please enter both user ID and password.');
+            return;
+        }
+        if (!currentSchool) {
+            showError(adminError, 'Start with a valid school ID first.');
+            return;
+        }
+        if (userId !== normalizeUserId(currentSchool.adminUser) || password !== currentSchool.password.trim()) {
+            showError(adminError, 'Incorrect user ID or password.');
+            return;
+        }
+        showError(adminError, '');
+        saveSession({ schoolId: normalizeSchoolId(schoolIdInput.value), step: 2, authenticated: true });
+        unlockDashboard(currentSchool);
+    });
+
+    backToSchoolBtn.addEventListener('click', () => {
+        showError(adminError, '');
+        saveSession({ schoolId: schoolIdInput.value.trim().toUpperCase(), step: 0, authenticated: false });
+        hideSampleUser();
+        updateStep(0);
+    });
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            clearSession();
+            resetLoginScreen();
+            container.classList.add('hidden');
+            loginScreen.classList.add('active');
+        });
+    }
+
+    schoolIdInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            schoolNextBtn.click();
+        }
+    });
+
+    adminPassInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            adminLoginBtn.click();
+        }
+    });
+
+    restoreSession();
+
     // Global Chart Defaults
     Chart.defaults.font.family = "'Poppins', sans-serif";
     Chart.defaults.font.size = 12;
@@ -238,12 +443,5 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.profile h4').textContent = role === 'Head Teacher' ? 'Administrator' : role;
     }
 
-    // Demo: Cycle roles on profile click
-    const profile = document.querySelector('.profile');
-    let roleIndex = 0;
-    const roles = Object.keys(rolePermissions);
-    profile.addEventListener('click', () => {
-        roleIndex = (roleIndex + 1) % roles.length;
-        applyPermissions(roles[roleIndex]);
-    });
+    // Profile click demo removed to prevent accidental role/user switching
 });
