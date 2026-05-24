@@ -180,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         showError(adminError, '');
-        saveSession({ schoolId: normalizeSchoolId(schoolIdInput.value), step: 2, authenticated: true });
+        saveSession({ schoolId: normalizeSchoolId(schoolIdInput.value), userId: userId, step: 2, authenticated: true });
         unlockDashboard(currentSchool);
     });
 
@@ -260,6 +260,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const usersKey = 'edumasterUsers';
     let editingUserId = null;
+
+    // Seed initial admin user if data is empty
+    if (!localStorage.getItem(usersKey)) {
+        const adminData = schoolAccounts['SCH-UG-2026'];
+        const initialUser = {
+            id: 'u_admin_default',
+            fullName: adminData.adminUser,
+            userId: adminData.adminUser.toLowerCase(),
+            password: adminData.password,
+            role: adminData.role,
+            sections: ['Main', 'System'],
+            perms: { view: true, edit: true, delete: true },
+            status: true
+        };
+        localStorage.setItem(usersKey, JSON.stringify([initialUser]));
+    }
 
     function updateBreadcrumb(items) {
         const breadcrumb = document.getElementById('breadcrumb');
@@ -404,8 +420,34 @@ document.addEventListener('DOMContentLoaded', () => {
         // Arrange Permissions (View, Edit, Delete) on one row line inline as a 1-row grid
         const permsGroup = document.querySelector('.perms-group');
         if (permsGroup) {
+            // Add "Select All" for permissions
+            const existingSelectAll = permsGroup.querySelector('.select-all-perms-wrapper');
+            if (existingSelectAll) existingSelectAll.remove();
+
+            const selectAllPermsDiv = document.createElement('div');
+            selectAllPermsDiv.className = 'select-all-perms-wrapper';
+            Object.assign(selectAllPermsDiv.style, {
+                gridColumn: '1 / -1',
+                marginBottom: '10px',
+                padding: '6px 12px',
+                background: 'var(--pill-bg)',
+                borderRadius: '8px',
+                width: 'fit-content'
+            });
+            selectAllPermsDiv.innerHTML = `
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                    <span class="switch">
+                        <input type="checkbox" id="selectAllPermissions">
+                        <span class="slider"></span>
+                    </span>
+                    <span>Select All Permissions</span>
+                </label>`;
+
             const groupLabel = permsGroup.querySelector('label');
-            if (groupLabel) groupLabel.style.gridColumn = '1 / -1';
+            if (groupLabel) {
+                groupLabel.style.gridColumn = '1 / -1';
+                groupLabel.after(selectAllPermsDiv);
+            }
 
             Object.assign(permsGroup.style, {
                 marginTop: '15px',
@@ -435,6 +477,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 newCb.addEventListener('change', () => syncCard(newCb, newLabel));
                 syncCard(newCb, newLabel);
             });
+
+            const selectAllCB = selectAllPermsDiv.querySelector('#selectAllPermissions');
+            selectAllCB.addEventListener('change', (e) => {
+                permsGroup.querySelectorAll('.perm-row input[type="checkbox"]').forEach(cb => {
+                    cb.checked = e.target.checked;
+                    syncCard(cb, cb.closest('label'));
+                });
+            });
+
             const mainLabel = permsGroup.querySelector('label');
             if (mainLabel) mainLabel.style.marginBottom = '0';
         }
@@ -442,17 +493,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderUsersTable(){
         const users = loadUsers();
+        const session = loadSession();
+        const currentUserId = session?.userId;
+
         usersTableBody.innerHTML = '';
         users.forEach(u => {
             const tr = document.createElement('tr');
+            if (u.userId === currentUserId) {
+                tr.style.backgroundColor = 'rgba(79, 70, 229, 0.04)';
+            }
+
             const perms = [];
             if (u.perms?.view) perms.push('V');
             if (u.perms?.edit) perms.push('E');
             if (u.perms?.delete) perms.push('D');
-            tr.innerHTML = `<td>${u.fullName}</td><td>${u.userId}</td><td>${u.role}</td><td>${(u.sections||[]).join(', ')}</td><td class="small">${perms.join(', ')}</td><td>
-                <button class="btn-secondary action-btn" data-action="edit" data-id="${u.id}">Edit</button>
-                <button class="btn-secondary action-btn" data-action="delete" data-id="${u.id}">Delete</button>
-            </td>`;
+
+            const isActive = u.status !== false;
+            tr.innerHTML = `
+                <td>${u.fullName} ${u.userId === currentUserId ? '<span class="badge" style="margin-left:8px; font-size:9px; padding:2px 6px; background:var(--primary); vertical-align: middle;">You</span>' : ''}</td>
+                <td>${u.userId}</td>
+                <td>${u.role}</td>
+                <td>${(u.sections||[]).join(', ')}</td>
+                <td class="small">${perms.join(', ')}</td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <button class="action-btn" data-action="edit" data-id="${u.id}" title="Edit User"><i class="fas fa-edit"></i></button>
+                        <button class="action-btn" data-action="delete" data-id="${u.id}" title="Delete User"><i class="fas fa-trash"></i></button>
+                        <label class="switch" style="transform: scale(0.75); transform-origin: left;" title="${isActive ? 'Deactivate' : 'Activate'}">
+                            <input type="checkbox" class="status-toggle" data-id="${u.id}" ${isActive ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </td>`;
             usersTableBody.appendChild(tr);
         });
     }
@@ -478,13 +550,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (editingUserId){
             const idx = users.findIndex(u=>u.id===editingUserId);
             if (idx>=0){ 
-                users[idx] = { ...users[idx], fullName, userId, password, role, sections, perms }; 
+                users[idx] = { ...users[idx], fullName, userId, password, role, sections, perms, status: users[idx].status !== false }; 
                 saveUsers(users); renderUsersTable(); clearForm(); addUserForm.classList.add('hidden');
                 return; 
             }
         }
         const id = 'u_' + Date.now();
-        users.push({ id, fullName, userId, password, role, sections, perms });
+        users.push({ id, fullName, userId, password, role, sections, perms, status: true });
         saveUsers(users); renderUsersTable(); clearForm(); addUserForm.classList.add('hidden');
     });
 
@@ -523,6 +595,18 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             editingUserId = u.id;
             window.scrollTo({ top: addUserForm.offsetTop - 80, behavior: 'smooth' });
+        }
+    });
+
+    usersTableBody.addEventListener('change', (e) => {
+        if (e.target.classList.contains('status-toggle')) {
+            const id = e.target.getAttribute('data-id');
+            const users = loadUsers();
+            const idx = users.findIndex(u => u.id === id);
+            if (idx >= 0) {
+                users[idx].status = e.target.checked;
+                saveUsers(users);
+            }
         }
     });
 
