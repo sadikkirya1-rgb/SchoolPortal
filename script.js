@@ -89,10 +89,13 @@ document.addEventListener('DOMContentLoaded', () => {
         showError(adminError, '');
     };
 
-    const showSampleUser = (schoolData) => {
-        if (!sampleUsersContainer || !schoolData) return;
-        sampleUserValue.textContent = schoolData.adminUser;
-        samplePasswordValue.textContent = schoolData.password;
+    const showSampleUser = () => {
+        const users = loadUsers();
+        if (!sampleUsersContainer || users.length === 0) return;
+        // Show the first available active user as a sample
+        const sample = users.find(u => u.status !== false) || users[0];
+        sampleUserValue.textContent = sample.userId;
+        samplePasswordValue.textContent = sample.password;
         sampleUsersContainer.classList.remove('hidden');
     };
 
@@ -163,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showError(adminError, '');
         saveSession({ schoolId, step: 1, authenticated: false });
         updateStep(1);
-        showSampleUser(currentSchool);
+        showSampleUser();
         setTimeout(() => adminUserInput.focus(), 100);
     });
 
@@ -180,15 +183,19 @@ document.addEventListener('DOMContentLoaded', () => {
             showError(adminError, 'Start with a valid school ID first.');
             return;
         }
-        if (userId !== normalizeUserId(currentSchool.adminUser) || password !== currentSchool.password.trim()) {
+        const users = loadUsers();
+        const userObj = users.find(u => u.userId === userId && u.password === password);
+        if (!userObj) {
             showError(adminError, 'Incorrect user ID or password.');
             return;
         }
+        if (userObj.status === false) {
+            showError(adminError, 'This account is deactivated. Please contact support.');
+            return;
+        }
         showError(adminError, '');
-        const users = loadUsers();
-        const userObj = users.find(u => u.userId === userId);
         saveSession({ schoolId: normalizeSchoolId(schoolIdInput.value), userId: userId, step: 2, authenticated: true });
-        unlockDashboard(userObj || currentSchool);
+        unlockDashboard(userObj);
     });
 
     backToSchoolBtn.addEventListener('click', () => {
@@ -222,6 +229,30 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     restoreSession();
+
+    // --- Profile Modal Logic ---
+    const headerProfile = document.getElementById('headerProfile');
+    const profileModal = document.getElementById('profileModal');
+    const closeProfileModal = document.getElementById('closeProfileModal');
+
+    headerProfile?.addEventListener('click', (e) => {
+        if (e.target.closest('#logoutBtn')) return;
+        
+        const session = loadSession();
+        const users = loadUsers();
+        const currentUser = users.find(u => u.userId === session?.userId);
+        
+        if (currentUser) {
+            document.getElementById('modalProfilePhoto').src = currentUser.photo || 'https://i.pravatar.cc/100?img=12';
+            document.getElementById('modalProfileName').textContent = currentUser.fullName;
+            document.getElementById('modalProfileRole').textContent = currentUser.role;
+            document.getElementById('modalProfileId').textContent = currentUser.userId;
+            document.getElementById('modalProfilePass').textContent = currentUser.password;
+            profileModal.classList.add('active');
+        }
+    });
+
+    closeProfileModal?.addEventListener('click', () => profileModal.classList.remove('active'));
 
     // --- User Roles Management ---
     const userRolesBtn = document.getElementById('userRolesBtn');

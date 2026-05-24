@@ -252,7 +252,7 @@
 
 <!-- search removed to keep header compact -->
 
-<div class="profile">
+<div class="profile" id="headerProfile">
     <img src="https://i.pravatar.cc/100?img=12">
     <div>
         <h4>Administrator</h4>
@@ -587,6 +587,25 @@
             </div>
             <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">Register Student</button>
         </form>
+    </div>
+</div>
+
+<!-- MY PROFILE MODAL -->
+<div class="modal-overlay" id="profileModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>My Profile</h3>
+            <i class="fas fa-times close-modal" id="closeProfileModal"></i>
+        </div>
+        <div id="profileDetails" style="text-align: center;">
+            <img id="modalProfilePhoto" src="" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin-bottom: 15px; border: 3px solid var(--primary);">
+            <h2 id="modalProfileName"></h2>
+            <p id="modalProfileRole" style="color: var(--primary); font-weight: 600; margin-bottom: 20px;"></p>
+            <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <div style="margin-bottom: 10px;"><strong>User ID:</strong> <span id="modalProfileId"></span></div>
+                <div><strong>Password:</strong> <code id="modalProfilePass"></code></div>
+            </div>
+        </div>
     </div>
 </div>
 

@@ -695,12 +695,17 @@ background:white;
 padding:8px 14px;
 border-radius:16px;
 box-shadow:0 10px 25px rgba(0,0,0,0.05);
-cursor:default;
+cursor:pointer;
+transition: all 0.2s ease;
 }
 
 .profile{
     flex-wrap:nowrap;
     min-width:280px;
+}
+
+.profile:hover {
+    background: #f8fafc;
 }
 
 .profile > div{
