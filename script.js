@@ -253,6 +253,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const photoInput = document.getElementById('profilePhotoInput');
+    const photoPreview = document.getElementById('photoPreview');
+    photoInput?.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                photoPreview.src = event.target.result;
+                photoPreview.style.display = 'block';
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    });
+
     cancelUserFormBtn?.addEventListener('click', () => {
         addUserForm.classList.add('hidden');
         clearForm();
@@ -549,6 +562,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (passInput) passInput.type = 'password';
         const submitBtn = document.getElementById('addUserBtn');
         if (submitBtn) submitBtn.textContent = 'Add User';
+        if (photoPreview) {
+            photoPreview.src = '';
+            photoPreview.style.display = 'none';
+        }
     }
 
     addUserForm.addEventListener('submit', async (e) => {
@@ -598,6 +615,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     usersTableBody.addEventListener('click', (e) => {
+        // Handle password toggle (Must be outside the data-action guard)
+        const passToggleBtn = e.target.closest('.pass-toggle');
+        if (passToggleBtn) {
+            const code = passToggleBtn.previousElementSibling;
+            const icon = passToggleBtn.querySelector('i');
+            const isHidden = code.textContent === '••••••••';
+            
+            if (isHidden) {
+                code.textContent = passToggleBtn.getAttribute('data-pass');
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                code.textContent = '••••••••';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+            return;
+        }
+
         const btn = e.target.closest('button[data-action]');
         if (!btn) return;
         const action = btn.getAttribute('data-action');
@@ -607,22 +641,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const u = users.find(x=>x.id===id);
             if (!u || !confirm(`⚠️ WARNING: Are you sure you want to permanently delete the account for "${u.fullName}"?\n\nThis action cannot be undone.`)) return;
             const updated = users.filter(u=>u.id!==id); saveUsers(updated); renderUsersTable();
-            return;
-        }
-        
-        if (e.target.closest('.pass-toggle')) {
-            const btn = e.target.closest('.pass-toggle');
-            const code = btn.previousElementSibling;
-            const icon = btn.querySelector('i');
-            const isHidden = code.textContent === '••••••••';
-            
-            if (isHidden) {
-                code.textContent = btn.getAttribute('data-pass');
-                icon.classList.replace('fa-eye', 'fa-eye-slash');
-            } else {
-                code.textContent = '••••••••';
-                icon.classList.replace('fa-eye-slash', 'fa-eye');
-            }
             return;
         }
 
@@ -635,6 +653,12 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('userIdInputNew').value = u.userId;
             document.getElementById('passwordInputNew').value = u.password;
             document.getElementById('roleSelect').value = u.role;
+            
+            if (u.photo && photoPreview) {
+                photoPreview.src = u.photo;
+                photoPreview.style.display = 'block';
+            }
+
             // sections
             sectionsContainerEl.querySelectorAll('input[type="checkbox"]').forEach(ch => {
                 ch.checked = u.sections?.includes(ch.value);
