@@ -289,7 +289,10 @@
                 </div>
                 <div class="form-group">
                     <label for="passwordInputNew">Password</label>
-                    <input id="passwordInputNew" type="password" placeholder="set a password">
+                    <div style="display: flex; gap: 8px;">
+                        <input id="passwordInputNew" type="password" placeholder="set a password" style="flex: 1;">
+                        <button type="button" class="btn-secondary" id="generatePassBtn" style="margin-top: 0; width: auto; padding: 0 15px;" title="Generate Password"><i class="fas fa-key"></i></button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="roleSelect">Role</label>
@@ -310,8 +313,9 @@
                 </div>
             </div>
 
-            <div class="form-row actions-row">
+            <div class="form-row actions-row" style="display: flex; gap: 12px;">
                 <button class="btn-primary" id="addUserBtn">Add User</button>
+                <button type="button" class="btn-secondary" id="cancelUserFormBtn" style="margin-top: 0; width: auto;">Cancel</button>
             </div>
         </form>
 

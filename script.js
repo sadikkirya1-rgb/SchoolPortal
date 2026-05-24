@@ -227,6 +227,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const addUserForm = document.getElementById('addUserForm');
     const usersTableBody = document.getElementById('usersTableBody');
     const toggleAddUserFormBtn = document.getElementById('toggleAddUserFormBtn');
+    const generatePassBtn = document.getElementById('generatePassBtn');
+    const cancelUserFormBtn = document.getElementById('cancelUserFormBtn');
 
     toggleAddUserFormBtn?.addEventListener('click', () => {
         const isHidden = addUserForm.classList.contains('hidden');
@@ -236,6 +238,24 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             addUserForm.classList.add('hidden');
         }
+    });
+
+    generatePassBtn?.addEventListener('click', () => {
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+        let password = "";
+        for (let i = 0; i < 12; i++) {
+            password += charset.charAt(Math.floor(Math.random() * charset.length));
+        }
+        const passInput = document.getElementById('passwordInputNew');
+        if (passInput) {
+            passInput.value = password;
+            passInput.type = 'text';
+        }
+    });
+
+    cancelUserFormBtn?.addEventListener('click', () => {
+        addUserForm.classList.add('hidden');
+        clearForm();
     });
 
     const usersKey = 'edumasterUsers';
@@ -318,6 +338,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function clearForm(){
         addUserForm.reset(); editingUserId = null;
+        const passInput = document.getElementById('passwordInputNew');
+        if (passInput) passInput.type = 'password';
+        const submitBtn = document.getElementById('addUserBtn');
+        if (submitBtn) submitBtn.textContent = 'Add User';
     }
 
     addUserForm.addEventListener('submit', (e) => {
@@ -350,13 +374,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = btn.getAttribute('data-id');
         const users = loadUsers();
         if (action === 'delete'){
-            if (!confirm('Delete this user?')) return;
+            const u = users.find(x=>x.id===id);
+            if (!u || !confirm(`Are you sure you want to delete the account for "${u.fullName}"?`)) return;
             const updated = users.filter(u=>u.id!==id); saveUsers(updated); renderUsersTable();
             return;
         }
         if (action === 'edit'){
             const u = users.find(x=>x.id===id); if (!u) return;
             addUserForm.classList.remove('hidden');
+            const submitBtn = document.getElementById('addUserBtn');
+            if (submitBtn) submitBtn.textContent = 'Update User';
             document.getElementById('fullNameInput').value = u.fullName;
             document.getElementById('userIdInputNew').value = u.userId;
             document.getElementById('passwordInputNew').value = u.password;
