@@ -272,7 +272,8 @@ document.addEventListener('DOMContentLoaded', () => {
             role: adminData.role,
             sections: ['Main', 'System'],
             perms: { view: true, edit: true, delete: true },
-            status: true
+            status: true,
+            photo: 'https://i.pravatar.cc/100?img=12'
         };
         localStorage.setItem(usersKey, JSON.stringify([initialUser]));
     }
@@ -499,8 +500,13 @@ document.addEventListener('DOMContentLoaded', () => {
         usersTableBody.innerHTML = '';
         users.forEach(u => {
             const tr = document.createElement('tr');
+            const isActive = u.status !== false;
+
             if (u.userId === currentUserId) {
-                tr.style.backgroundColor = 'rgba(79, 70, 229, 0.04)';
+                tr.classList.add('current-user-row');
+            }
+            if (!isActive) {
+                tr.classList.add('deactivated-row');
             }
 
             const perms = [];
@@ -508,10 +514,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (u.perms?.edit) perms.push('E');
             if (u.perms?.delete) perms.push('D');
 
-            const isActive = u.status !== false;
             tr.innerHTML = `
+                <td style="text-align: center; width: 50px;">
+                    <img src="${u.photo || 'https://i.pravatar.cc/100?img=0'}" class="user-table-photo" alt="profile">
+                </td>
                 <td>${u.fullName} ${u.userId === currentUserId ? '<span class="badge" style="margin-left:8px; font-size:9px; padding:2px 6px; background:var(--primary); vertical-align: middle;">You</span>' : ''}</td>
                 <td>${u.userId}</td>
+                <td>
+                    <div class="pass-container">
+                        <code class="pass-masked">••••••••</code>
+                        <button type="button" class="pass-toggle" data-pass="${u.password}"><i class="fas fa-eye"></i></button>
+                    </div>
+                </td>
                 <td>${u.role}</td>
                 <td>${(u.sections||[]).join(', ')}</td>
                 <td class="small">${perms.join(', ')}</td>
@@ -537,7 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (submitBtn) submitBtn.textContent = 'Add User';
     }
 
-    addUserForm.addEventListener('submit', (e) => {
+    addUserForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const fullName = document.getElementById('fullNameInput').value.trim();
         const userId = document.getElementById('userIdInputNew').value.trim();
@@ -546,17 +560,40 @@ document.addEventListener('DOMContentLoaded', () => {
         const sections = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"]:checked')).map(i=>i.value);
         const perms = { view: !!document.getElementById('canView').checked, edit: !!document.getElementById('canEdit').checked, delete: !!document.getElementById('canDelete').checked };
         if (!fullName || !userId) return alert('Please provide name and user ID.');
+
+        const photoInput = document.getElementById('profilePhotoInput');
+        let photoData = null;
+        
+        if (photoInput.files && photoInput.files[0]) {
+            photoData = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(photoInput.files[0]);
+            });
+        }
+
         const users = loadUsers();
         if (editingUserId){
             const idx = users.findIndex(u=>u.id===editingUserId);
-            if (idx>=0){ 
-                users[idx] = { ...users[idx], fullName, userId, password, role, sections, perms, status: users[idx].status !== false }; 
+            if (idx>=0){
+                const oldUser = users[idx];
+                users[idx] = { 
+                    ...oldUser, 
+                    fullName, 
+                    userId, 
+                    password, 
+                    role, 
+                    sections, 
+                    perms, 
+                    status: oldUser.status !== false,
+                    photo: photoData || oldUser.photo 
+                }; 
                 saveUsers(users); renderUsersTable(); clearForm(); addUserForm.classList.add('hidden');
                 return; 
             }
         }
         const id = 'u_' + Date.now();
-        users.push({ id, fullName, userId, password, role, sections, perms, status: true });
+        users.push({ id, fullName, userId, password, role, sections, perms, status: true, photo: photoData });
         saveUsers(users); renderUsersTable(); clearForm(); addUserForm.classList.add('hidden');
     });
 
@@ -568,10 +605,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const users = loadUsers();
         if (action === 'delete'){
             const u = users.find(x=>x.id===id);
-            if (!u || !confirm(`Are you sure you want to delete the account for "${u.fullName}"?`)) return;
+            if (!u || !confirm(`⚠️ WARNING: Are you sure you want to permanently delete the account for "${u.fullName}"?\n\nThis action cannot be undone.`)) return;
             const updated = users.filter(u=>u.id!==id); saveUsers(updated); renderUsersTable();
             return;
         }
+        
+        if (e.target.closest('.pass-toggle')) {
+            const btn = e.target.closest('.pass-toggle');
+            const code = btn.previousElementSibling;
+            const icon = btn.querySelector('i');
+            const isHidden = code.textContent === '••••••••';
+            
+            if (isHidden) {
+                code.textContent = btn.getAttribute('data-pass');
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                code.textContent = '••••••••';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+            return;
+        }
+
         if (action === 'edit'){
             const u = users.find(x=>x.id===id); if (!u) return;
             addUserForm.classList.remove('hidden');
@@ -606,6 +660,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (idx >= 0) {
                 users[idx].status = e.target.checked;
                 saveUsers(users);
+                renderUsersTable();
             }
         }
     });

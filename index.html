@@ -288,6 +288,12 @@
                     <input id="userIdInputNew" type="text" placeholder="e.g. jdoe">
                 </div>
                 <div class="form-group">
+                    <label for="profilePhotoInput">Profile Photo</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input id="profilePhotoInput" type="file" accept="image/*" style="padding: 8px; font-size: 12px;">
+                    </div>
+                </div>
+                <div class="form-group">
                     <label for="passwordInputNew">Password</label>
                     <div style="display: flex; gap: 8px;">
                         <input id="passwordInputNew" type="password" placeholder="set a password" style="flex: 1;">
@@ -322,7 +328,7 @@
         <div class="users-table-wrap">
             <h3>Existing Users</h3>
             <table class="users-table" id="usersTable">
-                <thead><tr><th>Name</th><th>User ID</th><th>Role</th><th>Sections</th><th>Perms</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Photo</th><th>Name</th><th>User ID</th><th>Password</th><th>Role</th><th>Sections</th><th>Perms</th><th>Actions</th></tr></thead>
                 <tbody id="usersTableBody"></tbody>
             </table>
         </div>

@@ -758,6 +758,41 @@ color:#64748b;
 .users-table{width:100%;border-collapse:collapse;margin-top:12px}
 .users-table th,.users-table td{border:1px solid #e6e9ef;padding:8px;text-align:left;font-size:13px}
 .users-table th{background:#f8fafc}
+.users-table tr.current-user-row {
+    background-color: rgba(79, 70, 229, 0.04);
+}
+.users-table tr.deactivated-row {
+    background-color: #f1f5f9 !important;
+    color: #94a3b8;
+}
+.users-table tr.deactivated-row td:not(:last-child) {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+.user-table-photo {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #e2e8f0;
+}
+.pass-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 6px;
+    width: fit-content;
+}
+.pass-toggle {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 11px;
+}
+.pass-toggle:hover { color: var(--primary); }
 .users-table .action-btn {
     width: 32px;
     height: 32px;
