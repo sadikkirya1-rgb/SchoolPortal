@@ -230,10 +230,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let editingUserId = null;
 
     function hideAllContentAreas(){
-        // hide dashboard, user roles and any generated modules
-        document.querySelectorAll('.dashboard, .modules, .charts, .table-card, .module, #userRolesSection').forEach(el => {
-            if (el) el.classList.add('hidden');
+        const sections = ['.dashboard', '.modules', '.charts', '.table-card', '#userRolesSection'];
+        sections.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => el.classList.add('hidden'));
         });
+        // Hide dynamically created department modules
+        document.querySelectorAll('.main > section.module').forEach(m => m.classList.add('hidden'));
     }
 
     function showSection(sectionId){
@@ -249,14 +251,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    userRolesBtn?.addEventListener('click', () => {
-        populateRoleOptions();
-        populateSectionsList();
-        renderUsersTable();
-        showSection('userRolesSection');
-    });
-
-    dashboardBtn?.addEventListener('click', () => showDashboard());
     rolesBackBtn?.addEventListener('click', () => showDashboard());
 
     function loadUsers(){
@@ -350,69 +344,52 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Ensure all sidebar nav links trigger their actions (more robust than single element listeners)
     const navLinks = document.querySelectorAll('.nav-links a');
     navLinks.forEach(link => {
         link.addEventListener('click', (ev) => {
             ev.preventDefault();
-            // set active styling
             navLinks.forEach(n => n.classList.remove('active'));
             link.classList.add('active');
 
-            if (link.id === 'userRolesBtn'){
-                populateRoleOptions(); populateSectionsList(); renderUsersTable(); showSection('userRolesSection');
-                return;
-            }
-            if (link.id === 'dashboardBtn'){
+            if (link.id === 'dashboardBtn') {
                 showDashboard();
                 return;
             }
-            // default: show the module for the menu-title this link belongs to
+
+            if (link.id === 'userRolesBtn') {
+                populateRoleOptions(); 
+                populateSectionsList(); 
+                renderUsersTable(); 
+                showSection('userRolesSection');
+                return;
+            }
+
+            // Create or show dynamic department modules
+            const linkText = link.querySelector('span')?.innerText.trim() || link.innerText.trim();
             const parentUl = link.closest('ul.nav-links');
-            let sectionName = null;
-            if (parentUl && parentUl.previousElementSibling) {
-                sectionName = parentUl.previousElementSibling.innerText.trim();
-            }
-            if (!sectionName) {
-                // fallback to link text
-                sectionName = (link.innerText || '').trim();
-            }
+            const category = parentUl?.previousElementSibling?.innerText.trim() || 'General';
+            const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+            const moduleId = 'module_' + slugify(linkText);
 
-            if (sectionName) {
-                const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-                const moduleId = 'module_' + slugify(sectionName);
-                const ensureModuleFor = (name, id) => {
-                    if (document.getElementById(id)) return document.getElementById(id);
-                    const titleEls = Array.from(document.querySelectorAll('.menu-title'));
-                    const titleEl = titleEls.find(t => t.innerText.trim() === name);
-                    const listEl = titleEl ? titleEl.nextElementSibling : null;
-
-                    const sec = document.createElement('section');
-                    sec.className = 'module';
-                    sec.id = id;
-                    const items = [];
-                    if (listEl) {
-                        listEl.querySelectorAll('li a span').forEach(s => items.push(s.innerText.trim()));
-                    }
-                    sec.innerHTML = `
-                        <div class="module-header">
-                            <h2>${name}</h2>
-                            <p>Section: ${name}</p>
-                        </div>
-                        <div class="module-body">
-                            <p>This area shows content for <strong>${name}</strong>.</p>
-                            <ul class="section-links">
-                                ${items.map(i => `<li>${i}</li>`).join('')}
-                            </ul>
-                        </div>`;
-                    const dashboardEl = document.querySelector('.dashboard');
-                    if (dashboardEl && dashboardEl.parentNode) dashboardEl.parentNode.insertBefore(sec, dashboardEl);
-                    return sec;
-                };
-
-                ensureModuleFor(sectionName, moduleId);
-                showSection(moduleId);
+            if (!document.getElementById(moduleId)) {
+                const sec = document.createElement('section');
+                sec.className = 'module';
+                sec.id = moduleId;
+                sec.innerHTML = `
+                    <div class="module-header">
+                        <h2>${linkText}</h2>
+                        <p>Department: ${category}</p>
+                    </div>
+                    <div class="module-body" style="padding: 40px; text-align: center; background: #f8fafc; border-radius: 12px; border: 2px dashed #e2e8f0; margin-top: 20px;">
+                        <i class="fas fa-layer-group" style="font-size: 40px; color: var(--primary); margin-bottom: 15px; opacity: 0.5;"></i>
+                        <h3 style="margin-bottom:10px;">${linkText} Module</h3>
+                        <p>This interface is being initialized with live data for the <strong>${category}</strong> workspace.</p>
+                        <button class="btn-primary" style="margin: 20px auto 0;" onclick="document.getElementById('dashboardBtn').click()">Back to Dashboard</button>
+                    </div>`;
+                const dashboardEl = document.querySelector('.dashboard');
+                if (dashboardEl) dashboardEl.parentNode.insertBefore(sec, dashboardEl);
             }
+            showSection(moduleId);
         });
     });
 
