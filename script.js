@@ -309,14 +309,103 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function populateSectionsList(){
+        if (!sectionsContainerEl) return;
         sectionsContainerEl.innerHTML = '';
-        const titles = Array.from(document.querySelectorAll('.menu-title')).map(t => t.innerText.trim());
-        titles.forEach(name => {
-            const id = 'sec_' + name.replace(/\s+/g,'_');
-            const label = document.createElement('label');
-            label.innerHTML = `<input type="checkbox" value="${name}" id="${id}"> ${name}`;
-            sectionsContainerEl.appendChild(label);
+
+        // Extract unique section names and their corresponding icons from the sidebar
+        const menuTitles = Array.from(document.querySelectorAll('.menu-title'));
+        const uniqueSections = [];
+        const seenNames = new Set();
+
+        menuTitles.forEach(titleEl => {
+            const name = titleEl.innerText.trim();
+            if (name && !seenNames.has(name)) {
+                seenNames.add(name);
+                const iconHtml = titleEl.querySelector('i')?.outerHTML || '';
+                uniqueSections.push({ name, icon: iconHtml });
+            }
         });
+
+        // Add "Select All" checkbox for sections
+        const selectAllDiv = document.createElement('div');
+        Object.assign(selectAllDiv.style, {
+            marginBottom: '12px',
+            padding: '6px 12px',
+            background: 'var(--pill-bg)',
+            borderRadius: '8px',
+            width: 'fit-content'
+        });
+        selectAllDiv.innerHTML = `
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                <input type="checkbox" id="selectAllSections"> <span>Select All Sections</span>
+            </label>`;
+        sectionsContainerEl.appendChild(selectAllDiv);
+
+        // Arrange Sections in 7 columns inline
+        const grid = document.createElement('div');
+        Object.assign(grid.style, {
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, 1fr)',
+            gap: '12px 10px',
+            marginBottom: '25px'
+        });
+
+        selectAllDiv.querySelector('#selectAllSections').addEventListener('change', (e) => {
+            grid.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = e.target.checked);
+        });
+
+        uniqueSections.forEach(item => {
+            const id = 'sec_' + item.name.replace(/\s+/g, '_');
+            const label = document.createElement('label');
+            Object.assign(label.style, {
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+            });
+            label.innerHTML = `
+                <input type="checkbox" value="${item.name}" id="${id}">
+                <span style="color: var(--primary); font-size: 14px; width: 18px; text-align: center;">${item.icon}</span>
+                <span title="${item.name}" style="overflow: hidden; text-overflow: ellipsis;">${item.name}</span>`;
+            grid.appendChild(label);
+        });
+        sectionsContainerEl.appendChild(grid);
+
+        // Ensure Sections and Permissions stack vertically
+        const parentRow = sectionsContainerEl.closest('.form-row');
+        if (parentRow) parentRow.style.display = 'block';
+
+        // Arrange Permissions (View, Edit, Delete) on one row line inline as a 1-row grid
+        const permsGroup = document.querySelector('.perms-group');
+        if (permsGroup) {
+            Object.assign(permsGroup.style, {
+                marginTop: '15px',
+                paddingTop: '15px',
+                borderTop: '1px solid #e2e8f0',
+                display: 'grid',
+                gridTemplateColumns: 'max-content repeat(3, auto)',
+                gap: '0 50px',
+                alignItems: 'center',
+                width: '100%'
+            });
+            permsGroup.querySelectorAll('.perm-row').forEach(row => {
+                const cb = row.querySelector('input');
+                const text = row.innerText.trim();
+                row.innerHTML = `
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px;">
+                        <span class="switch">
+                            <input type="checkbox" id="${cb.id}" ${cb.checked ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </span>
+                        <span>${text}</span>
+                    </label>`;
+                row.style.margin = '0';
+            });
+            const mainLabel = permsGroup.querySelector('label');
+            if (mainLabel) mainLabel.style.marginBottom = '0';
+        }
     }
 
     function renderUsersTable(){
