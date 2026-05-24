@@ -100,13 +100,16 @@ document.addEventListener('DOMContentLoaded', () => {
         sampleUsersContainer?.classList.add('hidden');
     };
 
-    const unlockDashboard = (schoolData) => {
+    const unlockDashboard = (userData) => {
         loginScreen.classList.remove('active');
         container.classList.remove('hidden');
-        document.querySelector('.welcome h1').textContent = `${schoolData.schoolName} Admin Dashboard`;
+        const schoolName = currentSchool?.schoolName || 'EduMaster Uganda';
+        document.querySelector('.welcome h1').textContent = `${schoolName} Admin Dashboard`;
         document.querySelector('.welcome p').textContent = 'Welcome back, School Admin. Your dashboard is ready.';
-        document.querySelector('.profile h4').textContent = 'School Admin';
-        document.querySelector('.profile-role').textContent = schoolData.role;
+        
+        document.querySelector('.profile h4').textContent = userData.fullName || userData.adminUser || 'Administrator';
+        document.querySelector('.profile-role').textContent = userData.role;
+        document.querySelector('.profile img').src = userData.photo || 'https://i.pravatar.cc/100?img=12';
         showDashboard();
     };
 
@@ -122,8 +125,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (session.authenticated) {
+            const users = loadUsers();
+            const userObj = users.find(u => u.userId === session.userId);
             currentSchool = schoolData;
-            unlockDashboard(schoolData);
+            unlockDashboard(userObj || schoolData);
             return;
         }
 
@@ -180,8 +185,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         showError(adminError, '');
+        const users = loadUsers();
+        const userObj = users.find(u => u.userId === userId);
         saveSession({ schoolId: normalizeSchoolId(schoolIdInput.value), userId: userId, step: 2, authenticated: true });
-        unlockDashboard(currentSchool);
+        unlockDashboard(userObj || currentSchool);
     });
 
     backToSchoolBtn.addEventListener('click', () => {
@@ -625,9 +632,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isHidden) {
                 code.textContent = passToggleBtn.getAttribute('data-pass');
                 icon.classList.replace('fa-eye', 'fa-eye-slash');
+                passToggleBtn.classList.add('pulse-active');
             } else {
                 code.textContent = '••••••••';
                 icon.classList.replace('fa-eye-slash', 'fa-eye');
+                passToggleBtn.classList.remove('pulse-active');
             }
             return;
         }

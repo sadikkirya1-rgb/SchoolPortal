@@ -792,6 +792,15 @@ color:#64748b;
     cursor: pointer;
     font-size: 11px;
 }
+.pass-toggle.pulse-active i {
+    animation: pulse-icon 1.5s infinite ease-in-out;
+    color: var(--primary);
+}
+@keyframes pulse-icon {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.25); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
 .pass-toggle:hover { color: var(--primary); }
 .users-table .action-btn {
     width: 32px;
