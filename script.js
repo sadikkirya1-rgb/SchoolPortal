@@ -336,17 +336,21 @@ document.addEventListener('DOMContentLoaded', () => {
             width: 'fit-content'
         });
         selectAllDiv.innerHTML = `
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
-                <input type="checkbox" id="selectAllSections"> <span>Select All Sections</span>
+            <label style="display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                <span class="switch">
+                    <input type="checkbox" id="selectAllSections">
+                    <span class="slider"></span>
+                </span>
+                <span>Select All Sections</span>
             </label>`;
         sectionsContainerEl.appendChild(selectAllDiv);
 
-        // Arrange Sections in 7 columns inline
+        // Arrange Sections in a 6-column grid
         const grid = document.createElement('div');
         Object.assign(grid.style, {
             display: 'grid',
-            gridTemplateColumns: 'repeat(7, 1fr)',
-            gap: '12px 10px',
+            gridTemplateColumns: 'repeat(6, 1fr)',
+            gap: '10px',
             marginBottom: '25px'
         });
 
@@ -360,15 +364,23 @@ document.addEventListener('DOMContentLoaded', () => {
             Object.assign(label.style, {
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '8px',
                 fontSize: '11px',
                 cursor: 'pointer',
-                whiteSpace: 'nowrap'
+                background: '#ffffff',
+                padding: '8px 10px',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                overflow: 'hidden'
             });
             label.innerHTML = `
-                <input type="checkbox" value="${item.name}" id="${id}">
-                <span style="color: var(--primary); font-size: 14px; width: 18px; text-align: center;">${item.icon}</span>
-                <span title="${item.name}" style="overflow: hidden; text-overflow: ellipsis;">${item.name}</span>`;
+                <span class="switch" style="flex-shrink: 0; transform: scale(0.85); transform-origin: left center;">
+                    <input type="checkbox" value="${item.name}" id="${id}">
+                    <span class="slider"></span>
+                </span>
+                <span style="color: var(--primary); font-size: 14px; width: 18px; text-align: center; flex-shrink: 0;">${item.icon}</span>
+                <span title="${item.name}" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.name}</span>`;
             grid.appendChild(label);
         });
         sectionsContainerEl.appendChild(grid);
