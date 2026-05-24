@@ -312,6 +312,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!sectionsContainerEl) return;
         sectionsContainerEl.innerHTML = '';
 
+        const syncCard = (cb, lbl) => {
+            lbl.style.borderColor = cb.checked ? 'var(--primary)' : '#e2e8f0';
+            lbl.style.backgroundColor = cb.checked ? 'rgba(79, 70, 229, 0.04)' : '#ffffff';
+        };
+
         // Extract unique section names and their corresponding icons from the sidebar
         const menuTitles = Array.from(document.querySelectorAll('.menu-title'));
         const uniqueSections = [];
@@ -355,7 +360,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         selectAllDiv.querySelector('#selectAllSections').addEventListener('change', (e) => {
-            grid.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = e.target.checked);
+            grid.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.checked = e.target.checked;
+                syncCard(cb, cb.closest('label'));
+            });
         });
 
         uniqueSections.forEach(item => {
@@ -372,7 +380,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 borderRadius: '8px',
                 border: '1px solid #e2e8f0',
                 boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                transition: 'all 0.25s ease'
             });
             label.innerHTML = `
                 <span class="switch" style="flex-shrink: 0; transform: scale(0.85); transform-origin: left center;">
@@ -381,6 +390,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </span>
                 <span style="color: var(--primary); font-size: 14px; width: 18px; text-align: center; flex-shrink: 0;">${item.icon}</span>
                 <span title="${item.name}" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.name}</span>`;
+            const cb = label.querySelector('input');
+            cb.addEventListener('change', () => syncCard(cb, label));
+            syncCard(cb, label);
             grid.appendChild(label);
         });
         sectionsContainerEl.appendChild(grid);
@@ -392,28 +404,36 @@ document.addEventListener('DOMContentLoaded', () => {
         // Arrange Permissions (View, Edit, Delete) on one row line inline as a 1-row grid
         const permsGroup = document.querySelector('.perms-group');
         if (permsGroup) {
+            const groupLabel = permsGroup.querySelector('label');
+            if (groupLabel) groupLabel.style.gridColumn = '1 / -1';
+
             Object.assign(permsGroup.style, {
                 marginTop: '15px',
                 paddingTop: '15px',
                 borderTop: '1px solid #e2e8f0',
                 display: 'grid',
-                gridTemplateColumns: 'max-content repeat(3, auto)',
-                gap: '0 50px',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '10px',
                 alignItems: 'center',
                 width: '100%'
             });
             permsGroup.querySelectorAll('.perm-row').forEach(row => {
                 const cb = row.querySelector('input');
                 const text = row.innerText.trim();
+                const id = cb.id;
                 row.innerHTML = `
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px;">
-                        <span class="switch">
-                            <input type="checkbox" id="${cb.id}" ${cb.checked ? 'checked' : ''}>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 12px; background: #fff; padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; transition: all 0.25s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.05); width: 100%;">
+                        <span class="switch" style="transform: scale(0.85); transform-origin: left center;">
+                            <input type="checkbox" id="${id}" ${cb.checked ? 'checked' : ''}>
                             <span class="slider"></span>
                         </span>
-                        <span>${text}</span>
+                        <span style="font-weight: 500;">${text}</span>
                     </label>`;
                 row.style.margin = '0';
+                const newLabel = row.querySelector('label');
+                const newCb = newLabel.querySelector('input');
+                newCb.addEventListener('change', () => syncCard(newCb, newLabel));
+                syncCard(newCb, newLabel);
             });
             const mainLabel = permsGroup.querySelector('label');
             if (mainLabel) mainLabel.style.marginBottom = '0';
@@ -490,10 +510,17 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('passwordInputNew').value = u.password;
             document.getElementById('roleSelect').value = u.role;
             // sections
-            sectionsContainerEl.querySelectorAll('input[type="checkbox"]').forEach(ch => ch.checked = u.sections?.includes(ch.value));
-            document.getElementById('canView').checked = !!u.perms.view;
-            document.getElementById('canEdit').checked = !!u.perms.edit;
-            document.getElementById('canDelete').checked = !!u.perms.delete;
+            sectionsContainerEl.querySelectorAll('input[type="checkbox"]').forEach(ch => {
+                ch.checked = u.sections?.includes(ch.value);
+                ch.dispatchEvent(new Event('change'));
+            });
+            ['canView', 'canEdit', 'canDelete'].forEach(id => {
+                const ch = document.getElementById(id);
+                if (ch) {
+                    ch.checked = !!u.perms[id.replace('can', '').toLowerCase()];
+                    ch.dispatchEvent(new Event('change'));
+                }
+            });
             editingUserId = u.id;
             window.scrollTo({ top: addUserForm.offsetTop - 80, behavior: 'smooth' });
         }
