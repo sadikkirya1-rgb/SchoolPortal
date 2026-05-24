@@ -235,6 +235,8 @@
 
 <main class="main">
 
+<div id="breadcrumb" class="breadcrumb"></div>
+
 <!-- TOPBAR -->
 
 <div class="topbar">
@@ -269,12 +271,13 @@
         <h2>User Roles & Accounts</h2>
         <p>Create users, assign roles, set permissions and sections they manage.</p>
         <div class="module-actions">
+            <button class="btn-primary" id="toggleAddUserFormBtn"><i class="fas fa-plus"></i> Add New User</button>
             <button class="btn-secondary" id="rolesBackBtn">Back to Dashboard</button>
         </div>
     </div>
 
     <div class="user-roles-content">
-        <form id="addUserForm" class="user-form">
+        <form id="addUserForm" class="user-form hidden" style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
             <div class="form-row">
                 <div class="form-group">
                     <label for="fullNameInput">Full Name</label>

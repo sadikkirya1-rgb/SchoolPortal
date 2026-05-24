@@ -107,6 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.welcome p').textContent = 'Welcome back, School Admin. Your dashboard is ready.';
         document.querySelector('.profile h4').textContent = 'School Admin';
         document.querySelector('.profile-role').textContent = schoolData.role;
+        showDashboard();
     };
 
     const restoreSession = () => {
@@ -225,9 +226,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const sectionsContainerEl = document.getElementById('sectionsContainer');
     const addUserForm = document.getElementById('addUserForm');
     const usersTableBody = document.getElementById('usersTableBody');
+    const toggleAddUserFormBtn = document.getElementById('toggleAddUserFormBtn');
+
+    toggleAddUserFormBtn?.addEventListener('click', () => {
+        const isHidden = addUserForm.classList.contains('hidden');
+        if (isHidden) {
+            addUserForm.classList.remove('hidden');
+            clearForm();
+        } else {
+            addUserForm.classList.add('hidden');
+        }
+    });
 
     const usersKey = 'edumasterUsers';
     let editingUserId = null;
+
+    function updateBreadcrumb(items) {
+        const breadcrumb = document.getElementById('breadcrumb');
+        if (!breadcrumb) return;
+        breadcrumb.innerHTML = items.map((item, index) => {
+            const isLast = index === items.length - 1;
+            return `<span class="${isLast ? 'active-crumb' : ''}">${item}</span>`;
+        }).join('');
+    }
 
     function hideAllContentAreas(){
         const sections = ['.dashboard', '.modules', '.charts', '.table-card', '#userRolesSection'];
@@ -249,6 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.dashboard, .modules, .charts, .table-card').forEach(el => {
             if (el) el.classList.remove('hidden');
         });
+        updateBreadcrumb(['Main', 'Dashboard']);
     }
 
     rolesBackBtn?.addEventListener('click', () => showDashboard());
@@ -310,11 +332,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const users = loadUsers();
         if (editingUserId){
             const idx = users.findIndex(u=>u.id===editingUserId);
-            if (idx>=0){ users[idx] = { ...users[idx], fullName, userId, password, role, sections, perms }; saveUsers(users); renderUsersTable(); clearForm(); return; }
+            if (idx>=0){ 
+                users[idx] = { ...users[idx], fullName, userId, password, role, sections, perms }; 
+                saveUsers(users); renderUsersTable(); clearForm(); addUserForm.classList.add('hidden');
+                return; 
+            }
         }
         const id = 'u_' + Date.now();
         users.push({ id, fullName, userId, password, role, sections, perms });
-        saveUsers(users); renderUsersTable(); clearForm();
+        saveUsers(users); renderUsersTable(); clearForm(); addUserForm.classList.add('hidden');
     });
 
     usersTableBody.addEventListener('click', (e) => {
@@ -330,6 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (action === 'edit'){
             const u = users.find(x=>x.id===id); if (!u) return;
+            addUserForm.classList.remove('hidden');
             document.getElementById('fullNameInput').value = u.fullName;
             document.getElementById('userIdInputNew').value = u.userId;
             document.getElementById('passwordInputNew').value = u.password;
@@ -361,6 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 populateSectionsList(); 
                 renderUsersTable(); 
                 showSection('userRolesSection');
+                updateBreadcrumb(['System', 'User Roles']);
                 return;
             }
 
@@ -375,21 +403,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 const sec = document.createElement('section');
                 sec.className = 'module';
                 sec.id = moduleId;
+                
+                const headers = ['Record ID', 'Description', 'Category', 'Status'];
+                const rows = [
+                    ['#001', `${linkText} Entry A`, category, 'Active'],
+                    ['#002', `${linkText} Entry B`, category, 'Pending'],
+                    ['#003', `${linkText} Entry C`, category, 'Review']
+                ];
+
                 sec.innerHTML = `
                     <div class="module-header">
                         <h2>${linkText}</h2>
                         <p>Department: ${category}</p>
                     </div>
-                    <div class="module-body" style="padding: 40px; text-align: center; background: #f8fafc; border-radius: 12px; border: 2px dashed #e2e8f0; margin-top: 20px;">
-                        <i class="fas fa-layer-group" style="font-size: 40px; color: var(--primary); margin-bottom: 15px; opacity: 0.5;"></i>
-                        <h3 style="margin-bottom:10px;">${linkText} Module</h3>
-                        <p>This interface is being initialized with live data for the <strong>${category}</strong> workspace.</p>
-                        <button class="btn-primary" style="margin: 20px auto 0;" onclick="document.getElementById('dashboardBtn').click()">Back to Dashboard</button>
+                    <div class="module-body">
+                        <div class="table-card" style="box-shadow: none; padding: 0; margin-top: 20px;">
+                            <table>
+                                <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                                <tbody>
+                                    ${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top: 25px; display: flex; justify-content: flex-end;">
+                            <button class="btn-primary" onclick="document.getElementById('dashboardBtn').click()">Back to Dashboard</button>
+                        </div>
                     </div>`;
                 const dashboardEl = document.querySelector('.dashboard');
                 if (dashboardEl) dashboardEl.parentNode.insertBefore(sec, dashboardEl);
             }
             showSection(moduleId);
+            updateBreadcrumb([category, linkText]);
         });
     });
 
