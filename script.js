@@ -230,6 +230,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     restoreSession();
 
+    /**
+     * Contextual Header Button Engine
+     * Updates the "Add" button based on the active ERP section
+     */
+    window.updateHeaderAddButton = function(sectionLabel) {
+        const addBtn = document.getElementById('addStudentBtn');
+        if (!addBtn) return;
+
+        const actionConfigs = {
+            'Dashboard': { text: 'Add Student', icon: 'fa-plus' },
+            'Students': { text: 'Add Student', icon: 'fa-user-plus' },
+            'Teachers': { text: 'Add Teacher', icon: 'fa-chalkboard-teacher' },
+            'Enquiries': { text: 'New Enquiry', icon: 'fa-comment-dots' },
+            'Visitor Management': { text: 'Log Visitor', icon: 'fa-walking' },
+            'Applications': { text: 'New Application', icon: 'fa-file-signature' },
+            'Admission Letters': { text: 'Generate Letter', icon: 'fa-envelope-open-text' },
+            'Library': { text: 'Add Book', icon: 'fa-book' },
+            'Inventory': { text: 'Add Item', icon: 'fa-boxes-stacked' },
+            'Staff Directory': { text: 'Add Staff', icon: 'fa-user-tie' },
+            'Leave Management': { text: 'Request Leave', icon: 'fa-calendar-minus' },
+            'Run Payroll': { text: 'Process Payroll', icon: 'fa-money-bill-wave' },
+            'Fees': { text: 'Collect Fee', icon: 'fa-money-bill-transfer' },
+            'Fee Invoices': { text: 'Create Invoice', icon: 'fa-file-invoice-dollar' },
+            'Expenses': { text: 'Add Expense', icon: 'fa-receipt' },
+            'Purchase Requests': { text: 'New Request', icon: 'fa-cart-plus' },
+            'Users': { text: 'Add User', icon: 'fa-user-shield' },
+            'Assignments': { text: 'Post Assignment', icon: 'fa-clipboard-list' },
+            'Online Quizzes': { text: 'Create Quiz', icon: 'fa-stopwatch' },
+            'Notice Board': { text: 'Post Notice', icon: 'fa-bullhorn' }
+        };
+
+        const config = actionConfigs[sectionLabel] || { text: `New ${sectionLabel}`, icon: 'fa-plus' };
+        
+        addBtn.innerHTML = `<i class="fas ${config.icon}"></i> ${config.text}`;
+        addBtn.setAttribute('data-section', sectionLabel);
+        
+        // Visibility Logic: Hide button on purely analytical or log sections
+        const hideOn = ['Audit Logs', 'Backups', 'Analytics', 'System Settings', 'School Branding', 'School Statistics', 'EMIS Reports'];
+        addBtn.style.display = hideOn.includes(sectionLabel) ? 'none' : 'flex';
+    };
+
     // --- Profile Modal Logic ---
     const headerProfile = document.getElementById('headerProfile');
     const profileModal = document.getElementById('profileModal');
@@ -736,6 +777,11 @@ document.addEventListener('DOMContentLoaded', () => {
             navLinks.forEach(n => n.classList.remove('active'));
             link.classList.add('active');
 
+            const linkText = link.querySelector('span')?.innerText.trim() || link.innerText.trim();
+            if (typeof window.updateHeaderAddButton === 'function') {
+                window.updateHeaderAddButton(linkText);
+            }
+
             if (link.id === 'dashboardBtn') {
                 showDashboard();
                 return;
@@ -751,7 +797,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Create or show dynamic department modules
-            const linkText = link.querySelector('span')?.innerText.trim() || link.innerText.trim();
             const parentUl = link.closest('ul.nav-links');
             const category = parentUl?.previousElementSibling?.innerText.trim() || 'General';
             const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
@@ -944,7 +989,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeBtn = document.querySelector('.close-modal');
 
     if (addBtn && modal) {
-        addBtn.onclick = () => modal.classList.add('active');
+        addBtn.onclick = () => {
+            const currentSection = addBtn.getAttribute('data-section') || 'Dashboard';
+            
+            // Branch functionality based on the current section context
+            if (currentSection === 'Dashboard' || currentSection === 'Students') {
+                modal.classList.add('active');
+            } else if (currentSection === 'Users' || currentSection === 'User Roles') {
+                document.getElementById('userRolesBtn')?.click();
+                setTimeout(() => document.getElementById('toggleAddUserFormBtn')?.click(), 100);
+            } else {
+                // Placeholder for other module forms
+                console.log(`Action triggered for ${currentSection}. Form implementation pending.`);
+                modal.classList.add('active'); // Default fallback for UI consistency
+            }
+        };
         closeBtn.onclick = () => modal.classList.remove('active');
         // Close when clicking outside content
         modal.onclick = (e) => {

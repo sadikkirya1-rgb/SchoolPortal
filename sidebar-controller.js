@@ -177,6 +177,7 @@ class SidebarController {
         link.appendChild(icon);
 
         const label = document.createElement('span');
+        label.className = 'submenu-label';
         label.textContent = child.label;
         link.appendChild(label);
 
@@ -301,6 +302,16 @@ class SidebarController {
         if (!e.target.closest('.menu-item-toggle')) {
           allLinks.forEach(l => l.classList.remove('active'));
           link.classList.add('active');
+
+          // Trigger Header Button Update
+          const labelElement = link.querySelector('.menu-item-label') || 
+                               link.querySelector('.submenu-label') || 
+                               link.querySelector('span:not(.menu-item-icon):not(.submenu-icon):not(.menu-item-badge)');
+          const label = labelElement ? labelElement.textContent.trim() : link.textContent.trim();
+          
+          if (typeof window.updateHeaderAddButton === 'function') {
+            window.updateHeaderAddButton(label);
+          }
         }
       });
     });
@@ -477,8 +488,7 @@ class SidebarController {
       'HR Officer': 'hr_officer',
       'Store Manager': 'store_manager',
       'Parent': 'parent',
-      'Student': 'student',
-      'Deputy Head Teacher': 'deputy_head'
+      'Student': 'student'
     };
     return roleMap[roleName] || 'student';
   }
