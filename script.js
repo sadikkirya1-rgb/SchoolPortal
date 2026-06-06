@@ -1011,6 +1011,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Form 019 Submission and Handling
+    const saveStudentBtn = document.getElementById('saveStudentBtn');
+    const studentRegForm = document.getElementById('addStudentForm');
+    
+    if (saveStudentBtn && studentRegForm) {
+        saveStudentBtn.onclick = () => {
+            studentRegForm.requestSubmit();
+        };
+
+        studentRegForm.onsubmit = (e) => {
+            e.preventDefault();
+            const formData = new FormData(studentRegForm);
+            const studentData = Object.fromEntries(formData.entries());
+            console.log("Saving Student Registration (Form 019):", studentData);
+            alert(`Student ${studentData.fullName} registered successfully!`);
+            modal.classList.remove('active');
+            studentRegForm.reset();
+        };
+    }
+
     // Dark Mode Toggle Logic
     const darkToggle = document.getElementById('darkToggle');
     if (darkToggle) {

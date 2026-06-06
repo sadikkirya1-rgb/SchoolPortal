@@ -31,6 +31,122 @@
         white-space: nowrap !important;
         overflow: hidden;
     }
+
+    /* Form 019 - Student Registration Integration */
+    #studentModal .modal-content {
+        max-width: 900px;
+        width: 95%;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .f019-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+
+    .f019-a4 {
+        background: white;
+        padding: 15mm;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        color: #1e293b;
+    }
+
+    .f019-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 3px solid #0d47a1;
+        padding-bottom: 10px;
+    }
+
+    .f019-logo {
+        width: 70px;
+        height: 70px;
+        border: 2px solid #ccc;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: #777;
+    }
+
+    .f019-school {
+        text-align: center;
+        flex: 1;
+    }
+
+    .f019-school h2 {
+        color: #0d47a1;
+        font-size: 22px;
+        margin-bottom: 2px;
+    }
+
+    .f019-school p { font-size: 12px; }
+
+    .f019-title {
+        text-align: center;
+        margin-top: 15px;
+        background: #0d47a1;
+        color: white;
+        padding: 10px;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
+
+    .f019-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-top: 15px;
+    }
+
+    .f019-box { border: 1px solid #d9d9d9; padding: 10px; }
+    .f019-box label { font-size: 12px; font-weight: bold; color: #475569; display: block; }
+    .f019-box input, .f019-box select, .f019-box textarea {
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+        border: 1px solid #d9d9d9;
+        font-family: inherit;
+        border-radius: 4px;
+    }
+
+    .f019-section-title {
+        margin-top: 20px;
+        font-weight: bold;
+        color: #0d47a1;
+        border-left: 4px solid #0d47a1;
+        padding-left: 8px;
+        text-transform: uppercase;
+        font-size: 14px;
+    }
+
+    .f019-photo {
+        width: 120px; height: 140px; border: 2px dashed #999;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; color: #777; margin: auto;
+    }
+
+    .f019-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .f019-table th, .f019-table td { border: 1px solid #ccc; padding: 8px; font-size: 12px; text-align: left; }
+    .f019-table th { background: #e3f2fd; }
+
+    .f019-sign { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+    .f019-line { border-top: 1px solid #000; text-align: center; padding-top: 5px; font-size: 12px; }
+
+    @media print {
+        body * { visibility: hidden; }
+        #studentModal, #studentModal * { visibility: visible; }
+        #studentModal { position: fixed; left: 0; top: 0; width: 100%; height: 100%; background: white; z-index: 9999; }
+        .modal-header, .f019-toolbar, .close-modal { display: none !important; }
+        .modal-overlay { background: none; }
+        .modal-content { box-shadow: none; border: none; width: 100% !important; max-width: none !important; }
+    }
 </style>
 </head>
 
@@ -557,35 +673,115 @@
 <div class="modal-overlay" id="studentModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Add New Student</h3>
+            <h3>Form 019 - Student Registration</h3>
             <i class="fas fa-times close-modal"></i>
         </div>
-        <form id="addStudentForm">
-            <div class="form-group">
-                <label>Full Name</label>
-                <input type="text" placeholder="Enter student name" required>
+
+        <div class="f019-toolbar">
+            <button class="btn-secondary" onclick="window.print()"><i class="fas fa-print"></i> Print Form</button>
+            <button class="btn-primary" id="saveStudentBtn"><i class="fas fa-save"></i> Save Record</button>
+        </div>
+
+        <form id="addStudentForm" class="f019-a4">
+            <!-- HEADER -->
+            <div class="f019-header">
+                <div class="f019-logo">LOGO</div>
+                <div class="f019-school">
+                    <h2>EDUMASTER UGANDA</h2>
+                    <p>P.O Box 000, Kampala Uganda | Tel: +256 700 000000</p>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Class/Stream</label>
-                <select>
-                    <option>S.1 Blue</option>
-                    <option>S.2 Red</option>
-                    <option>S.3 Green</option>
-                    <option>S.4 Yellow</option>
-                </select>
+
+            <!-- TITLE -->
+            <div class="f019-title">
+                FORM 019 - STUDENT REGISTRATION FORM
             </div>
-            <div class="form-group">
-                <label>Parent/Guardian Contact</label>
-                <input type="tel" placeholder="+256 ...">
+
+            <!-- BASIC INFO -->
+            <div class="f019-grid">
+                <div class="f019-box">
+                    <label>Student Full Name</label>
+                    <input type="text" name="fullName" placeholder="Enter full name" required>
+                </div>
+                <div class="f019-box">
+                    <label>Admission Number</label>
+                    <input type="text" name="admissionNo" placeholder="Auto-generated or Manual">
+                </div>
+                <div class="f019-box">
+                    <label>Gender</label>
+                    <select name="gender">
+                        <option>Male</option>
+                        <option>Female</option>
+                    </select>
+                </div>
+                <div class="f019-box">
+                    <label>Date of Birth</label>
+                    <input type="date" name="dob">
+                </div>
             </div>
-            <div class="form-group">
-                <label>Gender</label>
-                <select>
-                    <option>Male</option>
-                    <option>Female</option>
-                </select>
+
+            <!-- PHOTO + CLASS -->
+            <div class="f019-grid">
+                <div class="f019-box">
+                    <div class="f019-photo">STUDENT PHOTO</div>
+                </div>
+                <div class="f019-box">
+                    <label>Class Admitted To</label>
+                    <select name="class">
+                        <option>S.1 Blue</option>
+                        <option>S.2 Red</option>
+                        <option>S.3 Green</option>
+                        <option>S.4 Yellow</option>
+                    </select>
+                    <label>Previous School</label>
+                    <input type="text" name="prevSchool">
+                    <label>Admission Date</label>
+                    <input type="date" name="admissionDate">
+                </div>
             </div>
-            <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">Register Student</button>
+
+            <!-- PARENT INFO -->
+            <div class="f019-section-title">PARENT / GUARDIAN INFORMATION</div>
+            <div class="f019-grid">
+                <div class="f019-box">
+                    <label>Father / Guardian Name</label>
+                    <input type="text" name="fatherName">
+                </div>
+                <div class="f019-box">
+                    <label>Mother / Guardian Name</label>
+                    <input type="text" name="motherName">
+                </div>
+                <div class="f019-box">
+                    <label>Phone Number</label>
+                    <input type="tel" name="parentContact" placeholder="+256 ...">
+                </div>
+                <div class="f019-box">
+                    <label>Address</label>
+                    <input type="text" name="address">
+                </div>
+            </div>
+
+            <!-- MEDICAL -->
+            <div class="f019-section-title">MEDICAL INFORMATION</div>
+            <div class="f019-box">
+                <label>Medical Notes / Allergies</label>
+                <textarea name="medicalNotes" rows="2"></textarea>
+            </div>
+
+            <!-- ACADEMIC -->
+            <div class="f019-section-title">ACADEMIC PLACEMENT</div>
+            <table class="f019-table">
+                <tr><th>Subject Strength</th><th>Remarks</th></tr>
+                <tr><td>Math</td><td><input type="text" name="strengthMath"></td></tr>
+                <tr><td>English</td><td><input type="text" name="strengthEng"></td></tr>
+                <tr><td>Science</td><td><input type="text" name="strengthSci"></td></tr>
+            </table>
+
+            <!-- SIGNATURE -->
+            <div class="f019-sign">
+                <div class="f019-line">Registrar</div>
+                <div class="f019-line">Head Teacher</div>
+            </div>
         </form>
     </div>
 </div>
