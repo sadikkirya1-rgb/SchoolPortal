@@ -1,0 +1,123 @@
+{
+  "roles": [
+    "super_admin", "director", "head_teacher", "deputy_head", 
+    "bursar", "teacher", "librarian", "hr_officer", 
+    "store_manager", "parent", "student"
+  ],
+  "navigation": [
+    {
+      "id": "dashboard",
+      "label": "Dashboard",
+      "icon": "fas fa-th-large",
+      "href": "#/dashboard",
+      "roles": ["super_admin", "director", "head_teacher", "deputy_head", "bursar", "teacher", "librarian", "hr_officer", "store_manager", "parent", "student"]
+    },
+    {
+      "id": "front_office",
+      "label": "Front Office",
+      "icon": "fas fa-building",
+      "roles": ["super_admin", "director", "head_teacher", "deputy_head"],
+      "children": [
+        {"id": "enquiries", "label": "Enquiries", "icon": "fas fa-message", "href": "#/front-office/enquiries", "badge": "pending_count"},
+        {"id": "visitors", "label": "Visitor Management", "icon": "fas fa-users", "href": "#/front-office/visitors"},
+        {"id": "visitor_logs", "label": "Visitor Logs", "icon": "fas fa-clipboard-list", "href": "#/front-office/visitor-logs"},
+        {"id": "call_logs", "label": "Call Logs", "icon": "fas fa-phone", "href": "#/front-office/call-logs"},
+        {"id": "dispatch", "label": "Dispatch", "icon": "fas fa-paper-plane", "href": "#/front-office/dispatch"},
+        {"id": "announcements", "label": "Announcements", "icon": "fas fa-bullhorn", "href": "#/front-office/announcements", "badge": "unread_count"},
+        {"id": "calendar", "label": "Calendar", "icon": "fas fa-calendar", "href": "#/front-office/calendar"},
+        {"id": "events", "label": "Events", "icon": "fas fa-calendar-check", "href": "#/front-office/events"},
+        {"id": "documents", "label": "Documents", "icon": "fas fa-folder", "href": "#/front-office/documents"}
+      ]
+    },
+    {
+      "id": "admissions",
+      "label": "Admissions",
+      "icon": "fas fa-user-plus",
+      "roles": ["super_admin", "director", "head_teacher", "deputy_head"],
+      "children": [
+        {"id": "admission_list", "label": "Admissions", "icon": "fas fa-list", "href": "#/admissions/list"},
+        {"id": "applications", "label": "Applications", "icon": "fas fa-file-alt", "href": "#/admissions/applications", "badge": "new_count"},
+        {"id": "interviews", "label": "Interviews", "icon": "fas fa-clipboard-check", "href": "#/admissions/interviews"},
+        {"id": "letters", "label": "Admission Letters", "icon": "fas fa-envelope", "href": "#/admissions/letters"},
+        {"id": "waiting_list", "label": "Waiting List", "icon": "fas fa-clock", "href": "#/admissions/waiting-list"},
+        {"id": "registration", "label": "Student Registration", "icon": "fas fa-id-card", "href": "#/admissions/registration"},
+        {"id": "transfers", "label": "Student Transfers", "icon": "fas fa-sync", "href": "#/admissions/transfers"}
+      ]
+    },
+    {
+      "id": "academic",
+      "label": "Academic",
+      "icon": "fas fa-graduation-cap",
+      "roles": ["super_admin", "director", "head_teacher", "deputy_head", "teacher", "student", "parent"],
+      "children": [
+        {"id": "students", "label": "Students", "icon": "fas fa-user-graduate", "href": "#/academic/students"},
+        {"id": "teachers", "label": "Teachers", "icon": "fas fa-chalkboard-teacher", "href": "#/academic/teachers"},
+        {"id": "curriculum", "label": "Curriculum", "icon": "fas fa-book-open", "href": "#/academic/curriculum"},
+        {"id": "subjects", "label": "Subjects", "icon": "fas fa-book", "href": "#/academic/subjects"},
+        {"id": "classes", "label": "Classes", "icon": "fas fa-school", "href": "#/academic/classes"},
+        {"id": "streams", "label": "Streams", "icon": "fas fa-layer-group", "href": "#/academic/streams"},
+        {"id": "timetables", "label": "Timetables", "icon": "fas fa-calendar-alt", "href": "#/academic/timetables"},
+        {"id": "lesson_plans", "label": "Lesson Plans", "icon": "fas fa-book-reader", "href": "#/academic/lesson-plans"},
+        {"id": "schemes", "label": "Schemes of Work", "icon": "fas fa-file-excel", "href": "#/academic/schemes"},
+        {"id": "uneb", "label": "UNEB Exams", "icon": "fas fa-award", "href": "#/academic/uneb"},
+        {"id": "assessment", "label": "Continuous Assessment", "icon": "fas fa-tasks", "href": "#/academic/assessment"},
+        {"id": "reports", "label": "Report Cards", "icon": "fas fa-chart-bar", "href": "#/academic/reports"},
+        {"id": "transcripts", "label": "Academic Transcripts", "icon": "fas fa-scroll", "href": "#/academic/transcripts"},
+        {"id": "library", "label": "Library", "icon": "fas fa-book-medical", "href": "#/academic/library"},
+        {"id": "id_cards", "label": "ID Cards", "icon": "fas fa-id-badge", "href": "#/academic/id-cards"},
+        {"id": "certificates", "label": "Certificates", "icon": "fas fa-certificate", "href": "#/academic/certificates"}
+      ]
+    },
+    {
+        "id": "elearning",
+        "label": "E-Learning",
+        "icon": "fas fa-laptop-code",
+        "roles": ["super_admin", "teacher", "student"],
+        "children": [
+            {"id": "assignments", "label": "Assignments", "icon": "fas fa-clipboard-list", "href": "#/elearning/assignments"},
+            {"id": "materials", "label": "Study Materials", "icon": "fas fa-book", "href": "#/elearning/materials"},
+            {"id": "quizzes", "label": "Online Quizzes", "icon": "fas fa-question-circle", "href": "#/elearning/quizzes"},
+            {"id": "qbank", "label": "Question Bank", "icon": "fas fa-database", "href": "#/elearning/qbank"},
+            {"id": "vclasses", "label": "Online Classes", "icon": "fas fa-desktop", "href": "#/elearning/vclasses"},
+            {"id": "analytics", "label": "Learning Analytics", "icon": "fas fa-chart-line", "href": "#/elearning/analytics"}
+        ]
+    },
+    {
+        "id": "payroll",
+        "label": "Payroll",
+        "icon": "fas fa-calculator",
+        "roles": ["super_admin", "director", "bursar", "hr_officer"],
+        "children": [
+            {"id": "run_payroll", "label": "Run Payroll", "icon": "fas fa-money-check-alt", "href": "#/payroll/run"},
+            {"id": "slips", "label": "Pay Slips", "icon": "fas fa-file-invoice-dollar", "href": "#/payroll/slips"},
+            {"id": "nssf", "label": "NSSF Reports", "icon": "fas fa-shield-alt", "href": "#/payroll/nssf"},
+            {"id": "paye", "label": "PAYE Reports", "icon": "fas fa-file-percent", "href": "#/payroll/paye"}
+        ]
+    },
+    {
+        "id": "compliance",
+        "label": "Govt & Compliance",
+        "icon": "fas fa-balance-scale",
+        "roles": ["super_admin", "director", "head_teacher"],
+        "children": [
+            {"id": "emis", "label": "EMIS Reports", "icon": "fas fa-file-chart-column", "href": "#/compliance/emis"},
+            {"id": "uneb_candidates", "label": "UNEB Candidates", "icon": "fas fa-user-check", "href": "#/compliance/uneb"},
+            {"id": "ministry", "label": "Ministry Reports", "icon": "fas fa-landmark", "href": "#/compliance/ministry"}
+        ]
+    },
+    {
+      "id": "system_admin",
+      "label": "System Admin",
+      "icon": "fas fa-cogs",
+      "roles": ["super_admin"],
+      "children": [
+        {"id": "users", "label": "Users", "icon": "fas fa-users-cog", "href": "#/admin/users"},
+        {"id": "roles", "label": "Roles & Permissions", "icon": "fas fa-user-shield", "href": "#/admin/roles"},
+        {"id": "audit", "label": "Audit Logs", "icon": "fas fa-history", "href": "#/admin/audit"},
+        {"id": "backups", "label": "Backups", "icon": "fas fa-database", "href": "#/admin/backups"},
+        {"id": "settings", "label": "System Settings", "icon": "fas fa-sliders-h", "href": "#/admin/settings"},
+        {"id": "branding", "label": "School Branding", "icon": "fas fa-palette", "href": "#/admin/branding"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+<style>
+    :root {
+        --sidebar-width: 320px;
+        --sidebar-collapsed-width: 80px;
+        --primary-gradient: linear-gradient(135deg, #4f46e5, #06b6d4);
+        --sidebar-bg: #ffffff;
+        --sidebar-text: #475569;
+        --sidebar-hover: #f1f5f9;
+        --active-color: #4f46e5;
+    }
+
+    .sidebar-wrapper {
+        width: var(--sidebar-width);
+        height: 100vh;
+        background: var(--sidebar-bg);
+        border-right: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: fixed;
+        z-index: 1000;
+    }
+
+    .sidebar-header {
+        padding: 24px;
+        background: var(--primary-gradient);
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .sidebar-search {
+        padding: 15px 20px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .sidebar-search input {
+        width: 100%;
+        padding: 10px 15px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        font-family: 'Poppins', sans-serif;
+        font-size: 13px;
+    }
+
+    .menu-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px 0;
+    }
+
+    .menu-item-link {
+        display: flex;
+        align-items: center;
+        padding: 12px 24px;
+        color: var(--sidebar-text);
+        text-decoration: none;
+        transition: all 0.2s;
+        gap: 15px;
+        font-weight: 500;
+    }
+
+    .menu-item-link:hover {
+        background: var(--sidebar-hover);
+        color: var(--active-color);
+    }
+
+    .menu-item-badge {
+        margin-left: auto;
+        background: #ef4444;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 10px;
+    }
+</style>
+
+<aside class="sidebar-wrapper">
+    <div class="sidebar-header">
+        <div class="school-logo"><i class="fas fa-school fa-2x"></i></div>
+        <div class="school-info">
+            <h3 style="margin:0; font-size:16px;">EduMaster ERP</h3>
+            <small style="opacity:0.8;">Uganda Edition</small>
+        </div>
+    </div>
+    <div class="sidebar-search">
+        <input type="text" id="menuSearch" placeholder="Quick search modules...">
+    </div>
+    <nav class="menu-container">
+        <ul id="mainMenu" style="list-style:none; padding:0; margin:0;">
+            <!-- Populated by sidebar-controller.js -->
+        </ul>
+    </nav>
+</aside>
