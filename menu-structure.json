@@ -25,6 +25,7 @@
         {"id": "incoming_mail", "label": "Incoming Mail", "icon": "fas fa-inbox", "href": "#/front-office/incoming-mail"},
         {"id": "follow_ups", "label": "Follow-ups", "icon": "fas fa-bell", "href": "#/front-office/follow-ups"},
         {"id": "front_office_reports", "label": "Reports", "icon": "fas fa-chart-column", "href": "#/front-office/reports"},
+        {"id": "notifications", "label": "Notifications", "icon": "fas fa-bell", "href": "#/front-office/notifications"},
         {"id": "visitor_logs", "label": "Visitor Logs", "icon": "fas fa-clipboard-list", "href": "#/front-office/visitor-logs"},
         {"id": "call_logs", "label": "Call Logs", "icon": "fas fa-phone", "href": "#/front-office/call-logs"},
         {"id": "dispatch", "label": "Dispatch", "icon": "fas fa-paper-plane", "href": "#/front-office/dispatch"},

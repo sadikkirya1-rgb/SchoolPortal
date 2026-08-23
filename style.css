@@ -1,3 +1,4 @@
+.front-office-kpis>div.is-clickable{cursor:pointer}.front-office-kpis>div.is-clickable:hover{border-color:#93c5fd;box-shadow:0 8px 18px rgba(14,165,233,.14);transform:translateY(-2px)}
 *{
 margin:0;
 padding:0;
@@ -905,6 +906,10 @@ color:#64748b;
     color:#fff;
     transform:translateY(-1px);
 }
+.utility-module .utility-entry-card{margin-bottom:16px}
+.utility-module .table-card{box-shadow:none;border:1px solid #e2e8f0}
+.utility-module .table-card table{width:100%;min-width:650px}
+.utility-module .table-card small{color:#64748b}
 .enquiries-stats{
     display:grid;
     grid-template-columns:repeat(4,1fr);

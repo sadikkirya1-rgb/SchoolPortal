@@ -251,6 +251,11 @@ document.addEventListener('DOMContentLoaded', () => {
             'Incoming Mail': { text: 'Register Incoming Mail', icon: 'fa-inbox' },
             'Follow-ups': { text: 'New Follow-up', icon: 'fa-rotate' },
             'Reports': { text: 'Export Report', icon: 'fa-file-export' },
+            'Visitor Logs': { text: 'New Visitor Log', icon: 'fa-clipboard-list' },
+            'Announcements': { text: 'New Announcement', icon: 'fa-bullhorn' },
+            'Calendar': { text: 'New Calendar Event', icon: 'fa-calendar-plus' },
+            'Documents': { text: 'Add Document', icon: 'fa-folder-plus' },
+            'Notifications': { text: 'New Notification', icon: 'fa-bell' },
             'Applications': { text: 'New Application', icon: 'fa-file-signature' },
             'Admission Letters': { text: 'Generate Letter', icon: 'fa-envelope-open-text' },
             'Library': { text: 'Add Book', icon: 'fa-book' },
@@ -423,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const read = key => { try { return JSON.parse(localStorage.getItem(key)) || []; } catch (error) { return []; } };
         const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
         const today = new Date().toISOString().slice(0, 10);
-        const refresh = () => {
+            const refresh = () => {
             const enquiries = read('edumasterEnquiries'); const calls = read('edumasterCallLogs'); const visitors = read('edumasterVisitors'); const appointments = read('edumasterAppointments'); const mail = read('edumasterIncomingMail'); const dispatches = read('edumasterDispatches'); const followups = read('edumasterFollowUps');
             const dated = (items, fields) => items.filter(item => fields.some(field => item[field] === today)); const todayAppointments = dated(appointments, ['appointmentDate']).slice(0, 5); const todayVisitors = dated(visitors, ['visitDate']); const todayMail = dated(mail, ['receivedDate']); const todayDispatches = dated(dispatches, ['dispatchDate']); const todayCalls = dated(calls, ['callDate']); const todayEnquiries = enquiries.filter(item => item.createdAt?.slice(0, 10) === today);
             const counts = { enquiries: todayEnquiries.length, calls: todayCalls.length, visitors: todayVisitors.length, appointments: todayAppointments.length, mail: todayMail.length, dispatches: todayDispatches.length, followups: followups.filter(item => !['Completed', 'Cancelled'].includes(item.status)).length };
@@ -433,7 +438,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const alerts = []; const pendingFollowups = followups.filter(item => !['Completed', 'Cancelled'].includes(item.status)); const overdue = pendingFollowups.filter(item => item.followUpDate && item.followUpDate < today); const inside = visitors.filter(item => ['Checked In', 'In Meeting'].includes(item.status)); if (pendingFollowups.length) alerts.push(['warning', `${pendingFollowups.length} follow-ups pending`, 'Review pending follow-up actions.']); if (overdue.length) alerts.push(['danger', `${overdue.length} overdue follow-ups`, 'Some follow-ups require immediate attention.']); if (inside.length) alerts.push(['info', `${inside.length} visitors currently inside`, 'Remember to record visitor check-outs.']); if (!alerts.length) alerts.push(['success', 'Front Office is on track', 'No urgent actions require attention.']); sec.querySelector('[data-front-office-alerts]').innerHTML = alerts.map(item => `<div class="front-office-alert ${item[0]}"><i class="fas fa-circle-exclamation"></i><span><strong>${item[1]}</strong><small>${item[2]}</small></span></div>`).join('');
             const metrics = { enquiries: enquiries.length ? Math.round(enquiries.filter(item => ['Completed', 'Resolved', 'Closed'].includes(item.status)).length / enquiries.length * 100) : 0, visitors: visitors.length ? Math.round(visitors.filter(item => item.status === 'Checked Out').length / visitors.length * 100) : 0, dispatches: dispatches.length ? Math.round(dispatches.filter(item => ['Delivered', 'Collected'].includes(item.status)).length / dispatches.length * 100) : 0, followups: followups.length ? Math.round(followups.filter(item => item.status === 'Completed').length / followups.length * 100) : 0 }; Object.entries(metrics).forEach(([name, value]) => { sec.querySelector(`[data-front-office-summary="${name}"]`).textContent = `${value}%`; sec.querySelector(`[data-front-office-bar="${name}"]`).style.width = `${value}%`; });
         };
-        sec.querySelector('[data-front-office-refresh]').addEventListener('click', refresh); sec.querySelectorAll('[data-front-office-open]').forEach(button => button.addEventListener('click', () => { const link = Array.from(document.querySelectorAll('.nav-links a')).find(item => (item.querySelector('span')?.innerText.trim() || item.innerText.trim()) === button.dataset.frontOfficeOpen); link?.click(); })); refresh();
+        sec.querySelector('[data-front-office-refresh]').addEventListener('click', refresh); sec.querySelectorAll('[data-front-office-open]').forEach(button => button.addEventListener('click', () => { const link = Array.from(document.querySelectorAll('.nav-links a')).find(item => (item.querySelector('span')?.innerText.trim() || item.innerText.trim()) === button.dataset.frontOfficeOpen); link?.click(); }));
+            window.addEventListener('front-office-data-changed', refresh); refresh();
         return sec;
     }
 
@@ -599,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sec.className = 'module enquiries-module reports-module';
         sec.id = 'module_front_office_reports';
         sec.innerHTML = `
-            <div class="module-header"><div><h2>Front Office Reports & Analytics</h2><p>Department: ${category}</p></div><button class="btn-secondary" type="button" data-report-export><i class="fas fa-file-export"></i> Export Report</button></div>
+            <div class="module-header"><div><h2>Front Office Reports & Analytics</h2><p>Department: ${category}</p></div><button class="btn-primary" type="button" data-report-export><i class="fas fa-file-export"></i> Export Report</button></div>
             <div class="report-filter-bar"><label>Report Period <select data-report-period><option value="today">Today</option><option value="week" selected>This Week</option><option value="month">This Month</option><option value="all">All Records</option></select></label><button class="btn-primary" type="button" data-report-apply><i class="fas fa-filter"></i> Apply Filters</button></div>
             <div class="report-kpis"><div class="report-kpi"><span>Enquiries</span><strong data-report-kpi="enquiries">0</strong><small>Total recorded</small></div><div class="report-kpi"><span>Calls</span><strong data-report-kpi="calls">0</strong><small>Incoming and outgoing</small></div><div class="report-kpi"><span>Visitors</span><strong data-report-kpi="visitors">0</strong><small>Registered visitors</small></div><div class="report-kpi"><span>Appointments</span><strong data-report-kpi="appointments">0</strong><small>Scheduled visits</small></div><div class="report-kpi"><span>Follow-ups</span><strong data-report-kpi="followups">0</strong><small>Pending actions</small></div><div class="report-kpi"><span>Dispatch</span><strong data-report-kpi="dispatch">0</strong><small>Outgoing items</small></div><div class="report-kpi"><span>Incoming Mail</span><strong data-report-kpi="mail">0</strong><small>Received correspondence</small></div></div>
             <div class="reports-grid"><div class="enquiry-card"><div class="enquiry-card-header"><h3>Front Office Activity</h3><p>Activity distribution across the selected period.</p></div><div class="report-chart" data-report-chart></div></div><div class="enquiry-card"><div class="enquiry-card-header"><h3>Module Activity</h3><p>Activity by Front Office module.</p></div><div class="enquiry-card-body report-module-list" data-report-modules></div></div></div>
@@ -620,6 +626,26 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const exportReport = () => { const rows = [['Front Office Report'], ['Module', 'Total'], ...Object.entries(keys).map(([name, key]) => [name, read(key).length])]; const csv = rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\n'); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'front-office-report.csv'; link.click(); URL.revokeObjectURL(link.href); };
         sec.querySelector('[data-report-period]').addEventListener('change', render); sec.querySelector('[data-report-apply]').addEventListener('click', render); sec.querySelector('[data-report-export]').addEventListener('click', exportReport); sec.querySelectorAll('[data-quick-report]').forEach(button => button.addEventListener('click', () => alert(`${button.dataset.quickReport} selected.`))); render(); return sec;
+    }
+
+    function createFrontOfficeRecordsModule(label, category) {
+        const moduleId = `module_${label.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+        const storageKey = `edumaster${label.replace(/[^a-z0-9]/gi, '')}`;
+        const config = {
+            'Visitor Logs': ['Visitor Name', 'Host / Department', 'Visit Date', 'Visit Status', 'Visitor log details'],
+            'Announcements': ['Announcement Title', 'Audience', 'Publish Date', 'Status', 'Announcement details'],
+            'Calendar': ['Event Title', 'Location / Owner', 'Event Date', 'Event Status', 'Event details'],
+            'Documents': ['Document Name', 'Document Category', 'Upload Date', 'Access Status', 'Document notes'],
+            'Notifications': ['Notification Title', 'Recipient / Module', 'Due Date', 'Notification Status', 'Notification details']
+        }[label];
+        const sec = document.createElement('section'); sec.className = 'module enquiries-module utility-module'; sec.id = moduleId;
+        sec.innerHTML = `<div class="module-header"><div><h2>${label}</h2><p>Department: ${category}</p></div><button class="${['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(label) ? 'btn-primary' : 'btn-secondary'}" type="button" data-utility-new><i class="fas fa-plus"></i> ${label === 'Documents' ? 'Add Document' : `New ${label.replace('Logs', 'Log')}`}</button></div><div class="utility-entry-card enquiry-card hidden"><div class="enquiry-card-header"><h3>${label} Entry</h3><p>Capture and manage Front Office records.</p></div><div class="enquiry-card-body"><form data-utility-form><div class="enquiry-form-grid"><div class="enquiry-form-group"><label>${config[0]}</label><input name="title" required></div><div class="enquiry-form-group"><label>${config[1]}</label><input name="owner"></div><div class="enquiry-form-group"><label>${config[2]}</label><input name="date" type="date" required></div><div class="enquiry-form-group"><label>${config[3]}</label><select name="status"><option>Open</option><option>Active</option><option>Published</option><option>Scheduled</option><option>Completed</option><option>Read</option><option>Archived</option></select></div><div class="enquiry-form-group full"><label>${config[4]}</label><textarea name="details"></textarea></div></div><div class="enquiry-form-actions"><button class="btn-secondary" type="reset">Clear</button><button class="btn-secondary" type="button" data-utility-cancel>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Save Record</button></div></form></div></div><div class="enquiries-table"><div class="table-card"><h3 class="table-title">${label} Register</h3><table><thead><tr><th>Title / Name</th><th>Owner / Recipient</th><th>Date</th><th>Status</th><th>Details</th><th>Actions</th></tr></thead><tbody data-utility-table></tbody></table></div></div>`;
+        const form = sec.querySelector('[data-utility-form]'); const card = sec.querySelector('.utility-entry-card'); const table = sec.querySelector('[data-utility-table]'); let editingIndex = null;
+        const read = () => { try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; } }; const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); const close = () => { card.classList.add('hidden'); form.reset(); editingIndex = null; };
+        const render = () => { const records = read(); table.innerHTML = records.length ? records.map((record, index) => `<tr><td>${escape(record.title)}</td><td>${escape(record.owner || '-')}</td><td>${escape(record.date)}</td><td><span class="badge pending">${escape(record.status)}</span></td><td>${escape(record.details || '-')}</td><td><div class="enquiry-actions"><button class="enquiry-action" type="button" data-utility-action="edit" data-index="${index}" title="Edit"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-utility-action="delete" data-index="${index}" title="Delete"><i class="fas fa-trash"></i></button><button class="enquiry-action" type="button" data-utility-action="print" data-index="${index}" title="Print"><i class="fas fa-print"></i></button></div></td></tr>`).join('') : `<tr><td colspan="6" style="text-align:center;padding:25px;color:#94a3b8;">No ${label.toLowerCase()} records yet.</td></tr>`; };
+        sec.querySelector('[data-utility-new]').addEventListener('click', () => { if (!card.classList.contains('hidden')) { close(); return; } card.classList.remove('hidden'); form.elements.date.value = new Date().toISOString().slice(0, 10); form.elements.title.focus(); }); sec.querySelector('[data-utility-cancel]').addEventListener('click', close);
+        form.addEventListener('submit', event => { event.preventDefault(); if (!form.checkValidity()) { form.reportValidity(); return; } const records = read(); const record = Object.fromEntries(new FormData(form).entries()); record.createdAt = new Date().toISOString(); if (editingIndex === null) records.unshift(record); else records[editingIndex] = record; localStorage.setItem(storageKey, JSON.stringify(records)); close(); render(); window.dispatchEvent(new Event('front-office-data-changed')); });
+        table.addEventListener('click', event => { const button = event.target.closest('[data-utility-action]'); if (!button) return; const records = read(); const index = Number(button.dataset.index); const record = records[index]; if (!record) return; if (button.dataset.utilityAction === 'delete') { if (!confirm(`Delete ${record.title || 'this record'}?`)) return; records.splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(records)); render(); return; } if (button.dataset.utilityAction === 'edit') { Object.entries(record).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; }); editingIndex = index; card.classList.remove('hidden'); return; } const printWindow = window.open('', '_blank', 'width=700,height=600'); if (!printWindow) return; printWindow.document.write(`<html><head><title>${escape(label)}</title></head><body style="font-family:Arial;padding:30px"><h1>${escape(label)}</h1>${Object.entries(record).map(([name, value]) => `<p><strong>${escape(name)}:</strong> ${escape(value || '-')}</p>`).join('')}</body></html>`); printWindow.document.close(); printWindow.print(); }); render(); return sec;
     }
 
     function createFollowUpsModule(category) {
@@ -1528,6 +1554,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(linkText)) {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
+                const moduleId = `module_${linkText.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+                let utilityModule = document.getElementById(moduleId);
+                if (!utilityModule) {
+                    utilityModule = createFrontOfficeRecordsModule(linkText, category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(utilityModule, dashboardEl);
+                }
+                showSection(moduleId);
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
             // Create or show dynamic department modules
             const parentUl = link.closest('ul.nav-links');
             const category = parentUl?.previousElementSibling?.innerText.trim() || 'General';
@@ -1734,9 +1775,16 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentSection === 'Users' || currentSection === 'User Roles') {
                 document.getElementById('userRolesBtn')?.click();
                 setTimeout(() => document.getElementById('toggleAddUserFormBtn')?.click(), 100);
-            } else if (currentSection === 'Enquiries' || currentSection === 'Call Logs' || currentSection === 'Dispatch' || currentSection === 'Visitors' || currentSection === 'Visitor Management' || currentSection === 'Appointments' || currentSection === 'Incoming Mail' || currentSection === 'Follow-ups' || currentSection === 'Reports') {
+            } else if (currentSection === 'Enquiries' || currentSection === 'Call Logs' || currentSection === 'Dispatch' || currentSection === 'Visitors' || currentSection === 'Visitor Management' || currentSection === 'Appointments' || currentSection === 'Incoming Mail' || currentSection === 'Follow-ups' || currentSection === 'Reports' || ['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(currentSection)) {
                 if (currentSection === 'Reports') {
-                    document.querySelector('[data-menu-id="front_office_reports"]')?.click();
+                    Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Reports')?.click();
+                    document.getElementById('module_front_office_reports')?.querySelector('[data-report-export]')?.click();
+                    return;
+                }
+                if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(currentSection)) {
+                    Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === currentSection)?.click();
+                    const utilityModuleId = `module_${currentSection.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+                    document.getElementById(utilityModuleId)?.querySelector('[data-utility-new]')?.click();
                     return;
                 }
                 const moduleId = currentSection === 'Call Logs' ? 'module_call_logs' : currentSection === 'Dispatch' ? 'module_dispatch' : currentSection === 'Visitors' || currentSection === 'Visitor Management' ? 'module_visitors' : currentSection === 'Appointments' ? 'module_appointments' : currentSection === 'Incoming Mail' ? 'module_incoming_mail' : currentSection === 'Follow-ups' ? 'module_follow_ups' : 'module_enquiries';
