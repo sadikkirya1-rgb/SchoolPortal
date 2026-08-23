@@ -124,6 +124,7 @@ class SidebarController {
     const link = document.createElement('a');
     link.href = item.href || '#';
     link.className = 'menu-item-link';
+    link.dataset.menuId = item.id || '';
 
     // Icon
     const icon = document.createElement('span');
@@ -170,6 +171,7 @@ class SidebarController {
         const link = document.createElement('a');
         link.href = child.href || '#';
         link.className = 'submenu-link';
+        link.dataset.menuId = child.id || '';
 
         const icon = document.createElement('span');
         icon.className = 'submenu-icon';

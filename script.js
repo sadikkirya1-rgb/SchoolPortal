@@ -243,7 +243,14 @@ document.addEventListener('DOMContentLoaded', () => {
             'Students': { text: 'Add Student', icon: 'fa-user-plus' },
             'Teachers': { text: 'Add Teacher', icon: 'fa-chalkboard-teacher' },
             'Enquiries': { text: 'New Enquiry', icon: 'fa-comment-dots' },
-            'Visitor Management': { text: 'Log Visitor', icon: 'fa-walking' },
+            'Call Logs': { text: 'New Call', icon: 'fa-phone' },
+            'Dispatch': { text: 'New Dispatch', icon: 'fa-paper-plane' },
+            'Visitors': { text: 'New Visitor', icon: 'fa-user-plus' },
+            'Visitor Management': { text: 'New Visitor', icon: 'fa-user-plus' },
+            'Appointments': { text: 'New Appointment', icon: 'fa-calendar-plus' },
+            'Incoming Mail': { text: 'Register Incoming Mail', icon: 'fa-inbox' },
+            'Follow-ups': { text: 'New Follow-up', icon: 'fa-rotate' },
+            'Reports': { text: 'Export Report', icon: 'fa-file-export' },
             'Applications': { text: 'New Application', icon: 'fa-file-signature' },
             'Admission Letters': { text: 'Generate Letter', icon: 'fa-envelope-open-text' },
             'Library': { text: 'Add Book', icon: 'fa-book' },
@@ -380,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function hideAllContentAreas(){
-        const sections = ['.dashboard', '.modules', '.charts', '.table-card', '#userRolesSection'];
+        const sections = ['.main > .dashboard', '.main > .modules', '.main > .charts', '.main > .table-card', '#userRolesSection'];
         sections.forEach(sel => {
             document.querySelectorAll(sel).forEach(el => el.classList.add('hidden'));
         });
@@ -396,13 +403,612 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showDashboard(){
         hideAllContentAreas();
-        document.querySelectorAll('.dashboard, .modules, .charts, .table-card').forEach(el => {
+        document.querySelectorAll('.main > .dashboard, .main > .modules, .main > .charts, .main > .table-card').forEach(el => {
             if (el) el.classList.remove('hidden');
         });
         updateBreadcrumb(['Main', 'Dashboard']);
     }
 
+    function createFrontOfficeDashboard(category) {
+        const sec = document.createElement('section');
+        sec.className = 'module front-office-dashboard';
+        sec.id = 'module_front_office_dashboard';
+        sec.innerHTML = `
+            <div class="front-office-dashboard-header"><div><h2>Front Desk Dashboard</h2><p>Department: ${category} | School Reception & Front Office</p></div><div class="front-office-dashboard-actions"><span data-front-office-date></span><button class="btn-secondary" type="button" data-front-office-refresh><i class="fas fa-rotate"></i> Refresh</button></div></div>
+            <div class="front-office-welcome"><div><h3>Good morning, Front Desk</h3><p>Today's reception overview and important activities requiring attention.</p></div><div><button class="btn-primary" type="button" data-front-office-open="Enquiries"><i class="fas fa-plus"></i> New Enquiry</button><button class="btn-primary" type="button" data-front-office-open="Visitors"><i class="fas fa-user-plus"></i> Register Visitor</button></div></div>
+            <div class="front-office-kpis"><div><i class="fas fa-clipboard-list"></i><span>Enquiries</span><strong data-front-office-count="enquiries">0</strong><small>Today's enquiries</small></div><div><i class="fas fa-phone"></i><span>Calls</span><strong data-front-office-count="calls">0</strong><small>Calls logged today</small></div><div><i class="fas fa-users"></i><span>Visitors</span><strong data-front-office-count="visitors">0</strong><small>Registered today</small></div><div><i class="fas fa-calendar-check"></i><span>Appointments</span><strong data-front-office-count="appointments">0</strong><small>Today's appointments</small></div><div><i class="fas fa-inbox"></i><span>Incoming Mail</span><strong data-front-office-count="mail">0</strong><small>Received today</small></div><div><i class="fas fa-paper-plane"></i><span>Dispatch</span><strong data-front-office-count="dispatches">0</strong><small>Outgoing items</small></div><div><i class="fas fa-rotate"></i><span>Follow-ups</span><strong data-front-office-count="followups">0</strong><small>Pending follow-ups</small></div></div>
+            <div class="front-office-main-grid"><div class="front-office-panel"><div class="front-office-panel-header"><div><h3>Quick Actions</h3><p>Frequently used Front Office functions</p></div></div><div class="front-office-quick-actions"><button data-front-office-open="Enquiries"><i class="fas fa-clipboard-list"></i><strong>New Enquiry</strong><small>Record a new enquiry</small></button><button data-front-office-open="Call Logs"><i class="fas fa-phone"></i><strong>Log Call</strong><small>Record incoming or outgoing call</small></button><button data-front-office-open="Visitors"><i class="fas fa-users"></i><strong>Register Visitor</strong><small>Check in a visitor</small></button><button data-front-office-open="Appointments"><i class="fas fa-calendar"></i><strong>Appointment</strong><small>Schedule an appointment</small></button><button data-front-office-open="Incoming Mail"><i class="fas fa-inbox"></i><strong>Receive Mail</strong><small>Register incoming mail</small></button><button data-front-office-open="Dispatch"><i class="fas fa-paper-plane"></i><strong>New Dispatch</strong><small>Record outgoing item</small></button><button data-front-office-open="Follow-ups"><i class="fas fa-rotate"></i><strong>Follow-ups</strong><small>View pending actions</small></button><button data-front-office-open="Reports"><i class="fas fa-chart-column"></i><strong>Reports</strong><small>View Front Office reports</small></button></div></div><div class="front-office-panel"><div class="front-office-panel-header"><div><h3>Today's Appointments</h3><p>Upcoming visitors and meetings</p></div><span class="front-office-badge">TODAY</span></div><div class="front-office-appointments" data-front-office-appointments></div></div></div>
+            <div class="front-office-lower-grid"><div class="front-office-panel"><div class="front-office-panel-header"><div><h3>Recent Activity</h3><p>Latest Front Office transactions</p></div></div><div class="front-office-activity" data-front-office-activity></div></div><div class="front-office-panel"><div class="front-office-panel-header"><div><h3>Attention Required</h3><p>Items that may require action</p></div><span class="front-office-badge warning">ALERTS</span></div><div class="front-office-alerts" data-front-office-alerts></div></div></div>
+            <div class="front-office-panel"><div class="front-office-panel-header"><div><h3>Today's Front Desk Summary</h3><p>Operational workload at a glance</p></div></div><div class="front-office-summary-grid"><div><span>Enquiries Resolved</span><strong data-front-office-summary="enquiries">0%</strong><i data-front-office-bar="enquiries"></i></div><div><span>Visitor Check-outs</span><strong data-front-office-summary="visitors">0%</strong><i data-front-office-bar="visitors"></i></div><div><span>Dispatch Completed</span><strong data-front-office-summary="dispatches">0%</strong><i data-front-office-bar="dispatches"></i></div><div><span>Follow-ups Completed</span><strong data-front-office-summary="followups">0%</strong><i data-front-office-bar="followups"></i></div></div></div>`;
+        const read = key => { try { return JSON.parse(localStorage.getItem(key)) || []; } catch (error) { return []; } };
+        const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+        const today = new Date().toISOString().slice(0, 10);
+        const refresh = () => {
+            const enquiries = read('edumasterEnquiries'); const calls = read('edumasterCallLogs'); const visitors = read('edumasterVisitors'); const appointments = read('edumasterAppointments'); const mail = read('edumasterIncomingMail'); const dispatches = read('edumasterDispatches'); const followups = read('edumasterFollowUps');
+            const dated = (items, fields) => items.filter(item => fields.some(field => item[field] === today)); const todayAppointments = dated(appointments, ['appointmentDate']).slice(0, 5); const todayVisitors = dated(visitors, ['visitDate']); const todayMail = dated(mail, ['receivedDate']); const todayDispatches = dated(dispatches, ['dispatchDate']); const todayCalls = dated(calls, ['callDate']); const todayEnquiries = enquiries.filter(item => item.createdAt?.slice(0, 10) === today);
+            const counts = { enquiries: todayEnquiries.length, calls: todayCalls.length, visitors: todayVisitors.length, appointments: todayAppointments.length, mail: todayMail.length, dispatches: todayDispatches.length, followups: followups.filter(item => !['Completed', 'Cancelled'].includes(item.status)).length };
+            Object.entries(counts).forEach(([name, value]) => { sec.querySelector(`[data-front-office-count="${name}"]`).textContent = value; }); sec.querySelector('[data-front-office-date]').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            sec.querySelector('[data-front-office-appointments]').innerHTML = todayAppointments.length ? todayAppointments.map(item => `<div class="front-office-appointment"><strong>${escape(item.appointmentTime || '--')}</strong><span>${escape(item.guestName || 'Guest')}<small>${escape(item.appointmentType || item.purpose || 'Appointment')}</small></span><em>${escape(item.status || 'Scheduled')}</em></div>`).join('') : '<p class="front-office-empty">No appointments scheduled for today.</p>';
+            const activity = [...todayEnquiries.map(item => ['fa-clipboard-list', `New enquiry from ${item.name || 'a visitor'}`]), ...todayCalls.map(item => ['fa-phone', `Call logged from ${item.callerName || 'a contact'}`]), ...todayVisitors.map(item => ['fa-users', `Visitor ${item.status === 'Checked In' ? 'checked in' : 'registered'}`]), ...todayDispatches.map(item => ['fa-paper-plane', `Dispatch ${item.status || 'recorded'}`])].slice(0, 6); sec.querySelector('[data-front-office-activity]').innerHTML = activity.length ? activity.map(item => `<div class="front-office-activity-row"><i class="fas ${item[0]}"></i><span>${escape(item[1])}<small>Today</small></span></div>`).join('') : '<p class="front-office-empty">No activity recorded today.</p>';
+            const alerts = []; const pendingFollowups = followups.filter(item => !['Completed', 'Cancelled'].includes(item.status)); const overdue = pendingFollowups.filter(item => item.followUpDate && item.followUpDate < today); const inside = visitors.filter(item => ['Checked In', 'In Meeting'].includes(item.status)); if (pendingFollowups.length) alerts.push(['warning', `${pendingFollowups.length} follow-ups pending`, 'Review pending follow-up actions.']); if (overdue.length) alerts.push(['danger', `${overdue.length} overdue follow-ups`, 'Some follow-ups require immediate attention.']); if (inside.length) alerts.push(['info', `${inside.length} visitors currently inside`, 'Remember to record visitor check-outs.']); if (!alerts.length) alerts.push(['success', 'Front Office is on track', 'No urgent actions require attention.']); sec.querySelector('[data-front-office-alerts]').innerHTML = alerts.map(item => `<div class="front-office-alert ${item[0]}"><i class="fas fa-circle-exclamation"></i><span><strong>${item[1]}</strong><small>${item[2]}</small></span></div>`).join('');
+            const metrics = { enquiries: enquiries.length ? Math.round(enquiries.filter(item => ['Completed', 'Resolved', 'Closed'].includes(item.status)).length / enquiries.length * 100) : 0, visitors: visitors.length ? Math.round(visitors.filter(item => item.status === 'Checked Out').length / visitors.length * 100) : 0, dispatches: dispatches.length ? Math.round(dispatches.filter(item => ['Delivered', 'Collected'].includes(item.status)).length / dispatches.length * 100) : 0, followups: followups.length ? Math.round(followups.filter(item => item.status === 'Completed').length / followups.length * 100) : 0 }; Object.entries(metrics).forEach(([name, value]) => { sec.querySelector(`[data-front-office-summary="${name}"]`).textContent = `${value}%`; sec.querySelector(`[data-front-office-bar="${name}"]`).style.width = `${value}%`; });
+        };
+        sec.querySelector('[data-front-office-refresh]').addEventListener('click', refresh); sec.querySelectorAll('[data-front-office-open]').forEach(button => button.addEventListener('click', () => { const link = Array.from(document.querySelectorAll('.nav-links a')).find(item => (item.querySelector('span')?.innerText.trim() || item.innerText.trim()) === button.dataset.frontOfficeOpen); link?.click(); })); refresh();
+        return sec;
+    }
+
     rolesBackBtn?.addEventListener('click', () => showDashboard());
+
+    function createEnquiriesModule(category) {
+        const sec = document.createElement('section');
+        sec.className = 'module enquiries-module';
+        sec.id = 'module_enquiries';
+        sec.innerHTML = `
+            <div class="module-header">
+                <div>
+                    <h2>Enquiries</h2>
+                    <p>Department: ${category}</p>
+                </div>
+                <button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> New Enquiry</button>
+            </div>
+            <div class="enquiries-stats">
+                <div class="enquiry-stat"><span>Total Enquiries</span><strong data-enquiry-total>0</strong></div>
+                <div class="enquiry-stat"><span>Open</span><strong data-enquiry-open>0</strong></div>
+                <div class="enquiry-stat"><span>Appointments</span><strong data-enquiry-appointments>0</strong></div>
+                <div class="enquiry-stat"><span>Priority</span><strong data-enquiry-priority>0</strong></div>
+            </div>
+            <div class="enquiries-grid">
+                <div class="enquiry-card enquiry-entry-card hidden">
+                    <div class="enquiry-card-header"><h3>New Front Office Enquiry</h3><p>Register a parent, student, visitor or general enquiry.</p></div>
+                    <div class="enquiry-card-body">
+                        <form data-enquiry-form>
+                            <div class="enquiry-form-grid">
+                                <div class="enquiry-form-group"><label>Visitor Type</label><select name="visitorType" required><option value="">Select visitor type</option><option>Parent / Guardian</option><option>Student</option><option>Staff Member</option><option>Supplier / Vendor</option><option>Guest</option><option>Other</option></select></div>
+                                <div class="enquiry-form-group"><label>Visit Purpose</label><select name="purpose" required><option value="">Select purpose</option><option>Admission Enquiry</option><option>Parent Meeting</option><option>Student Enquiry</option><option>Fee / Accounts</option><option>Document Collection</option><option>General Enquiry</option><option>Other</option></select></div>
+                                <div class="enquiry-form-group"><label>Full Name</label><input name="name" placeholder="Enter full name" required></div>
+                                <div class="enquiry-form-group"><label>Mobile Number</label><input name="mobile" placeholder="+256 700 000000" required></div>
+                                <div class="enquiry-form-group"><label>Student ID</label><input name="studentId" placeholder="e.g. STU-2026-001"></div>
+                                <div class="enquiry-form-group"><label>Department / Person</label><input name="department" placeholder="e.g. Admissions or Principal"></div>
+                                <div class="enquiry-form-group"><label>Appointment Date</label><input name="appointmentDate" type="date"></div>
+                                <div class="enquiry-form-group"><label>Priority</label><select name="priority"><option>Normal</option><option>Important</option><option>Urgent</option></select></div>
+                                <div class="enquiry-form-group full"><label>Notes</label><textarea name="notes" placeholder="Enter enquiry details or follow-up notes"></textarea></div>
+                            </div>
+                            <div class="enquiry-form-actions"><button class="btn-secondary" type="reset" data-enquiry-clear>Clear</button><button class="btn-secondary" type="button" data-enquiry-cancel>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Save Enquiry</button></div>
+                        </form>
+                    </div>
+                </div>
+                <aside class="enquiry-card enquiry-summary-card hidden">
+                    <div class="enquiry-card-header"><h3>Live Summary</h3><p>Review before saving</p></div>
+                    <div class="enquiry-card-body enquiry-summary">
+                        <div class="enquiry-summary-row"><span>Visitor</span><strong data-summary="name">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Type</span><strong data-summary="visitorType">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Purpose</span><strong data-summary="purpose">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Department</span><strong data-summary="department">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Priority</span><strong data-summary="priority">Normal</strong></div>
+                    </div>
+                </aside>
+            </div>
+            <div class="enquiries-table"><div class="table-card"><h3 class="table-title">Saved Enquiry Records</h3><table><thead><tr><th>Name</th><th>Type</th><th>Purpose</th><th>Student ID</th><th>Department</th><th>Appointment</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
+
+        const form = sec.querySelector('[data-enquiry-form]');
+        const table = sec.querySelector('[data-enquiry-table]');
+        const storageKey = 'edumasterEnquiries';
+        let editingIndex = null;
+        const readEntries = () => {
+            try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; }
+        };
+        const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+        const render = () => {
+            const entries = readEntries();
+            sec.querySelector('[data-enquiry-total]').textContent = entries.length;
+            sec.querySelector('[data-enquiry-open]').textContent = entries.filter(entry => entry.status !== 'Completed').length;
+            sec.querySelector('[data-enquiry-appointments]').textContent = entries.filter(entry => entry.appointmentDate).length;
+            sec.querySelector('[data-enquiry-priority]').textContent = entries.filter(entry => entry.priority !== 'Normal').length;
+            table.innerHTML = entries.length ? entries.slice(0, 8).map((entry, index) => `<tr><td>${escape(entry.name)}<br><small>${escape(entry.mobile)}</small></td><td>${escape(entry.visitorType)}</td><td>${escape(entry.purpose)}</td><td>${escape(entry.studentId || '-')}</td><td>${escape(entry.department || '-')}</td><td>${escape(entry.appointmentDate || '-')}</td><td>${escape(entry.priority)}</td><td><span class="badge pending">${escape(entry.status)}</span></td><td><div class="enquiry-actions"><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete"><i class="fas fa-trash"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print"><i class="fas fa-print"></i></button></div></td></tr>`).join('') : '<tr><td colspan="9" style="text-align:center;padding:25px;color:#94a3b8;">No saved enquiries yet. Complete the form above to create a record.</td></tr>';
+        };
+        const updateSummary = () => form.querySelectorAll('[name]').forEach(field => {
+            const summary = sec.querySelector(`[data-summary="${field.name}"]`);
+            if (summary) summary.textContent = field.value || (field.name === 'priority' ? 'Normal' : '-');
+        });
+        form.addEventListener('input', updateSummary);
+        form.addEventListener('change', updateSummary);
+        form.addEventListener('reset', () => setTimeout(updateSummary));
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            const data = Object.fromEntries(new FormData(form).entries());
+            data.id = data.id || Date.now().toString();
+            data.status = 'Open';
+            data.createdAt = new Date().toISOString();
+            const entries = readEntries();
+            if (editingIndex === null) {
+                entries.unshift(data);
+            } else {
+                data.id = entries[editingIndex].id || data.id;
+                data.createdAt = entries[editingIndex].createdAt || data.createdAt;
+                entries[editingIndex] = data;
+            }
+            localStorage.setItem(storageKey, JSON.stringify(entries));
+            form.reset();
+            editingIndex = null;
+            sec.querySelector('.enquiry-entry-card').classList.add('hidden');
+            sec.querySelector('.enquiry-summary-card').classList.add('hidden');
+            updateSummary();
+            render();
+        });
+        const entryCard = sec.querySelector('.enquiry-entry-card');
+        const closeForm = () => {
+            entryCard.classList.add('hidden');
+            sec.querySelector('.enquiry-summary-card').classList.add('hidden');
+            form.reset();
+            editingIndex = null;
+            updateSummary();
+        };
+        sec.querySelector('[data-enquiry-new]').addEventListener('click', () => {
+            if (!entryCard.classList.contains('hidden')) {
+                closeForm();
+                return;
+            }
+            entryCard.classList.remove('hidden');
+            sec.querySelector('.enquiry-summary-card').classList.remove('hidden');
+            form.reset();
+            form.querySelector('[name="name"]').focus();
+            updateSummary();
+        });
+        sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
+        table.addEventListener('click', event => {
+            const actionButton = event.target.closest('[data-enquiry-action]');
+            if (!actionButton) return;
+            const entries = readEntries();
+            const entry = entries[Number(actionButton.dataset.enquiryIndex)];
+            if (!entry) return;
+
+            if (actionButton.dataset.enquiryAction === 'delete') {
+                if (!confirm(`Delete the enquiry for ${entry.name || 'this visitor'}?`)) return;
+                entries.splice(Number(actionButton.dataset.enquiryIndex), 1);
+                localStorage.setItem(storageKey, JSON.stringify(entries));
+                render();
+                return;
+            }
+
+            if (actionButton.dataset.enquiryAction === 'edit') {
+                Object.entries(entry).forEach(([name, value]) => {
+                    const field = form.elements[name];
+                    if (field) field.value = value;
+                });
+                entryCard.classList.remove('hidden');
+                sec.querySelector('.enquiry-summary-card').classList.remove('hidden');
+                form.querySelector('[name="name"]').focus();
+                updateSummary();
+                editingIndex = Number(actionButton.dataset.enquiryIndex);
+                return;
+            }
+
+            const printWindow = window.open('', '_blank', 'width=700,height=700');
+            if (!printWindow) return;
+            printWindow.document.write(`<html><head><title>Enquiry Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:150px}</style></head><body><h1>Front Office Enquiry</h1>${Object.entries(entry).filter(([name]) => name !== 'id').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}</body></html>`);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+        });
+        render();
+        return sec;
+    }
+
+    function createReportsModule(category) {
+        const sec = document.createElement('section');
+        sec.className = 'module enquiries-module reports-module';
+        sec.id = 'module_front_office_reports';
+        sec.innerHTML = `
+            <div class="module-header"><div><h2>Front Office Reports & Analytics</h2><p>Department: ${category}</p></div><button class="btn-secondary" type="button" data-report-export><i class="fas fa-file-export"></i> Export Report</button></div>
+            <div class="report-filter-bar"><label>Report Period <select data-report-period><option value="today">Today</option><option value="week" selected>This Week</option><option value="month">This Month</option><option value="all">All Records</option></select></label><button class="btn-primary" type="button" data-report-apply><i class="fas fa-filter"></i> Apply Filters</button></div>
+            <div class="report-kpis"><div class="report-kpi"><span>Enquiries</span><strong data-report-kpi="enquiries">0</strong><small>Total recorded</small></div><div class="report-kpi"><span>Calls</span><strong data-report-kpi="calls">0</strong><small>Incoming and outgoing</small></div><div class="report-kpi"><span>Visitors</span><strong data-report-kpi="visitors">0</strong><small>Registered visitors</small></div><div class="report-kpi"><span>Appointments</span><strong data-report-kpi="appointments">0</strong><small>Scheduled visits</small></div><div class="report-kpi"><span>Follow-ups</span><strong data-report-kpi="followups">0</strong><small>Pending actions</small></div><div class="report-kpi"><span>Dispatch</span><strong data-report-kpi="dispatch">0</strong><small>Outgoing items</small></div><div class="report-kpi"><span>Incoming Mail</span><strong data-report-kpi="mail">0</strong><small>Received correspondence</small></div></div>
+            <div class="reports-grid"><div class="enquiry-card"><div class="enquiry-card-header"><h3>Front Office Activity</h3><p>Activity distribution across the selected period.</p></div><div class="report-chart" data-report-chart></div></div><div class="enquiry-card"><div class="enquiry-card-header"><h3>Module Activity</h3><p>Activity by Front Office module.</p></div><div class="enquiry-card-body report-module-list" data-report-modules></div></div></div>
+            <div class="enquiry-card report-section-card"><div class="enquiry-card-header"><h3>Operational Status</h3><p>Current Front Office workload.</p></div><div class="enquiry-card-body report-status-grid"><div><span>Open Enquiries</span><strong data-report-status="openEnquiries">0</strong></div><div><span>Visitors Inside</span><strong data-report-status="visitorsInside">0</strong></div><div><span>Pending Follow-ups</span><strong data-report-status="pendingFollowups">0</strong></div><div><span>Overdue Follow-ups</span><strong data-report-status="overdueFollowups">0</strong></div></div></div>
+            <div class="enquiry-card report-section-card"><div class="enquiry-card-header"><h3>Front Office Activity Report</h3><p>Summary of all major reception activities.</p></div><div class="report-table-wrap"><table><thead><tr><th>Module</th><th>Total</th><th>Completed</th><th>Pending</th><th>Status</th></tr></thead><tbody data-report-table></tbody></table></div></div>
+            <div class="enquiry-card report-section-card"><div class="enquiry-card-header"><h3>Quick Reports</h3><p>Common reports for Front Office management.</p></div><div class="enquiry-card-body quick-report-grid"><button type="button" data-quick-report="Daily Reception Register">Daily Reception Register</button><button type="button" data-quick-report="Visitor Report">Visitor Report</button><button type="button" data-quick-report="Enquiry Report">Enquiry Report</button><button type="button" data-quick-report="Call Log Report">Call Log Report</button><button type="button" data-quick-report="Appointment Report">Appointment Report</button><button type="button" data-quick-report="Mail Report">Incoming Mail Report</button><button type="button" data-quick-report="Dispatch Report">Dispatch Report</button><button type="button" data-quick-report="Follow-up Report">Follow-up Report</button></div></div>`;
+        const keys = { enquiries: 'edumasterEnquiries', calls: 'edumasterCallLogs', visitors: 'edumasterVisitors', appointments: 'edumasterAppointments', followups: 'edumasterFollowUps', dispatch: 'edumasterDispatches', mail: 'edumasterIncomingMail' };
+        const read = key => { try { return JSON.parse(localStorage.getItem(key)) || []; } catch (error) { return []; } };
+        const today = new Date().toISOString().slice(0, 10);
+        const dataForPeriod = (items, period) => { if (period === 'all') return items; const days = period === 'today' ? 0 : period === 'month' ? 30 : 6; const from = new Date(); from.setDate(from.getDate() - days); return items.filter(item => { const date = item.createdAt || item.receivedDate || item.visitDate || item.appointmentDate || item.followUpDate || item.dispatchDate; return date && date >= from.toISOString().slice(0, 10) && date <= today; }); };
+        const render = () => {
+            const period = sec.querySelector('[data-report-period]').value; const data = Object.fromEntries(Object.entries(keys).map(([name, key]) => [name, dataForPeriod(read(key), period)]));
+            Object.entries(data).forEach(([name, items]) => { sec.querySelector(`[data-report-kpi="${name}"]`).textContent = items.length; });
+            const values = [['Enquiries', data.enquiries.length], ['Calls', data.calls.length], ['Visitors', data.visitors.length], ['Appointments', data.appointments.length], ['Mail', data.mail.length], ['Dispatch', data.dispatch.length], ['Follow-ups', data.followups.length]]; const max = Math.max(...values.map(item => item[1]), 1);
+            sec.querySelector('[data-report-chart]').innerHTML = values.map(([label, value]) => `<div class="report-bar-item"><strong>${value}</strong><div class="report-bar" style="height:${Math.max(value / max * 180, 5)}px"></div><span>${label}</span></div>`).join(''); sec.querySelector('[data-report-modules]').innerHTML = values.map(([label, value]) => `<div class="report-module-row"><span>${label}</span><div><i style="width:${Math.max(value / max * 100, value ? 4 : 0)}%"></i></div><strong>${value}</strong></div>`).join('');
+            const all = name => data[name] || []; const openEnquiries = all('enquiries').filter(item => !['completed', 'closed', 'resolved'].includes(String(item.status || '').toLowerCase())).length; const visitorsInside = all('visitors').filter(item => ['Checked In', 'In Meeting'].includes(item.status)).length; const pendingFollowups = all('followups').filter(item => !['Completed', 'Cancelled'].includes(item.status)).length; const overdueFollowups = all('followups').filter(item => item.followUpDate && item.followUpDate < today && !['Completed', 'Cancelled'].includes(item.status)).length; const statuses = { openEnquiries, visitorsInside, pendingFollowups, overdueFollowups }; Object.entries(statuses).forEach(([name, value]) => { sec.querySelector(`[data-report-status="${name}"]`).textContent = value; });
+            const rows = [['Enquiries', data.enquiries], ['Call Logs', data.calls], ['Visitors', data.visitors], ['Appointments', data.appointments], ['Incoming Mail', data.mail], ['Dispatch', data.dispatch], ['Follow-ups', data.followups]]; sec.querySelector('[data-report-table]').innerHTML = rows.map(([name, items]) => { const completed = items.filter(item => ['Completed', 'Delivered', 'Collected', 'Checked Out', 'Resolved'].includes(item.status)).length; const pending = items.length - completed; const percent = items.length ? Math.round(completed / items.length * 100) : 0; return `<tr><td><strong>${name}</strong></td><td>${items.length}</td><td>${completed}</td><td>${pending}</td><td><span class="badge ${percent >= 75 ? 'badge-green' : percent >= 60 ? 'badge-orange' : 'badge-red'}">${percent >= 75 ? 'Good' : percent >= 60 ? 'Monitor' : 'Needs Attention'}</span></td></tr>`; }).join('');
+        };
+        const exportReport = () => { const rows = [['Front Office Report'], ['Module', 'Total'], ...Object.entries(keys).map(([name, key]) => [name, read(key).length])]; const csv = rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\n'); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'front-office-report.csv'; link.click(); URL.revokeObjectURL(link.href); };
+        sec.querySelector('[data-report-period]').addEventListener('change', render); sec.querySelector('[data-report-apply]').addEventListener('click', render); sec.querySelector('[data-report-export]').addEventListener('click', exportReport); sec.querySelectorAll('[data-quick-report]').forEach(button => button.addEventListener('click', () => alert(`${button.dataset.quickReport} selected.`))); render(); return sec;
+    }
+
+    function createFollowUpsModule(category) {
+        const sec = document.createElement('section');
+        sec.className = 'module enquiries-module follow-ups-module';
+        sec.id = 'module_follow_ups';
+        sec.innerHTML = `
+            <div class="module-header"><div><h2>Follow-ups</h2><p>Department: ${category}</p></div><button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> New Follow-up</button></div>
+            <div class="enquiries-stats"><div class="enquiry-stat"><span>Open</span><strong data-followup-open>0</strong></div><div class="enquiry-stat"><span>Due Today</span><strong data-followup-today>0</strong></div><div class="enquiry-stat"><span>Overdue</span><strong data-followup-overdue>0</strong></div><div class="enquiry-stat"><span>In Progress</span><strong data-followup-progress>0</strong></div><div class="enquiry-stat"><span>Completed</span><strong data-followup-completed>0</strong></div></div>
+            <div class="enquiries-grid"><div class="enquiry-card enquiry-entry-card hidden"><div class="enquiry-card-header"><h3>Follow-up Registration</h3><p>Record and track every pending Front Office action.</p></div><div class="enquiry-card-body"><form data-enquiry-form><div class="enquiry-form-grid">
+                <div class="enquiry-form-group"><label>Follow-up ID</label><input name="followUpId" readonly></div><div class="enquiry-form-group"><label>Date Created</label><input name="createdDate" type="date" required></div><div class="enquiry-form-group"><label>Related Module</label><select name="relatedModule" required><option value="">Select module</option><option>Enquiries</option><option>Call Logs</option><option>Dispatch</option><option>Visitors</option><option>Appointments</option><option>Incoming Mail</option><option>General Front Desk</option></select></div><div class="enquiry-form-group"><label>Related Reference</label><input name="relatedReference" placeholder="e.g. ENQ-2026-00015"></div><div class="enquiry-form-group full"><label>Follow-up Subject</label><input name="subject" placeholder="What needs to be followed up?" required></div>
+                <div class="enquiry-form-group"><label>Person / Contact Name</label><input name="contactName" placeholder="Full name" required></div><div class="enquiry-form-group"><label>Contact Type</label><select name="contactType"><option>Parent / Guardian</option><option>Student</option><option>Staff</option><option>Visitor</option><option>Supplier / Courier</option><option>Company / Organization</option><option>Government Office</option><option>Other</option></select></div><div class="enquiry-form-group"><label>Phone</label><input name="phone" type="tel" placeholder="+256 700 000000"></div><div class="enquiry-form-group"><label>Email</label><input name="email" type="email" placeholder="example@email.com"></div>
+                <div class="enquiry-form-group"><label>Assigned To</label><input name="assignedTo" placeholder="Receptionist / staff member" required></div><div class="enquiry-form-group"><label>Priority</label><select name="priority"><option>Normal</option><option>Important</option><option>Urgent</option><option>VIP</option></select></div><div class="enquiry-form-group"><label>Follow-up Date</label><input name="followUpDate" type="date" required></div><div class="enquiry-form-group"><label>Preferred Time</label><input name="followUpTime" type="time"></div><div class="enquiry-form-group"><label>Follow-up Method</label><select name="followUpMethod"><option>Phone Call</option><option>SMS</option><option>Email</option><option>WhatsApp</option><option>In Person</option><option>Internal Message</option><option>Other</option></select></div><div class="enquiry-form-group"><label>Status</label><select name="status"><option>Open</option><option>In Progress</option><option>Waiting</option><option>Completed</option><option>Cancelled</option></select></div>
+                <div class="enquiry-form-group full"><label>Description / Required Action</label><textarea name="description" placeholder="Describe what needs to be done" required></textarea></div><div class="enquiry-form-group full"><label>Last Action Taken</label><textarea name="lastAction" placeholder="What has already been done?"></textarea></div><div class="enquiry-form-group full"><label>Next Action</label><textarea name="nextAction" placeholder="What should happen next?"></textarea></div><div class="enquiry-form-group full"><label>Resolution</label><textarea name="resolution" placeholder="Enter final resolution once completed"></textarea></div><div class="enquiry-form-group full"><label>Notes</label><textarea name="notes" placeholder="Additional notes"></textarea></div>
+            </div><div class="enquiry-form-actions"><button class="btn-secondary" type="reset" data-enquiry-clear>Clear</button><button class="btn-secondary" type="button" data-enquiry-cancel>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Save Follow-up</button></div></form></div></div>
+            <aside class="enquiry-card enquiry-summary-card hidden"><div class="enquiry-card-header"><h3>Follow-up Summary</h3><p>Review before saving.</p></div><div class="enquiry-card-body enquiry-summary"><div class="enquiry-summary-row"><span>ID</span><strong data-summary="followUpId">-</strong></div><div class="enquiry-summary-row"><span>Module</span><strong data-summary="relatedModule">-</strong></div><div class="enquiry-summary-row"><span>Subject</span><strong data-summary="subject">-</strong></div><div class="enquiry-summary-row"><span>Contact</span><strong data-summary="contactName">-</strong></div><div class="enquiry-summary-row"><span>Assigned To</span><strong data-summary="assignedTo">-</strong></div><div class="enquiry-summary-row"><span>Due Date</span><strong data-summary="followUpDate">-</strong></div><div class="enquiry-summary-row"><span>Priority</span><strong data-summary="priority">Normal</strong></div><div class="enquiry-summary-row"><span>Status</span><strong data-summary="status">Open</strong></div></div></aside></div>
+            <div class="enquiries-table"><div class="table-card"><h3 class="table-title">Follow-up Register</h3><table><thead><tr><th>ID</th><th>Due Date</th><th>Module</th><th>Subject</th><th>Contact</th><th>Assigned To</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
+        const form = sec.querySelector('[data-enquiry-form]'); const table = sec.querySelector('[data-enquiry-table]'); const entryCard = sec.querySelector('.enquiry-entry-card'); const summaryCard = sec.querySelector('.enquiry-summary-card'); const storageKey = 'edumasterFollowUps'; let editingIndex = null;
+        const readEntries = () => { try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; } }; const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); const today = () => new Date().toISOString().slice(0, 10); const nextId = () => `FU-${new Date().getFullYear()}-${String(readEntries().length + 1).padStart(5, '0')}`;
+        const isOverdue = entry => !['Completed', 'Cancelled'].includes(entry.status) && entry.followUpDate && entry.followUpDate < today();
+        const updateStats = () => { const entries = readEntries(); sec.querySelector('[data-followup-open]').textContent = entries.filter(entry => entry.status === 'Open').length; sec.querySelector('[data-followup-today]').textContent = entries.filter(entry => entry.followUpDate === today() && !['Completed', 'Cancelled'].includes(entry.status)).length; sec.querySelector('[data-followup-overdue]').textContent = entries.filter(isOverdue).length; sec.querySelector('[data-followup-progress]').textContent = entries.filter(entry => entry.status === 'In Progress').length; sec.querySelector('[data-followup-completed]').textContent = entries.filter(entry => entry.status === 'Completed').length; };
+        const render = () => { const entries = readEntries(); updateStats(); table.innerHTML = entries.length ? entries.slice(0, 8).map((entry, index) => `<tr><td>${escape(entry.followUpId)}</td><td>${escape(entry.followUpDate)}${isOverdue(entry) ? '<br><span class="badge badge-red">OVERDUE</span>' : ''}</td><td>${escape(entry.relatedModule)}</td><td>${escape(entry.subject)}</td><td>${escape(entry.contactName)}<br><small>${escape(entry.phone)}</small></td><td>${escape(entry.assignedTo)}</td><td>${escape(entry.priority)}</td><td><span class="badge pending">${escape(entry.status)}</span></td><td><div class="enquiry-actions"><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="complete" data-enquiry-index="${index}" title="Complete"><i class="fas fa-check"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete"><i class="fas fa-trash"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print"><i class="fas fa-print"></i></button></div></td></tr>`).join('') : '<tr><td colspan="9" style="text-align:center;padding:25px;color:#94a3b8;">No follow-ups yet. Open New Follow-up to create a record.</td></tr>'; };
+        const updateSummary = () => form.querySelectorAll('[name]').forEach(field => { const summary = sec.querySelector(`[data-summary="${field.name}"]`); if (summary) summary.textContent = field.value || (field.name === 'priority' ? 'Normal' : field.name === 'status' ? 'Open' : '-'); }); const closeForm = () => { entryCard.classList.add('hidden'); summaryCard.classList.add('hidden'); form.reset(); editingIndex = null; updateSummary(); }; const openForm = () => { entryCard.classList.remove('hidden'); summaryCard.classList.remove('hidden'); if (editingIndex === null) { form.reset(); form.elements.followUpId.value = nextId(); form.elements.createdDate.value = today(); form.elements.followUpDate.value = today(); form.elements.priority.value = 'Normal'; form.elements.status.value = 'Open'; } updateSummary(); form.elements.relatedModule.focus(); };
+        form.addEventListener('input', updateSummary); form.addEventListener('change', updateSummary); form.addEventListener('reset', () => setTimeout(updateSummary)); form.addEventListener('submit', event => { event.preventDefault(); if (!form.checkValidity()) { form.reportValidity(); return; } const data = Object.fromEntries(new FormData(form).entries()); data.id = data.id || Date.now().toString(); data.updatedAt = new Date().toISOString(); const entries = readEntries(); if (editingIndex === null) entries.unshift(data); else { data.id = entries[editingIndex].id || data.id; entries[editingIndex] = data; } localStorage.setItem(storageKey, JSON.stringify(entries)); closeForm(); render(); });
+        sec.querySelector('[data-enquiry-new]').addEventListener('click', () => entryCard.classList.contains('hidden') ? openForm() : closeForm()); sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
+        table.addEventListener('click', event => { const button = event.target.closest('[data-enquiry-action]'); if (!button) return; const entries = readEntries(); const index = Number(button.dataset.enquiryIndex); const entry = entries[index]; if (!entry) return; const action = button.dataset.enquiryAction; if (action === 'delete') { if (!confirm(`Delete ${entry.followUpId || 'this follow-up'}?`)) return; entries.splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'complete') { entry.status = 'Completed'; entry.resolution = entry.resolution || 'Follow-up completed.'; localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'edit') { Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; }); editingIndex = index; openForm(); return; } const printWindow = window.open('', '_blank', 'width=700,height=700'); if (!printWindow) return; printWindow.document.write(`<html><head><title>Follow-up Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:180px}</style></head><body><h1>Follow-up Record</h1>${Object.entries(entry).filter(([name]) => name !== 'id').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}</body></html>`); printWindow.document.close(); printWindow.focus(); printWindow.print(); });
+        render(); return sec;
+    }
+
+    function createIncomingMailModule(category) {
+        const sec = document.createElement('section');
+        sec.className = 'module enquiries-module incoming-mail-module';
+        sec.id = 'module_incoming_mail';
+        sec.innerHTML = `
+            <div class="module-header"><div><h2>Incoming Mail</h2><p>Department: ${category}</p></div><button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> Register Incoming Mail</button></div>
+            <div class="enquiries-stats"><div class="enquiry-stat"><span>Today's Mail</span><strong data-mail-today>0</strong></div><div class="enquiry-stat"><span>Pending Delivery</span><strong data-mail-pending>0</strong></div><div class="enquiry-stat"><span>Delivered</span><strong data-mail-delivered>0</strong></div><div class="enquiry-stat"><span>Official / Important</span><strong data-mail-important>0</strong></div><div class="enquiry-stat"><span>Returned</span><strong data-mail-returned>0</strong></div></div>
+            <div class="enquiries-grid"><div class="enquiry-card enquiry-entry-card hidden"><div class="enquiry-card-header"><h3>Incoming Mail Registration</h3><p>Register letters, documents, courier packages and official correspondence.</p></div><div class="enquiry-card-body"><form data-enquiry-form><div class="enquiry-form-grid">
+                <div class="enquiry-form-group"><label>Mail Reference No.</label><input name="mailId" readonly></div><div class="enquiry-form-group"><label>Date Received</label><input name="receivedDate" type="date" required></div><div class="enquiry-form-group"><label>Time Received</label><input name="receivedTime" type="time" required></div><div class="enquiry-form-group"><label>Mail Type</label><select name="mailType" required><option value="">Select mail type</option><option>Official Letter</option><option>Parent Letter</option><option>Student Document</option><option>Government Correspondence</option><option>Courier</option><option>Parcel / Package</option><option>Invoice</option><option>Legal Document</option><option>Certificate</option><option>Invitation</option><option>Other</option></select></div><div class="enquiry-form-group"><label>Delivery Method</label><select name="deliveryMethod"><option>Postal Mail</option><option>Courier</option><option>Hand Delivered</option><option>Internal Transfer</option><option>Government Delivery</option><option>Other</option></select></div><div class="enquiry-form-group"><label>Tracking / Reference Number</label><input name="trackingNumber" placeholder="Courier or postal tracking number"></div>
+                <div class="enquiry-form-group"><label>Sender Name</label><input name="senderName" placeholder="Full name / organization" required></div><div class="enquiry-form-group"><label>Sender Organization</label><input name="senderOrganization" placeholder="Company or institution"></div><div class="enquiry-form-group"><label>Sender Phone</label><input name="senderPhone" type="tel" placeholder="+256 700 000000"></div><div class="enquiry-form-group"><label>Sender Email</label><input name="senderEmail" type="email" placeholder="sender@example.com"></div><div class="enquiry-form-group full"><label>Sender Address</label><textarea name="senderAddress" placeholder="Sender address"></textarea></div>
+                <div class="enquiry-form-group full"><label>Subject / Description</label><input name="subject" placeholder="Brief subject or description" required></div><div class="enquiry-form-group"><label>Number of Documents</label><input name="documentCount" type="number" min="1" value="1"></div><div class="enquiry-form-group"><label>Package Count</label><input name="packageCount" type="number" min="0" value="0"></div><div class="enquiry-form-group"><label>Confidentiality</label><select name="confidentiality"><option>Normal</option><option>Confidential</option><option>Strictly Confidential</option></select></div><div class="enquiry-form-group"><label>Priority</label><select name="priority"><option>Normal</option><option>Important</option><option>Urgent</option><option>VIP</option></select></div><div class="enquiry-form-group full"><label>Additional Description</label><textarea name="description" placeholder="Additional mail details"></textarea></div>
+                <div class="enquiry-form-group"><label>Department</label><select name="department" required><option value="">Select department</option><option>Principal's Office</option><option>Administration</option><option>Admissions</option><option>Accounts / Finance</option><option>Human Resources</option><option>Academic</option><option>Student Affairs</option><option>Transport</option><option>IT</option><option>Library</option><option>Reception</option><option>Other</option></select></div><div class="enquiry-form-group"><label>Recipient / Addressee</label><input name="recipient" placeholder="Person who should receive the mail" required></div><div class="enquiry-form-group"><label>Internal Reference</label><input name="internalReference" placeholder="Employee, student or department ref"></div><div class="enquiry-form-group"><label>Expected Delivery Date</label><input name="expectedDate" type="date"></div><div class="enquiry-form-group"><label>Mail Status</label><select name="status"><option>Received</option><option>Pending Delivery</option><option>Delivered</option><option>Collected</option><option>Returned</option><option>Lost / Missing</option></select></div><div class="enquiry-form-group"><label>Notification Method</label><select name="notificationMethod"><option>Phone</option><option>SMS</option><option>Email</option><option>WhatsApp</option><option>Internal Message</option><option>Not Notified</option></select></div>
+                <div class="enquiry-form-group"><label>Received By</label><input name="receivedBy" placeholder="Reception staff" required></div><div class="enquiry-form-group"><label>Delivered By</label><input name="deliveredBy" placeholder="Staff member who delivered it"></div><div class="enquiry-form-group"><label>Delivery Date</label><input name="deliveryDate" type="date"></div><div class="enquiry-form-group"><label>Delivery Time</label><input name="deliveryTime" type="time"></div><div class="enquiry-form-group"><label>Recipient Confirmation</label><select name="confirmation"><option>Pending</option><option>Verbal Confirmation</option><option>Signed</option><option>Email Confirmation</option><option>Digital Confirmation</option></select></div><div class="enquiry-form-group"><label>Storage Location</label><input name="storageLocation" placeholder="Reception shelf or cabinet"></div><div class="enquiry-form-group full"><label>Notes</label><textarea name="notes" placeholder="Additional notes or delivery attempts"></textarea></div>
+            </div><div class="enquiry-form-actions"><button class="btn-secondary" type="reset" data-enquiry-clear>Clear</button><button class="btn-secondary" type="button" data-enquiry-cancel>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Register Incoming Mail</button></div></form></div></div>
+            <aside class="enquiry-card enquiry-summary-card hidden"><div class="enquiry-card-header"><h3>Mail Summary</h3><p>Review before registering.</p></div><div class="enquiry-card-body enquiry-summary"><div class="enquiry-summary-row"><span>Reference</span><strong data-summary="mailId">-</strong></div><div class="enquiry-summary-row"><span>Sender</span><strong data-summary="senderName">-</strong></div><div class="enquiry-summary-row"><span>Mail Type</span><strong data-summary="mailType">-</strong></div><div class="enquiry-summary-row"><span>Received</span><strong data-summary="receivedDate">-</strong></div><div class="enquiry-summary-row"><span>Subject</span><strong data-summary="subject">-</strong></div><div class="enquiry-summary-row"><span>Recipient</span><strong data-summary="recipient">-</strong></div><div class="enquiry-summary-row"><span>Department</span><strong data-summary="department">-</strong></div><div class="enquiry-summary-row"><span>Priority</span><strong data-summary="priority">Normal</strong></div><div class="enquiry-summary-row"><span>Status</span><strong data-summary="status">Received</strong></div></div></aside></div>
+            <div class="enquiries-table"><div class="table-card"><h3 class="table-title">Incoming Mail Register</h3><table><thead><tr><th>Reference</th><th>Received</th><th>Sender</th><th>Type</th><th>Subject</th><th>Recipient</th><th>Department</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
+        const form = sec.querySelector('[data-enquiry-form]'); const table = sec.querySelector('[data-enquiry-table]'); const entryCard = sec.querySelector('.enquiry-entry-card'); const summaryCard = sec.querySelector('.enquiry-summary-card'); const storageKey = 'edumasterIncomingMail'; let editingIndex = null;
+        const readEntries = () => { try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; } }; const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); const today = () => new Date().toISOString().slice(0, 10); const nextId = () => `MAIL-${new Date().getFullYear()}-${String(readEntries().length + 1).padStart(5, '0')}`;
+        const updateStats = () => { const entries = readEntries(); sec.querySelector('[data-mail-today]').textContent = entries.filter(entry => entry.receivedDate === today()).length; sec.querySelector('[data-mail-pending]').textContent = entries.filter(entry => ['Received', 'Pending Delivery'].includes(entry.status)).length; sec.querySelector('[data-mail-delivered]').textContent = entries.filter(entry => ['Delivered', 'Collected'].includes(entry.status)).length; sec.querySelector('[data-mail-important]').textContent = entries.filter(entry => ['Important', 'Urgent', 'VIP'].includes(entry.priority)).length; sec.querySelector('[data-mail-returned]').textContent = entries.filter(entry => entry.status === 'Returned').length; };
+        const render = () => { const entries = readEntries(); updateStats(); table.innerHTML = entries.length ? entries.slice(0, 8).map((entry, index) => `<tr><td>${escape(entry.mailId)}</td><td>${escape(entry.receivedDate)}<br><small>${escape(entry.receivedTime)}</small></td><td>${escape(entry.senderName)}<br><small>${escape(entry.senderOrganization)}</small></td><td>${escape(entry.mailType)}</td><td>${escape(entry.subject)}</td><td>${escape(entry.recipient)}</td><td>${escape(entry.department)}</td><td>${escape(entry.priority)}</td><td><span class="badge pending">${escape(entry.status)}</span></td><td><div class="enquiry-actions"><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="deliver" data-enquiry-index="${index}" title="Mark delivered"><i class="fas fa-check"></i></button><button class="enquiry-action" type="button" data-enquiry-action="return" data-enquiry-index="${index}" title="Return"><i class="fas fa-rotate-left"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete"><i class="fas fa-trash"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print"><i class="fas fa-print"></i></button></div></td></tr>`).join('') : '<tr><td colspan="10" style="text-align:center;padding:25px;color:#94a3b8;">No incoming mail records yet. Open Register Incoming Mail to create a record.</td></tr>'; };
+        const updateSummary = () => form.querySelectorAll('[name]').forEach(field => { const summary = sec.querySelector(`[data-summary="${field.name}"]`); if (summary) summary.textContent = field.value || (field.name === 'priority' ? 'Normal' : field.name === 'status' ? 'Received' : '-'); }); const closeForm = () => { entryCard.classList.add('hidden'); summaryCard.classList.add('hidden'); form.reset(); editingIndex = null; updateSummary(); }; const openForm = () => { entryCard.classList.remove('hidden'); summaryCard.classList.remove('hidden'); if (editingIndex === null) { form.reset(); form.elements.mailId.value = nextId(); form.elements.receivedDate.value = today(); form.elements.receivedTime.value = new Date().toTimeString().slice(0, 5); form.elements.documentCount.value = 1; form.elements.packageCount.value = 0; form.elements.confidentiality.value = 'Normal'; form.elements.priority.value = 'Normal'; form.elements.status.value = 'Received'; form.elements.notificationMethod.value = 'Not Notified'; form.elements.confirmation.value = 'Pending'; } updateSummary(); form.elements.mailType.focus(); };
+        form.addEventListener('input', updateSummary); form.addEventListener('change', updateSummary); form.addEventListener('reset', () => setTimeout(updateSummary)); form.addEventListener('submit', event => { event.preventDefault(); if (!form.checkValidity()) { form.reportValidity(); return; } const data = Object.fromEntries(new FormData(form).entries()); data.id = data.id || Date.now().toString(); data.createdAt = new Date().toISOString(); const entries = readEntries(); if (editingIndex === null) entries.unshift(data); else { data.id = entries[editingIndex].id || data.id; data.createdAt = entries[editingIndex].createdAt || data.createdAt; entries[editingIndex] = data; } localStorage.setItem(storageKey, JSON.stringify(entries)); closeForm(); render(); });
+        sec.querySelector('[data-enquiry-new]').addEventListener('click', () => entryCard.classList.contains('hidden') ? openForm() : closeForm()); sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
+        table.addEventListener('click', event => { const button = event.target.closest('[data-enquiry-action]'); if (!button) return; const entries = readEntries(); const index = Number(button.dataset.enquiryIndex); const entry = entries[index]; if (!entry) return; const action = button.dataset.enquiryAction; if (action === 'delete') { if (!confirm(`Delete ${entry.mailId || 'this mail record'}?`)) return; entries.splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'deliver') { entry.status = 'Delivered'; entry.deliveryDate = today(); entry.deliveryTime = new Date().toTimeString().slice(0, 5); entry.deliveredBy = entry.deliveredBy || 'Reception'; localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'return') { if (!confirm(`Mark ${entry.mailId || 'this mail'} as returned?`)) return; entry.status = 'Returned'; localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'edit') { Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; }); editingIndex = index; openForm(); return; } const printWindow = window.open('', '_blank', 'width=700,height=700'); if (!printWindow) return; printWindow.document.write(`<html><head><title>Incoming Mail Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:180px}</style></head><body><h1>Incoming Mail Record</h1>${Object.entries(entry).filter(([name]) => name !== 'id').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}</body></html>`); printWindow.document.close(); printWindow.focus(); printWindow.print(); });
+        render(); return sec;
+    }
+
+    function createAppointmentsModule(category) {
+        const sec = document.createElement('section');
+        sec.className = 'module enquiries-module appointments-module';
+        sec.id = 'module_appointments';
+        sec.innerHTML = `
+            <div class="module-header"><div><h2>Appointments</h2><p>Department: ${category}</p></div><button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> New Appointment</button></div>
+            <div class="enquiries-stats">
+                <div class="enquiry-stat"><span>Today's Appointments</span><strong data-appointment-today>0</strong></div><div class="enquiry-stat"><span>Scheduled</span><strong data-appointment-scheduled>0</strong></div><div class="enquiry-stat"><span>Checked In</span><strong data-appointment-checked>0</strong></div><div class="enquiry-stat"><span>Completed</span><strong data-appointment-completed>0</strong></div><div class="enquiry-stat"><span>Cancelled</span><strong data-appointment-cancelled>0</strong></div>
+            </div>
+            <div class="enquiries-grid">
+                <div class="enquiry-card enquiry-entry-card hidden"><div class="enquiry-card-header"><h3>Appointment Registration</h3><p>Schedule a meeting, visit, or school appointment.</p></div><div class="enquiry-card-body"><form data-enquiry-form>
+                    <div class="enquiry-form-grid">
+                        <div class="enquiry-form-group"><label>Appointment ID</label><input name="appointmentId" readonly></div><div class="enquiry-form-group"><label>Appointment Type</label><select name="appointmentType" required><option value="">Select appointment type</option><option>Parent Meeting</option><option>Admission Meeting</option><option>Principal Meeting</option><option>Teacher Meeting</option><option>Student Meeting</option><option>Staff Meeting</option><option>Vendor / Supplier</option><option>Government / Official</option><option>Counselling</option><option>Other</option></select></div>
+                        <div class="enquiry-form-group"><label>Appointment Date</label><input name="appointmentDate" type="date" required></div><div class="enquiry-form-group"><label>Appointment Time</label><input name="appointmentTime" type="time" required></div><div class="enquiry-form-group"><label>Duration</label><select name="duration"><option>15 minutes</option><option selected>30 minutes</option><option>45 minutes</option><option>1 hour</option><option>1.5 hours</option><option>2 hours</option></select></div><div class="enquiry-form-group"><label>Priority</label><select name="priority"><option>Normal</option><option>Important</option><option>High</option><option>VIP</option></select></div>
+                        <div class="enquiry-form-group"><label>Visitor / Guest Name</label><input name="guestName" placeholder="Enter full name" required></div><div class="enquiry-form-group"><label>Visitor Type</label><select name="visitorType" required><option value="">Select visitor type</option><option>Parent / Guardian</option><option>Prospective Parent</option><option>Student</option><option>Staff</option><option>Supplier / Vendor</option><option>Contractor</option><option>Government Official</option><option>Guest / VIP</option><option>Alumni</option><option>Other</option></select></div>
+                        <div class="enquiry-form-group"><label>Phone Number</label><input name="phone" type="tel" placeholder="+256 700 000000" required></div><div class="enquiry-form-group"><label>Email Address</label><input name="email" type="email" placeholder="guest@example.com"></div><div class="enquiry-form-group"><label>Organization / Company</label><input name="organization" placeholder="Organization name"></div><div class="enquiry-form-group"><label>Student / Employee ID</label><input name="relatedId" placeholder="If applicable"></div>
+                        <div class="enquiry-form-group"><label>Person to Visit</label><input name="personToVisit" placeholder="Principal, teacher, staff" required></div><div class="enquiry-form-group"><label>Department</label><select name="department" required><option value="">Select department</option><option>Principal's Office</option><option>Administration</option><option>Admissions</option><option>Accounts / Finance</option><option>Human Resources</option><option>Academic</option><option>Student Affairs</option><option>Transport</option><option>IT</option><option>Reception</option><option>Other</option></select></div><div class="enquiry-form-group"><label>Meeting Location</label><input name="location" placeholder="Office / Meeting Room"></div><div class="enquiry-form-group"><label>Number of Guests</label><input name="guestCount" type="number" min="1" value="1"></div>
+                        <div class="enquiry-form-group full"><label>Purpose / Meeting Agenda</label><textarea name="purpose" placeholder="Describe the purpose or agenda" required></textarea></div><div class="enquiry-form-group full"><label>Special Requirements</label><textarea name="requirements" placeholder="Accessibility, documents, room setup, equipment"></textarea></div>
+                        <div class="enquiry-form-group"><label>Appointment Status</label><select name="status"><option>Scheduled</option><option>Confirmed</option><option>Checked In</option><option>In Progress</option><option>Completed</option><option>Cancelled</option><option>No Show</option><option>Rescheduled</option></select></div><div class="enquiry-form-group"><label>Confirmation Method</label><select name="confirmationMethod"><option>Phone</option><option>Email</option><option>SMS</option><option>WhatsApp</option><option>In Person</option><option>Not Confirmed</option></select></div><div class="enquiry-form-group"><label>Reminder Date</label><input name="reminderDate" type="date"></div><div class="enquiry-form-group"><label>Created By</label><input name="createdBy" placeholder="Reception staff member" required></div><div class="enquiry-form-group"><label>Host Contact</label><input name="hostPhone" type="tel" placeholder="Host contact number"></div><div class="enquiry-form-group"><label>Visitor ID</label><input name="visitorId" placeholder="Linked visitor ID"></div><div class="enquiry-form-group full"><label>Notes</label><textarea name="notes" placeholder="Additional appointment notes"></textarea></div>
+                    </div><div class="enquiry-form-actions"><button class="btn-secondary" type="reset" data-enquiry-clear>Clear</button><button class="btn-secondary" type="button" data-enquiry-cancel>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Save Appointment</button></div>
+                </form></div></div>
+                <aside class="enquiry-card enquiry-summary-card hidden"><div class="enquiry-card-header"><h3>Appointment Summary</h3><p>Review before saving.</p></div><div class="enquiry-card-body enquiry-summary"><div class="enquiry-summary-row"><span>Appointment ID</span><strong data-summary="appointmentId">-</strong></div><div class="enquiry-summary-row"><span>Guest</span><strong data-summary="guestName">-</strong></div><div class="enquiry-summary-row"><span>Type</span><strong data-summary="appointmentType">-</strong></div><div class="enquiry-summary-row"><span>Date</span><strong data-summary="appointmentDate">-</strong></div><div class="enquiry-summary-row"><span>Time</span><strong data-summary="appointmentTime">-</strong></div><div class="enquiry-summary-row"><span>Visiting</span><strong data-summary="personToVisit">-</strong></div><div class="enquiry-summary-row"><span>Department</span><strong data-summary="department">-</strong></div><div class="enquiry-summary-row"><span>Status</span><strong data-summary="status">Scheduled</strong></div></div></aside>
+            </div>
+            <div class="enquiries-table"><div class="table-card"><h3 class="table-title">Appointment Register</h3><table><thead><tr><th>Appointment ID</th><th>Guest</th><th>Type</th><th>Date</th><th>Time</th><th>Visiting</th><th>Department</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
+        const form = sec.querySelector('[data-enquiry-form]'); const table = sec.querySelector('[data-enquiry-table]'); const entryCard = sec.querySelector('.enquiry-entry-card'); const summaryCard = sec.querySelector('.enquiry-summary-card'); const storageKey = 'edumasterAppointments'; let editingIndex = null;
+        const readEntries = () => { try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; } }; const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); const today = () => new Date().toISOString().slice(0, 10); const nextId = () => `APT-${new Date().getFullYear()}-${String(readEntries().length + 1).padStart(5, '0')}`;
+        const updateStats = () => { const entries = readEntries().filter(entry => entry.appointmentDate === today()); sec.querySelector('[data-appointment-today]').textContent = entries.length; sec.querySelector('[data-appointment-scheduled]').textContent = entries.filter(entry => ['Scheduled', 'Confirmed'].includes(entry.status)).length; sec.querySelector('[data-appointment-checked]').textContent = entries.filter(entry => ['Checked In', 'In Progress'].includes(entry.status)).length; sec.querySelector('[data-appointment-completed]').textContent = entries.filter(entry => entry.status === 'Completed').length; sec.querySelector('[data-appointment-cancelled]').textContent = entries.filter(entry => entry.status === 'Cancelled').length; };
+        const render = () => { const entries = readEntries(); updateStats(); table.innerHTML = entries.length ? entries.slice(0, 8).map((entry, index) => `<tr><td>${escape(entry.appointmentId)}</td><td>${escape(entry.guestName)}<br><small>${escape(entry.phone)}</small></td><td>${escape(entry.appointmentType)}</td><td>${escape(entry.appointmentDate)}</td><td>${escape(entry.appointmentTime)}</td><td>${escape(entry.personToVisit)}</td><td>${escape(entry.department)}</td><td>${escape(entry.priority)}</td><td><span class="badge pending">${escape(entry.status)}</span></td><td><div class="enquiry-actions"><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="checkin" data-enquiry-index="${index}" title="Check in"><i class="fas fa-check"></i></button><button class="enquiry-action" type="button" data-enquiry-action="cancel" data-enquiry-index="${index}" title="Cancel"><i class="fas fa-xmark"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete"><i class="fas fa-trash"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print"><i class="fas fa-print"></i></button></div></td></tr>`).join('') : '<tr><td colspan="10" style="text-align:center;padding:25px;color:#94a3b8;">No appointments yet. Open New Appointment to create a record.</td></tr>'; };
+        const updateSummary = () => form.querySelectorAll('[name]').forEach(field => { const summary = sec.querySelector(`[data-summary="${field.name}"]`); if (summary) summary.textContent = field.value || (field.name === 'status' ? 'Scheduled' : '-'); }); const closeForm = () => { entryCard.classList.add('hidden'); summaryCard.classList.add('hidden'); form.reset(); editingIndex = null; updateSummary(); }; const openForm = () => { entryCard.classList.remove('hidden'); summaryCard.classList.remove('hidden'); if (editingIndex === null) { form.reset(); form.elements.appointmentId.value = nextId(); form.elements.appointmentDate.value = today(); form.elements.duration.value = '30 minutes'; form.elements.guestCount.value = 1; form.elements.status.value = 'Scheduled'; form.elements.confirmationMethod.value = 'Not Confirmed'; } updateSummary(); form.elements.appointmentType.focus(); };
+        form.addEventListener('input', updateSummary); form.addEventListener('change', updateSummary); form.addEventListener('reset', () => setTimeout(updateSummary)); form.addEventListener('submit', event => { event.preventDefault(); if (!form.checkValidity()) { form.reportValidity(); return; } const data = Object.fromEntries(new FormData(form).entries()); data.id = data.id || Date.now().toString(); data.createdAt = new Date().toISOString(); const entries = readEntries(); if (editingIndex === null) entries.unshift(data); else { data.id = entries[editingIndex].id || data.id; data.createdAt = entries[editingIndex].createdAt || data.createdAt; entries[editingIndex] = data; } localStorage.setItem(storageKey, JSON.stringify(entries)); closeForm(); render(); });
+        sec.querySelector('[data-enquiry-new]').addEventListener('click', () => entryCard.classList.contains('hidden') ? openForm() : closeForm()); sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
+        table.addEventListener('click', event => { const button = event.target.closest('[data-enquiry-action]'); if (!button) return; const entries = readEntries(); const index = Number(button.dataset.enquiryIndex); const entry = entries[index]; if (!entry) return; const action = button.dataset.enquiryAction; if (action === 'delete') { if (!confirm(`Delete appointment ${entry.appointmentId || ''}?`)) return; entries.splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'checkin') { entry.status = 'Checked In'; localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'cancel') { if (!confirm(`Cancel appointment for ${entry.guestName || ''}?`)) return; entry.status = 'Cancelled'; localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'edit') { Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; }); editingIndex = index; openForm(); return; } const printWindow = window.open('', '_blank', 'width=700,height=700'); if (!printWindow) return; printWindow.document.write(`<html><head><title>Appointment Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:180px}</style></head><body><h1>Appointment Record</h1>${Object.entries(entry).filter(([name]) => name !== 'id').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}</body></html>`); printWindow.document.close(); printWindow.focus(); printWindow.print(); });
+        render(); return sec;
+    }
+
+    function createVisitorsModule(category) {
+        const sec = document.createElement('section');
+        sec.className = 'module enquiries-module visitors-module';
+        sec.id = 'module_visitors';
+        sec.innerHTML = `
+            <div class="module-header"><div><h2>Visitors</h2><p>Department: ${category}</p></div><button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> New Visitor</button></div>
+            <div class="enquiries-stats">
+                <div class="enquiry-stat"><span>Today's Visitors</span><strong data-visitor-today>0</strong></div>
+                <div class="enquiry-stat"><span>Currently Inside</span><strong data-visitor-inside>0</strong></div>
+                <div class="enquiry-stat"><span>Expected Today</span><strong data-visitor-expected>0</strong></div>
+                <div class="enquiry-stat"><span>Checked Out</span><strong data-visitor-out>0</strong></div>
+                <div class="enquiry-stat"><span>Active Visits</span><strong data-visitor-active>0</strong></div>
+            </div>
+            <div class="enquiries-grid">
+                <div class="enquiry-card enquiry-entry-card hidden">
+                    <div class="enquiry-card-header"><h3>Visitor Registration</h3><p>Register and manage school visitors.</p></div>
+                    <div class="enquiry-card-body"><form data-enquiry-form>
+                        <div class="enquiry-form-grid">
+                            <div class="enquiry-form-group"><label>Visitor ID</label><input name="visitorId" readonly></div>
+                            <div class="enquiry-form-group"><label>Visitor Type</label><select name="visitorType" required><option value="">Select visitor type</option><option>Parent / Guardian</option><option>Student</option><option>Staff</option><option>Prospective Parent</option><option>Supplier / Vendor</option><option>Contractor</option><option>Government Official</option><option>Guest / VIP</option><option>Alumni</option><option>Other</option></select></div>
+                            <div class="enquiry-form-group"><label>Full Name</label><input name="visitorName" placeholder="Enter visitor full name" required></div>
+                            <div class="enquiry-form-group"><label>Gender</label><select name="gender"><option value="">Select gender</option><option>Male</option><option>Female</option><option>Other</option></select></div>
+                            <div class="enquiry-form-group"><label>Phone Number</label><input name="phone" type="tel" placeholder="+256 700 000000" required></div>
+                            <div class="enquiry-form-group"><label>Email Address</label><input name="email" type="email" placeholder="visitor@example.com"></div>
+                            <div class="enquiry-form-group"><label>ID / Passport Number</label><input name="idNumber" placeholder="Enter ID or passport number"></div>
+                            <div class="enquiry-form-group"><label>Organization / Company</label><input name="organization" placeholder="Organization name"></div>
+                            <div class="enquiry-form-group"><label>Visit Date</label><input name="visitDate" type="date" required></div>
+                            <div class="enquiry-form-group"><label>Expected Arrival Time</label><input name="expectedTime" type="time"></div>
+                            <div class="enquiry-form-group"><label>Check-in Time</label><input name="checkInTime" type="time"></div>
+                            <div class="enquiry-form-group"><label>Check-out Time</label><input name="checkOutTime" type="time"></div>
+                            <div class="enquiry-form-group"><label>Person to Visit</label><input name="personToVisit" placeholder="Teacher, principal, staff member" required></div>
+                            <div class="enquiry-form-group"><label>Department</label><select name="department" required><option value="">Select department</option><option>Principal's Office</option><option>Administration</option><option>Admissions</option><option>Accounts / Finance</option><option>Human Resources</option><option>Academic</option><option>Student Affairs</option><option>Transport</option><option>IT</option><option>Reception</option><option>Other</option></select></div>
+                            <div class="enquiry-form-group full"><label>Purpose of Visit</label><textarea name="purpose" placeholder="Explain the reason for the visit" required></textarea></div>
+                            <div class="enquiry-form-group"><label>Appointment Reference</label><input name="appointmentRef" placeholder="Optional appointment number"></div>
+                            <div class="enquiry-form-group"><label>Accompanying Persons</label><input name="companions" type="number" min="0" value="0"></div>
+                            <div class="enquiry-form-group"><label>Visitor Badge No.</label><input name="badgeNo" placeholder="Badge / pass number"></div>
+                            <div class="enquiry-form-group"><label>Vehicle Number</label><input name="vehicleNo" placeholder="Vehicle registration"></div>
+                            <div class="enquiry-form-group"><label>Entry Gate</label><select name="entryGate"><option value="">Select gate</option><option>Main Gate</option><option>Reception Gate</option><option>Staff Gate</option><option>Service Gate</option><option>Other</option></select></div>
+                            <div class="enquiry-form-group"><label>Security Clearance</label><select name="securityClearance"><option>Not Required</option><option>Pending</option><option>Approved</option><option>Rejected</option></select></div>
+                            <div class="enquiry-form-group full"><label>Items / Equipment Carried</label><textarea name="itemsCarried" placeholder="Laptop, equipment, documents, packages"></textarea></div>
+                            <div class="enquiry-form-group full"><label>Security Notes</label><textarea name="securityNotes" placeholder="Security-related notes"></textarea></div>
+                            <div class="enquiry-form-group"><label>Visit Status</label><select name="status"><option>Expected</option><option>Checked In</option><option>In Meeting</option><option>Checked Out</option><option>Cancelled</option><option>No Show</option></select></div>
+                            <div class="enquiry-form-group"><label>Registered By</label><input name="registeredBy" placeholder="Reception staff member" required></div>
+                            <div class="enquiry-form-group"><label>Host / Staff Contact</label><input name="host" placeholder="Staff member responsible"></div>
+                            <div class="enquiry-form-group"><label>Contact Phone</label><input name="hostPhone" type="tel" placeholder="Host contact number"></div>
+                            <div class="enquiry-form-group full"><label>Additional Remarks</label><textarea name="remarks" placeholder="Additional visitor notes"></textarea></div>
+                        </div>
+                        <div class="enquiry-form-actions"><button class="btn-secondary" type="reset" data-enquiry-clear>Clear</button><button class="btn-secondary" type="button" data-enquiry-cancel>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Save Visitor</button></div>
+                    </form></div>
+                </div>
+                <aside class="enquiry-card enquiry-summary-card hidden"><div class="enquiry-card-header"><h3>Visitor Summary</h3><p>Review before saving.</p></div><div class="enquiry-card-body enquiry-summary">
+                    <div class="enquiry-summary-row"><span>Visitor ID</span><strong data-summary="visitorId">-</strong></div><div class="enquiry-summary-row"><span>Visitor</span><strong data-summary="visitorName">-</strong></div><div class="enquiry-summary-row"><span>Type</span><strong data-summary="visitorType">-</strong></div><div class="enquiry-summary-row"><span>Visit Date</span><strong data-summary="visitDate">-</strong></div><div class="enquiry-summary-row"><span>Visiting</span><strong data-summary="personToVisit">-</strong></div><div class="enquiry-summary-row"><span>Department</span><strong data-summary="department">-</strong></div><div class="enquiry-summary-row"><span>Status</span><strong data-summary="status">Expected</strong></div>
+                </div></aside>
+            </div>
+            <div class="enquiries-table"><div class="table-card"><h3 class="table-title">Visitor Register</h3><table><thead><tr><th>Visitor ID</th><th>Visitor</th><th>Type</th><th>Visiting</th><th>Department</th><th>Visit Date</th><th>Check-in</th><th>Check-out</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
+        const form = sec.querySelector('[data-enquiry-form]'); const table = sec.querySelector('[data-enquiry-table]'); const entryCard = sec.querySelector('.enquiry-entry-card'); const summaryCard = sec.querySelector('.enquiry-summary-card'); const storageKey = 'edumasterVisitors'; let editingIndex = null;
+        const readEntries = () => { try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; } }; const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); const today = () => new Date().toISOString().slice(0, 10); const nextId = () => `VIS-${new Date().getFullYear()}-${String(readEntries().length + 1).padStart(5, '0')}`;
+        const updateStats = () => { const entries = readEntries().filter(entry => entry.visitDate === today()); sec.querySelector('[data-visitor-today]').textContent = entries.length; sec.querySelector('[data-visitor-inside]').textContent = entries.filter(entry => entry.status === 'Checked In').length; sec.querySelector('[data-visitor-expected]').textContent = entries.filter(entry => entry.status === 'Expected').length; sec.querySelector('[data-visitor-out]').textContent = entries.filter(entry => entry.status === 'Checked Out').length; sec.querySelector('[data-visitor-active]').textContent = entries.filter(entry => ['Checked In', 'In Meeting'].includes(entry.status)).length; };
+        const render = () => { const entries = readEntries(); updateStats(); table.innerHTML = entries.length ? entries.slice(0, 8).map((entry, index) => `<tr><td>${escape(entry.visitorId)}</td><td>${escape(entry.visitorName)}<br><small>${escape(entry.phone)}</small></td><td>${escape(entry.visitorType)}</td><td>${escape(entry.personToVisit)}</td><td>${escape(entry.department)}</td><td>${escape(entry.visitDate)}</td><td>${escape(entry.checkInTime || '-')}</td><td>${escape(entry.checkOutTime || '-')}</td><td><span class="badge pending">${escape(entry.status)}</span></td><td><div class="enquiry-actions"><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete"><i class="fas fa-trash"></i></button><button class="enquiry-action" type="button" data-enquiry-action="checkout" data-enquiry-index="${index}" title="Check out"><i class="fas fa-door-open"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print"><i class="fas fa-print"></i></button></div></td></tr>`).join('') : '<tr><td colspan="10" style="text-align:center;padding:25px;color:#94a3b8;">No visitor records yet. Open New Visitor to create a record.</td></tr>'; };
+        const updateSummary = () => form.querySelectorAll('[name]').forEach(field => { const summary = sec.querySelector(`[data-summary="${field.name}"]`); if (summary) summary.textContent = field.value || (field.name === 'status' ? 'Expected' : '-'); }); const closeForm = () => { entryCard.classList.add('hidden'); summaryCard.classList.add('hidden'); form.reset(); editingIndex = null; updateSummary(); }; const openForm = () => { entryCard.classList.remove('hidden'); summaryCard.classList.remove('hidden'); if (editingIndex === null) { form.reset(); form.elements.visitorId.value = nextId(); form.elements.visitDate.value = today(); form.elements.companions.value = 0; form.elements.securityClearance.value = 'Not Required'; } updateSummary(); form.elements.visitorType.focus(); };
+        form.addEventListener('input', updateSummary); form.addEventListener('change', updateSummary); form.addEventListener('reset', () => setTimeout(updateSummary)); form.addEventListener('submit', event => { event.preventDefault(); if (!form.checkValidity()) { form.reportValidity(); return; } const data = Object.fromEntries(new FormData(form).entries()); data.id = data.id || Date.now().toString(); data.createdAt = new Date().toISOString(); const entries = readEntries(); if (editingIndex === null) entries.unshift(data); else { data.id = entries[editingIndex].id || data.id; data.createdAt = entries[editingIndex].createdAt || data.createdAt; entries[editingIndex] = data; } localStorage.setItem(storageKey, JSON.stringify(entries)); closeForm(); render(); });
+        sec.querySelector('[data-enquiry-new]').addEventListener('click', () => entryCard.classList.contains('hidden') ? openForm() : closeForm()); sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
+        table.addEventListener('click', event => { const button = event.target.closest('[data-enquiry-action]'); if (!button) return; const entries = readEntries(); const index = Number(button.dataset.enquiryIndex); const entry = entries[index]; if (!entry) return; if (button.dataset.enquiryAction === 'delete') { if (!confirm(`Delete visitor ${entry.visitorName || ''}?`)) return; entries.splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (button.dataset.enquiryAction === 'checkout') { entry.status = 'Checked Out'; entry.checkOutTime = new Date().toTimeString().slice(0, 5); localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (button.dataset.enquiryAction === 'edit') { Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; }); editingIndex = index; openForm(); return; } const printWindow = window.open('', '_blank', 'width=700,height=700'); if (!printWindow) return; printWindow.document.write(`<html><head><title>Visitor Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:170px}</style></head><body><h1>Visitor Record</h1>${Object.entries(entry).filter(([name]) => name !== 'id').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}</body></html>`); printWindow.document.close(); printWindow.focus(); printWindow.print(); });
+        render(); return sec;
+    }
+
+    function createDispatchModule(category) {
+        const sec = document.createElement('section');
+        sec.className = 'module enquiries-module dispatch-module';
+        sec.id = 'module_dispatch';
+        sec.innerHTML = `
+            <div class="module-header">
+                <div><h2>Dispatch</h2><p>Department: ${category}</p></div>
+                <button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> New Dispatch</button>
+            </div>
+            <div class="enquiries-stats">
+                <div class="enquiry-stat"><span>Total Dispatches</span><strong data-dispatch-total>0</strong></div>
+                <div class="enquiry-stat"><span>Pending</span><strong data-dispatch-pending>0</strong></div>
+                <div class="enquiry-stat"><span>In Transit</span><strong data-dispatch-transit>0</strong></div>
+                <div class="enquiry-stat"><span>Delivered</span><strong data-dispatch-delivered>0</strong></div>
+                <div class="enquiry-stat"><span>Urgent</span><strong data-dispatch-urgent>0</strong></div>
+            </div>
+            <div class="enquiries-grid">
+                <div class="enquiry-card enquiry-entry-card hidden">
+                    <div class="enquiry-card-header"><h3>New Dispatch Entry</h3><p>Register outgoing letters, documents, parcels and official items.</p></div>
+                    <div class="enquiry-card-body">
+                        <form data-enquiry-form>
+                            <div class="enquiry-form-grid">
+                                <div class="enquiry-form-group"><label>Dispatch Number</label><input name="dispatchNo" readonly></div>
+                                <div class="enquiry-form-group"><label>Dispatch Date</label><input name="dispatchDate" type="date" required></div>
+                                <div class="enquiry-form-group"><label>Dispatch Time</label><input name="dispatchTime" type="time"></div>
+                                <div class="enquiry-form-group"><label>Dispatch Type</label><select name="dispatchType" required><option value="">Select type</option><option>Official Letter</option><option>Student Document</option><option>Certificate</option><option>Transcript</option><option>Notice</option><option>Report</option><option>Application</option><option>Parcel / Package</option><option>Courier</option><option>Other</option></select></div>
+                                <div class="enquiry-form-group"><label>Subject / Description</label><input name="subject" placeholder="Enter document or item description" required></div>
+                                <div class="enquiry-form-group"><label>Number of Items</label><input name="quantity" type="number" min="1" value="1"></div>
+                                <div class="enquiry-form-group"><label>Recipient Name</label><input name="recipientName" placeholder="Full recipient name" required></div>
+                                <div class="enquiry-form-group"><label>Recipient Type</label><select name="recipientType" required><option value="">Select recipient</option><option>Parent / Guardian</option><option>Student</option><option>Staff Member</option><option>Government Department</option><option>Other School</option><option>University / College</option><option>Company / Organization</option><option>Supplier / Vendor</option><option>Other</option></select></div>
+                                <div class="enquiry-form-group"><label>Phone Number</label><input name="recipientPhone" type="tel" placeholder="+256 700 000000"></div>
+                                <div class="enquiry-form-group"><label>Email Address</label><input name="recipientEmail" type="email" placeholder="recipient@example.com"></div>
+                                <div class="enquiry-form-group"><label>Organization / Institution</label><input name="organization" placeholder="Organization name"></div>
+                                <div class="enquiry-form-group"><label>Student ID</label><input name="studentId" placeholder="Optional student reference"></div>
+                                <div class="enquiry-form-group full"><label>Delivery Address</label><textarea name="address" placeholder="Enter complete delivery address" required></textarea></div>
+                                <div class="enquiry-form-group"><label>Delivery Method</label><select name="deliveryMethod" required><option value="">Select delivery method</option><option>Hand Delivery</option><option>School Messenger</option><option>Courier</option><option>Registered Mail</option><option>Regular Mail</option><option>Email</option><option>Pickup</option><option>Other</option></select></div>
+                                <div class="enquiry-form-group"><label>Courier / Delivery Company</label><input name="courier" placeholder="e.g. DHL, FedEx"></div>
+                                <div class="enquiry-form-group"><label>Tracking Number</label><input name="trackingNo" placeholder="Enter tracking number"></div>
+                                <div class="enquiry-form-group"><label>Expected Delivery Date</label><input name="expectedDate" type="date"></div>
+                                <div class="enquiry-form-group"><label>Priority</label><select name="priority"><option>Normal</option><option>Important</option><option>Urgent</option></select></div>
+                                <div class="enquiry-form-group"><label>Dispatch Status</label><select name="status"><option>Pending</option><option>Prepared</option><option>Dispatched</option><option>In Transit</option><option>Delivered</option><option>Returned</option><option>Cancelled</option></select></div>
+                                <div class="enquiry-form-group"><label>Prepared By</label><input name="preparedBy" placeholder="Staff member" required></div>
+                                <div class="enquiry-form-group"><label>Approved By</label><input name="approvedBy" placeholder="Approving officer"></div>
+                                <div class="enquiry-form-group"><label>Actual Delivery Date</label><input name="deliveryDate" type="date"></div>
+                                <div class="enquiry-form-group"><label>Received By</label><input name="receivedBy" placeholder="Name of receiver"></div>
+                                <div class="enquiry-form-group full"><label>Proof of Delivery / Reference</label><input name="proof" placeholder="Receipt or delivery confirmation"></div>
+                                <div class="enquiry-form-group full"><label>Notes</label><textarea name="notes" placeholder="Additional dispatch notes"></textarea></div>
+                            </div>
+                            <div class="enquiry-form-actions"><button class="btn-secondary" type="reset" data-enquiry-clear>Clear</button><button class="btn-secondary" type="button" data-enquiry-cancel>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Save Dispatch</button></div>
+                        </form>
+                    </div>
+                </div>
+                <aside class="enquiry-card enquiry-summary-card hidden">
+                    <div class="enquiry-card-header"><h3>Dispatch Summary</h3><p>Review before saving.</p></div>
+                    <div class="enquiry-card-body enquiry-summary">
+                        <div class="enquiry-summary-row"><span>Dispatch No.</span><strong data-summary="dispatchNo">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Recipient</span><strong data-summary="recipientName">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Type</span><strong data-summary="dispatchType">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Subject</span><strong data-summary="subject">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Delivery</span><strong data-summary="deliveryMethod">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Tracking</span><strong data-summary="trackingNo">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Priority</span><strong data-summary="priority">Normal</strong></div>
+                        <div class="enquiry-summary-row"><span>Status</span><strong data-summary="status">Pending</strong></div>
+                    </div>
+                </aside>
+            </div>
+            <div class="enquiries-table"><div class="table-card"><h3 class="table-title">Saved Dispatch Records</h3><table><thead><tr><th>Dispatch No.</th><th>Recipient</th><th>Type</th><th>Subject</th><th>Method</th><th>Tracking</th><th>Date</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
+
+        const form = sec.querySelector('[data-enquiry-form]');
+        const table = sec.querySelector('[data-enquiry-table]');
+        const entryCard = sec.querySelector('.enquiry-entry-card');
+        const summaryCard = sec.querySelector('.enquiry-summary-card');
+        const storageKey = 'edumasterDispatches';
+        let editingIndex = null;
+        const readEntries = () => { try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; } };
+        const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+        const nextNumber = () => `DSP-${new Date().getFullYear()}-${String(readEntries().length + 1).padStart(5, '0')}`;
+        const updateStats = () => {
+            const entries = readEntries();
+            sec.querySelector('[data-dispatch-total]').textContent = entries.length;
+            sec.querySelector('[data-dispatch-pending]').textContent = entries.filter(entry => entry.status === 'Pending').length;
+            sec.querySelector('[data-dispatch-transit]').textContent = entries.filter(entry => entry.status === 'In Transit').length;
+            sec.querySelector('[data-dispatch-delivered]').textContent = entries.filter(entry => entry.status === 'Delivered').length;
+            sec.querySelector('[data-dispatch-urgent]').textContent = entries.filter(entry => entry.priority === 'Urgent').length;
+        };
+        const render = () => {
+            const entries = readEntries();
+            updateStats();
+            table.innerHTML = entries.length ? entries.slice(0, 8).map((entry, index) => `<tr><td>${escape(entry.dispatchNo)}</td><td>${escape(entry.recipientName)}<br><small>${escape(entry.recipientType)}</small></td><td>${escape(entry.dispatchType)}</td><td>${escape(entry.subject)}</td><td>${escape(entry.deliveryMethod)}</td><td>${escape(entry.trackingNo || '-')}</td><td>${escape(entry.dispatchDate || '-')}<br><small>${escape(entry.dispatchTime || '-')}</small></td><td>${escape(entry.priority)}</td><td><span class="badge pending">${escape(entry.status)}</span></td><td><div class="enquiry-actions"><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete"><i class="fas fa-trash"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print"><i class="fas fa-print"></i></button></div></td></tr>`).join('') : '<tr><td colspan="10" style="text-align:center;padding:25px;color:#94a3b8;">No saved dispatch records yet. Open New Dispatch to create a record.</td></tr>';
+        };
+        const updateSummary = () => form.querySelectorAll('[name]').forEach(field => { const summary = sec.querySelector(`[data-summary="${field.name}"]`); if (summary) summary.textContent = field.value || (field.name === 'priority' ? 'Normal' : field.name === 'status' ? 'Pending' : '-'); });
+        const closeForm = () => { entryCard.classList.add('hidden'); summaryCard.classList.add('hidden'); form.reset(); editingIndex = null; updateSummary(); };
+        const openForm = () => { entryCard.classList.remove('hidden'); summaryCard.classList.remove('hidden'); if (editingIndex === null) { form.reset(); form.elements.dispatchNo.value = nextNumber(); form.elements.dispatchDate.value = new Date().toISOString().slice(0, 10); form.elements.dispatchTime.value = new Date().toTimeString().slice(0, 5); form.elements.quantity.value = 1; } updateSummary(); form.elements.dispatchType.focus(); };
+        form.addEventListener('input', updateSummary); form.addEventListener('change', updateSummary); form.addEventListener('reset', () => setTimeout(updateSummary));
+        form.addEventListener('submit', event => { event.preventDefault(); if (!form.checkValidity()) { form.reportValidity(); return; } const data = Object.fromEntries(new FormData(form).entries()); data.id = data.id || Date.now().toString(); data.createdAt = new Date().toISOString(); const entries = readEntries(); if (editingIndex === null) entries.unshift(data); else { data.id = entries[editingIndex].id || data.id; data.createdAt = entries[editingIndex].createdAt || data.createdAt; entries[editingIndex] = data; } localStorage.setItem(storageKey, JSON.stringify(entries)); closeForm(); render(); });
+        sec.querySelector('[data-enquiry-new]').addEventListener('click', () => entryCard.classList.contains('hidden') ? openForm() : closeForm());
+        sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
+        table.addEventListener('click', event => { const button = event.target.closest('[data-enquiry-action]'); if (!button) return; const entries = readEntries(); const index = Number(button.dataset.enquiryIndex); const entry = entries[index]; if (!entry) return; if (button.dataset.enquiryAction === 'delete') { if (!confirm(`Delete dispatch ${entry.dispatchNo || ''}?`)) return; entries.splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (button.dataset.enquiryAction === 'edit') { Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; }); editingIndex = index; openForm(); return; } const printWindow = window.open('', '_blank', 'width=700,height=700'); if (!printWindow) return; printWindow.document.write(`<html><head><title>Dispatch Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:180px}</style></head><body><h1>Dispatch Record</h1>${Object.entries(entry).filter(([name]) => name !== 'id').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}</body></html>`); printWindow.document.close(); printWindow.focus(); printWindow.print(); });
+        render();
+        return sec;
+    }
+
+    function createCallLogsModule(category) {
+        const sec = document.createElement('section');
+        sec.className = 'module enquiries-module call-logs-module';
+        sec.id = 'module_call_logs';
+        sec.innerHTML = `
+            <div class="module-header">
+                <div><h2>Call Logs</h2><p>Department: ${category}</p></div>
+                <button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> New Call</button>
+            </div>
+            <div class="enquiries-stats">
+                <div class="enquiry-stat"><span>Total Calls</span><strong data-call-total>0</strong></div>
+                <div class="enquiry-stat"><span>Incoming</span><strong data-call-incoming>0</strong></div>
+                <div class="enquiry-stat"><span>Outgoing</span><strong data-call-outgoing>0</strong></div>
+                <div class="enquiry-stat"><span>Follow-ups</span><strong data-call-followups>0</strong></div>
+                <div class="enquiry-stat"><span>Urgent</span><strong data-call-urgent>0</strong></div>
+            </div>
+            <div class="enquiries-grid">
+                <div class="enquiry-card enquiry-entry-card hidden">
+                    <div class="enquiry-card-header"><h3>New Call Log Entry</h3><p>Record incoming and outgoing school telephone communication.</p></div>
+                    <div class="enquiry-card-body">
+                        <form data-enquiry-form>
+                            <div class="enquiry-form-grid">
+                                <div class="enquiry-form-group"><label>Call Direction</label><select name="direction" required><option>Incoming</option><option>Outgoing</option></select></div>
+                                <div class="enquiry-form-group"><label>Call Status</label><select name="status" required><option>Answered</option><option>Missed</option><option>Busy</option><option>No Answer</option><option>Transferred</option></select></div>
+                                <div class="enquiry-form-group"><label>Caller / Contact Name</label><input name="callerName" placeholder="Enter caller's full name" required></div>
+                                <div class="enquiry-form-group"><label>Phone Number</label><input name="phone" placeholder="+256 700 000000" required></div>
+                                <div class="enquiry-form-group"><label>Caller Type</label><select name="callerType" required><option value="">Select caller type</option><option>Parent / Guardian</option><option>Student</option><option>Staff Member</option><option>Applicant</option><option>Supplier / Vendor</option><option>Government / Official</option><option>Other</option></select></div>
+                                <div class="enquiry-form-group"><label>Call Date</label><input name="callDate" type="date" required></div>
+                                <div class="enquiry-form-group"><label>Call Time</label><input name="callTime" type="time" required></div>
+                                <div class="enquiry-form-group"><label>Duration</label><input name="duration" placeholder="e.g. 05:30"></div>
+                                <div class="enquiry-form-group"><label>Student ID</label><input name="studentId" placeholder="e.g. STU-2026-001"></div>
+                                <div class="enquiry-form-group"><label>Student Name</label><input name="studentName" placeholder="Student full name"></div>
+                                <div class="enquiry-form-group"><label>Call Purpose</label><select name="purpose" required><option value="">Select purpose</option><option>Admission Enquiry</option><option>Fee / Accounts</option><option>Attendance</option><option>Academic Matter</option><option>Parent Meeting</option><option>Student Welfare</option><option>Transport</option><option>Examination</option><option>Complaint</option><option>General Enquiry</option><option>Emergency</option><option>Other</option></select></div>
+                                <div class="enquiry-form-group"><label>Department</label><select name="department"><option value="">Select department</option><option>Reception</option><option>Admissions</option><option>Accounts / Finance</option><option>Academic Department</option><option>Principal's Office</option><option>HR</option><option>Transport</option><option>IT</option><option>Student Affairs</option><option>School Nurse</option></select></div>
+                                <div class="enquiry-form-group"><label>Call Handled By</label><input name="handledBy" placeholder="Staff member name"></div>
+                                <div class="enquiry-form-group"><label>Call Outcome</label><select name="outcome"><option value="">Select outcome</option><option>Information Provided</option><option>Appointment Scheduled</option><option>Message Taken</option><option>Transferred to Department</option><option>Callback Required</option><option>Resolved</option><option>Escalated</option><option>No Action Required</option></select></div>
+                                <div class="enquiry-form-group"><label>Priority</label><select name="priority"><option>Normal</option><option>Important</option><option>Urgent</option></select></div>
+                                <div class="enquiry-form-group"><label>Follow-up Required?</label><select name="followupRequired"><option>No</option><option>Yes</option></select></div>
+                                <div class="enquiry-form-group"><label>Follow-up Date</label><input name="followupDate" type="date"></div>
+                                <div class="enquiry-form-group"><label>Follow-up By</label><input name="followupBy" placeholder="Staff responsible"></div>
+                                <div class="enquiry-form-group full"><label>Call Notes / Message</label><textarea name="notes" placeholder="Record the caller's message or action taken"></textarea></div>
+                            </div>
+                            <div class="enquiry-form-actions"><button class="btn-secondary" type="reset" data-enquiry-clear>Clear</button><button class="btn-secondary" type="button" data-enquiry-cancel>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Save Call Log</button></div>
+                        </form>
+                    </div>
+                </div>
+                <aside class="enquiry-card enquiry-summary-card hidden">
+                    <div class="enquiry-card-header"><h3>Live Call Summary</h3><p>Review call information before saving.</p></div>
+                    <div class="enquiry-card-body enquiry-summary">
+                        <div class="enquiry-summary-row"><span>Caller</span><strong data-summary="callerName">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Phone</span><strong data-summary="phone">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Direction</span><strong data-summary="direction">Incoming</strong></div>
+                        <div class="enquiry-summary-row"><span>Purpose</span><strong data-summary="purpose">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Department</span><strong data-summary="department">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Outcome</span><strong data-summary="outcome">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Priority</span><strong data-summary="priority">Normal</strong></div>
+                        <div class="enquiry-summary-row"><span>Follow-up</span><strong data-summary="followupRequired">No</strong></div>
+                    </div>
+                </aside>
+            </div>
+            <div class="enquiries-table"><div class="table-card"><h3 class="table-title">Saved Call Records</h3><table><thead><tr><th>Caller</th><th>Phone</th><th>Direction</th><th>Purpose</th><th>Student</th><th>Date / Time</th><th>Priority</th><th>Follow-up</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
+
+        const form = sec.querySelector('[data-enquiry-form]');
+        const table = sec.querySelector('[data-enquiry-table]');
+        const entryCard = sec.querySelector('.enquiry-entry-card');
+        const summaryCard = sec.querySelector('.enquiry-summary-card');
+        const storageKey = 'edumasterCallLogs';
+        let editingIndex = null;
+        const readEntries = () => {
+            try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; }
+        };
+        const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+        const render = () => {
+            const entries = readEntries();
+            sec.querySelector('[data-call-total]').textContent = entries.length;
+            sec.querySelector('[data-call-incoming]').textContent = entries.filter(entry => entry.direction === 'Incoming').length;
+            sec.querySelector('[data-call-outgoing]').textContent = entries.filter(entry => entry.direction === 'Outgoing').length;
+            sec.querySelector('[data-call-followups]').textContent = entries.filter(entry => entry.followupRequired === 'Yes').length;
+            sec.querySelector('[data-call-urgent]').textContent = entries.filter(entry => entry.priority === 'Urgent').length;
+            table.innerHTML = entries.length ? entries.slice(0, 8).map((entry, index) => `<tr><td>${escape(entry.callerName)}<br><small>${escape(entry.callerType)}</small></td><td>${escape(entry.phone)}</td><td>${escape(entry.direction)}</td><td>${escape(entry.purpose)}</td><td>${escape(entry.studentName || '-')}</td><td>${escape(entry.callDate || '-')}<br><small>${escape(entry.callTime || '-')}</small></td><td>${escape(entry.priority)}</td><td>${escape(entry.followupRequired || 'No')}</td><td><span class="badge pending">${escape(entry.status)}</span></td><td><div class="enquiry-actions"><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete"><i class="fas fa-trash"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print"><i class="fas fa-print"></i></button></div></td></tr>`).join('') : '<tr><td colspan="10" style="text-align:center;padding:25px;color:#94a3b8;">No saved call records yet. Open New Call to create a record.</td></tr>';
+        };
+        const updateSummary = () => form.querySelectorAll('[name]').forEach(field => {
+            const summary = sec.querySelector(`[data-summary="${field.name}"]`);
+            if (summary) summary.textContent = field.value || (field.name === 'direction' ? 'Incoming' : field.name === 'priority' ? 'Normal' : field.name === 'followupRequired' ? 'No' : '-');
+        });
+        const closeForm = () => { entryCard.classList.add('hidden'); summaryCard.classList.add('hidden'); form.reset(); editingIndex = null; updateSummary(); };
+        form.addEventListener('input', updateSummary);
+        form.addEventListener('change', updateSummary);
+        form.addEventListener('reset', () => setTimeout(updateSummary));
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            if (!form.checkValidity()) { form.reportValidity(); return; }
+            const data = Object.fromEntries(new FormData(form).entries());
+            data.id = data.id || Date.now().toString();
+            data.createdAt = new Date().toISOString();
+            const entries = readEntries();
+            if (editingIndex === null) entries.unshift(data);
+            else { data.id = entries[editingIndex].id || data.id; data.createdAt = entries[editingIndex].createdAt || data.createdAt; entries[editingIndex] = data; }
+            localStorage.setItem(storageKey, JSON.stringify(entries));
+            closeForm();
+            render();
+        });
+        sec.querySelector('[data-enquiry-new]').addEventListener('click', () => {
+            if (!entryCard.classList.contains('hidden')) { closeForm(); return; }
+            entryCard.classList.remove('hidden'); summaryCard.classList.remove('hidden'); form.reset(); form.querySelector('[name="callerName"]').focus(); updateSummary();
+        });
+        sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
+        table.addEventListener('click', event => {
+            const button = event.target.closest('[data-enquiry-action]');
+            if (!button) return;
+            const entries = readEntries();
+            const index = Number(button.dataset.enquiryIndex);
+            const entry = entries[index];
+            if (!entry) return;
+            if (button.dataset.enquiryAction === 'delete') {
+                if (!confirm(`Delete the call log for ${entry.callerName || 'this caller'}?`)) return;
+                entries.splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return;
+            }
+            if (button.dataset.enquiryAction === 'edit') {
+                Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; });
+                editingIndex = index; entryCard.classList.remove('hidden'); summaryCard.classList.remove('hidden'); updateSummary(); form.querySelector('[name="callerName"]').focus(); return;
+            }
+            const printWindow = window.open('', '_blank', 'width=700,height=700');
+            if (!printWindow) return;
+            printWindow.document.write(`<html><head><title>Call Log Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:170px}</style></head><body><h1>Call Log Record</h1>${Object.entries(entry).filter(([name]) => name !== 'id').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}</body></html>`);
+            printWindow.document.close(); printWindow.focus(); printWindow.print();
+        });
+        render();
+        return sec;
+    }
 
     function loadUsers(){
         try{ return JSON.parse(localStorage.getItem(usersKey)) || []; }catch(e){return []}
@@ -782,8 +1388,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.updateHeaderAddButton(linkText);
             }
 
-            if (link.id === 'dashboardBtn') {
+            if (link.id === 'dashboardBtn' || link.dataset.menuId === 'dashboard') {
                 showDashboard();
+                return;
+            }
+
+            if (linkText === 'Dashboard' && link.dataset.menuId === 'front_office_dashboard') {
+                let frontOfficeDashboard = document.getElementById('module_front_office_dashboard');
+                if (!frontOfficeDashboard) {
+                    frontOfficeDashboard = createFrontOfficeDashboard('Front Office Department');
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(frontOfficeDashboard, dashboardEl);
+                }
+                showSection('module_front_office_dashboard');
+                updateBreadcrumb(['Front Office Department', 'Dashboard']);
                 return;
             }
 
@@ -793,6 +1411,120 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderUsersTable(); 
                 showSection('userRolesSection');
                 updateBreadcrumb(['System', 'User Roles']);
+                return;
+            }
+
+            if (linkText === 'Enquiries') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
+                let enquiriesModule = document.getElementById('module_enquiries');
+                if (!enquiriesModule) {
+                    enquiriesModule = createEnquiriesModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(enquiriesModule, dashboardEl);
+                }
+                enquiriesModule.querySelector('.enquiry-entry-card')?.classList.add('hidden');
+                enquiriesModule.querySelector('.enquiry-summary-card')?.classList.add('hidden');
+                showSection('module_enquiries');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
+            if (linkText === 'Call Logs') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
+                let callLogsModule = document.getElementById('module_call_logs');
+                if (!callLogsModule) {
+                    callLogsModule = createCallLogsModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(callLogsModule, dashboardEl);
+                }
+                showSection('module_call_logs');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
+            if (linkText === 'Dispatch') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
+                let dispatchModule = document.getElementById('module_dispatch');
+                if (!dispatchModule) {
+                    dispatchModule = createDispatchModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(dispatchModule, dashboardEl);
+                }
+                showSection('module_dispatch');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
+            if (linkText === 'Visitors' || linkText === 'Visitor Management') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
+                let visitorsModule = document.getElementById('module_visitors');
+                if (!visitorsModule) {
+                    visitorsModule = createVisitorsModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(visitorsModule, dashboardEl);
+                }
+                showSection('module_visitors');
+                updateBreadcrumb([category, 'Visitors']);
+                return;
+            }
+
+            if (linkText === 'Appointments') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
+                let appointmentsModule = document.getElementById('module_appointments');
+                if (!appointmentsModule) {
+                    appointmentsModule = createAppointmentsModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(appointmentsModule, dashboardEl);
+                }
+                showSection('module_appointments');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
+            if (linkText === 'Incoming Mail') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
+                let incomingMailModule = document.getElementById('module_incoming_mail');
+                if (!incomingMailModule) {
+                    incomingMailModule = createIncomingMailModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(incomingMailModule, dashboardEl);
+                }
+                showSection('module_incoming_mail');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
+            if (linkText === 'Follow-ups') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
+                let followUpsModule = document.getElementById('module_follow_ups');
+                if (!followUpsModule) {
+                    followUpsModule = createFollowUpsModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(followUpsModule, dashboardEl);
+                }
+                showSection('module_follow_ups');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
+            if (linkText === 'Reports') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
+                let reportsModule = document.getElementById('module_front_office_reports');
+                if (!reportsModule) {
+                    reportsModule = createReportsModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(reportsModule, dashboardEl);
+                }
+                showSection('module_front_office_reports');
+                updateBreadcrumb([category, linkText]);
                 return;
             }
 
@@ -926,6 +1658,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }]
         },
         options: {
+            maintainAspectRatio: true,
+            aspectRatio: 1,
             plugins: {
                 legend: { position: 'bottom', labels: { padding: 15 } }
             }
@@ -977,6 +1711,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }]
         },
         options: {
+            maintainAspectRatio: true,
+            aspectRatio: 1,
             plugins: {
                 legend: { position: 'bottom', labels: { padding: 15 } }
             }
@@ -998,6 +1734,16 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentSection === 'Users' || currentSection === 'User Roles') {
                 document.getElementById('userRolesBtn')?.click();
                 setTimeout(() => document.getElementById('toggleAddUserFormBtn')?.click(), 100);
+            } else if (currentSection === 'Enquiries' || currentSection === 'Call Logs' || currentSection === 'Dispatch' || currentSection === 'Visitors' || currentSection === 'Visitor Management' || currentSection === 'Appointments' || currentSection === 'Incoming Mail' || currentSection === 'Follow-ups' || currentSection === 'Reports') {
+                if (currentSection === 'Reports') {
+                    document.querySelector('[data-menu-id="front_office_reports"]')?.click();
+                    return;
+                }
+                const moduleId = currentSection === 'Call Logs' ? 'module_call_logs' : currentSection === 'Dispatch' ? 'module_dispatch' : currentSection === 'Visitors' || currentSection === 'Visitor Management' ? 'module_visitors' : currentSection === 'Appointments' ? 'module_appointments' : currentSection === 'Incoming Mail' ? 'module_incoming_mail' : currentSection === 'Follow-ups' ? 'module_follow_ups' : 'module_enquiries';
+                const fieldName = currentSection === 'Call Logs' ? 'callerName' : currentSection === 'Dispatch' ? 'dispatchType' : currentSection === 'Visitors' || currentSection === 'Visitor Management' ? 'visitorType' : currentSection === 'Appointments' ? 'appointmentType' : currentSection === 'Incoming Mail' ? 'mailType' : currentSection === 'Follow-ups' ? 'relatedModule' : 'name';
+                const module = document.getElementById(moduleId);
+                module?.querySelector('[data-enquiry-new]')?.click();
+                module?.querySelector(`[name="${fieldName}"]`)?.focus();
             } else {
                 // Placeholder for other module forms
                 console.log(`Action triggered for ${currentSection}. Form implementation pending.`);
