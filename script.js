@@ -1631,6 +1631,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Library') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Academic Department';
+                let libraryModule = document.getElementById('libraryModule');
+                if (!libraryModule) {
+                    libraryModule = createLibraryModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(libraryModule, dashboardEl);
+                }
+                showSection('libraryModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
             if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(linkText)) {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
@@ -1855,6 +1869,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentSection === 'ID Cards') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'ID Cards')?.click();
                 document.getElementById('idCardsModule')?.querySelector('[data-idc-new]')?.click();
+                return;
+            } else if (currentSection === 'Library') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Library')?.click();
+                document.getElementById('libraryModule')?.querySelector('[data-lib-new]')?.click();
                 return;
             } else if (currentSection === 'Certificates') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Certificates')?.click();
