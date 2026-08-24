@@ -259,6 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'Applications': { text: 'New Application', icon: 'fa-file-signature' },
             'Admission Letters': { text: 'Generate Letter', icon: 'fa-envelope-open-text' },
             'Library': { text: 'Add Book', icon: 'fa-book' },
+            'Attendance': { text: 'New Attendance', icon: 'fa-calendar-check' },
             'ID Cards': { text: 'New ID', icon: 'fa-id-card' },
             'Certificates': { text: 'New Certificate', icon: 'fa-certificate' },
             'Inventory': { text: 'Add Item', icon: 'fa-boxes-stacked' },
@@ -1645,6 +1646,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Attendance') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Operations Department';
+                let attendanceModule = document.getElementById('attendanceModule');
+                if (!attendanceModule) {
+                    attendanceModule = createAttendanceModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(attendanceModule, dashboardEl);
+                }
+                showSection('attendanceModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
             if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(linkText)) {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
@@ -1873,6 +1888,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentSection === 'Library') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Library')?.click();
                 document.getElementById('libraryModule')?.querySelector('[data-lib-new]')?.click();
+                return;
+            } else if (currentSection === 'Attendance') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Attendance')?.click();
+                document.getElementById('attendanceModule')?.querySelector('[data-att-new]')?.click();
                 return;
             } else if (currentSection === 'Certificates') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Certificates')?.click();
