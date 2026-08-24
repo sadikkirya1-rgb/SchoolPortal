@@ -260,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'Admission Letters': { text: 'Generate Letter', icon: 'fa-envelope-open-text' },
             'Library': { text: 'Add Book', icon: 'fa-book' },
             'Attendance': { text: 'New Attendance', icon: 'fa-calendar-check' },
+            'Health/Infirmary': { text: 'New Health Record', icon: 'fa-briefcase-medical' },
             'ID Cards': { text: 'New ID', icon: 'fa-id-card' },
             'Certificates': { text: 'New Certificate', icon: 'fa-certificate' },
             'Inventory': { text: 'Add Item', icon: 'fa-boxes-stacked' },
@@ -1660,6 +1661,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Health/Infirmary') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Operations Department';
+                let healthModule = document.getElementById('healthModule');
+                if (!healthModule) {
+                    healthModule = createHealthModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(healthModule, dashboardEl);
+                }
+                showSection('healthModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
             if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(linkText)) {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
@@ -1892,6 +1907,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentSection === 'Attendance') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Attendance')?.click();
                 document.getElementById('attendanceModule')?.querySelector('[data-att-new]')?.click();
+                return;
+            } else if (currentSection === 'Health/Infirmary') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Health/Infirmary')?.click();
+                document.getElementById('healthModule')?.querySelector('[data-health-new]')?.click();
                 return;
             } else if (currentSection === 'Certificates') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Certificates')?.click();
