@@ -259,6 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'Applications': { text: 'New Application', icon: 'fa-file-signature' },
             'Admission Letters': { text: 'Generate Letter', icon: 'fa-envelope-open-text' },
             'Library': { text: 'Add Book', icon: 'fa-book' },
+            'ID Cards': { text: 'New ID', icon: 'fa-id-card' },
             'Inventory': { text: 'Add Item', icon: 'fa-boxes-stacked' },
             'Staff Directory': { text: 'Add Staff', icon: 'fa-user-tie' },
             'Leave Management': { text: 'Request Leave', icon: 'fa-calendar-minus' },
@@ -1601,6 +1602,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'ID Cards') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Academic Department';
+                let idCardsModule = document.getElementById('idCardsModule');
+                if (!idCardsModule) {
+                    idCardsModule = createIDCardsModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(idCardsModule, dashboardEl);
+                }
+                showSection('idCardsModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
             if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(linkText)) {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
@@ -1822,6 +1837,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentSection === 'Users' || currentSection === 'User Roles') {
                 document.getElementById('userRolesBtn')?.click();
                 setTimeout(() => document.getElementById('toggleAddUserFormBtn')?.click(), 100);
+            } else if (currentSection === 'ID Cards') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'ID Cards')?.click();
+                document.getElementById('idCardsModule')?.querySelector('[data-idc-new]')?.click();
+                return;
             } else if (currentSection === 'Enquiries' || currentSection === 'Call Logs' || currentSection === 'Dispatch' || currentSection === 'Visitors' || currentSection === 'Visitor Management' || currentSection === 'Appointments' || currentSection === 'Incoming Mail' || currentSection === 'Follow-ups' || currentSection === 'Reports' || currentSection === 'Report Cards' || ['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(currentSection)) {
                 if (currentSection === 'Reports') {
                     Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Reports')?.click();
