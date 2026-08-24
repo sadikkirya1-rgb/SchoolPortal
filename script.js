@@ -1777,6 +1777,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Discipline Case' || linkText === 'Discipline Cases') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Student Life Department';
+                let disciplineCasesModule = document.getElementById('disciplineCasesModule');
+                if (!disciplineCasesModule) {
+                    disciplineCasesModule = createDisciplineCasesModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(disciplineCasesModule, dashboardEl);
+                }
+                showSection('disciplineCasesModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
+            if (linkText === 'Clubs & Societies') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Student Life Department';
+                let clubsSocietiesModule = document.getElementById('clubsSocietiesModule');
+                if (!clubsSocietiesModule) {
+                    clubsSocietiesModule = createClubsSocietiesModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(clubsSocietiesModule, dashboardEl);
+                }
+                showSection('clubsSocietiesModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
             if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(linkText)) {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
