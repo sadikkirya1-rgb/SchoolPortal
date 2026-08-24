@@ -1735,6 +1735,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Continuous Assessment' || linkText === 'Assignments') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Academic Department';
+                let assessmentModule = document.getElementById('assessmentModule');
+                if (!assessmentModule) {
+                    assessmentModule = createAssessmentModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(assessmentModule, dashboardEl);
+                }
+                showSection('assessmentModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
+            if (linkText === 'Study Materials') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'E-Learning Department';
+                let studyMaterialsModule = document.getElementById('studyMaterialsModule');
+                if (!studyMaterialsModule) {
+                    studyMaterialsModule = createStudyMaterialsModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(studyMaterialsModule, dashboardEl);
+                }
+                showSection('studyMaterialsModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
+            if (linkText === 'Online Quizzes') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'E-Learning Department';
+                let onlineQuizzesModule = document.getElementById('onlineQuizzesModule');
+                if (!onlineQuizzesModule) {
+                    onlineQuizzesModule = createOnlineQuizzesModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(onlineQuizzesModule, dashboardEl);
+                }
+                showSection('onlineQuizzesModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
             if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(linkText)) {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
