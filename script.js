@@ -263,6 +263,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'Health/Infirmary': { text: 'New Health Record', icon: 'fa-briefcase-medical' },
             'Boarding': { text: 'New Boarding Record', icon: 'fa-house' },
             'Transport': { text: 'New Transport Record', icon: 'fa-bus' },
+            'Alumni': { text: 'New Alumni', icon: 'fa-user-graduate' },
+            'Inventory': { text: 'New Item', icon: 'fa-boxes-stacked' },
             'ID Cards': { text: 'New ID', icon: 'fa-id-card' },
             'Certificates': { text: 'New Certificate', icon: 'fa-certificate' },
             'Inventory': { text: 'Add Item', icon: 'fa-boxes-stacked' },
@@ -1705,6 +1707,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Alumni') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Operations Department';
+                let alumniModule = document.getElementById('alumniModule');
+                if (!alumniModule) {
+                    alumniModule = createAlumniModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(alumniModule, dashboardEl);
+                }
+                showSection('alumniModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
+            if (linkText === 'Inventory') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Operations Department';
+                let inventoryModule = document.getElementById('inventoryModule');
+                if (!inventoryModule) {
+                    inventoryModule = createInventoryModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(inventoryModule, dashboardEl);
+                }
+                showSection('inventoryModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
             if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(linkText)) {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
@@ -1949,6 +1979,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentSection === 'Transport') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Transport')?.click();
                 document.getElementById('transportModule')?.querySelector('[data-tr-new]')?.click();
+                return;
+            } else if (currentSection === 'Alumni') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Alumni')?.click();
+                document.getElementById('alumniModule')?.querySelector('[data-al-new]')?.click();
+                return;
+            } else if (currentSection === 'Inventory') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Inventory')?.click();
+                document.getElementById('inventoryModule')?.querySelector('[data-inv-new]')?.click();
                 return;
             } else if (currentSection === 'Certificates') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Certificates')?.click();
