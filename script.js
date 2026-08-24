@@ -261,6 +261,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'Library': { text: 'Add Book', icon: 'fa-book' },
             'Attendance': { text: 'New Attendance', icon: 'fa-calendar-check' },
             'Health/Infirmary': { text: 'New Health Record', icon: 'fa-briefcase-medical' },
+            'Boarding': { text: 'New Boarding Record', icon: 'fa-house' },
+            'Transport': { text: 'New Transport Record', icon: 'fa-bus' },
             'ID Cards': { text: 'New ID', icon: 'fa-id-card' },
             'Certificates': { text: 'New Certificate', icon: 'fa-certificate' },
             'Inventory': { text: 'Add Item', icon: 'fa-boxes-stacked' },
@@ -1675,6 +1677,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Boarding') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Operations Department';
+                let boardingModule = document.getElementById('boardingModule');
+                if (!boardingModule) {
+                    boardingModule = createBoardingModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(boardingModule, dashboardEl);
+                }
+                showSection('boardingModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
+            if (linkText === 'Transport') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Operations Department';
+                let transportModule = document.getElementById('transportModule');
+                if (!transportModule) {
+                    transportModule = createTransportModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(transportModule, dashboardEl);
+                }
+                showSection('transportModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
             if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(linkText)) {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
@@ -1911,6 +1941,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentSection === 'Health/Infirmary') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Health/Infirmary')?.click();
                 document.getElementById('healthModule')?.querySelector('[data-health-new]')?.click();
+                return;
+            } else if (currentSection === 'Boarding') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Boarding')?.click();
+                document.getElementById('boardingModule')?.querySelector('[data-board-new]')?.click();
+                return;
+            } else if (currentSection === 'Transport') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Transport')?.click();
+                document.getElementById('transportModule')?.querySelector('[data-tr-new]')?.click();
                 return;
             } else if (currentSection === 'Certificates') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Certificates')?.click();
