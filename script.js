@@ -260,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'Admission Letters': { text: 'Generate Letter', icon: 'fa-envelope-open-text' },
             'Library': { text: 'Add Book', icon: 'fa-book' },
             'ID Cards': { text: 'New ID', icon: 'fa-id-card' },
+            'Certificates': { text: 'New Certificate', icon: 'fa-certificate' },
             'Inventory': { text: 'Add Item', icon: 'fa-boxes-stacked' },
             'Staff Directory': { text: 'Add Staff', icon: 'fa-user-tie' },
             'Leave Management': { text: 'Request Leave', icon: 'fa-calendar-minus' },
@@ -1616,6 +1617,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Certificates') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Academic Department';
+                let certificateModule = document.getElementById('certificateModule');
+                if (!certificateModule) {
+                    certificateModule = createCertificateModule(category);
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(certificateModule, dashboardEl);
+                }
+                showSection('certificateModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
             if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(linkText)) {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
@@ -1840,6 +1855,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentSection === 'ID Cards') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'ID Cards')?.click();
                 document.getElementById('idCardsModule')?.querySelector('[data-idc-new]')?.click();
+                return;
+            } else if (currentSection === 'Certificates') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Certificates')?.click();
+                document.getElementById('certificateModule')?.querySelector('[data-cert-new]')?.click();
                 return;
             } else if (currentSection === 'Enquiries' || currentSection === 'Call Logs' || currentSection === 'Dispatch' || currentSection === 'Visitors' || currentSection === 'Visitor Management' || currentSection === 'Appointments' || currentSection === 'Incoming Mail' || currentSection === 'Follow-ups' || currentSection === 'Reports' || currentSection === 'Report Cards' || ['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(currentSection)) {
                 if (currentSection === 'Reports') {
