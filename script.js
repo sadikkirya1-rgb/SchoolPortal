@@ -1443,6 +1443,97 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const escapeStaffHTML = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    function createLegacyStaffDirectoryModule(category) {
+        const sec = document.createElement('section');
+        sec.className = 'module staff-directory-module';
+        sec.id = 'module_staff_directory';
+        sec.innerHTML = `
+            <div class="module-header">
+                <div><h2>Staff Directory</h2><p>Department: ${category}</p></div>
+                <button class="btn-primary" type="button" data-staff-add><i class="fas fa-user-plus"></i> Add Staff</button>
+            </div>
+            <div class="staff-directory-form hidden" data-staff-form-wrap>
+                <form data-staff-form>
+                    <div class="form-row">
+                        <div class="form-group"><label>Staff Name *</label><input name="name" required placeholder="e.g. Jane Doe"></div>
+                        <div class="form-group"><label>Employee Number</label><input name="employeeNo" placeholder="e.g. STF-001"></div>
+                        <div class="form-group"><label>Role</label><input name="role" placeholder="e.g. Teacher"></div>
+                        <div class="form-group"><label>Department</label><input name="department" value="${category}"></div>
+                        <div class="form-group"><label>Phone</label><input name="phone"></div>
+                        <div class="form-group"><label>Email</label><input type="email" name="email"></div>
+                        <div class="form-group"><label>Status</label><select name="status"><option>Active</option><option>Inactive</option></select></div>
+                    </div>
+                    <div class="staff-directory-form-actions"><button class="btn-primary" type="submit">Save Staff</button><button class="btn-secondary" type="button" data-staff-cancel>Cancel</button></div>
+                </form>
+            </div>
+            <div class="table-card staff-directory-table-card"><div class="table-wrap"><table><thead><tr><th>Staff</th><th>Employee No.</th><th>Role</th><th>Department</th><th>Phone</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead><tbody data-staff-table></tbody></table></div></div>`;
+        let staff = JSON.parse(localStorage.getItem('school_staff_directory') || 'null') || [
+            { id: 1, name: 'Staff Member A', employeeNo: 'STF-001', role: 'Teacher', department: category, phone: '', email: '', status: 'Active' },
+            { id: 2, name: 'Staff Member B', employeeNo: 'STF-002', role: 'Administrator', department: category, phone: '', email: '', status: 'Active' }
+        ];
+        let editingId = null;
+        const formWrap = sec.querySelector('[data-staff-form-wrap]');
+        const form = sec.querySelector('[data-staff-form]');
+        const table = sec.querySelector('[data-staff-table]');
+        const persist = () => localStorage.setItem('school_staff_directory', JSON.stringify(staff));
+        const closeForm = () => { formWrap.classList.add('hidden'); form.reset(); editingId = null; };
+        const render = () => {
+            table.innerHTML = staff.map(staff => `
+                <tr data-staff-id="${staff.id}">
+                    <td><strong data-staff-name>${escapeStaffHTML(staff.name)}</strong></td>
+                    <td>${escapeStaffHTML(staff.employeeNo || '-')}</td>
+                    <td>${escapeStaffHTML(staff.role || '-')}</td>
+                    <td>${escapeStaffHTML(staff.department || '-')}</td>
+                    <td>${escapeStaffHTML(staff.phone || '-')}</td>
+                    <td>${escapeStaffHTML(staff.email || '-')}</td>
+                    <td>${escapeStaffHTML(staff.status || 'Active')}</td>
+                    <td>
+                        <div class="actions">
+                            <!-- Preview -->
+                            <button
+                                class="action-btn"
+                                title="Preview / Print"
+                                onclick="previewStaff(${staff.id})">
+                                👁️
+                            </button>
+
+                            <!-- Edit -->
+                            <button
+                                class="action-btn"
+                                title="Edit Staff"
+                                onclick="editStaff(${staff.id})">
+                                ✏️
+                            </button>
+
+                            <!-- Delete -->
+                            <button
+                                class="action-btn"
+                                title="Delete Staff"
+                                onclick="deleteStaff(${staff.id})">
+                                🗑️
+                            </button>
+                        </div>
+                    </td>
+                </tr>`).join('');
+        };
+        window.previewStaff = id => { const member = staff.find(item => item.id === id); if (member) alert(`Staff record:\n${member.name}\n${member.role || 'Staff member'}\n${member.department || ''}`); };
+        window.editStaff = id => { const member = staff.find(item => item.id === id); if (!member) return; editingId = id; Object.keys(member).forEach(key => { if (form.elements[key]) form.elements[key].value = member[key] || ''; }); formWrap.classList.remove('hidden'); form.elements.name.focus(); };
+        window.deleteStaff = id => { const member = staff.find(item => item.id === id); if (!member || !confirm(`Delete ${member.name}?`)) return; staff = staff.filter(item => item.id !== id); persist(); render(); };
+        window.addStaff = () => { editingId = null; form.reset(); form.elements.department.value = category; formWrap.classList.remove('hidden'); form.elements.name.focus(); };
+        sec.querySelector('[data-staff-add]').addEventListener('click', window.addStaff);
+        sec.querySelector('[data-staff-cancel]').addEventListener('click', closeForm);
+        form.addEventListener('submit', event => { event.preventDefault(); const data = Object.fromEntries(new FormData(form).entries()); data.id = editingId || Date.now(); if (editingId) staff[staff.findIndex(item => item.id === editingId)] = data; else staff.push(data); persist(); render(); closeForm(); });
+        render();
+        return sec;
+    }
+
     const navLinks = document.querySelectorAll('.nav-links a');
     navLinks.forEach(link => {
         link.addEventListener('click', (ev) => {
@@ -1886,6 +1977,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Staff Directory') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Administration Department';
+                let staffDirectoryModule = document.getElementById('module_staff_directory');
+                if (!staffDirectoryModule) {
+                    staffDirectoryModule = window.createStaffDirectoryModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(staffDirectoryModule, dashboardEl);
+                }
+                showSection('module_staff_directory');
+                updateBreadcrumb([category, 'Staff Directory']);
+                return;
+            }
+
             // Create or show dynamic department modules
             const parentUl = link.closest('ul.nav-links');
             const category = parentUl?.previousElementSibling?.innerText.trim() || 'General';
@@ -1897,11 +2002,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 sec.className = 'module';
                 sec.id = moduleId;
                 
-                const headers = ['Record ID', 'Description', 'Category', 'Status'];
+                const headers = linkText === 'Staff Directory' ? ['Staff', 'Record ID', 'Category', 'Status', 'Actions'] : ['Record ID', 'Description', 'Category', 'Status'];
                 const rows = [
-                    ['#001', `${linkText} Entry A`, category, 'Active'],
-                    ['#002', `${linkText} Entry B`, category, 'Pending'],
-                    ['#003', `${linkText} Entry C`, category, 'Review']
+                    ...(linkText === 'Staff Directory' ? [
+                        { id: 1, name: 'Staff Member A', recordId: '#001', status: 'Active' },
+                        { id: 2, name: 'Staff Member B', recordId: '#002', status: 'Active' },
+                        { id: 3, name: 'Staff Member C', recordId: '#003', status: 'Inactive' }
+                    ] : [
+                        ['#001', `${linkText} Entry A`, category, 'Active'],
+                        ['#002', `${linkText} Entry B`, category, 'Pending'],
+                        ['#003', `${linkText} Entry C`, category, 'Review']
+                    ])
                 ];
 
                 sec.innerHTML = `
@@ -1914,7 +2025,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             <table>
                                 <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
                                 <tbody>
-                                    ${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}
+                                    ${linkText === 'Staff Directory' ? rows.map(staff => `
+                                        <tr data-staff-id="${staff.id}">
+                                            <td><strong data-staff-name>${staff.name}</strong></td>
+                                            <td>${staff.recordId}</td>
+                                            <td>${category}</td>
+                                            <td>${staff.status}</td>
+                                            <td>
+                                                <div class="actions">
+                                                    <button class="action-btn" title="Preview / Print" onclick="previewStaff(${staff.id})">👁️</button>
+                                                    <button class="action-btn" title="Edit Staff" onclick="editStaff(${staff.id})">✏️</button>
+                                                    <button class="action-btn" title="Delete Staff" onclick="deleteStaff(${staff.id})">🗑️</button>
+                                                </div>
+                                            </td>
+                                        </tr>`).join('') : rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}
                                 </tbody>
                             </table>
                         </div>
@@ -2127,6 +2251,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentSection === 'Inventory') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Inventory')?.click();
                 document.getElementById('inventoryModule')?.querySelector('[data-inv-new]')?.click();
+                return;
+            } else if (currentSection === 'Staff Directory') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Staff Directory')?.click();
+                window.addStaff?.();
                 return;
             } else if (currentSection === 'Certificates') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Certificates')?.click();
