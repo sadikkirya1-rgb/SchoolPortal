@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function hideAllContentAreas(){
-        const sections = ['.main > .dashboard', '.main > .modules', '.main > .charts', '.main > .table-card', '#userRolesSection'];
+        const sections = ['.main > .dashboard', '.main > .modules', '.main > .charts', '.main > .table-card', '#userRolesSection', '#studentsModule'];
         sections.forEach(sel => {
             document.querySelectorAll(sel).forEach(el => el.classList.add('hidden'));
         });
@@ -1481,6 +1481,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Students') {
+                showSection('studentsModule');
+                updateBreadcrumb(['Academic Department', 'Students']);
+                return;
+            }
+
             if (linkText === 'Enquiries') {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
@@ -2022,7 +2028,11 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Branch functionality based on the current section context
             if (currentSection === 'Dashboard' || currentSection === 'Students') {
-                modal.classList.add('active');
+                if (currentSection === 'Students' && typeof window.openStudentsModal === 'function') {
+                    window.openStudentsModal();
+                } else {
+                    modal.classList.add('active');
+                }
             } else if (currentSection === 'Users' || currentSection === 'User Roles') {
                 document.getElementById('userRolesBtn')?.click();
                 setTimeout(() => document.getElementById('toggleAddUserFormBtn')?.click(), 100);
