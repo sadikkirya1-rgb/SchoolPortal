@@ -1798,6 +1798,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Staff Attendance') {
+                let staffAttendanceModule = document.getElementById('staffAttendanceModule');
+                if (!staffAttendanceModule) {
+                    staffAttendanceModule = window.createStaffAttendanceModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(staffAttendanceModule, dashboardEl);
+                }
+                showSection('staffAttendanceModule');
+                updateBreadcrumb(['Staff Management', 'Staff Attendance']);
+                return;
+            }
+
             if (linkText === 'Health/Infirmary') {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Operations Department';
@@ -2231,6 +2243,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentSection === 'Attendance') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Attendance')?.click();
                 document.getElementById('attendanceModule')?.querySelector('[data-att-new]')?.click();
+                return;
+            } else if (currentSection === 'Staff Attendance') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Staff Attendance')?.click();
+                document.getElementById('staffAttendanceModule')?.querySelector('[data-add]')?.click();
                 return;
             } else if (currentSection === 'Health/Infirmary') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Health/Infirmary')?.click();
