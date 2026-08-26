@@ -1859,6 +1859,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Counseling') {
+                let counselingModule = document.getElementById('counselingModule');
+                if (!counselingModule) {
+                    counselingModule = createCounselingModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(counselingModule, dashboardEl);
+                }
+                showSection('counselingModule');
+                updateBreadcrumb(['Student Life Department', 'Counseling']);
+                return;
+            }
+
             if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(linkText)) {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
