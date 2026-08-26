@@ -2003,6 +2003,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Leave Management') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Human Resources Department';
+                let leaveManagementModule = document.getElementById('leaveManagementModule');
+                if (!leaveManagementModule) {
+                    leaveManagementModule = window.createLeaveManagementModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(leaveManagementModule, dashboardEl);
+                }
+                showSection('leaveManagementModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
             // Create or show dynamic department modules
             const parentUl = link.closest('ul.nav-links');
             const category = parentUl?.previousElementSibling?.innerText.trim() || 'General';
