@@ -1499,6 +1499,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Curriculum') {
+                let curriculumModule = document.getElementById('curriculumModule');
+                if (!curriculumModule) {
+                    curriculumModule = createCurriculumModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(curriculumModule, dashboardEl);
+                }
+                showSection('curriculumModule');
+                updateBreadcrumb(['Academic Department', 'Curriculum']);
+                return;
+            }
+
+            if (linkText === 'Timetables') {
+                let timetablesModule = document.getElementById('timetablesModule');
+                if (!timetablesModule) {
+                    timetablesModule = createTimetablesModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(timetablesModule, dashboardEl);
+                }
+                showSection('timetablesModule');
+                updateBreadcrumb(['Academic Department', 'Timetables']);
+                return;
+            }
+
             if (linkText === 'Enquiries') {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
