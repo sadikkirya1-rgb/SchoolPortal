@@ -1847,6 +1847,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Sports & Activities') {
+                let sportsActivitiesModule = document.getElementById('sportsActivitiesModule');
+                if (!sportsActivitiesModule) {
+                    sportsActivitiesModule = createSportsActivitiesModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(sportsActivitiesModule, dashboardEl);
+                }
+                showSection('sportsActivitiesModule');
+                updateBreadcrumb(['Student Life Department', 'Sports & Activities']);
+                return;
+            }
+
             if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(linkText)) {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
