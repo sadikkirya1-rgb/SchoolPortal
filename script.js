@@ -1487,6 +1487,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Teachers') {
+                let teachersModule = document.getElementById('teachersModule');
+                if (!teachersModule) {
+                    teachersModule = createTeachersModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(teachersModule, dashboardEl);
+                }
+                showSection('teachersModule');
+                updateBreadcrumb(['Academic Department', 'Teachers']);
+                return;
+            }
+
             if (linkText === 'Enquiries') {
                 const parentUl = link.closest('ul.nav-links');
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Front Office Department';
