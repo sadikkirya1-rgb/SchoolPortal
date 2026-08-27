@@ -1671,6 +1671,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Expenses') {
+                let expensesModule = document.getElementById('expensesModule');
+                if (!expensesModule) {
+                    expensesModule = createExpensesModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(expensesModule, dashboardEl);
+                }
+                showSection('expensesModule');
+                updateBreadcrumb(['Finance Department', 'Expenses']);
+                return;
+            }
+
             if (linkText === 'Payroll Reports') {
                 let reportsModule = document.getElementById('payrollReportsModule');
                 if (!reportsModule) {
@@ -2396,6 +2408,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentSection === 'Fees') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Fees')?.click();
                 document.getElementById('feesModule')?.querySelector('[data-fee-new]')?.click();
+                return;
+            } else if (currentSection === 'Expenses') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Expenses')?.click();
+                document.getElementById('expensesModule')?.querySelector('[data-expense-new]')?.click();
                 return;
             } else if (currentSection === 'Alumni') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Alumni')?.click();
