@@ -270,6 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'Inventory': { text: 'Add Item', icon: 'fa-boxes-stacked' },
             'Staff Directory': { text: 'Add Staff', icon: 'fa-user-tie' },
             'Leave Management': { text: 'Request Leave', icon: 'fa-calendar-minus' },
+            'Recruitment': { text: 'Add Applicant', icon: 'fa-user-plus' },
             'Run Payroll': { text: 'Process Payroll', icon: 'fa-money-bill-wave' },
             'Fees': { text: 'Collect Fee', icon: 'fa-money-bill-transfer' },
             'Fee Invoices': { text: 'Create Invoice', icon: 'fa-file-invoice-dollar' },
@@ -2017,6 +2018,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (linkText === 'Recruitment') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Human Resources Department';
+                let recruitmentModule = document.getElementById('recruitmentModule');
+                if (!recruitmentModule) {
+                    recruitmentModule = window.createRecruitmentModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(recruitmentModule, dashboardEl);
+                }
+                showSection('recruitmentModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
             // Create or show dynamic department modules
             const parentUl = link.closest('ul.nav-links');
             const category = parentUl?.previousElementSibling?.innerText.trim() || 'General';
@@ -2285,6 +2300,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (currentSection === 'Staff Directory') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Staff Directory')?.click();
                 window.addStaff?.();
+                return;
+            } else if (currentSection === 'Recruitment') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Recruitment')?.click();
+                document.getElementById('recruitmentModule')?.querySelector('[data-add]')?.click();
                 return;
             } else if (currentSection === 'Certificates') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Certificates')?.click();
