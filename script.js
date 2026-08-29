@@ -1591,6 +1591,163 @@ document.addEventListener('DOMContentLoaded', () => {
         sec.querySelector('[data-report-new]').addEventListener('click', () => openForm()); sec.querySelectorAll('[data-report-close-form]').forEach(button => button.addEventListener('click', () => formOverlay.classList.add('hidden'))); sec.querySelectorAll('[data-report-close-preview]').forEach(button => button.addEventListener('click', () => previewOverlay.classList.add('hidden'))); sec.querySelector('[data-report-search]').addEventListener('input', render); sec.querySelector('[data-report-period]').addEventListener('change', render); sec.querySelector('[data-report-status]').addEventListener('change', render); sec.querySelector('[data-report-table]').addEventListener('click', event => { const button = event.target.closest('[data-report-action]'); if (!button) return; const item = reports.find(record => record.id === Number(button.dataset.id)); if (!item) return; if (button.dataset.reportAction === 'preview') openPreview(item); if (button.dataset.reportAction === 'edit') openForm(item); if (button.dataset.reportAction === 'delete' && confirm(`Delete payroll report ${item.reportNo}?`)) { reports = reports.filter(record => record.id !== item.id); save(); render(); } }); sec.querySelector('[data-report-export]').addEventListener('click', () => { const rows = [['Report Number', 'Report Name', 'Report Type', 'Period', 'Employees', 'Gross Salary', 'Deductions', 'Net Salary', 'Generated Date', 'Status', 'Prepared By', 'Notes'], ...reports.map(item => [item.reportNo, item.reportName, item.reportType, item.period, item.employees, item.grossSalary, item.deductions, item.netSalary, item.generatedDate, item.status, item.preparedBy, item.notes])]; const csv = rows.map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\n'); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'school-payroll-reports.csv'; link.click(); URL.revokeObjectURL(link.href); }); sec.querySelector('[data-report-print]').addEventListener('click', () => { const content = sec.querySelector('[data-report-preview-content]').innerHTML; const printWindow = window.open('', '_blank'); if (!printWindow) return; printWindow.document.write(`<html><head><title>Payroll Report</title><link rel="stylesheet" href="payroll-reports.css"></head><body>${content}</body></html>`); printWindow.document.close(); printWindow.focus(); printWindow.print(); }); render(); return sec;
     }
 
+    function createClosedPOsModule() {
+        const sec = document.createElement('section');
+        sec.className = 'module closed-pos-module hidden';
+        sec.id = 'closedPOsModule';
+        sec.innerHTML = `
+            <style>
+                .closed-pos-module { width: 100%; padding: 0; }
+                .closed-pos-module * { box-sizing: border-box; }
+                .closed-po-section { max-width: 1400px; margin: 0 auto; padding: 24px 0 0; }
+                .closed-po-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 15px; }
+                .closed-po-title { display: flex; align-items: center; gap: 13px; }
+                .closed-po-icon { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; background: #e8f8ef; color: #16a34a; font-size: 21px; font-weight: bold; }
+                .closed-po-title h2 { font-size: 22px; letter-spacing: -.4px; margin: 0; }
+                .closed-po-title p { color: #7b8494; font-size: 12px; margin-top: 4px; }
+                .closed-po-btn { border: 0; background: linear-gradient(135deg, #4f46e5, #6366f1); color: white; padding: 11px 17px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 7px 20px rgba(79,70,229,.20); transition: .2s; }
+                .closed-po-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 25px rgba(79,70,229,.27); }
+                .po-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 17px; box-shadow: 0 10px 35px rgba(15,23,42,.06); overflow: hidden; }
+                .filter-bar { padding: 17px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #edf0f3; }
+                .filter-left, .filter-right { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
+                .search-box { position: relative; }
+                .search-box span { position: absolute; left: 12px; top: 10px; color: #9ca3af; }
+                .search { width: 250px; height: 38px; border: 1px solid #e1e5eb; border-radius: 9px; padding: 0 12px 0 35px; outline: none; font-size: 12px; background: #fafbfc; }
+                .search:focus, .filter:focus { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(99,102,241,.08); }
+                .filter { height: 38px; border: 1px solid #e1e5eb; border-radius: 9px; padding: 0 10px; outline: none; background: #fafbfc; color: #4b5563; font-size: 11px; }
+                .table-wrapper { overflow-x: auto; }
+                .closed-pos-module table { width: 100%; min-width: 900px; border-collapse: collapse; }
+                .closed-pos-module th { background: #fafbfc; color: #7b8494; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; padding: 13px 17px; text-align: left; border-bottom: 1px solid #e8ebef; white-space: nowrap; }
+                .closed-pos-module td { padding: 14px 17px; font-size: 12px; border-bottom: 1px solid #f0f2f4; white-space: nowrap; }
+                .closed-pos-module tbody tr:hover { background: #fafbff; }
+                .po-number { color: #4f46e5; font-weight: 750; }
+                .supplier { display: flex; align-items: center; gap: 9px; }
+                .supplier-logo { width: 32px; height: 32px; border-radius: 9px; background: #eef2ff; color: #4f46e5; display: grid; place-items: center; font-size: 10px; font-weight: 800; }
+                .supplier-name { font-weight: 650; }
+                .supplier-type { color: #929aa8; font-size: 10px; margin-top: 2px; }
+                .status { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 50px; font-size: 9px; font-weight: 750; }
+                .status::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+                .closed { color: #15803d; background: #dcfce7; }
+                .paid { color: #0369a1; background: #e0f2fe; }
+                .partial { color: #b45309; background: #fef3c7; }
+                .amount { font-weight: 750; }
+                .actions { display: flex; gap: 5px; }
+                .action-btn { width: 31px; height: 31px; border-radius: 8px; border: 1px solid #e2e6eb; background: white; color: #667085; cursor: pointer; transition: .18s; }
+                .action-btn:hover { color: #4f46e5; background: #eef2ff; border-color: #c7d2fe; }
+                .action-btn.print:hover { color: #059669; background: #ecfdf5; border-color: #a7f3d0; }
+                .action-btn.download:hover { color: #2563eb; background: #eff6ff; border-color: #bfdbfe; }
+                .table-footer { display: flex; justify-content: space-between; align-items: center; padding: 14px 17px; color: #7b8494; font-size: 11px; }
+                .pagination { display: flex; gap: 5px; }
+                .page { width: 30px; height: 30px; border: 1px solid #e1e5eb; background: white; border-radius: 7px; cursor: pointer; font-size: 11px; }
+                .page.active { background: #4f46e5; border-color: #4f46e5; color: white; }
+                .modal { position: fixed; inset: 0; background: rgba(15,23,42,.58); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
+                .modal.show { display: flex; }
+                .modal-box { width: min(900px, 100%); max-height: 92vh; overflow-y: auto; background: white; border-radius: 17px; box-shadow: 0 25px 70px rgba(0,0,0,.2); }
+                .modal-header { padding: 17px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; }
+                .modal-header h3 { font-size: 16px; margin: 0; }
+                .modal-header p { color: #7b8494; font-size: 10px; margin-top: 3px; }
+                .close { width: 34px; height: 34px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; font-size: 19px; cursor: pointer; }
+                .modal-body { padding: 25px; }
+                .po-print { border: 1px solid #e1e5eb; padding: 30px; border-radius: 10px; background: white; }
+                .po-heading { display: flex; justify-content: space-between; gap: 20px; padding-bottom: 18px; border-bottom: 2px solid #172033; margin-bottom: 20px; }
+                .school { display: flex; gap: 12px; align-items: center; }
+                .school-logo { width: 48px; height: 48px; border-radius: 11px; display: grid; place-items: center; background: #eef2ff; color: #4f46e5; font-weight: 800; }
+                .school h2 { font-size: 16px; margin: 0; }
+                .school p { color: #7b8494; font-size: 10px; margin-top: 3px; }
+                .po-title { text-align: right; }
+                .po-title h1 { font-size: 22px; margin: 0; }
+                .po-title span { color: #6b7280; font-size: 10px; }
+                .po-info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 22px; }
+                .info { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 11px; }
+                .info label { display: block; color: #94a3b8; font-size: 8px; text-transform: uppercase; margin-bottom: 5px; }
+                .info strong { font-size: 11px; }
+                .item-table { width: 100%; min-width: 0; border-collapse: collapse; margin-bottom: 20px; }
+                .item-table th, .item-table td { border: 1px solid #e5e7eb; padding: 10px; }
+                .item-table th { background: #f8fafc; }
+                .totals { width: 260px; margin-left: auto; }
+                .total-row { display: flex; justify-content: space-between; padding: 7px 0; color: #64748b; font-size: 11px; }
+                .total-row.final { border-top: 2px solid #172033; padding-top: 10px; color: #172033; font-weight: 800; font-size: 14px; }
+                .modal-footer { border-top: 1px solid #e5e7eb; padding: 14px 20px; display: flex; justify-content: flex-end; gap: 8px; }
+                .btn { border: 0; border-radius: 8px; padding: 9px 14px; font-size: 11px; font-weight: 700; cursor: pointer; }
+                .btn-light { background: #f1f5f9; color: #334155; }
+                .btn-primary { background: #4f46e5; color: white; }
+                @media(max-width:700px) { .closed-po-header { align-items: flex-start; flex-direction: column; } .closed-po-btn { width: 100%; } .search { width: 100%; } .filter-left, .filter-right { width: 100%; } .filter { flex: 1; } .po-info { grid-template-columns: 1fr; } .po-heading { flex-direction: column; } .po-title { text-align: left; } .po-print { padding: 15px; } .table-footer { flex-direction: column; gap: 12px; } }
+                @media print { body * { visibility: hidden !important; } #previewModal, #previewModal * { visibility: visible !important; } #previewModal { position: absolute; inset: 0; display: block !important; background: white; padding: 0; } .modal-box { width: 100%; max-height: none; box-shadow: none; border-radius: 0; } .modal-header, .modal-footer { display: none !important; } .modal-body { padding: 0; } .po-print { border: 0; } }
+            </style>
+            <div class="closed-po-section">
+                <div class="closed-po-header">
+                    <div class="closed-po-title">
+                        <div class="closed-po-icon">✓</div>
+                        <div><h2>Closed POs</h2><p>View and manage completed purchase orders</p></div>
+                    </div>
+                    <button class="closed-po-btn" onclick="openClosedPO()">✓ Closed Purchase Orders</button>
+                </div>
+                <div class="po-card" id="closedPOContent">
+                    <div class="filter-bar">
+                        <div class="filter-left">
+                            <div class="search-box"><span>⌕</span><input id="search" class="search" type="text" placeholder="Search PO or supplier..." oninput="filterPOs()"></div>
+                            <select id="supplier" class="filter" onchange="filterPOs()"><option value="">All Suppliers</option><option>Gulf Office Supplies</option><option>Bright Learning</option><option>TechWorld Solutions</option><option>Campus Furniture</option></select>
+                            <select id="payment" class="filter" onchange="filterPOs()"><option value="">All Payments</option><option>Paid</option><option>Partially Paid</option></select>
+                        </div>
+                        <div class="filter-right">
+                            <input id="date" class="filter" type="date" onchange="filterPOs()">
+                            <button class="btn btn-light" type="button" onclick="resetFilters()">↻ Reset</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table id="poTable">
+                            <thead><tr><th>PO Number</th><th>Supplier</th><th>PO Date</th><th>Closed Date</th><th>Amount</th><th>Payment</th><th>Closed By</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                <tr data-supplier="Gulf Office Supplies" data-payment="Paid" data-date="2026-08-21"><td><span class="po-number">PO-2026-0089</span></td><td><div class="supplier"><div class="supplier-logo">GO</div><div><div class="supplier-name">Gulf Office Supplies</div><div class="supplier-type">Office & Stationery</div></div></div></td><td>12 Aug 2026</td><td>21 Aug 2026</td><td class="amount">$4,820.00</td><td><span class="status paid">Paid</span></td><td>Ahmed Khan</td><td><div class="actions"><button class="action-btn" type="button" title="Preview" onclick="viewPO('PO-2026-0089')">👁</button><button class="action-btn print" type="button" title="Print" onclick="printPO('PO-2026-0089')">🖨</button><button class="action-btn download" type="button" title="Download" onclick="downloadPO('PO-2026-0089')">↓</button></div></td></tr>
+                                <tr data-supplier="Bright Learning" data-payment="Paid" data-date="2026-08-18"><td><span class="po-number">PO-2026-0088</span></td><td><div class="supplier"><div class="supplier-logo">BL</div><div><div class="supplier-name">Bright Learning</div><div class="supplier-type">Educational Materials</div></div></div></td><td>08 Aug 2026</td><td>18 Aug 2026</td><td class="amount">$7,250.00</td><td><span class="status paid">Paid</span></td><td>Sarah Wilson</td><td><div class="actions"><button class="action-btn" type="button" onclick="viewPO('PO-2026-0088')">👁</button><button class="action-btn print" type="button" onclick="printPO('PO-2026-0088')">🖨</button><button class="action-btn download" type="button" onclick="downloadPO('PO-2026-0088')">↓</button></div></td></tr>
+                                <tr data-supplier="TechWorld Solutions" data-payment="Partially Paid" data-date="2026-08-15"><td><span class="po-number">PO-2026-0087</span></td><td><div class="supplier"><div class="supplier-logo">TS</div><div><div class="supplier-name">TechWorld Solutions</div><div class="supplier-type">IT Equipment</div></div></div></td><td>02 Aug 2026</td><td>15 Aug 2026</td><td class="amount">$18,450.00</td><td><span class="status partial">Partially Paid</span></td><td>Michael Lee</td><td><div class="actions"><button class="action-btn" type="button" onclick="viewPO('PO-2026-0087')">👁</button><button class="action-btn print" type="button" onclick="printPO('PO-2026-0087')">🖨</button><button class="action-btn download" type="button" onclick="downloadPO('PO-2026-0087')">↓</button></div></td></tr>
+                                <tr data-supplier="Campus Furniture" data-payment="Paid" data-date="2026-08-12"><td><span class="po-number">PO-2026-0086</span></td><td><div class="supplier"><div class="supplier-logo">CF</div><div><div class="supplier-name">Campus Furniture</div><div class="supplier-type">Furniture & Fixtures</div></div></div></td><td>29 Jul 2026</td><td>12 Aug 2026</td><td class="amount">$12,680.00</td><td><span class="status paid">Paid</span></td><td>Ahmed Khan</td><td><div class="actions"><button class="action-btn" type="button" onclick="viewPO('PO-2026-0086')">👁</button><button class="action-btn print" type="button" onclick="printPO('PO-2026-0086')">🖨</button><button class="action-btn download" type="button" onclick="downloadPO('PO-2026-0086')">↓</button></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-footer"><span>Showing <strong id="count">4</strong> closed POs</span><div class="pagination"><button class="page" type="button">‹</button><button class="page active" type="button">1</button><button class="page" type="button">2</button><button class="page" type="button">3</button><button class="page" type="button">›</button></div></div>
+                </div>
+            </div>
+            <div class="modal" id="previewModal"><div class="modal-box"><div class="modal-header"><div><h3>Purchase Order Preview</h3><p>Closed purchase order document</p></div><button class="close" type="button" onclick="closePreview()">×</button></div><div class="modal-body"><div class="po-print"><div class="po-heading"><div class="school"><div class="school-logo">S</div><div><h2>Green Valley International School</h2><p>School Procurement Department</p><p>Abu Dhabi, UAE</p></div></div><div class="po-title"><h1>PURCHASE ORDER</h1><span id="previewNumber">PO-2026-0089</span></div></div><div class="po-info"><div class="info"><label>PO Date</label><strong id="previewDate">12 Aug 2026</strong></div><div class="info"><label>Closed Date</label><strong id="previewClosed">21 Aug 2026</strong></div><div class="info"><label>Status</label><strong style="color:#15803d">✓ Closed</strong></div><div class="info"><label>Supplier</label><strong id="previewSupplier">Gulf Office Supplies</strong></div><div class="info"><label>Payment</label><strong id="previewPayment">Paid</strong></div><div class="info"><label>Closed By</label><strong id="previewClosedBy">Ahmed Khan</strong></div></div><table class="item-table"><thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody><tr><td>1</td><td>A4 Copy Paper — 80 GSM</td><td>100</td><td>$25.00</td><td>$2,500.00</td></tr><tr><td>2</td><td>Blue Ballpoint Pens</td><td>500</td><td>$1.20</td><td>$600.00</td></tr><tr><td>3</td><td>Whiteboard Markers</td><td>100</td><td>$7.20</td><td>$720.00</td></tr></tbody></table><div class="totals"><div class="total-row"><span>Subtotal</span><strong>$3,820.00</strong></div><div class="total-row"><span>VAT</span><strong>$1,000.00</strong></div><div class="total-row final"><span>Total</span><strong>$4,820.00</strong></div></div></div></div><div class="modal-footer"><button class="btn btn-light" type="button" onclick="closePreview()">Close</button><button class="btn btn-primary" type="button" onclick="window.print()">🖨 Print</button></div></div></div>
+        `;
+
+        const poData = {
+            'PO-2026-0089': { number: 'PO-2026-0089', date: '12 Aug 2026', closed: '21 Aug 2026', supplier: 'Gulf Office Supplies', payment: 'Paid', closedBy: 'Ahmed Khan' },
+            'PO-2026-0088': { number: 'PO-2026-0088', date: '08 Aug 2026', closed: '18 Aug 2026', supplier: 'Bright Learning', payment: 'Paid', closedBy: 'Sarah Wilson' },
+            'PO-2026-0087': { number: 'PO-2026-0087', date: '02 Aug 2026', closed: '15 Aug 2026', supplier: 'TechWorld Solutions', payment: 'Partially Paid', closedBy: 'Michael Lee' },
+            'PO-2026-0086': { number: 'PO-2026-0086', date: '29 Jul 2026', closed: '12 Aug 2026', supplier: 'Campus Furniture', payment: 'Paid', closedBy: 'Ahmed Khan' }
+        };
+
+        window.openClosedPO = function () { const container = sec.querySelector('#closedPOContent'); if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+        window.viewPO = function (number) { const po = poData[number]; if (!po) return; sec.querySelector('#previewNumber').textContent = po.number; sec.querySelector('#previewDate').textContent = po.date; sec.querySelector('#previewClosed').textContent = po.closed; sec.querySelector('#previewSupplier').textContent = po.supplier; sec.querySelector('#previewPayment').textContent = po.payment; sec.querySelector('#previewClosedBy').textContent = po.closedBy; sec.querySelector('#previewModal').classList.add('show'); };
+        window.printPO = function (number) { window.viewPO(number); setTimeout(() => window.print(), 300); };
+        window.downloadPO = function (number) { const po = poData[number]; if (!po) return; const text = `
+GREEN VALLEY INTERNATIONAL SCHOOL
+PURCHASE ORDER
+
+PO Number: ${po.number}
+PO Date: ${po.date}
+Closed Date: ${po.closed}
+
+Supplier: ${po.supplier}
+Payment Status: ${po.payment}
+Closed By: ${po.closedBy}
+
+Status: CLOSED
+
+------------------------------------
+Total Amount: $4,820.00
+------------------------------------
+        `; const blob = new Blob([text], { type: 'text/plain' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${po.number}.txt`; link.click(); URL.revokeObjectURL(url); };
+        window.closePreview = function () { sec.querySelector('#previewModal').classList.remove('show'); };
+        window.filterPOs = function () { const search = (sec.querySelector('#search').value || '').toLowerCase(); const supplier = sec.querySelector('#supplier').value; const payment = sec.querySelector('#payment').value; const date = sec.querySelector('#date').value; const rows = sec.querySelectorAll('#poTable tbody tr'); let count = 0; rows.forEach(row => { const text = row.innerText.toLowerCase(); const rowSupplier = row.dataset.supplier; const rowPayment = row.dataset.payment; const rowDate = row.dataset.date; const visible = (!search || text.includes(search)) && (!supplier || rowSupplier === supplier) && (!payment || rowPayment === payment) && (!date || rowDate === date); row.style.display = visible ? '' : 'none'; if (visible) count++; }); sec.querySelector('#count').textContent = count; };
+        window.resetFilters = function () { sec.querySelector('#search').value = ''; sec.querySelector('#supplier').value = ''; sec.querySelector('#payment').value = ''; sec.querySelector('#date').value = ''; window.filterPOs(); };
+        const modal = sec.querySelector('#previewModal'); modal.addEventListener('click', function (event) { if (event.target === this) { window.closePreview(); } });
+        document.addEventListener('keydown', function (event) { if (event.key === 'Escape') { window.closePreview(); } });
+        window.filterPOs();
+        return sec;
+    }
+
     const navLinks = document.querySelectorAll('.nav-links a');
     navLinks.forEach(link => {
         link.addEventListener('click', (ev) => {
@@ -1680,6 +1837,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 showSection('expensesModule');
                 updateBreadcrumb(['Finance Department', 'Expenses']);
+                return;
+            }
+
+            if (linkText === 'Closed POs') {
+                let closedPOsModule = document.getElementById('closedPOsModule');
+                if (!closedPOsModule) {
+                    closedPOsModule = createClosedPOsModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(closedPOsModule, dashboardEl);
+                }
+                showSection('closedPOsModule');
+                updateBreadcrumb(['Finance Department', 'Closed POs']);
                 return;
             }
 
