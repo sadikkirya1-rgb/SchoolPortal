@@ -255,6 +255,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'Follow-ups': { text: 'New Follow-up', icon: 'fa-rotate' },
             'Reports': { text: 'Export Report', icon: 'fa-file-export' },
             'Visitor Logs': { text: 'New Visitor Log', icon: 'fa-clipboard-list' },
+            'Parents': { text: 'Add Parent', icon: 'fa-users' },
+            'SMS Alerts': { text: 'Create SMS Alert', icon: 'fa-bell' },
             'Announcements': { text: 'New Announcement', icon: 'fa-bullhorn' },
             'Calendar': { text: 'New Calendar Event', icon: 'fa-calendar-plus' },
             'Documents': { text: 'Add Document', icon: 'fa-folder-plus' },
@@ -286,10 +288,13 @@ document.addEventListener('DOMContentLoaded', () => {
             'Goods Receipt (GRN)': { text: 'New GRN', icon: 'fa-truck-ramp-box' },
             'Supplier Invoices': { text: 'New Invoice', icon: 'fa-file-invoice-dollar' },
             'Suppliers': { text: 'Add Supplier', icon: 'fa-truck-fast' },
+            'Fixed Assets': { text: 'Add Fixed Asset', icon: 'fa-building-circle-check' },
+            'Maintenance': { text: 'Add Maintenance', icon: 'fa-screwdriver-wrench' },
             'Users': { text: 'Add User', icon: 'fa-user-shield' },
             'Assignments': { text: 'Post Assignment', icon: 'fa-clipboard-list' },
             'Online Quizzes': { text: 'Create Quiz', icon: 'fa-stopwatch' },
-            'Notice Board': { text: 'Post Notice', icon: 'fa-bullhorn' }
+            'Notice Board': { text: 'Create Notice', icon: 'fa-bullhorn' },
+            'User Roles': { text: 'Add Role', icon: 'fa-user-shield' }
         };
 
         const config = actionConfigs[sectionLabel] || { text: `New ${sectionLabel}`, icon: 'fa-plus' };
@@ -297,8 +302,8 @@ document.addEventListener('DOMContentLoaded', () => {
         addBtn.innerHTML = `<i class="fas ${config.icon}"></i> ${config.text}`;
         addBtn.setAttribute('data-section', sectionLabel);
         
-        // Visibility Logic: Hide button on purely analytical or log sections
-        const hideOn = ['Audit Logs', 'Backups', 'Analytics', 'System Settings', 'School Branding', 'School Statistics', 'EMIS Reports'];
+        // Visibility Logic: Hide button on sections with their own actions or no record creation
+        const hideOn = ['Audit Logs', 'Backups', 'Analytics', 'Settings', 'System Settings', 'School Branding', 'School Statistics', 'EMIS Reports'];
         addBtn.style.display = hideOn.includes(sectionLabel) ? 'none' : 'flex';
     };
 
@@ -2293,10 +2298,13 @@ Total Amount: $4,820.00
             }
 
             if (link.id === 'userRolesBtn') {
-                populateRoleOptions(); 
-                populateSectionsList(); 
-                renderUsersTable(); 
-                showSection('userRolesSection');
+                let roleManagementModule = document.getElementById('roleManagementModule');
+                if (!roleManagementModule) {
+                    roleManagementModule = createRoleManagementModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(roleManagementModule, dashboardEl);
+                }
+                showSection('roleManagementModule');
                 updateBreadcrumb(['System', 'User Roles']);
                 return;
             }
@@ -2448,6 +2456,119 @@ Total Amount: $4,820.00
                 }
                 showSection('suppliersModule');
                 updateBreadcrumb(['Procurement Department', 'Suppliers']);
+                return;
+            }
+
+            if (linkText === 'Fixed Assets') {
+                let fixedAssetsModule = document.getElementById('fixedAssetsModule');
+                if (!fixedAssetsModule) {
+                    fixedAssetsModule = createFixedAssetsModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(fixedAssetsModule, dashboardEl);
+                }
+                showSection('fixedAssetsModule');
+                updateBreadcrumb(['Assets & Security Department', 'Fixed Assets']);
+                return;
+            }
+
+            if (linkText === 'Maintenance') {
+                let maintenanceModule = document.getElementById('maintenanceManagementModule');
+                if (!maintenanceModule) {
+                    maintenanceModule = createMaintenanceManagementModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(maintenanceModule, dashboardEl);
+                }
+                showSection('maintenanceManagementModule');
+                updateBreadcrumb(['Assets & Security Department', 'Maintenance']);
+                return;
+            }
+
+            if (linkText === 'Visitor Logs') {
+                let visitorLogsModule = document.getElementById('visitorLogsModule');
+                if (!visitorLogsModule) {
+                    visitorLogsModule = createVisitorLogsModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(visitorLogsModule, dashboardEl);
+                }
+                showSection('visitorLogsModule');
+                const visitorDepartment = link.closest('.nav-links')?.previousElementSibling?.textContent.trim() || 'Visitor Management';
+                updateBreadcrumb([visitorDepartment, 'Visitor Logs']);
+                return;
+            }
+
+            if (linkText === 'Parents') {
+                let parentsModule = document.getElementById('parentsModule');
+                if (!parentsModule) {
+                    parentsModule = createParentsModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(parentsModule, dashboardEl);
+                }
+                showSection('parentsModule');
+                const parentDepartment = link.closest('.nav-links')?.previousElementSibling?.textContent.trim() || 'Communication Department';
+                updateBreadcrumb([parentDepartment, 'Parents']);
+                return;
+            }
+
+            if (linkText === 'SMS Alerts') {
+                let smsAlertsModule = document.getElementById('smsAlertsModule');
+                if (!smsAlertsModule) {
+                    smsAlertsModule = createSmsAlertsModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(smsAlertsModule, dashboardEl);
+                }
+                showSection('smsAlertsModule');
+                const communicationDepartment = link.closest('.nav-links')?.previousElementSibling?.textContent.trim() || 'Communication Department';
+                updateBreadcrumb([communicationDepartment, 'SMS Alerts']);
+                return;
+            }
+
+            if (linkText === 'Notice Board') {
+                let noticeBoardModule = document.getElementById('noticeBoardModule');
+                if (!noticeBoardModule) {
+                    noticeBoardModule = createNoticeBoardModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(noticeBoardModule, dashboardEl);
+                }
+                showSection('noticeBoardModule');
+                const noticeDepartment = link.closest('.nav-links')?.previousElementSibling?.textContent.trim() || 'Communication Department';
+                updateBreadcrumb([noticeDepartment, 'Notice Board']);
+                return;
+            }
+
+            if (linkText === 'Analytics') {
+                let systemAnalyticsModule = document.getElementById('systemAnalyticsModule');
+                if (!systemAnalyticsModule) {
+                    systemAnalyticsModule = createSystemAnalyticsModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(systemAnalyticsModule, dashboardEl);
+                }
+                showSection('systemAnalyticsModule');
+                updateBreadcrumb(['System', 'Analytics']);
+                systemAnalyticsModule.refreshAnalyticsChart?.();
+                return;
+            }
+
+            if (linkText === 'Audit Logs') {
+                let auditLogsModule = document.getElementById('auditLogsModule');
+                if (!auditLogsModule) {
+                    auditLogsModule = createAuditLogsModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(auditLogsModule, dashboardEl);
+                }
+                showSection('auditLogsModule');
+                updateBreadcrumb(['System', 'Audit Logs']);
+                return;
+            }
+
+            if (linkText === 'Backups') {
+                let backupsModule = document.getElementById('backupsModule');
+                if (!backupsModule) {
+                    backupsModule = createBackupsModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(backupsModule, dashboardEl);
+                }
+                showSection('backupsModule');
+                updateBreadcrumb(['System', 'Backups']);
                 return;
             }
 
@@ -2928,6 +3049,19 @@ Total Amount: $4,820.00
                 return;
             }
 
+            if (linkText === 'Settings') {
+                const category = link.closest('ul.nav-links')?.previousElementSibling?.innerText.trim() || 'System Department';
+                let settingsModule = document.getElementById('settingsModule');
+                if (!settingsModule) {
+                    settingsModule = window.createSettingsModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(settingsModule, dashboardEl);
+                }
+                showSection('settingsModule');
+                updateBreadcrumb([category, 'Settings']);
+                return;
+            }
+
             // Create or show dynamic department modules
             const parentUl = link.closest('ul.nav-links');
             const category = parentUl?.previousElementSibling?.innerText.trim() || 'General';
@@ -3165,7 +3299,11 @@ Total Amount: $4,820.00
                 } else {
                     modal.classList.add('active');
                 }
-            } else if (currentSection === 'Users' || currentSection === 'User Roles') {
+            } else if (currentSection === 'User Roles') {
+                document.getElementById('userRolesBtn')?.click();
+                document.getElementById('roleManagementModule')?.querySelector('[data-rm-new]')?.click();
+                return;
+            } else if (currentSection === 'Users') {
                 document.getElementById('userRolesBtn')?.click();
                 setTimeout(() => document.getElementById('toggleAddUserFormBtn')?.click(), 100);
             } else if (currentSection === 'ID Cards') {
@@ -3232,6 +3370,26 @@ Total Amount: $4,820.00
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Suppliers')?.click();
                 document.getElementById('suppliersModule')?.querySelector('[data-sp-new]')?.click();
                 return;
+            } else if (currentSection === 'Fixed Assets') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Fixed Assets')?.click();
+                document.getElementById('fixedAssetsModule')?.querySelector('[data-fa-new]')?.click();
+                return;
+            } else if (currentSection === 'Maintenance') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Maintenance')?.click();
+                document.getElementById('maintenanceManagementModule')?.querySelector('[data-mm-new]')?.click();
+                return;
+            } else if (currentSection === 'Parents') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Parents')?.click();
+                document.getElementById('parentsModule')?.querySelector('[data-pa-new]')?.click();
+                return;
+            } else if (currentSection === 'SMS Alerts') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'SMS Alerts')?.click();
+                document.getElementById('smsAlertsModule')?.querySelector('[data-sms-new]')?.click();
+                return;
+            } else if (currentSection === 'Notice Board') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Notice Board')?.click();
+                document.getElementById('noticeBoardModule')?.querySelector('[data-nb-new]')?.click();
+                return;
             } else if (currentSection === 'Alumni') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Alumni')?.click();
                 document.getElementById('alumniModule')?.querySelector('[data-al-new]')?.click();
@@ -3265,6 +3423,10 @@ Total Amount: $4,820.00
                 }
                 if (['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(currentSection)) {
                     Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === currentSection)?.click();
+                    if (currentSection === 'Visitor Logs') {
+                        document.getElementById('visitorLogsModule')?.querySelector('[data-vl-new]')?.click();
+                        return;
+                    }
                     const utilityModuleId = `module_${currentSection.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
                     document.getElementById(utilityModuleId)?.querySelector('[data-utility-new]')?.click();
                     return;
