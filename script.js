@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
+    let restoreSavedSection = () => {};
+
     // Get colors from CSS variables for consistency
     const style = getComputedStyle(document.documentElement);
     const colors = {
@@ -114,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.profile-role').textContent = userData.role;
         document.querySelector('.profile img').src = userData.photo || 'https://i.pravatar.cc/100?img=12';
         showDashboard();
+        restoreSavedSection();
     };
 
     const restoreSession = () => {
@@ -275,7 +278,14 @@ document.addEventListener('DOMContentLoaded', () => {
             'Fees': { text: 'Collect Fee', icon: 'fa-money-bill-transfer' },
             'Fee Invoices': { text: 'Create Invoice', icon: 'fa-file-invoice-dollar' },
             'Expenses': { text: 'Add Expense', icon: 'fa-receipt' },
+            'Purchase Request': { text: 'New Request', icon: 'fa-cart-plus' },
             'Purchase Requests': { text: 'New Request', icon: 'fa-cart-plus' },
+            'Purchase Orders': { text: 'Create Purchase Order', icon: 'fa-cart-shopping' },
+            'Purchase Comparisons': { text: 'New Comparison', icon: 'fa-code-compare' },
+            'Quotations': { text: 'New Quotation', icon: 'fa-file-invoice-dollar' },
+            'Goods Receipt (GRN)': { text: 'New GRN', icon: 'fa-truck-ramp-box' },
+            'Supplier Invoices': { text: 'New Invoice', icon: 'fa-file-invoice-dollar' },
+            'Suppliers': { text: 'Add Supplier', icon: 'fa-truck-fast' },
             'Users': { text: 'Add User', icon: 'fa-user-shield' },
             'Assignments': { text: 'Post Assignment', icon: 'fa-clipboard-list' },
             'Online Quizzes': { text: 'Create Quiz', icon: 'fa-stopwatch' },
@@ -2211,11 +2221,54 @@ Total Amount: $4,820.00
     }
 
     const navLinks = document.querySelectorAll('.nav-links a');
+    const activeSectionKey = 'edumasterActiveSection';
+    const sectionKey = link => {
+        const group = link.closest('.nav-links')?.previousElementSibling?.textContent.trim() || '';
+        const label = link.querySelector('span')?.innerText.trim() || link.innerText.trim();
+        return `${group}::${link.id || label}`;
+    };
+
+    let collapsedGroups = [];
+    try {
+        const storedGroups = JSON.parse(localStorage.getItem('edumasterCollapsedGroups'));
+        if (Array.isArray(storedGroups)) collapsedGroups = storedGroups;
+    } catch (error) {
+        collapsedGroups = [];
+    }
+    document.querySelectorAll('.sidebar > .menu-title').forEach((title, index) => {
+        const group = title.nextElementSibling;
+        if (!group?.classList.contains('nav-links')) return;
+        const groupKey = title.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || `group-${index}`;
+        title.setAttribute('role', 'button');
+        title.setAttribute('tabindex', '0');
+        title.setAttribute('aria-controls', group.id || `nav-group-${index}`);
+        group.id ||= `nav-group-${index}`;
+
+        const setCollapsed = collapsed => {
+            title.setAttribute('aria-expanded', String(!collapsed));
+            group.classList.toggle('is-collapsed', collapsed);
+            collapsedGroups = collapsed
+                ? [...new Set([...collapsedGroups, groupKey])]
+                : collapsedGroups.filter(key => key !== groupKey);
+            localStorage.setItem('edumasterCollapsedGroups', JSON.stringify(collapsedGroups));
+        };
+
+        setCollapsed(collapsedGroups.includes(groupKey));
+        title.addEventListener('click', () => setCollapsed(title.getAttribute('aria-expanded') === 'true'));
+        title.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                title.click();
+            }
+        });
+    });
+
     navLinks.forEach(link => {
         link.addEventListener('click', (ev) => {
             ev.preventDefault();
             navLinks.forEach(n => n.classList.remove('active'));
             link.classList.add('active');
+            localStorage.setItem(activeSectionKey, sectionKey(link));
 
             const linkText = link.querySelector('span')?.innerText.trim() || link.innerText.trim();
             if (typeof window.updateHeaderAddButton === 'function') {
@@ -2311,6 +2364,90 @@ Total Amount: $4,820.00
                 }
                 showSection('expensesModule');
                 updateBreadcrumb(['Finance Department', 'Expenses']);
+                return;
+            }
+
+            if (linkText === 'Purchase Request' || linkText === 'Purchase Requests') {
+                let purchaseRequestsModule = document.getElementById('purchaseRequestsModule');
+                if (!purchaseRequestsModule) {
+                    purchaseRequestsModule = createPurchaseRequestsModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(purchaseRequestsModule, dashboardEl);
+                }
+                showSection('purchaseRequestsModule');
+                updateBreadcrumb(['Procurement Department', 'Purchase Requests']);
+                return;
+            }
+
+            if (linkText === 'Purchase Orders') {
+                let purchaseOrdersModule = document.getElementById('purchaseOrdersModule');
+                if (!purchaseOrdersModule) {
+                    purchaseOrdersModule = createPurchaseOrdersModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(purchaseOrdersModule, dashboardEl);
+                }
+                showSection('purchaseOrdersModule');
+                updateBreadcrumb(['Procurement Department', 'Purchase Orders']);
+                return;
+            }
+
+            if (linkText === 'Purchase Comparisons') {
+                let purchaseComparisonsModule = document.getElementById('purchaseComparisonsModule');
+                if (!purchaseComparisonsModule) {
+                    purchaseComparisonsModule = createPurchaseComparisonsModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(purchaseComparisonsModule, dashboardEl);
+                }
+                showSection('purchaseComparisonsModule');
+                updateBreadcrumb(['Procurement Department', 'Purchase Comparisons']);
+                return;
+            }
+
+            if (linkText === 'Quotations') {
+                let quotationsModule = document.getElementById('quotationsModule');
+                if (!quotationsModule) {
+                    quotationsModule = createQuotationsModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(quotationsModule, dashboardEl);
+                }
+                showSection('quotationsModule');
+                updateBreadcrumb(['Procurement Department', 'Quotations']);
+                return;
+            }
+
+            if (linkText === 'Goods Receipt (GRN)') {
+                let goodsReceiptModule = document.getElementById('goodsReceiptModule');
+                if (!goodsReceiptModule) {
+                    goodsReceiptModule = createGoodsReceiptModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(goodsReceiptModule, dashboardEl);
+                }
+                showSection('goodsReceiptModule');
+                updateBreadcrumb(['Procurement Department', 'Goods Receipt (GRN)']);
+                return;
+            }
+
+            if (linkText === 'Supplier Invoices') {
+                let supplierInvoicesModule = document.getElementById('supplierInvoicesModule');
+                if (!supplierInvoicesModule) {
+                    supplierInvoicesModule = createSupplierInvoicesModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(supplierInvoicesModule, dashboardEl);
+                }
+                showSection('supplierInvoicesModule');
+                updateBreadcrumb(['Procurement Department', 'Supplier Invoices']);
+                return;
+            }
+
+            if (linkText === 'Suppliers') {
+                let suppliersModule = document.getElementById('suppliersModule');
+                if (!suppliersModule) {
+                    suppliersModule = createSuppliersModule();
+                    const dashboardEl = document.querySelector('.dashboard');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(suppliersModule, dashboardEl);
+                }
+                showSection('suppliersModule');
+                updateBreadcrumb(['Procurement Department', 'Suppliers']);
                 return;
             }
 
@@ -2854,6 +2991,17 @@ Total Amount: $4,820.00
         });
     });
 
+    restoreSavedSection = () => {
+        const savedKey = localStorage.getItem(activeSectionKey);
+        const savedLink = Array.from(navLinks).find(link => sectionKey(link) === savedKey);
+        if (!savedLink) return;
+        const group = savedLink.closest('.nav-links');
+        const heading = group?.previousElementSibling;
+        if (heading?.getAttribute('aria-expanded') === 'false') heading.click();
+        savedLink.click();
+    };
+    if (!loginScreen.classList.contains('active')) restoreSavedSection();
+
 
     // Global Chart Defaults
     Chart.defaults.font.family = "'Poppins', sans-serif";
@@ -3055,6 +3203,34 @@ Total Amount: $4,820.00
             } else if (currentSection === 'Expenses') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Expenses')?.click();
                 document.getElementById('expensesModule')?.querySelector('[data-expense-new]')?.click();
+                return;
+            } else if (currentSection === 'Purchase Request' || currentSection === 'Purchase Requests') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => ['Purchase Request', 'Purchase Requests'].includes(link.querySelector('span')?.innerText.trim() || link.innerText.trim()))?.click();
+                document.getElementById('purchaseRequestsModule')?.querySelector('[data-pr-new]')?.click();
+                return;
+            } else if (currentSection === 'Purchase Orders') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Purchase Orders')?.click();
+                document.getElementById('purchaseOrdersModule')?.querySelector('[data-po-new]')?.click();
+                return;
+            } else if (currentSection === 'Purchase Comparisons') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Purchase Comparisons')?.click();
+                document.getElementById('purchaseComparisonsModule')?.querySelector('[data-pc-new]')?.click();
+                return;
+            } else if (currentSection === 'Quotations') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Quotations')?.click();
+                document.getElementById('quotationsModule')?.querySelector('[data-qt-new]')?.click();
+                return;
+            } else if (currentSection === 'Goods Receipt (GRN)') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Goods Receipt (GRN)')?.click();
+                document.getElementById('goodsReceiptModule')?.querySelector('[data-grn-new]')?.click();
+                return;
+            } else if (currentSection === 'Supplier Invoices') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Supplier Invoices')?.click();
+                document.getElementById('supplierInvoicesModule')?.querySelector('[data-si-new]')?.click();
+                return;
+            } else if (currentSection === 'Suppliers') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Suppliers')?.click();
+                document.getElementById('suppliersModule')?.querySelector('[data-sp-new]')?.click();
                 return;
             } else if (currentSection === 'Alumni') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Alumni')?.click();
