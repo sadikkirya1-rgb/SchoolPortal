@@ -19,6 +19,7 @@ font-family:'Poppins',sans-serif;
 }
 
 body{
+zoom:0.94;
 background:linear-gradient(135deg,#cbd5e1,#dbe4f0,#e8e1ec);
 min-height:100vh;
 height:auto;
@@ -1320,6 +1321,7 @@ padding:10px 12px;
 border-bottom:1px solid #e2e8f0;
 text-align:left;
 font-size:14px;
+white-space:nowrap !important;
 }
 
 th{
