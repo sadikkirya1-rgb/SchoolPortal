@@ -19,7 +19,7 @@ font-family:'Poppins',sans-serif;
 }
 
 body{
-background:linear-gradient(135deg,#dbeafe,#eef2ff,#fdf4ff);
+background:linear-gradient(135deg,#cbd5e1,#dbe4f0,#e8e1ec);
 min-height:100vh;
 height:auto;
 overflow-x:hidden;
@@ -462,7 +462,7 @@ min-height:100vh;
 
 .sidebar{
 width:310px;
-background:linear-gradient(180deg,#ffffff 0%,#eef6ff 100%);
+background:linear-gradient(180deg,#e2e8f0 0%,#dbe4f0 100%);
 color:#1e293b;
 padding:20px 18px;
 position:fixed;
@@ -677,7 +677,7 @@ flex-wrap:wrap;
 gap:12px;
 margin-bottom:18px;
 padding:16px 18px;
-background:linear-gradient(135deg,#ffffff,#eef6ff);
+background:linear-gradient(135deg,#f1f5f9,#e2e8f0);
 border:1px solid rgba(79,70,229,0.12);
 border-radius:16px;
 box-shadow:0 10px 25px rgba(30,41,59,0.08);
@@ -941,6 +941,8 @@ color:#64748b;
     gap:10px;
     margin-bottom:16px;
 }
+.enquiry-workflow-stats,.appointment-workflow-stats{grid-template-columns:repeat(auto-fit,minmax(125px,1fr))}
+.appointments-module .enquiries-stats.appointment-workflow-stats{grid-template-columns:repeat(auto-fit,minmax(125px,1fr))}
 .call-logs-module .enquiries-stats,
 .dispatch-module .enquiries-stats,
 .appointments-module .enquiries-stats,
@@ -974,6 +976,18 @@ color:#64748b;
 }
 .enquiry-stat span{display:block;color:#64748b;font-size:11px}
 .enquiry-stat strong{display:block;color:#172033;font-size:20px;margin-top:3px}
+.enquiry-status-badge,.appointment-status-badge{display:inline-flex;padding:5px 8px;border-radius:999px;background:#e2e8f0;color:#334155;font-size:10px;font-weight:700;white-space:nowrap}
+.status-new,.status-requested{background:#dbeafe;color:#1d4ed8}
+.status-in-progress,.status-checked-in{background:#cffafe;color:#0e7490}
+.status-waiting-for-visitor{background:#fef3c7;color:#92400e}
+.status-resolved,.status-completed{background:#dcfce7;color:#166534}
+.status-closed,.status-cancelled,.status-no-show{background:#fee2e2;color:#991b1b}
+.status-confirmed{background:#d1fae5;color:#047857}
+.status-rescheduled{background:#ede9fe;color:#6d28d9}
+.enquiry-status-meta{display:block;max-width:190px;margin-top:4px;color:#64748b;font-size:9px;white-space:normal}
+.enquiry-workflow-module .enquiries-table table{min-width:1450px}
+.appointments-module .enquiries-table table{min-width:1320px}
+.appointment-action{flex:none}
 .enquiries-grid{
     display:grid;
     grid-template-columns:minmax(0,1.7fr) minmax(250px,.8fr);
@@ -1017,11 +1031,13 @@ color:#64748b;
 .enquiry-summary{display:flex;flex-direction:column;gap:9px}
 .enquiry-summary-row{display:flex;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px dashed #e2e8f0;font-size:11px}
 .enquiry-summary-row:last-child{border-bottom:0;padding-bottom:0}
-.enquiry-summary-row span{color:#64748b}.enquiry-summary-row strong{text-align:right;color:#172033}
-.enquiries-table{margin-top:16px}
+.enquiry-summary-row span{color:#64748b}.enquiry-summary-row strong{text-align:right;color:#172033;max-width:70%;overflow-wrap:anywhere;white-space:pre-wrap}
+.enquiries-table{margin-top:16px;overflow-x:auto}
 .enquiries-table .table-card{box-shadow:none;border:1px solid #e2e8f0}
 .enquiries-table .table-title{margin:0;padding:12px 15px}
-.enquiry-actions{display:flex;gap:5px}
+.enquiries-table table{min-width:960px}
+.enquiries-table td:last-child{white-space:nowrap}
+.enquiry-actions{display:flex;gap:5px;flex-wrap:nowrap;white-space:nowrap;min-width:max-content}
 .enquiry-action{
     width:30px;
     height:30px;
@@ -1037,6 +1053,10 @@ color:#64748b;
 .enquiry-action:hover{background:#f1f5f9;color:var(--primary)}
 .enquiry-action[data-enquiry-action="delete"]{color:var(--danger)}
 .enquiry-action[data-enquiry-action="delete"]:hover{background:#fee2e2}
+.enquiries-table .enquiry-actions .enquiry-action{display:inline-flex!important;visibility:visible!important;opacity:1!important;transform:none!important;background:#f1f5f9;border-color:#cbd5e1;color:#334155}
+.enquiries-table .enquiry-actions .enquiry-action:hover{background:#e2e8f0;color:#0f6670}
+.enquiries-table .enquiry-actions .enquiry-action[data-enquiry-action="delete"]{background:#fff1f2;border-color:#fecaca;color:#b42318}
+.enquiries-table .enquiry-actions .enquiry-action[data-enquiry-action="delete"]:hover{background:#fee2e2;color:#991b1b}
 @media(max-width:768px){
     .enquiries-stats,.call-logs-module .enquiries-stats,.dispatch-module .enquiries-stats,.appointments-module .enquiries-stats,.incoming-mail-module .enquiries-stats,.follow-ups-module .enquiries-stats{grid-template-columns:repeat(2,1fr)}
     .enquiries-grid,.enquiry-form-grid,.reports-grid{grid-template-columns:1fr}
@@ -1055,7 +1075,7 @@ margin-bottom:15px;
 }
 
 .card{
-background:rgba(255,255,255,0.85);
+background:rgba(255,255,255,0.78);
 backdrop-filter:blur(10px);
 padding:10px;
 border-radius:16px;

@@ -471,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function createEnquiriesModule(category) {
         const sec = document.createElement('section');
-        sec.className = 'module enquiries-module';
+        sec.className = 'module enquiries-module enquiry-workflow-module';
         sec.id = 'module_enquiries';
         sec.innerHTML = `
             <div class="module-header">
@@ -481,11 +481,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> New Enquiry</button>
             </div>
-            <div class="enquiries-stats">
+            <div class="enquiries-stats enquiry-workflow-stats">
                 <div class="enquiry-stat"><span>Total Enquiries</span><strong data-enquiry-total>0</strong></div>
-                <div class="enquiry-stat"><span>Open</span><strong data-enquiry-open>0</strong></div>
+                <div class="enquiry-stat"><span>New</span><strong data-enquiry-count="New">0</strong></div>
+                <div class="enquiry-stat"><span>In Progress</span><strong data-enquiry-count="In Progress">0</strong></div>
+                <div class="enquiry-stat"><span>Waiting</span><strong data-enquiry-count="Waiting for Visitor">0</strong></div>
+                <div class="enquiry-stat"><span>Resolved</span><strong data-enquiry-count="Resolved">0</strong></div>
+                <div class="enquiry-stat"><span>Closed</span><strong data-enquiry-count="Closed">0</strong></div>
                 <div class="enquiry-stat"><span>Appointments</span><strong data-enquiry-appointments>0</strong></div>
-                <div class="enquiry-stat"><span>Priority</span><strong data-enquiry-priority>0</strong></div>
+                <div class="enquiry-stat"><span>Follow-up Due</span><strong data-enquiry-followups-due>0</strong></div>
             </div>
             <div class="enquiries-grid">
                 <div class="enquiry-card enquiry-entry-card hidden">
@@ -497,9 +501,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div class="enquiry-form-group"><label>Visit Purpose</label><select name="purpose" required><option value="">Select purpose</option><option>Admission Enquiry</option><option>Parent Meeting</option><option>Student Enquiry</option><option>Fee / Accounts</option><option>Document Collection</option><option>General Enquiry</option><option>Other</option></select></div>
                                 <div class="enquiry-form-group"><label>Full Name</label><input name="name" placeholder="Enter full name" required></div>
                                 <div class="enquiry-form-group"><label>Mobile Number</label><input name="mobile" placeholder="+256 700 000000" required></div>
-                                <div class="enquiry-form-group"><label>Student ID</label><input name="studentId" placeholder="e.g. STU-2026-001"></div>
-                                <div class="enquiry-form-group"><label>Department / Person</label><input name="department" placeholder="e.g. Admissions or Principal"></div>
+                                <div class="enquiry-form-group"><label>Student ID</label><select name="studentId"><option value="">Select student (optional)</option></select></div>
+                                <div class="enquiry-form-group"><label>Department / Person</label><select name="department"><option value="">Select department</option><option>Principal's Office</option><option>Administration</option><option>Admissions</option><option>Accounts / Finance</option><option>Human Resources</option><option>Academic</option><option>Student Affairs</option><option>Transport</option><option>IT</option><option>Reception</option><option>Other</option></select></div>
                                 <div class="enquiry-form-group"><label>Appointment Date</label><input name="appointmentDate" type="date"></div>
+                                <div class="enquiry-form-group"><label>Assigned To</label><input name="assignedTo" placeholder="Staff member responsible"></div>
+                                <div class="enquiry-form-group"><label>Next Follow-up</label><input name="followUpDate" type="date"></div>
+                                <div class="enquiry-form-group"><label>Enquiry Status</label><select name="status"><option>New</option><option>In Progress</option><option>Waiting for Visitor</option><option>Resolved</option><option>Closed</option></select></div>
                                 <div class="enquiry-form-group"><label>Priority</label><select name="priority"><option>Normal</option><option>Important</option><option>Urgent</option></select></div>
                                 <div class="enquiry-form-group full"><label>Notes</label><textarea name="notes" placeholder="Enter enquiry details or follow-up notes"></textarea></div>
                             </div>
@@ -512,13 +519,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="enquiry-card-body enquiry-summary">
                         <div class="enquiry-summary-row"><span>Visitor</span><strong data-summary="name">-</strong></div>
                         <div class="enquiry-summary-row"><span>Type</span><strong data-summary="visitorType">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Mobile</span><strong data-summary="mobile">-</strong></div>
                         <div class="enquiry-summary-row"><span>Purpose</span><strong data-summary="purpose">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Student ID</span><strong data-summary="studentId">-</strong></div>
                         <div class="enquiry-summary-row"><span>Department</span><strong data-summary="department">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Assigned To</span><strong data-summary="assignedTo">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Next Follow-up</span><strong data-summary="followUpDate">-</strong></div>
+                        <div class="enquiry-summary-row"><span>Status</span><strong data-summary="status">New</strong></div>
+                        <div class="enquiry-summary-row"><span>Appointment Date</span><strong data-summary="appointmentDate">-</strong></div>
                         <div class="enquiry-summary-row"><span>Priority</span><strong data-summary="priority">Normal</strong></div>
+                        <div class="enquiry-summary-row"><span>Notes</span><strong data-summary="notes">-</strong></div>
                     </div>
                 </aside>
             </div>
-            <div class="enquiries-table"><div class="table-card"><h3 class="table-title">Saved Enquiry Records</h3><table><thead><tr><th>Name</th><th>Type</th><th>Purpose</th><th>Student ID</th><th>Department</th><th>Appointment</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
+            <div class="enquiries-table"><div class="table-card"><h3 class="table-title">Saved Enquiry Records</h3><table><thead><tr><th>Name</th><th>Type</th><th>Purpose</th><th>Student ID</th><th>Department</th><th>Assigned To</th><th>Follow-up</th><th>Appointment</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
 
         const form = sec.querySelector('[data-enquiry-form]');
         const table = sec.querySelector('[data-enquiry-table]');
@@ -528,13 +542,91 @@ document.addEventListener('DOMContentLoaded', () => {
             try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; }
         };
         const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+        const studentIdSelect = form.elements.studentId;
+        const refreshStudentOptions = selectedId => {
+            let students = [];
+            try {
+                const stored = JSON.parse(localStorage.getItem('school_students'));
+                students = Array.isArray(stored) ? stored : [];
+            } catch (error) {}
+            const studentOptions = students.filter(student => student.admissionNo).map(student => {
+                const name = [student.firstName, student.lastName].filter(Boolean).join(' ');
+                return `<option value="${escape(student.admissionNo)}">${escape(student.admissionNo)}${name ? ` - ${escape(name)}` : ''}</option>`;
+            });
+            studentIdSelect.innerHTML = `<option value="">${studentOptions.length ? 'Select student (optional)' : 'No student records available'}</option>${studentOptions.join('')}`;
+            if (selectedId && !students.some(student => student.admissionNo === selectedId)) {
+                studentIdSelect.insertAdjacentHTML('beforeend', `<option value="${escape(selectedId)}">${escape(selectedId)} (not in student records)</option>`);
+            }
+            studentIdSelect.value = selectedId || '';
+        };
+        const enquiryStatuses = ['New', 'In Progress', 'Waiting for Visitor', 'Resolved', 'Closed'];
+        const normalizeEnquiryStatus = status => status === 'Open' ? 'New' : status === 'Completed' ? 'Resolved' : enquiryStatuses.includes(status) ? status : 'New';
+        const currentActor = () => {
+            try {
+                const session = JSON.parse(localStorage.getItem('edumasterAdminSession')) || {};
+                return session.name || session.userId || session.role || 'Front Desk';
+            } catch (error) {
+                return 'Front Desk';
+            }
+        };
+        const formatWorkflowTime = value => {
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? '' : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+        };
+        const addStatusHistory = (entry, status, by, at) => {
+            entry.statusHistory = Array.isArray(entry.statusHistory) ? entry.statusHistory : [];
+            entry.statusHistory.push({ status, by, at });
+        };
         const render = () => {
             const entries = readEntries();
             sec.querySelector('[data-enquiry-total]').textContent = entries.length;
-            sec.querySelector('[data-enquiry-open]').textContent = entries.filter(entry => entry.status !== 'Completed').length;
+            const counts = Object.fromEntries(enquiryStatuses.map(status => [status, 0]));
+            entries.forEach(entry => { counts[normalizeEnquiryStatus(entry.status)] += 1; });
+            enquiryStatuses.forEach(status => { sec.querySelector(`[data-enquiry-count="${status}"]`).textContent = counts[status]; });
             sec.querySelector('[data-enquiry-appointments]').textContent = entries.filter(entry => entry.appointmentDate).length;
-            sec.querySelector('[data-enquiry-priority]').textContent = entries.filter(entry => entry.priority !== 'Normal').length;
-            table.innerHTML = entries.length ? entries.slice(0, 8).map((entry, index) => `<tr><td>${escape(entry.name)}<br><small>${escape(entry.mobile)}</small></td><td>${escape(entry.visitorType)}</td><td>${escape(entry.purpose)}</td><td>${escape(entry.studentId || '-')}</td><td>${escape(entry.department || '-')}</td><td>${escape(entry.appointmentDate || '-')}</td><td>${escape(entry.priority)}</td><td><span class="badge pending">${escape(entry.status)}</span></td><td><div class="enquiry-actions"><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete"><i class="fas fa-trash"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print"><i class="fas fa-print"></i></button></div></td></tr>`).join('') : '<tr><td colspan="9" style="text-align:center;padding:25px;color:#94a3b8;">No saved enquiries yet. Complete the form above to create a record.</td></tr>';
+            const today = new Date().toISOString().slice(0, 10);
+            sec.querySelector('[data-enquiry-followups-due]').textContent = entries.filter(entry => entry.followUpDate && entry.followUpDate <= today && !['Resolved', 'Closed'].includes(normalizeEnquiryStatus(entry.status))).length;
+            const actionButton = (index, action, icon, label) => `<button class="enquiry-action workflow-action" type="button" data-enquiry-transition="${action}" data-enquiry-index="${index}" title="${label}" aria-label="${label} enquiry"><i class="fas ${icon}"></i></button>`;
+            table.innerHTML = entries.length ? entries.map((entry, index) => {
+                const status = normalizeEnquiryStatus(entry.status);
+                const statusClass = status.toLowerCase().replace(/[^a-z]+/g, '-');
+                const history = Array.isArray(entry.statusHistory) ? entry.statusHistory : [];
+                const lastChange = history[history.length - 1];
+                let workflowActions = '';
+                if (status === 'New') workflowActions = actionButton(index, 'start', 'fa-play', 'Start work') + actionButton(index, 'resolve', 'fa-circle-check', 'Resolve');
+                if (status === 'In Progress') workflowActions = actionButton(index, 'wait', 'fa-hourglass-half', 'Wait for visitor') + actionButton(index, 'resolve', 'fa-circle-check', 'Resolve');
+                if (status === 'Waiting for Visitor') workflowActions = actionButton(index, 'resume', 'fa-play', 'Resume work') + actionButton(index, 'resolve', 'fa-circle-check', 'Resolve');
+                if (status === 'Resolved') workflowActions = actionButton(index, 'close', 'fa-lock', 'Close enquiry') + actionButton(index, 'reopen', 'fa-rotate-left', 'Reopen enquiry');
+                if (status === 'Closed') workflowActions = actionButton(index, 'reopen', 'fa-rotate-left', 'Reopen enquiry');
+                const historyLabel = lastChange ? `${escape(lastChange.by || 'Staff')} · ${escape(formatWorkflowTime(lastChange.at))}` : 'No status changes recorded';
+                const appointmentAction = entry.appointmentDate && !entry.appointmentId ? `<button class="enquiry-action" type="button" data-enquiry-action="appointment" data-enquiry-index="${index}" title="Create linked appointment" aria-label="Create appointment from enquiry"><i class="fas fa-calendar-plus"></i></button>` : '';
+                const appointmentLabel = entry.appointmentId ? `${escape(entry.appointmentId)}<br><small>${escape(entry.appointmentStatus || 'Requested')} · ${escape(entry.appointmentDate || '')}</small>` : escape(entry.appointmentDate || '-');
+                return `<tr><td>${escape(entry.name)}<br><small>${escape(entry.mobile)}</small></td><td>${escape(entry.visitorType)}</td><td>${escape(entry.purpose)}</td><td>${escape(entry.studentId || '-')}</td><td>${escape(entry.department || '-')}</td><td>${escape(entry.assignedTo || 'Unassigned')}</td><td>${escape(entry.followUpDate || '-')}</td><td>${appointmentLabel}</td><td>${escape(entry.priority || 'Normal')}</td><td><span class="enquiry-status-badge status-${statusClass}">${escape(status)}</span><small class="enquiry-status-meta">${historyLabel}</small></td><td><div class="enquiry-actions">${workflowActions}${appointmentAction}<button class="enquiry-action" type="button" data-enquiry-action="preview" data-enquiry-index="${index}" title="Preview" aria-label="Preview enquiry"><i class="fas fa-eye"></i></button><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit" aria-label="Edit enquiry"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print" aria-label="Print enquiry"><i class="fas fa-print"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete" aria-label="Delete enquiry"><i class="fas fa-trash"></i></button></div></td></tr>`;
+            }).join('') : '<tr><td colspan="11" style="text-align:center;padding:25px;color:#94a3b8;">No saved enquiries yet. Complete the form above to create a record.</td></tr>';
+        };
+        window.addEventListener('school:enquiry-updated', render);
+        window.addEventListener('storage', event => { if (event.key === storageKey) render(); });
+        const openEnquiryDocument = (entry, autoPrint = false) => {
+            const printWindow = window.open('', '_blank', 'width=960,height=900');
+            if (!printWindow) return;
+            const formatDate = value => {
+                if (!value) return 'Not scheduled';
+                const date = new Date(`${value}T00:00:00`);
+                return Number.isNaN(date.getTime()) ? escape(value) : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+            };
+            const recordedAt = entry.createdAt ? new Date(entry.createdAt) : new Date();
+            const recordedLabel = Number.isNaN(recordedAt.getTime()) ? '-' : recordedAt.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+            const reference = entry.id || `ENQ-${recordedAt.getFullYear()}-${String(Date.now()).slice(-6)}`;
+            const documentHtml = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(reference)} | Enquiry Record</title><style>
+                *{box-sizing:border-box}body{margin:0;background:#edf2f5;color:#172b3a;font-family:Arial,Helvetica,sans-serif}.preview-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;max-width:900px;margin:24px auto 12px;color:#526575;font-size:13px}.preview-toolbar button{border:0;border-radius:6px;background:#087f8c;color:#fff;padding:10px 16px;font-weight:700;cursor:pointer}.preview-toolbar button:hover{background:#066a75}.document{max-width:900px;min-height:1120px;margin:0 auto 30px;padding:52px 58px;background:#fff;box-shadow:0 14px 38px rgba(20,40,55,.12)}.document-header{display:flex;justify-content:space-between;align-items:center;padding-bottom:22px;border-bottom:2px solid #0b7d88}.brand{display:flex;align-items:center;gap:13px}.brand-mark{display:grid;place-items:center;width:44px;height:44px;border-radius:8px;background:#0b7d88;color:#fff;font-weight:800;font-size:13px}.brand strong,.brand small,.reference span,.reference strong{display:block}.brand strong{font-size:14px;letter-spacing:1px;color:#163548}.brand small{margin-top:4px;color:#687c89;font-size:9px}.reference{text-align:right}.reference span,.eyebrow{color:#0b7d88;font-size:9px;font-weight:700;letter-spacing:1.2px}.reference strong{margin-top:5px;font-size:12px;color:#203b4b}.document-title{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;padding:30px 0 24px}.document-title h1{margin:7px 0 5px;font-size:27px;color:#163548}.document-title p{margin:0;color:#6c7f8b;font-size:11px}.priority{min-width:112px;padding:10px 14px;border:1px solid #d8e5e8;border-radius:6px;background:#f3f8f8}.priority span,.priority strong{display:block}.priority span{font-size:9px;color:#687c89;text-transform:uppercase}.priority strong{margin-top:5px;color:#0b7d88;font-size:12px}.document-section{margin-top:22px}.document-section h2{margin:0 0 10px;padding-bottom:8px;border-bottom:1px solid #dce5e9;color:#254354;font-size:11px;text-transform:uppercase;letter-spacing:.8px}.details-grid{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #edf1f3;border-left:1px solid #edf1f3}.detail{min-height:58px;padding:11px 13px;border-right:1px solid #edf1f3;border-bottom:1px solid #edf1f3}.detail span,.detail strong{display:block}.detail span{margin-bottom:6px;color:#70828d;font-size:9px;text-transform:uppercase;letter-spacing:.4px}.detail strong{color:#203b4b;font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere}.purpose{padding:14px;border:1px solid #edf1f3;border-radius:5px;color:#304c5c;font-size:11px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}.document-footer{display:flex;justify-content:space-between;margin-top:40px;padding-top:12px;border-top:1px solid #dce5e9;color:#758791;font-size:9px}@page{size:A4;margin:0}@media(max-width:640px){.preview-toolbar{margin:12px;padding:0 4px}.document{min-height:0;margin:0;padding:28px 22px}.document-title{align-items:flex-start;flex-direction:column}.details-grid{grid-template-columns:1fr}}@media print{body{background:#fff}.preview-toolbar{display:none}.document{width:210mm;max-width:none;min-height:297mm;margin:0;padding:18mm;box-shadow:none}.document-section,.details-grid,.purpose{break-inside:avoid}}
+            </style></head><body><div class="preview-toolbar"><span>Enquiry document preview</span><button type="button" onclick="window.print()">Print / Save PDF</button></div><main class="document"><header class="document-header"><div class="brand"><div class="brand-mark">FO</div><div><strong>SCHOOL FRONT OFFICE</strong><small>VISITOR &amp; ENQUIRY MANAGEMENT</small></div></div><div class="reference"><span>RECORD REFERENCE</span><strong>${escape(reference)}</strong></div></header><section class="document-title"><div><span class="eyebrow">ENQUIRY RECORD</span><h1>${escape(entry.name || 'Visitor enquiry')}</h1><p>Recorded ${escape(recordedLabel)}</p></div><div class="priority"><span>Priority</span><strong>${escape(entry.priority || 'Normal')}</strong></div></section><section class="document-section"><h2>Visitor details</h2><div class="details-grid"><div class="detail"><span>Visitor name</span><strong>${escape(entry.name || '-')}</strong></div><div class="detail"><span>Visitor type</span><strong>${escape(entry.visitorType || '-')}</strong></div><div class="detail"><span>Mobile number</span><strong>${escape(entry.mobile || '-')}</strong></div><div class="detail"><span>Student ID</span><strong>${escape(entry.studentId || '-')}</strong></div><div class="detail"><span>Department / person</span><strong>${escape(entry.department || '-')}</strong></div><div class="detail"><span>Status</span><strong>${escape(entry.status || 'Open')}</strong></div></div></section><section class="document-section"><h2>Appointment &amp; purpose</h2><div class="details-grid"><div class="detail"><span>Appointment date</span><strong>${escape(formatDate(entry.appointmentDate))}</strong></div><div class="detail"><span>Enquiry purpose</span><strong>${escape(entry.purpose || '-')}</strong></div></div></section><section class="document-section"><h2>Notes</h2><div class="purpose">${escape(entry.notes || 'No additional notes provided.')}</div></section><footer class="document-footer"><span>Generated by School Front Office</span><span>${escape(reference)}</span></footer></main></body></html>`;
+            const historyRows = (Array.isArray(entry.statusHistory) ? entry.statusHistory : []).map(item => `<div class="detail"><span>${escape(item.status)}</span><strong>${escape(item.by || 'Staff')} · ${escape(formatWorkflowTime(item.at))}</strong></div>`).join('');
+            const workflowSection = `<section class="document-section"><h2>Handling &amp; history</h2><div class="details-grid"><div class="detail"><span>Assigned to</span><strong>${escape(entry.assignedTo || 'Unassigned')}</strong></div><div class="detail"><span>Next follow-up</span><strong>${escape(formatDate(entry.followUpDate))}</strong></div></div><div class="details-grid">${historyRows || '<div class="detail"><span>Status history</span><strong>No changes recorded.</strong></div>'}</div></section>`;
+            const printableHtml = documentHtml.replace('<footer class="document-footer">', `${workflowSection}<footer class="document-footer">`);
+            if (autoPrint) printWindow.addEventListener('load', () => { printWindow.focus(); printWindow.print(); }, { once: true });
+            printWindow.document.write(printableHtml);
+            printWindow.document.close();
+            if (!autoPrint) printWindow.focus();
         };
         const updateSummary = () => form.querySelectorAll('[name]').forEach(field => {
             const summary = sec.querySelector(`[data-summary="${field.name}"]`);
@@ -546,15 +638,22 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('submit', event => {
             event.preventDefault();
             const data = Object.fromEntries(new FormData(form).entries());
-            data.id = data.id || Date.now().toString();
-            data.status = 'Open';
-            data.createdAt = new Date().toISOString();
             const entries = readEntries();
+            const existing = editingIndex === null ? null : entries[editingIndex];
+            const timestamp = new Date().toISOString();
+            data.id = existing?.id || data.id || Date.now().toString();
+            data.status = existing ? normalizeEnquiryStatus(data.status || existing.status) : 'New';
+            data.assignedTo = (data.assignedTo || '').trim() || existing?.assignedTo || currentActor();
+            data.createdAt = existing?.createdAt || timestamp;
+            data.updatedAt = timestamp;
+            data.statusHistory = Array.isArray(existing?.statusHistory) ? existing.statusHistory : existing ? [{ status: normalizeEnquiryStatus(existing.status), by: existing.createdBy || 'Front Desk', at: existing.createdAt || timestamp }] : [];
+            if (!existing) addStatusHistory(data, 'New', currentActor(), timestamp);
+            else if (data.status !== normalizeEnquiryStatus(existing.status)) addStatusHistory(data, data.status, currentActor(), timestamp);
+            if (data.status === 'Resolved') data.resolvedAt = existing?.resolvedAt || timestamp;
+            if (data.status === 'Closed') data.closedAt = existing?.closedAt || timestamp;
             if (editingIndex === null) {
                 entries.unshift(data);
             } else {
-                data.id = entries[editingIndex].id || data.id;
-                data.createdAt = entries[editingIndex].createdAt || data.createdAt;
                 entries[editingIndex] = data;
             }
             localStorage.setItem(storageKey, JSON.stringify(entries));
@@ -570,6 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
             entryCard.classList.add('hidden');
             sec.querySelector('.enquiry-summary-card').classList.add('hidden');
             form.reset();
+            form.elements.status.disabled = true;
             editingIndex = null;
             updateSummary();
         };
@@ -581,16 +681,63 @@ document.addEventListener('DOMContentLoaded', () => {
             entryCard.classList.remove('hidden');
             sec.querySelector('.enquiry-summary-card').classList.remove('hidden');
             form.reset();
+            form.elements.status.value = 'New';
+            form.elements.status.disabled = true;
+            form.elements.assignedTo.value = currentActor();
+            refreshStudentOptions();
             form.querySelector('[name="name"]').focus();
             updateSummary();
         });
         sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
         table.addEventListener('click', event => {
+            const transitionButton = event.target.closest('[data-enquiry-transition]');
+            if (transitionButton) {
+                const entries = readEntries();
+                const index = Number(transitionButton.dataset.enquiryIndex);
+                const entry = entries[index];
+                if (!entry) return;
+                const transitions = { start: 'In Progress', resume: 'In Progress', wait: 'Waiting for Visitor', resolve: 'Resolved', close: 'Closed', reopen: 'In Progress' };
+                const nextStatus = transitions[transitionButton.dataset.enquiryTransition];
+                if (!nextStatus) return;
+                const previousStatus = normalizeEnquiryStatus(entry.status);
+                if (nextStatus === 'Resolved' && !confirm(`Mark the enquiry for ${entry.name || 'this visitor'} as resolved?`)) return;
+                const timestamp = new Date().toISOString();
+                entry.status = nextStatus;
+                entry.updatedAt = timestamp;
+                if (nextStatus === 'In Progress' && !entry.assignedTo) entry.assignedTo = currentActor();
+                if (nextStatus === 'Resolved') entry.resolvedAt = timestamp;
+                if (nextStatus === 'Closed') entry.closedAt = timestamp;
+                addStatusHistory(entry, nextStatus, currentActor(), timestamp);
+                entries[index] = entry;
+                localStorage.setItem(storageKey, JSON.stringify(entries));
+                render();
+                return;
+            }
             const actionButton = event.target.closest('[data-enquiry-action]');
             if (!actionButton) return;
             const entries = readEntries();
             const entry = entries[Number(actionButton.dataset.enquiryIndex)];
             if (!entry) return;
+
+            if (actionButton.dataset.enquiryAction === 'appointment') {
+                window.pendingAppointmentRequest = {
+                    enquiryId: entry.id,
+                    name: entry.name,
+                    visitorType: entry.visitorType,
+                    mobile: entry.mobile,
+                    studentId: entry.studentId,
+                    department: entry.department,
+                    appointmentDate: entry.appointmentDate,
+                    purpose: entry.purpose,
+                    priority: entry.priority,
+                    notes: entry.notes
+                };
+                const appointmentLink = [...document.querySelectorAll('.nav-links a')].find(link => link.querySelector('span')?.textContent.trim() === 'Appointments');
+                if (!appointmentLink) return alert('The Appointments module is not available in the current navigation.');
+                appointmentLink.click();
+                window.setTimeout(() => document.getElementById('module_appointments')?.querySelector('[data-enquiry-new]')?.click(), 0);
+                return;
+            }
 
             if (actionButton.dataset.enquiryAction === 'delete') {
                 if (!confirm(`Delete the enquiry for ${entry.name || 'this visitor'}?`)) return;
@@ -601,10 +748,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (actionButton.dataset.enquiryAction === 'edit') {
+                refreshStudentOptions(entry.studentId);
                 Object.entries(entry).forEach(([name, value]) => {
                     const field = form.elements[name];
                     if (field) field.value = value;
                 });
+                form.elements.status.value = normalizeEnquiryStatus(entry.status);
+                form.elements.status.disabled = false;
+                form.elements.assignedTo.value = entry.assignedTo || '';
                 entryCard.classList.remove('hidden');
                 sec.querySelector('.enquiry-summary-card').classList.remove('hidden');
                 form.querySelector('[name="name"]').focus();
@@ -613,12 +764,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const printWindow = window.open('', '_blank', 'width=700,height=700');
-            if (!printWindow) return;
-            printWindow.document.write(`<html><head><title>Enquiry Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:150px}</style></head><body><h1>Front Office Enquiry</h1>${Object.entries(entry).filter(([name]) => name !== 'id').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}</body></html>`);
-            printWindow.document.close();
-            printWindow.focus();
-            printWindow.print();
+            openEnquiryDocument(entry, actionButton.dataset.enquiryAction === 'print');
         });
         render();
         return sec;
@@ -765,13 +911,13 @@ document.addEventListener('DOMContentLoaded', () => {
         sec.id = 'module_appointments';
         sec.innerHTML = `
             <div class="module-header"><div><h2>Appointments</h2><p>Department: ${category}</p></div><button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> New Appointment</button></div>
-            <div class="enquiries-stats">
-                <div class="enquiry-stat"><span>Today's Appointments</span><strong data-appointment-today>0</strong></div><div class="enquiry-stat"><span>Scheduled</span><strong data-appointment-scheduled>0</strong></div><div class="enquiry-stat"><span>Checked In</span><strong data-appointment-checked>0</strong></div><div class="enquiry-stat"><span>Completed</span><strong data-appointment-completed>0</strong></div><div class="enquiry-stat"><span>Cancelled</span><strong data-appointment-cancelled>0</strong></div>
+            <div class="enquiries-stats appointment-workflow-stats">
+                <div class="enquiry-stat"><span>Today's Appointments</span><strong data-appointment-today>0</strong></div><div class="enquiry-stat"><span>Requested</span><strong data-appointment-requested>0</strong></div><div class="enquiry-stat"><span>Confirmed</span><strong data-appointment-confirmed>0</strong></div><div class="enquiry-stat"><span>Checked In</span><strong data-appointment-checked>0</strong></div><div class="enquiry-stat"><span>Completed</span><strong data-appointment-completed>0</strong></div><div class="enquiry-stat"><span>Cancelled / No Show</span><strong data-appointment-cancelled>0</strong></div>
             </div>
             <div class="enquiries-grid">
                 <div class="enquiry-card enquiry-entry-card hidden"><div class="enquiry-card-header"><h3>Appointment Registration</h3><p>Schedule a meeting, visit, or school appointment.</p></div><div class="enquiry-card-body"><form data-enquiry-form>
                     <div class="enquiry-form-grid">
-                        <div class="enquiry-form-group"><label>Appointment ID</label><input name="appointmentId" readonly></div><div class="enquiry-form-group"><label>Appointment Type</label><select name="appointmentType" required><option value="">Select appointment type</option><option>Parent Meeting</option><option>Admission Meeting</option><option>Principal Meeting</option><option>Teacher Meeting</option><option>Student Meeting</option><option>Staff Meeting</option><option>Vendor / Supplier</option><option>Government / Official</option><option>Counselling</option><option>Other</option></select></div>
+                        <div class="enquiry-form-group"><label>Appointment ID</label><input name="appointmentId" readonly></div><div class="enquiry-form-group"><label>Linked Enquiry</label><input name="enquiryId" readonly placeholder="Standalone appointment"></div><div class="enquiry-form-group"><label>Appointment Type</label><select name="appointmentType" required><option value="">Select appointment type</option><option>Parent Meeting</option><option>Admission Meeting</option><option>Principal Meeting</option><option>Teacher Meeting</option><option>Student Meeting</option><option>Staff Meeting</option><option>Vendor / Supplier</option><option>Government / Official</option><option>Counselling</option><option>Other</option></select></div>
                         <div class="enquiry-form-group"><label>Appointment Date</label><input name="appointmentDate" type="date" required></div><div class="enquiry-form-group"><label>Appointment Time</label><input name="appointmentTime" type="time" required></div><div class="enquiry-form-group"><label>Duration</label><select name="duration"><option>15 minutes</option><option selected>30 minutes</option><option>45 minutes</option><option>1 hour</option><option>1.5 hours</option><option>2 hours</option></select></div><div class="enquiry-form-group"><label>Priority</label><select name="priority"><option>Normal</option><option>Important</option><option>High</option><option>VIP</option></select></div>
                         <div class="enquiry-form-group"><label>Visitor / Guest Name</label><input name="guestName" placeholder="Enter full name" required></div><div class="enquiry-form-group"><label>Visitor Type</label><select name="visitorType" required><option value="">Select visitor type</option><option>Parent / Guardian</option><option>Prospective Parent</option><option>Student</option><option>Staff</option><option>Supplier / Vendor</option><option>Contractor</option><option>Government Official</option><option>Guest / VIP</option><option>Alumni</option><option>Other</option></select></div>
                         <div class="enquiry-form-group"><label>Phone Number</label><input name="phone" type="tel" placeholder="+256 700 000000" required></div><div class="enquiry-form-group"><label>Email Address</label><input name="email" type="email" placeholder="guest@example.com"></div><div class="enquiry-form-group"><label>Organization / Company</label><input name="organization" placeholder="Organization name"></div><div class="enquiry-form-group"><label>Student / Employee ID</label><input name="relatedId" placeholder="If applicable"></div>
@@ -784,13 +930,165 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="enquiries-table"><div class="table-card"><h3 class="table-title">Appointment Register</h3><table><thead><tr><th>Appointment ID</th><th>Guest</th><th>Type</th><th>Date</th><th>Time</th><th>Visiting</th><th>Department</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
         const form = sec.querySelector('[data-enquiry-form]'); const table = sec.querySelector('[data-enquiry-table]'); const entryCard = sec.querySelector('.enquiry-entry-card'); const summaryCard = sec.querySelector('.enquiry-summary-card'); const storageKey = 'edumasterAppointments'; let editingIndex = null;
-        const readEntries = () => { try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; } }; const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); const today = () => new Date().toISOString().slice(0, 10); const nextId = () => `APT-${new Date().getFullYear()}-${String(readEntries().length + 1).padStart(5, '0')}`;
-        const updateStats = () => { const entries = readEntries().filter(entry => entry.appointmentDate === today()); sec.querySelector('[data-appointment-today]').textContent = entries.length; sec.querySelector('[data-appointment-scheduled]').textContent = entries.filter(entry => ['Scheduled', 'Confirmed'].includes(entry.status)).length; sec.querySelector('[data-appointment-checked]').textContent = entries.filter(entry => ['Checked In', 'In Progress'].includes(entry.status)).length; sec.querySelector('[data-appointment-completed]').textContent = entries.filter(entry => entry.status === 'Completed').length; sec.querySelector('[data-appointment-cancelled]').textContent = entries.filter(entry => entry.status === 'Cancelled').length; };
-        const render = () => { const entries = readEntries(); updateStats(); table.innerHTML = entries.length ? entries.slice(0, 8).map((entry, index) => `<tr><td>${escape(entry.appointmentId)}</td><td>${escape(entry.guestName)}<br><small>${escape(entry.phone)}</small></td><td>${escape(entry.appointmentType)}</td><td>${escape(entry.appointmentDate)}</td><td>${escape(entry.appointmentTime)}</td><td>${escape(entry.personToVisit)}</td><td>${escape(entry.department)}</td><td>${escape(entry.priority)}</td><td><span class="badge pending">${escape(entry.status)}</span></td><td><div class="enquiry-actions"><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="checkin" data-enquiry-index="${index}" title="Check in"><i class="fas fa-check"></i></button><button class="enquiry-action" type="button" data-enquiry-action="cancel" data-enquiry-index="${index}" title="Cancel"><i class="fas fa-xmark"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete"><i class="fas fa-trash"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print"><i class="fas fa-print"></i></button></div></td></tr>`).join('') : '<tr><td colspan="10" style="text-align:center;padding:25px;color:#94a3b8;">No appointments yet. Open New Appointment to create a record.</td></tr>'; };
-        const updateSummary = () => form.querySelectorAll('[name]').forEach(field => { const summary = sec.querySelector(`[data-summary="${field.name}"]`); if (summary) summary.textContent = field.value || (field.name === 'status' ? 'Scheduled' : '-'); }); const closeForm = () => { entryCard.classList.add('hidden'); summaryCard.classList.add('hidden'); form.reset(); editingIndex = null; updateSummary(); }; const openForm = () => { entryCard.classList.remove('hidden'); summaryCard.classList.remove('hidden'); if (editingIndex === null) { form.reset(); form.elements.appointmentId.value = nextId(); form.elements.appointmentDate.value = today(); form.elements.duration.value = '30 minutes'; form.elements.guestCount.value = 1; form.elements.status.value = 'Scheduled'; form.elements.confirmationMethod.value = 'Not Confirmed'; } updateSummary(); form.elements.appointmentType.focus(); };
-        form.addEventListener('input', updateSummary); form.addEventListener('change', updateSummary); form.addEventListener('reset', () => setTimeout(updateSummary)); form.addEventListener('submit', event => { event.preventDefault(); if (!form.checkValidity()) { form.reportValidity(); return; } const data = Object.fromEntries(new FormData(form).entries()); data.id = data.id || Date.now().toString(); data.createdAt = new Date().toISOString(); const entries = readEntries(); if (editingIndex === null) entries.unshift(data); else { data.id = entries[editingIndex].id || data.id; data.createdAt = entries[editingIndex].createdAt || data.createdAt; entries[editingIndex] = data; } localStorage.setItem(storageKey, JSON.stringify(entries)); closeForm(); render(); });
-        sec.querySelector('[data-enquiry-new]').addEventListener('click', () => entryCard.classList.contains('hidden') ? openForm() : closeForm()); sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
-        table.addEventListener('click', event => { const button = event.target.closest('[data-enquiry-action]'); if (!button) return; const entries = readEntries(); const index = Number(button.dataset.enquiryIndex); const entry = entries[index]; if (!entry) return; const action = button.dataset.enquiryAction; if (action === 'delete') { if (!confirm(`Delete appointment ${entry.appointmentId || ''}?`)) return; entries.splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'checkin') { entry.status = 'Checked In'; localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'cancel') { if (!confirm(`Cancel appointment for ${entry.guestName || ''}?`)) return; entry.status = 'Cancelled'; localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'edit') { Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; }); editingIndex = index; openForm(); return; } const printWindow = window.open('', '_blank', 'width=700,height=700'); if (!printWindow) return; printWindow.document.write(`<html><head><title>Appointment Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:180px}</style></head><body><h1>Appointment Record</h1>${Object.entries(entry).filter(([name]) => name !== 'id').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}</body></html>`); printWindow.document.close(); printWindow.focus(); printWindow.print(); });
+        const readEntries = () => { try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; } }; const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); const today = () => new Date().toISOString().slice(0, 10); const nextId = () => `APT-${new Date().getFullYear()}-${String(readEntries().length + 1).padStart(5, '0')}`; const appointmentStatuses = ['Requested','Confirmed','Checked In','In Progress','Completed','Cancelled','No Show','Rescheduled'];
+        form.elements.status.innerHTML = appointmentStatuses.map(status => `<option>${status}</option>`).join('');
+        const currentActor = () => { try { const session = JSON.parse(localStorage.getItem('edumasterAdminSession')) || {}; return session.name || session.userId || session.role || 'Front Desk'; } catch (error) { return 'Front Desk'; } };
+        const syncLinkedEnquiry = appointment => {
+            if (!appointment.enquiryId) return;
+            try {
+                const enquiries = JSON.parse(localStorage.getItem('edumasterEnquiries')) || [];
+                const enquiry = enquiries.find(item => String(item.id) === String(appointment.enquiryId));
+                if (!enquiry) return;
+                enquiry.appointmentId = appointment.appointmentId;
+                enquiry.appointmentStatus = appointment.status;
+                enquiry.appointmentDate = appointment.appointmentDate;
+                enquiry.updatedAt = new Date().toISOString();
+                localStorage.setItem('edumasterEnquiries', JSON.stringify(enquiries));
+                window.dispatchEvent(new CustomEvent('school:enquiry-updated'));
+            } catch (error) {}
+        };
+        const recordStatus = (entry, status) => { const at = new Date().toISOString(); entry.status = status; entry.updatedAt = at; entry.statusHistory = Array.isArray(entry.statusHistory) ? entry.statusHistory : []; entry.statusHistory.push({ status, by: currentActor(), at }); if (status === 'Checked In') entry.checkedInAt = at; if (status === 'Completed') entry.completedAt = at; if (status === 'Cancelled') entry.cancelledAt = at; if (status === 'No Show') entry.noShowAt = at; syncLinkedEnquiry(entry); return entry; };
+        const updateStats = () => {
+            const allEntries = readEntries();
+            const todayEntries = allEntries.filter(entry => entry.appointmentDate === today());
+            sec.querySelector('[data-appointment-today]').textContent = todayEntries.length;
+            sec.querySelector('[data-appointment-requested]').textContent = allEntries.filter(entry => ['Requested', 'Scheduled'].includes(entry.status)).length;
+            sec.querySelector('[data-appointment-confirmed]').textContent = allEntries.filter(entry => entry.status === 'Confirmed').length;
+            sec.querySelector('[data-appointment-checked]').textContent = allEntries.filter(entry => ['Checked In', 'In Progress'].includes(entry.status)).length;
+            sec.querySelector('[data-appointment-completed]').textContent = allEntries.filter(entry => entry.status === 'Completed').length;
+            sec.querySelector('[data-appointment-cancelled]').textContent = allEntries.filter(entry => ['Cancelled', 'No Show'].includes(entry.status)).length;
+        };
+        const render = () => {
+            const entries = readEntries();
+            updateStats();
+            const actionButton = (index, action, icon, label) => `<button class="enquiry-action appointment-action" type="button" data-enquiry-action="${action}" data-enquiry-index="${index}" title="${label}" aria-label="${label} appointment"><i class="fas ${icon}"></i></button>`;
+            table.innerHTML = entries.length ? entries.map((entry, index) => {
+                const history = Array.isArray(entry.statusHistory) ? entry.statusHistory : [];
+                const lastChange = history[history.length - 1];
+                const historyLabel = lastChange ? `${escape(lastChange.by || 'Staff')} · ${escape(lastChange.at ? new Date(lastChange.at).toLocaleString() : '')}` : 'No status changes recorded';
+                let actions = '';
+                if (['Requested', 'Scheduled', 'Rescheduled'].includes(entry.status)) actions += actionButton(index, 'confirm', 'fa-circle-check', 'Confirm appointment');
+                if (entry.status === 'Confirmed') actions += actionButton(index, 'checkin', 'fa-right-to-bracket', 'Check in');
+                if (entry.status === 'Checked In') actions += actionButton(index, 'start-meeting', 'fa-play', 'Start meeting');
+                if (['Checked In', 'In Progress'].includes(entry.status)) actions += actionButton(index, 'complete', 'fa-flag-checkered', 'Complete appointment');
+                if (['Requested', 'Scheduled', 'Confirmed', 'Rescheduled'].includes(entry.status)) actions += actionButton(index, 'reschedule', 'fa-calendar-days', 'Reschedule');
+                if (entry.status === 'Confirmed') actions += actionButton(index, 'no-show', 'fa-user-xmark', 'Mark no show');
+                if (!['Completed', 'Cancelled', 'No Show'].includes(entry.status)) actions += actionButton(index, 'cancel', 'fa-xmark', 'Cancel');
+                actions += actionButton(index, 'edit', 'fa-pen', 'Edit') + actionButton(index, 'delete', 'fa-trash', 'Delete') + actionButton(index, 'print', 'fa-print', 'Print');
+                return `<tr><td>${escape(entry.appointmentId)}${entry.enquiryId ? `<br><small>Enquiry ${escape(entry.enquiryId)}</small>` : ''}</td><td>${escape(entry.guestName)}<br><small>${escape(entry.phone)}</small></td><td>${escape(entry.appointmentType)}</td><td>${escape(entry.appointmentDate)}</td><td>${escape(entry.appointmentTime)}</td><td>${escape(entry.personToVisit)}</td><td>${escape(entry.department)}</td><td>${escape(entry.priority)}</td><td><span class="appointment-status-badge status-${escape(String(entry.status || 'Requested').toLowerCase().replace(/[^a-z]+/g, '-'))}">${escape(entry.status || 'Requested')}</span><small class="enquiry-status-meta">${historyLabel}</small></td><td><div class="enquiry-actions">${actions}</div></td></tr>`;
+            }).join('') : '<tr><td colspan="10" style="text-align:center;padding:25px;color:#94a3b8;">No appointments yet. Open New Appointment to create a request.</td></tr>';
+        };
+        const updateSummary = () => form.querySelectorAll('[name]').forEach(field => { const summary = sec.querySelector(`[data-summary="${field.name}"]`); if (summary) summary.textContent = field.value || (field.name === 'status' ? 'Requested' : '-'); });
+        const closeForm = () => { entryCard.classList.add('hidden'); summaryCard.classList.add('hidden'); form.reset(); editingIndex = null; updateSummary(); };
+        const openForm = () => {
+            entryCard.classList.remove('hidden');
+            summaryCard.classList.remove('hidden');
+            if (editingIndex === null) {
+                form.reset();
+                form.elements.appointmentId.value = nextId();
+                form.elements.appointmentDate.value = today();
+                form.elements.appointmentTime.value = '09:00';
+                form.elements.duration.value = '30 minutes';
+                form.elements.guestCount.value = 1;
+                form.elements.status.value = 'Requested';
+                form.elements.confirmationMethod.value = 'Not Confirmed';
+                form.elements.createdBy.value = currentActor();
+                const request = window.pendingAppointmentRequest;
+                if (request) {
+                    form.elements.enquiryId.value = request.enquiryId || '';
+                    form.elements.appointmentType.value = 'Other';
+                    form.elements.appointmentDate.value = request.appointmentDate || today();
+                    form.elements.guestName.value = request.name || '';
+                    const requestedVisitorType = request.visitorType || 'Other';
+                    const visitorTypes = [...form.elements.visitorType.options].map(option => option.value);
+                    form.elements.visitorType.value = visitorTypes.includes(requestedVisitorType) ? requestedVisitorType : requestedVisitorType.toLowerCase().includes('parent') ? 'Parent / Guardian' : requestedVisitorType.toLowerCase().includes('staff') ? 'Staff' : requestedVisitorType.toLowerCase().includes('guest') ? 'Guest / VIP' : 'Other';
+                    form.elements.phone.value = request.mobile || '';
+                    form.elements.relatedId.value = request.studentId || '';
+                    form.elements.personToVisit.value = request.department || 'Principal';
+                    form.elements.department.value = request.department || 'Reception';
+                    form.elements.purpose.value = request.purpose || 'Follow-up from enquiry';
+                    form.elements.notes.value = request.notes || '';
+                    form.elements.priority.value = request.priority === 'Urgent' ? 'VIP' : request.priority === 'Important' ? 'High' : 'Normal';
+                    window.pendingAppointmentRequest = null;
+                } else {
+                    form.elements.enquiryId.value = '';
+                }
+            }
+            updateSummary();
+            form.elements.appointmentType.focus();
+        };
+        form.addEventListener('input', updateSummary);
+        form.addEventListener('change', updateSummary);
+        form.addEventListener('reset', () => setTimeout(updateSummary));
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            if (!form.checkValidity()) { form.reportValidity(); return; }
+            const data = Object.fromEntries(new FormData(form).entries());
+            const entries = readEntries();
+            const existing = editingIndex === null ? null : entries[editingIndex];
+            const timestamp = new Date().toISOString();
+            data.id = existing?.id || data.id || Date.now().toString();
+            data.createdAt = existing?.createdAt || timestamp;
+            data.updatedAt = timestamp;
+            data.status = existing ? (data.status || existing.status) : 'Requested';
+            data.statusHistory = Array.isArray(existing?.statusHistory) ? existing.statusHistory : existing ? [{ status: existing.status || 'Requested', by: existing.createdBy || 'Front Desk', at: existing.createdAt || timestamp }] : [];
+            if (!existing) data.statusHistory.push({ status: 'Requested', by: currentActor(), at: timestamp });
+            else if (data.status !== existing.status) data.statusHistory.push({ status: data.status, by: currentActor(), at: timestamp });
+            if (existing && (data.appointmentDate !== existing.appointmentDate || data.appointmentTime !== existing.appointmentTime)) {
+                data.rescheduleHistory = Array.isArray(existing.rescheduleHistory) ? existing.rescheduleHistory : [];
+                data.rescheduleHistory.push({ fromDate: existing.appointmentDate, fromTime: existing.appointmentTime, toDate: data.appointmentDate, toTime: data.appointmentTime, by: currentActor(), at: timestamp });
+                if (data.status !== 'Rescheduled' && !['Cancelled', 'Completed'].includes(data.status)) {
+                    data.status = 'Rescheduled';
+                    data.statusHistory.push({ status: 'Rescheduled', by: currentActor(), at: timestamp });
+                }
+            }
+            syncLinkedEnquiry(data);
+            if (existing) entries[editingIndex] = data;
+            else entries.unshift(data);
+            localStorage.setItem(storageKey, JSON.stringify(entries));
+            closeForm();
+            render();
+        });
+        sec.querySelector('[data-enquiry-new]').addEventListener('click', () => entryCard.classList.contains('hidden') ? openForm() : closeForm());
+        sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
+        table.addEventListener('click', event => {
+            const button = event.target.closest('[data-enquiry-action]');
+            if (!button) return;
+            const entries = readEntries();
+            const index = Number(button.dataset.enquiryIndex);
+            const entry = entries[index];
+            if (!entry) return;
+            const action = button.dataset.enquiryAction;
+            if (action === 'delete') {
+                if (!confirm(`Delete appointment ${entry.appointmentId || ''}?`)) return;
+                entries.splice(index, 1);
+                localStorage.setItem(storageKey, JSON.stringify(entries));
+                render();
+                return;
+            }
+            if (action === 'edit' || action === 'reschedule') {
+                Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; });
+                editingIndex = index;
+                if (action === 'reschedule') form.elements.status.value = 'Rescheduled';
+                openForm();
+                return;
+            }
+            const nextStatus = { confirm: 'Confirmed', checkin: 'Checked In', 'start-meeting': 'In Progress', complete: 'Completed', cancel: 'Cancelled', 'no-show': 'No Show' }[action];
+            if (nextStatus) {
+                if (['Cancelled', 'No Show'].includes(nextStatus) && !confirm(`${nextStatus === 'No Show' ? 'Mark' : 'Cancel'} appointment ${entry.appointmentId || ''} as ${nextStatus}?`)) return;
+                recordStatus(entry, nextStatus);
+                entries[index] = entry;
+                localStorage.setItem(storageKey, JSON.stringify(entries));
+                render();
+                return;
+            }
+            const printWindow = window.open('', '_blank', 'width=700,height=700');
+            if (!printWindow) return;
+            printWindow.document.write(`<html><head><title>Appointment Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:180px}</style></head><body><h1>Appointment Record</h1>${Object.entries(entry).filter(([name]) => name !== 'id' && name !== 'statusHistory' && name !== 'rescheduleHistory').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}<h2>Status history</h2>${(entry.statusHistory || []).map(item => `<div class="row"><span class="label">${escape(item.status)}</span>${escape(item.by)} · ${escape(item.at)}</div>`).join('')}</body></html>`);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+        });
         render(); return sec;
     }
 
