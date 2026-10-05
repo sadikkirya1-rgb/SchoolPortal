@@ -493,7 +493,7 @@ font-weight:700;
 
 .menu-title{
 margin:24px 0 12px;
-font-size:11px;
+font-size:10px;
 color:#4f46e5;
 text-transform:uppercase;
 letter-spacing:1px;
@@ -569,7 +569,7 @@ text-decoration:none;
 color:#475569;
 transition:0.3s;
 font-weight:500;
-font-size:14px;
+font-size:13px;
 margin: 4px 0;
 cursor:pointer;
 }
