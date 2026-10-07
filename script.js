@@ -14,6 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Admin Login Flow ---
     const loginScreen = document.getElementById('loginScreen');
+    const landingPage = document.querySelector('.landing-page');
+    const showLoginBtn = document.getElementById('showLoginBtn');
+    const showLoginBtnSecondary = document.getElementById('showLoginBtnSecondary');
     const container = document.querySelector('.container');
     const schoolStep = document.getElementById('schoolStep');
     const adminStep = document.getElementById('adminStep');
@@ -65,6 +68,27 @@ document.addEventListener('DOMContentLoaded', () => {
         element.textContent = message || '';
     };
 
+    const animateCounter = (element) => {
+        const target = Number(element.dataset.target || 0);
+        const suffix = element.dataset.suffix || '';
+        const duration = 1400;
+        let start = 0;
+        const startTime = performance.now();
+
+        const tick = (now) => {
+            const progress = Math.min((now - startTime) / duration, 1);
+            const value = Math.round(progress * target);
+            element.textContent = `${value.toLocaleString()}${suffix}`;
+            if (progress < 1) {
+                requestAnimationFrame(tick);
+            } else {
+                element.textContent = `${target.toLocaleString()}${suffix}`;
+            }
+        };
+
+        requestAnimationFrame(tick);
+    };
+
     const saveSession = (session) => {
         localStorage.setItem(storageKey, JSON.stringify(session));
     };
@@ -106,7 +130,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const unlockDashboard = (userData) => {
-        loginScreen.classList.remove('active');
+        landingPage?.classList.add('hidden');
+        if (loginScreen) {
+            loginScreen.classList.remove('active');
+            loginScreen.classList.add('hidden');
+        }
         container.classList.remove('hidden');
         const schoolName = currentSchool?.schoolName || 'EduMaster Uganda';
         document.querySelector('.welcome h1').textContent = `${schoolName} Admin Dashboard`;
@@ -229,6 +257,28 @@ document.addEventListener('DOMContentLoaded', () => {
             event.preventDefault();
             adminLoginBtn.click();
         }
+    });
+
+    if (showLoginBtn) {
+        showLoginBtn.addEventListener('click', () => {
+            landingPage?.classList.add('hidden');
+            loginScreen?.classList.remove('hidden');
+            loginScreen?.classList.add('active');
+            loginScreen?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
+
+    if (showLoginBtnSecondary) {
+        showLoginBtnSecondary.addEventListener('click', () => {
+            landingPage?.classList.add('hidden');
+            loginScreen?.classList.remove('hidden');
+            loginScreen?.classList.add('active');
+            loginScreen?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
+
+    document.querySelectorAll('.count-value').forEach((countEl) => {
+        animateCounter(countEl);
     });
 
     restoreSession();
