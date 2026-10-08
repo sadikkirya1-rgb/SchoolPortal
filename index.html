@@ -203,27 +203,77 @@
 
 <body>
 
-<section class="landing-page">
-    <header class="landing-header">
-        <div class="landing-brand">
-            <div class="brand-icon"><i class="fas fa-school"></i></div>
-            <div>
-                <span>EduMaster Uganda</span>
-                <strong>School Management Platform</strong>
+<section class="reference-login-page" aria-label="Smart School Management login design">
+    <h2 class="visually-hidden">Smart School Management sign in</h2>
+    <div class="reference-login-stage">
+        <form class="reference-login-card" id="referenceLoginForm">
+            <div class="reference-login-brand">
+                <span class="reference-login-logo" aria-hidden="true"><i class="fa-solid fa-graduation-cap"></i></span>
+                <strong>Smart School</strong>
+                <span>Management</span>
+                <small>Connect <b>·</b> Manage <b>·</b> Empower</small>
             </div>
-        </div>
-        <nav class="landing-nav">
-            <a href="#about">About</a>
-            <a href="#features">Features</a>
-            <a href="#benefits">Benefits</a>
-            <a href="#contact">Contact</a>
-        </nav>
-        <button class="landing-login-btn" id="showLoginBtn">
-            <i class="fa-solid fa-door-open"></i>
-            <span>Access Portal</span>
-        </button>
-    </header>
-
+            <h3>Welcome Back</h3>
+            <p class="reference-login-intro">Sign in to your school account to continue</p>
+            <div id="referenceSchoolInformation">
+                <h4 class="reference-login-section-title">School Information</h4>
+                <label class="reference-login-field">
+                    <i class="fa-solid fa-school" aria-hidden="true"></i>
+                    <span class="visually-hidden">School Name</span>
+                    <input id="referenceSchoolName" name="schoolName" type="text" placeholder="School Name (optional)" autocomplete="organization">
+                </label>
+                <label class="reference-login-field">
+                    <i class="fa-solid fa-id-card" aria-hidden="true"></i>
+                    <span class="visually-hidden">School ID</span>
+                    <input id="referenceSchoolId" name="schoolId" type="text" placeholder="Enter School ID (e.g. SCH-UG-2026)" autocomplete="off" required>
+                </label>
+                <button class="reference-sign-in" id="referenceSchoolContinue" type="button">Continue <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                <p class="reference-login-message" id="referenceSchoolMessage" role="status" aria-live="polite"></p>
+            </div>
+            <div class="reference-user-login hidden" id="referenceUserLogin" aria-hidden="true">
+                <h4 class="reference-login-section-title">User Login</h4>
+                <p class="reference-credential-hint">Demo credentials: <strong>admin</strong> / <strong>admin</strong></p>
+                <label class="reference-login-field">
+                    <i class="fa-regular fa-user" aria-hidden="true"></i>
+                    <span class="visually-hidden">Username</span>
+                    <input id="referenceLoginUsername" name="username" type="text" placeholder="Username" autocomplete="username" required disabled>
+                </label>
+                <label class="reference-login-field">
+                    <i class="fa-solid fa-id-badge" aria-hidden="true"></i>
+                    <span class="visually-hidden">User ID</span>
+                    <input id="referenceLoginPassword" name="password" type="password" placeholder="Password" autocomplete="current-password" required disabled>
+                    <button class="reference-password-toggle" id="referencePasswordToggle" type="button" aria-label="Show password" aria-pressed="false" disabled><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
+                </label>
+                <div class="reference-login-options">
+                    <label class="reference-remember"><input type="checkbox" name="remember" disabled> <span>Remember me</span></label>
+                    <button class="reference-text-button" type="button" id="referenceForgotPassword">Need help?</button>
+                </div>
+                <button class="reference-sign-in" type="submit">Sign In <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                <div class="reference-or"><span>Or continue with</span></div>
+                <button class="reference-google" id="referenceGoogleSignIn" type="button"><span class="reference-google-mark" aria-hidden="true">G</span> Sign in with Google</button>
+            </div>
+            <p class="reference-login-message" id="referenceLoginMessage" role="status" aria-live="polite"></p>
+            <p class="reference-contact">Don't have an account? <button class="reference-text-button" id="referenceContactAdmin" type="button">Contact your school administrator</button></p>
+        </form>
+        <section class="login-usage-stats" aria-label="School community using the app">
+            <article class="login-usage-stat" aria-label="Schools using the app">
+                <strong class="login-usage-number schools-stat-icon count-value" data-stat-count="schools">0</strong>
+                <span class="visually-hidden">Schools</span>
+            </article>
+            <article class="login-usage-stat" aria-label="Parents using the app">
+                <strong class="login-usage-number parents-stat-icon count-value" data-stat-count="parents">0</strong>
+                <span class="visually-hidden">Parents</span>
+            </article>
+            <article class="login-usage-stat" aria-label="Students using the app">
+                <strong class="login-usage-number students-stat-icon count-value" data-stat-count="students">0</strong>
+                <span class="visually-hidden">Students</span>
+            </article>
+            <article class="login-usage-stat" aria-label="Staff using the app">
+                <strong class="login-usage-number staff-stat-icon count-value" data-stat-count="staff">0</strong>
+                <span class="visually-hidden">Staff</span>
+            </article>
+        </section>
+    </div>
 </section>
 
 <div class="login-screen" id="loginScreen">

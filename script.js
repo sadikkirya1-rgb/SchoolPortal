@@ -14,9 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Admin Login Flow ---
     const loginScreen = document.getElementById('loginScreen');
-    const landingPage = document.querySelector('.landing-page');
-    const showLoginBtn = document.getElementById('showLoginBtn');
-    const showLoginBtnSecondary = document.getElementById('showLoginBtnSecondary');
+    const referenceLoginPage = document.querySelector('.reference-login-page');
     const container = document.querySelector('.container');
     const schoolStep = document.getElementById('schoolStep');
     const adminStep = document.getElementById('adminStep');
@@ -89,6 +87,40 @@ document.addEventListener('DOMContentLoaded', () => {
         requestAnimationFrame(tick);
     };
 
+    const landingStatDefaults = {
+        parents: 6,
+        students: 2,
+        staff: 2
+    };
+    document.querySelectorAll('[data-stat-count]').forEach((element) => {
+        const stat = element.dataset.statCount;
+        let count = Object.keys(schoolAccounts).length;
+        const storageKeyByStat = {
+            parents: 'schoolParentContacts',
+            students: 'school_students',
+            staff: 'school_staff_directory'
+        };
+
+        if (stat !== 'schools') {
+            count = landingStatDefaults[stat] || 0;
+            try {
+                const storedRecords = localStorage.getItem(storageKeyByStat[stat]);
+                if (storedRecords !== null) {
+                    const records = JSON.parse(storedRecords);
+                    if (Array.isArray(records)) {
+                        count = records.length;
+                    } else {
+                        console.warn(`Landing page ${stat} statistics were not an array; showing the demo total.`);
+                    }
+                }
+            } catch (error) {
+                console.warn(`Unable to load landing page ${stat} statistics; showing the demo total.`, error);
+            }
+        }
+
+        element.dataset.target = String(count);
+    });
+
     const saveSession = (session) => {
         localStorage.setItem(storageKey, JSON.stringify(session));
     };
@@ -130,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const unlockDashboard = (userData) => {
-        landingPage?.classList.add('hidden');
+        referenceLoginPage?.classList.add('hidden');
         if (loginScreen) {
             loginScreen.classList.remove('active');
             loginScreen.classList.add('hidden');
@@ -203,30 +235,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const normalizeUserId = (value) => value.trim().toLowerCase();
 
-    adminLoginBtn.addEventListener('click', () => {
-        const userId = normalizeUserId(adminUserInput.value);
-        const password = adminPassInput.value.trim();
+    const authenticateAdmin = (rawUserId, rawPassword) => {
+        const userId = normalizeUserId(rawUserId);
+        const password = rawPassword.trim();
         if (!userId || !password) {
             showError(adminError, 'Please enter both user ID and password.');
-            return;
+            return false;
         }
         if (!currentSchool) {
             showError(adminError, 'Start with a valid school ID first.');
-            return;
+            return false;
         }
         const users = loadUsers();
         const userObj = users.find(u => u.userId === userId && u.password === password);
         if (!userObj) {
             showError(adminError, 'Incorrect user ID or password.');
-            return;
+            return false;
         }
         if (userObj.status === false) {
             showError(adminError, 'This account is deactivated. Please contact support.');
-            return;
+            return false;
         }
         showError(adminError, '');
         saveSession({ schoolId: normalizeSchoolId(schoolIdInput.value), userId: userId, step: 2, authenticated: true });
         unlockDashboard(userObj);
+        return true;
+    };
+
+    adminLoginBtn.addEventListener('click', () => {
+        authenticateAdmin(adminUserInput.value, adminPassInput.value);
     });
 
     backToSchoolBtn.addEventListener('click', () => {
@@ -241,7 +278,9 @@ document.addEventListener('DOMContentLoaded', () => {
             clearSession();
             resetLoginScreen();
             container.classList.add('hidden');
-            loginScreen.classList.add('active');
+            referenceLoginPage?.classList.remove('hidden');
+            loginScreen?.classList.remove('active');
+            loginScreen?.classList.add('hidden');
         });
     }
 
@@ -259,21 +298,169 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    if (showLoginBtn) {
-        showLoginBtn.addEventListener('click', () => {
-            landingPage?.classList.add('hidden');
-            loginScreen?.classList.remove('hidden');
-            loginScreen?.classList.add('active');
-            loginScreen?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-    }
+    const referenceLoginForm = document.getElementById('referenceLoginForm');
+    const referenceSchoolName = document.getElementById('referenceSchoolName');
+    const referenceSchoolId = document.getElementById('referenceSchoolId');
+    const referenceSchoolInformation = document.getElementById('referenceSchoolInformation');
+    const referenceUsername = document.getElementById('referenceLoginUsername');
+    const referencePassword = document.getElementById('referenceLoginPassword');
+    const referenceUserLogin = document.getElementById('referenceUserLogin');
+    const referenceRemember = referenceLoginForm?.elements.namedItem('remember');
+    const referenceMessage = document.getElementById('referenceLoginMessage');
+    const referenceSchoolMessage = document.getElementById('referenceSchoolMessage');
+    const showReferenceMessage = (message) => {
+        if (referenceMessage) referenceMessage.textContent = message;
+    };
+    const rememberedUsernameKey = 'schoolPortalRememberedUsername';
 
-    if (showLoginBtnSecondary) {
-        showLoginBtnSecondary.addEventListener('click', () => {
-            landingPage?.classList.add('hidden');
-            loginScreen?.classList.remove('hidden');
-            loginScreen?.classList.add('active');
-            loginScreen?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (referenceLoginForm && referenceSchoolName && referenceSchoolId && referenceSchoolInformation && referenceUsername && referencePassword && referenceUserLogin && referenceRemember instanceof HTMLInputElement) {
+        const referenceLoginStage = document.querySelector('.reference-login-stage');
+        const updateReferenceCardBounds = () => {
+            if (!referenceLoginStage) return;
+            const stageRect = referenceLoginStage.getBoundingClientRect();
+            const imageScale = Math.max(stageRect.width / 1672, stageRect.height / 940);
+            const imageOffsetX = (stageRect.width - 1672 * imageScale) / 2;
+            const imageOffsetY = (stageRect.height - 940 * imageScale) / 2;
+            const cardBounds = { left: 540, top: 90, right: 1080, bottom: 832 };
+            const card = referenceLoginForm;
+
+            card.style.left = `${imageOffsetX + cardBounds.left * imageScale}px`;
+            card.style.top = `${imageOffsetY + cardBounds.top * imageScale}px`;
+            card.style.width = `${(cardBounds.right - cardBounds.left) * imageScale}px`;
+            card.style.height = `${(cardBounds.bottom - cardBounds.top) * imageScale}px`;
+            card.style.padding = `${34 * imageScale}px`;
+            card.style.paddingLeft = `${74 * imageScale}px`;
+            card.style.fontSize = `${16 * imageScale}px`;
+            card.style.borderRadius = `${22 * imageScale}px`;
+        };
+        const revealReferenceLogin = () => {
+            updateReferenceCardBounds();
+            referenceLoginForm.classList.add('is-positioned');
+        };
+        window.addEventListener('resize', updateReferenceCardBounds);
+
+        const handleReferenceBackgroundError = () => {
+            if (referenceLoginForm.classList.contains('is-positioned')) return;
+            console.error('Unable to load the school login background image.');
+            revealReferenceLogin();
+        };
+        const referenceLoginBackground = new Image();
+        referenceLoginBackground.addEventListener('load', revealReferenceLogin, { once: true });
+        referenceLoginBackground.addEventListener('error', handleReferenceBackgroundError, { once: true });
+        referenceLoginBackground.src = './assets/Smart School Management Login.png';
+        if (referenceLoginBackground.complete) {
+            if (referenceLoginBackground.naturalWidth > 0) {
+                revealReferenceLogin();
+            } else {
+                handleReferenceBackgroundError();
+            }
+        }
+
+        const hideReferenceUserLogin = () => {
+            referenceUserLogin.classList.add('hidden');
+            referenceUserLogin.setAttribute('aria-hidden', 'true');
+            referenceUserLogin.querySelectorAll('input, button').forEach(control => {
+                control.disabled = true;
+            });
+            showReferenceMessage('');
+        };
+        const revealReferenceUserLogin = () => {
+            referenceSchoolInformation.classList.add('hidden');
+            referenceUserLogin.classList.remove('hidden');
+            referenceUserLogin.setAttribute('aria-hidden', 'false');
+            referenceUserLogin.querySelectorAll('input, button').forEach(control => {
+                control.disabled = false;
+            });
+            referenceSchoolMessage.textContent = 'School information confirmed. Enter your user details.';
+            referenceUsername.focus();
+        };
+        const verifyReferenceSchool = () => {
+            const schoolId = normalizeSchoolId(referenceSchoolId.value);
+            const school = schoolAccounts[schoolId];
+            if (!schoolId) {
+                referenceSchoolMessage.textContent = 'Enter your School ID.';
+                return;
+            }
+            if (!school) {
+                referenceSchoolMessage.textContent = 'School ID not recognized. Enter a registered School ID.';
+                return;
+            }
+            if (referenceSchoolName.value.trim() && school.schoolName.trim().toLowerCase() !== referenceSchoolName.value.trim().toLowerCase()) {
+                referenceSchoolMessage.textContent = 'School Name does not match the School ID.';
+                return;
+            }
+            schoolIdInput.value = schoolId;
+            schoolNextBtn.click();
+            if (!currentSchool) {
+                referenceSchoolMessage.textContent = schoolError.textContent || 'Unable to verify school information.';
+                return;
+            }
+            referenceSchoolMessage.textContent = '';
+            revealReferenceUserLogin();
+        };
+        hideReferenceUserLogin();
+        document.getElementById('referenceSchoolContinue')?.addEventListener('click', verifyReferenceSchool);
+        referenceSchoolId.addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                verifyReferenceSchool();
+            }
+        });
+        [referenceSchoolName, referenceSchoolId].forEach(input => {
+            input.addEventListener('input', () => {
+                hideReferenceUserLogin();
+                referenceSchoolMessage.textContent = '';
+            });
+        });
+
+        try {
+            const rememberedUsername = localStorage.getItem(rememberedUsernameKey);
+            if (rememberedUsername) {
+                referenceUsername.value = rememberedUsername;
+                referenceRemember.checked = true;
+            }
+        } catch (error) {
+            console.warn('Unable to load the remembered login name.', error);
+        }
+
+        document.getElementById('referenceForgotPassword')?.addEventListener('click', () => {
+            showReferenceMessage('Please contact your school administrator if you need help signing in.');
+            referenceUsername.focus();
+        });
+
+        document.getElementById('referencePasswordToggle')?.addEventListener('click', (event) => {
+            const button = event.currentTarget;
+            const isVisible = referencePassword.type === 'text';
+            referencePassword.type = isVisible ? 'password' : 'text';
+            button.setAttribute('aria-pressed', String(!isVisible));
+            button.setAttribute('aria-label', isVisible ? 'Show password' : 'Hide password');
+            button.innerHTML = `<i class="fa-regular ${isVisible ? 'fa-eye' : 'fa-eye-slash'}" aria-hidden="true"></i>`;
+        });
+
+        document.getElementById('referenceGoogleSignIn')?.addEventListener('click', () => {
+            showReferenceMessage('Google sign-in is not configured. Sign in with your school username and password instead.');
+        });
+
+        document.getElementById('referenceContactAdmin')?.addEventListener('click', () => {
+            showReferenceMessage('Please contact your school administrator to request or recover your account.');
+        });
+
+        referenceLoginForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            if (!verifyReferenceSchool()) return;
+            if (!authenticateAdmin(referenceUsername.value, referencePassword.value)) {
+                showReferenceMessage(adminError.textContent);
+                return;
+            }
+            try {
+                if (referenceRemember.checked) {
+                    localStorage.setItem(rememberedUsernameKey, referenceUsername.value.trim());
+                } else {
+                    localStorage.removeItem(rememberedUsernameKey);
+                }
+            } catch (error) {
+                console.warn('Unable to save the remembered login name.', error);
+            }
         });
     }
 
@@ -439,21 +626,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const usersKey = 'edumasterUsers';
     let editingUserId = null;
 
-    // Seed initial admin user if data is empty
-    if (!localStorage.getItem(usersKey)) {
-        const adminData = schoolAccounts['SCH-UG-2026'];
-        const initialUser = {
-            id: 'u_admin_default',
-            fullName: adminData.adminUser,
-            userId: adminData.adminUser.toLowerCase(),
-            password: adminData.password,
-            role: adminData.role,
-            sections: ['Main', 'System'],
-            perms: { view: true, edit: true, delete: true },
-            status: true,
-            photo: 'https://i.pravatar.cc/100?img=12'
-        };
-        localStorage.setItem(usersKey, JSON.stringify([initialUser]));
+    const adminData = schoolAccounts['SCH-UG-2026'];
+    const initialUser = {
+        id: 'u_admin_default',
+        fullName: adminData.adminUser,
+        userId: adminData.adminUser.toLowerCase(),
+        password: adminData.password,
+        role: adminData.role,
+        sections: ['Main', 'System'],
+        perms: { view: true, edit: true, delete: true },
+        status: true,
+        photo: 'https://i.pravatar.cc/100?img=12'
+    };
+    let storedUsers = loadUsers();
+    if (!Array.isArray(storedUsers)) {
+        console.warn('Saved users were not a list; initializing the default administrator account.');
+        storedUsers = [];
+    }
+    if (!storedUsers.some(user => user.userId === initialUser.userId)) {
+        storedUsers.push(initialUser);
+        saveUsers(storedUsers);
     }
 
     function updateBreadcrumb(items) {
