@@ -1,6 +1,6 @@
 # Firebase setup
 
-The Firebase client is configured for the `delivery-app-6a47f` project. Firebase web configuration is public; authorization must be enforced by Firestore, Storage, and callable-function rules, never by hiding UI controls.
+The Firebase client is configured for the `delivery-app-6a47f` project and the `smartskool` Hosting site (`https://smartskool.web.app`). Hosting stages the root app files into `public/` before deployment; do not use that generated directory for source edits. Firebase web configuration is public; authorization must be enforced by Firestore, Storage, and callable-function rules, never by hiding UI controls.
 
 ## Provision Firebase
 

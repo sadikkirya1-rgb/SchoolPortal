@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "delivery-app-6a47f"
-  }
+  },
+  "targets": {
+    "delivery-app-6a47f": {
+      "hosting": {
+        "smartskool": [
+          "smartskool"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
