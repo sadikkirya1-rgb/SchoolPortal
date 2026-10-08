@@ -540,6 +540,7 @@
 
     <div class="user-roles-content">
         <form id="addUserForm" class="user-form hidden" style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
+            <p class="account-demo-notice"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i> Front-end preview only: accounts and passwords are stored in this browser, not securely on a server. Do not use real passwords. Firebase authentication and server-enforced permissions are not connected yet.</p>
             <div class="form-row">
                 <div class="form-group">
                     <label for="fullNameInput">Full Name</label>
@@ -557,9 +558,9 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="passwordInputNew">Password</label>
+                    <label for="passwordInputNew">Password <span class="account-field-hint">(browser preview only)</span></label>
                     <div style="display: flex; gap: 8px;">
-                        <input id="passwordInputNew" type="password" placeholder="set a password" style="flex: 1;">
+                        <input id="passwordInputNew" type="password" placeholder="Set a password" autocomplete="new-password" style="flex: 1;">
                         <button type="button" class="btn-secondary" id="generatePassBtn" style="margin-top: 0; width: auto; padding: 0 15px;" title="Generate Password"><i class="fas fa-key"></i></button>
                     </div>
                 </div>
@@ -568,6 +569,32 @@
                     <select id="roleSelect"></select>
                 </div>
             </div>
+
+            <div class="account-link-fields">
+                <div class="form-group">
+                    <label for="accountRecordId">Linked Student / Parent / Staff Record ID</label>
+                    <input id="accountRecordId" type="text" placeholder="e.g. admission number or employee number">
+                </div>
+                <div class="form-group">
+                    <label for="accountEmail">Email</label>
+                    <input id="accountEmail" type="email" autocomplete="email" placeholder="name@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="accountPhone">Mobile number</label>
+                    <input id="accountPhone" type="tel" autocomplete="tel" placeholder="+256...">
+                </div>
+            </div>
+
+            <fieldset class="account-notification-preferences">
+                <legend>Notice notification preferences</legend>
+                <p>Record the channels this account can use. Messages are not sent from this preview.</p>
+                <div>
+                    <label><input type="checkbox" id="accountNotifyWhatsApp"> WhatsApp</label>
+                    <label><input type="checkbox" id="accountNotifySms"> SMS</label>
+                    <label><input type="checkbox" id="accountNotifyEmail"> Email</label>
+                    <label><input type="checkbox" id="accountNotifyPush"> Browser push</label>
+                </div>
+            </fieldset>
 
             <div class="form-row">
                 <div class="form-group sections-group">
@@ -591,7 +618,7 @@
         <div class="users-table-wrap">
             <h3>Existing Users</h3>
             <table class="users-table" id="usersTable">
-                <thead><tr><th>Photo</th><th>Name</th><th>User ID</th><th>Password</th><th>Role</th><th>Sections</th><th>Perms</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Photo</th><th>Name</th><th>User ID</th><th>Role</th><th>Linked Record</th><th>Contact</th><th>Sections</th><th>Perms</th><th>Actions</th></tr></thead>
                 <tbody id="usersTableBody"></tbody>
             </table>
         </div>
@@ -882,14 +909,32 @@ Developer: Sadik Kirya | Contact: sadikkirya@gmail.com
             <h3>My Profile</h3>
             <i class="fas fa-times close-modal" id="closeProfileModal"></i>
         </div>
-        <div id="profileDetails" style="text-align: center;">
-            <img id="modalProfilePhoto" src="" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin-bottom: 15px; border: 3px solid var(--primary);">
-            <h2 id="modalProfileName"></h2>
-            <p id="modalProfileRole" style="color: var(--primary); font-weight: 600; margin-bottom: 20px;"></p>
-            <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                <div style="margin-bottom: 10px;"><strong>User ID:</strong> <span id="modalProfileId"></span></div>
-                <div><strong>Password:</strong> <code id="modalProfilePass"></code></div>
+        <div id="profileDetails">
+            <div class="profile-summary">
+                <img id="modalProfilePhoto" src="" alt="Profile photo">
+                <div><h2 id="modalProfileName"></h2><p id="modalProfileRole"></p><span>User ID: <strong id="modalProfileId"></strong></span></div>
             </div>
+            <p class="account-demo-notice"><i class="fas fa-circle-info" aria-hidden="true"></i> Profile edits are saved in this browser preview. Passwords are never displayed here.</p>
+            <form id="profileForm">
+                <div class="profile-edit-grid">
+                    <label>Full name<input id="profileFullName" name="fullName" required autocomplete="name"></label>
+                    <label>Email<input id="profileEmail" name="email" type="email" autocomplete="email"></label>
+                    <label>Mobile number<input id="profilePhone" name="phone" type="tel" autocomplete="tel"></label>
+                    <label>Linked record ID<input id="profileRecordId" name="linkedRecordId" readonly></label>
+                    <label class="profile-photo-field">Profile photo<input id="profilePhotoEdit" name="photo" type="file" accept="image/*"></label>
+                </div>
+                <fieldset class="account-notification-preferences">
+                    <legend>Notice notification preferences</legend>
+                    <div>
+                        <label><input type="checkbox" name="notifyWhatsApp"> WhatsApp</label>
+                        <label><input type="checkbox" name="notifySms"> SMS</label>
+                        <label><input type="checkbox" name="notifyEmail"> Email</label>
+                        <label><input type="checkbox" name="notifyPush"> Browser push</label>
+                    </div>
+                </fieldset>
+                <p id="profileSaveMessage" class="profile-save-message" role="status" aria-live="polite"></p>
+                <button class="btn-primary" type="submit">Save profile</button>
+            </form>
         </div>
     </div>
 </div>

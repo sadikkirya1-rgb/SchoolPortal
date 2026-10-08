@@ -2021,11 +2021,47 @@ color:#64748b;
     font-size:12px;
 }
 .user-roles-content{display:block}
+.account-access-hidden{display:none!important}
 .user-form .form-row{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .user-form .form-group{flex:1;min-width:160px}
+.account-demo-notice{
+    display:flex;
+    align-items:flex-start;
+    gap:9px;
+    margin:0 0 16px;
+    padding:11px 13px;
+    border:1px solid #fbbf24;
+    border-radius:9px;
+    background:#fffbeb;
+    color:#92400e;
+    font-size:12px;
+    line-height:1.5;
+}
+.account-demo-notice i{margin-top:2px}
+.account-field-hint{color:#64748b;font-size:11px;font-weight:400}
+.account-link-fields{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:12px;
+}
+.account-link-fields .form-group{min-width:0}
+.account-notification-preferences{
+    min-width:0;
+    margin:8px 0 16px;
+    padding:12px;
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+}
+.account-notification-preferences legend{padding:0 6px;font-size:13px;font-weight:600}
+.account-notification-preferences p{margin:0 0 10px;color:#64748b;font-size:12px}
+.account-notification-preferences>div{display:flex;flex-wrap:wrap;gap:12px 20px}
+.account-notification-preferences label{display:inline-flex;align-items:center;gap:7px;font-size:13px}
+.account-notification-preferences input{accent-color:var(--primary)}
+.user-notification-summary{display:block;margin-top:4px;color:#64748b;font-size:11px}
 .sections-list{display:flex;flex-wrap:wrap;gap:8px}
 .sections-list label{background:#f1f5f9;padding:6px 8px;border-radius:8px;font-size:13px}
 .users-table{width:100%;border-collapse:collapse;margin-top:12px}
+.users-table-wrap{overflow-x:auto}
 .users-table th,.users-table td{border:1px solid #e6e9ef;padding:8px;text-align:left;font-size:13px}
 .users-table th{background:#f8fafc}
 .users-table tr.current-user-row {
@@ -2046,32 +2082,6 @@ color:#64748b;
     object-fit: cover;
     border: 1px solid #e2e8f0;
 }
-.pass-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #f1f5f9;
-    padding: 2px 8px;
-    border-radius: 6px;
-    width: fit-content;
-}
-.pass-toggle {
-    background: none;
-    border: none;
-    color: #64748b;
-    cursor: pointer;
-    font-size: 11px;
-}
-.pass-toggle.pulse-active i {
-    animation: pulse-icon 1.5s infinite ease-in-out;
-    color: var(--primary);
-}
-@keyframes pulse-icon {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.25); opacity: 0.7; }
-    100% { transform: scale(1); opacity: 1; }
-}
-.pass-toggle:hover { color: var(--primary); }
 .users-table .action-btn {
     width: 32px;
     height: 32px;
@@ -2619,6 +2629,27 @@ display: flex;
 justify-content: space-between;
 align-items: center;
 margin-bottom: 20px;
+}
+#profileModal .modal-content{max-width:680px;max-height:90vh;overflow:auto}
+.profile-summary{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.profile-summary img{width:76px;height:76px;border-radius:50%;object-fit:cover;border:3px solid var(--primary)}
+.profile-summary h2,.profile-summary p{margin:0 0 4px}
+.profile-summary p{color:var(--primary);font-weight:600}
+.profile-summary span{color:#64748b;font-size:12px}
+.profile-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.profile-edit-grid>label{display:grid;gap:6px;font-size:13px;font-weight:500}
+.profile-edit-grid input{width:100%;min-width:0;padding:10px;border:1px solid #e2e8f0;border-radius:8px}
+.profile-edit-grid input[readonly]{background:#f8fafc;color:#64748b}
+.profile-photo-field{grid-column:1/-1}
+.profile-save-message{min-height:20px;margin:0 0 8px;color:#15803d;font-size:13px}
+.dark .account-demo-notice{background:#422006;border-color:#92400e;color:#fde68a}
+.dark .account-notification-preferences{border-color:#334155}
+.dark .account-notification-preferences p,.dark .profile-summary span{color:#cbd5e1}
+.dark .profile-edit-grid input{background:#0f172a;border-color:#334155;color:#fff}
+.dark .profile-edit-grid input[readonly]{background:#1e293b}
+@media(max-width:720px){
+    .account-link-fields,.profile-edit-grid{grid-template-columns:1fr}
+    .profile-photo-field{grid-column:auto}
 }
 .close-modal {
 cursor: pointer;

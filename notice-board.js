@@ -22,8 +22,9 @@ function createNoticeBoardModule() {
                     <label class="nb-full">Notice Content<textarea name="contentText" maxlength="5000" required placeholder="Write the official notice content here..."></textarea></label>
                 </div>
                 <h4 class="nb-section-title">Communication Channels</h4><div class="nb-grid">
-                    <label>Display On Notice Board<select name="displayBoard"><option>Yes</option><option>No</option></select></label><label>Send SMS Alert<select name="sendSMS"><option>No</option><option>Yes</option></select></label><label>Send Email<select name="sendEmail"><option>Yes</option><option>No</option></select></label><label>Website Publication<select name="website"><option>Yes</option><option>No</option></select></label><label>Portal Publication<select name="portal"><option>Yes</option><option>No</option></select></label><label>Pin To Top<select name="pin"><option>No</option><option>Yes</option></select></label>
+                    <label>Display On Notice Board<select name="displayBoard"><option>Yes</option><option>No</option></select></label><label>Send SMS Alert<select name="sendSMS"><option>No</option><option>Yes</option></select></label><label>Send Email<select name="sendEmail"><option>Yes</option><option>No</option></select></label><label>Send WhatsApp<select name="sendWhatsApp"><option>No</option><option>Yes</option></select></label><label>Send Browser Push<select name="sendPush"><option>No</option><option>Yes</option></select></label><label>Website Publication<select name="website"><option>Yes</option><option>No</option></select></label><label>Portal Publication<select name="portal"><option>Yes</option><option>No</option></select></label><label>Pin To Top<select name="pin"><option>No</option><option>Yes</option></select></label>
                 </div>
+                <p class="nb-delivery-note"><i class="fas fa-circle-info" aria-hidden="true"></i> Channel selections are saved as preferences only. No SMS, email, WhatsApp or push message is sent until Firebase and a delivery provider are connected.</p>
                 <h4 class="nb-section-title">Internal Notes</h4><div class="nb-grid"><label class="nb-full">Internal Notes<textarea name="notes" placeholder="Internal communication department notes..."></textarea></label></div>
                 <footer class="nb-modal-actions"><button class="nb-button nb-light" type="button" data-nb-cancel>Cancel</button><button class="nb-button nb-primary" type="submit">Save Notice</button></footer>
             </form>
@@ -59,6 +60,16 @@ function createNoticeBoardModule() {
     };
     const statusClass = value => String(value || '').toLowerCase().replace(/\s+/g, '-').replace(/&/g, '');
     const save = () => localStorage.setItem(storageKey, JSON.stringify(notices));
+    const getSelectedChannels = notice => [
+        ['Notice Board', notice.displayBoard],
+        ['SMS', notice.sendSMS],
+        ['Email', notice.sendEmail],
+        ['WhatsApp', notice.sendWhatsApp],
+        ['Browser push', notice.sendPush],
+        ['Website', notice.website],
+        ['Portal', notice.portal]
+    ].filter(([, enabled]) => enabled === 'Yes').map(([channel]) => channel);
+    const deliveryStatus = 'Not sent — Firebase/provider integration required';
     const toast = message => {
         const element = q('[data-nb-toast]');
         element.textContent = message;
@@ -108,7 +119,7 @@ function createNoticeBoardModule() {
         q('#nb-form-title').textContent = notice ? 'Edit Notice' : 'Create Notice';
         form.elements.noticeId.value = notice?.noticeId || nextId();
         if (notice) {
-            ['title', 'category', 'audience', 'priority', 'status', 'publishDate', 'publishTime', 'expiryDate', 'expiryTime', 'department', 'postedBy', 'displayStyle', 'attachment', 'contentText', 'displayBoard', 'sendSMS', 'sendEmail', 'website', 'portal', 'pin', 'notes'].forEach(field => { form.elements[field].value = notice[field] ?? ''; });
+            ['title', 'category', 'audience', 'priority', 'status', 'publishDate', 'publishTime', 'expiryDate', 'expiryTime', 'department', 'postedBy', 'displayStyle', 'attachment', 'contentText', 'displayBoard', 'sendSMS', 'sendEmail', 'sendWhatsApp', 'sendPush', 'website', 'portal', 'pin', 'notes'].forEach(field => { form.elements[field].value = notice[field] ?? 'No'; });
         } else {
             form.elements.publishDate.value = new Date().toISOString().slice(0, 10);
             form.elements.postedBy.value = 'Communication Officer';
@@ -120,7 +131,7 @@ function createNoticeBoardModule() {
     const detailContent = notice => `<header class="nb-detail-header"><div class="nb-profile"><span class="nb-avatar"><i class="fas fa-clipboard-list"></i></span><div><h2>${escape(notice.title)}</h2><p>${escape(notice.noticeId)} · ${escape(notice.category)} · ${escape(notice.department)}</p></div></div><span class="nb-badge ${escape(statusClass(notice.status))}">${escape(notice.status)}</span></header>
         <div class="nb-summary-grid">${[['Notice ID', notice.noticeId], ['Audience', notice.audience], ['Priority', notice.priority], ['Status', notice.status], ['Publish Date', formatDate(notice.publishDate)], ['Expiry Date', formatDate(notice.expiryDate)], ['Posted By', notice.postedBy], ['Pin To Top', notice.pin]].map(([label, value]) => `<div class="nb-summary-box"><span>${escape(label)}</span><strong>${escape(value || '—')}</strong></div>`).join('')}</div>
         <h4 class="nb-section-title">Notice Information</h4><table class="nb-info-table"><tbody>${[['Notice Title', notice.title], ['Category', notice.category], ['Audience', notice.audience], ['Priority', notice.priority], ['Department', notice.department], ['Posted By', notice.postedBy], ['Publish Date / Time', `${formatDate(notice.publishDate)} · ${notice.publishTime || '—'}`], ['Expiry Date / Time', `${formatDate(notice.expiryDate)} · ${notice.expiryTime || '—'}`], ['Display Style', notice.displayStyle], ['Attachment', notice.attachment]].map(([label, value]) => `<tr><th>${escape(label)}</th><td>${escape(value || '—')}</td></tr>`).join('')}</tbody></table>
-        <div class="nb-message"><h4>Notice Content</h4><p>${escape(notice.contentText)}</p></div><h4 class="nb-section-title">Communication Channels</h4><table class="nb-info-table"><tbody>${[['Notice Board', notice.displayBoard], ['SMS Alert', notice.sendSMS], ['Email', notice.sendEmail], ['Website', notice.website], ['Parent / Student Portal', notice.portal], ['Pin To Top', notice.pin]].map(([label, value]) => `<tr><th>${escape(label)}</th><td>${escape(value)}</td></tr>`).join('')}</tbody></table><div class="nb-quick-actions">${['Draft', 'Pending', 'Scheduled'].includes(notice.status) ? `<button class="nb-button nb-primary" type="button" data-nb-publish="${escape(notice.noticeId)}"><i class="fas fa-paper-plane"></i> Publish Notice</button>` : ''}<button class="nb-button nb-light" type="button" data-nb-edit-current="${escape(notice.noticeId)}"><i class="fas fa-pen"></i> Edit</button><button class="nb-button nb-light" type="button" data-nb-duplicate-current="${escape(notice.noticeId)}"><i class="fas fa-copy"></i> Duplicate</button></div><div class="nb-notes"><strong>Internal Notes</strong><p>${escape(notice.notes || 'No internal notes.')}</p></div>`;
+        <div class="nb-message"><h4>Notice Content</h4><p>${escape(notice.contentText)}</p></div><h4 class="nb-section-title">Communication Channels</h4><table class="nb-info-table"><tbody>${[['Notice Board', notice.displayBoard], ['SMS Alert', notice.sendSMS], ['Email', notice.sendEmail], ['WhatsApp', notice.sendWhatsApp || 'No'], ['Browser Push', notice.sendPush || 'No'], ['Website', notice.website], ['Parent / Student Portal', notice.portal], ['Selected Channels', getSelectedChannels(notice).join(', ') || 'None'], ['Delivery Status', notice.deliveryStatus || deliveryStatus], ['Pin To Top', notice.pin]].map(([label, value]) => `<tr><th>${escape(label)}</th><td>${escape(value)}</td></tr>`).join('')}</tbody></table><div class="nb-quick-actions">${['Draft', 'Pending', 'Scheduled'].includes(notice.status) ? `<button class="nb-button nb-primary" type="button" data-nb-publish="${escape(notice.noticeId)}"><i class="fas fa-paper-plane"></i> Publish Notice</button>` : ''}<button class="nb-button nb-light" type="button" data-nb-edit-current="${escape(notice.noticeId)}"><i class="fas fa-pen"></i> Edit</button><button class="nb-button nb-light" type="button" data-nb-duplicate-current="${escape(notice.noticeId)}"><i class="fas fa-copy"></i> Duplicate</button></div><div class="nb-notes"><strong>Internal Notes</strong><p>${escape(notice.notes || 'No internal notes.')}</p></div>`;
     const printDocument = (title, html) => {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return toast('Allow pop-ups to print notices.');
@@ -130,7 +141,7 @@ function createNoticeBoardModule() {
         printWindow.print();
     };
     const printNotice = notice => {
-        const html = `<header class="head"><div><h1>Official Notice</h1><p>Communication Department</p></div><div><strong>${escape(notice.noticeId)}</strong><br>Status: ${escape(notice.status)}</div></header><div class="meta">${[['Notice Title', notice.title], ['Category', notice.category], ['Audience', notice.audience], ['Priority', notice.priority], ['Department', notice.department], ['Posted By', notice.postedBy], ['Publish Date', formatDate(notice.publishDate)], ['Publish Time', notice.publishTime], ['Expiry Date', formatDate(notice.expiryDate)], ['Expiry Time', notice.expiryTime]].map(([label, value]) => `<div><strong>${escape(label)}</strong>${escape(value || '—')}</div>`).join('')}</div><table><thead><tr><th>Field</th><th>Details</th></tr></thead><tbody>${[['Display Style', notice.displayStyle], ['Notice Board', notice.displayBoard], ['SMS Alert', notice.sendSMS], ['Email', notice.sendEmail], ['Website', notice.website], ['Portal', notice.portal], ['Pin To Top', notice.pin], ['Attachment', notice.attachment]].map(([label, value]) => `<tr><td>${escape(label)}</td><td>${escape(value || '—')}</td></tr>`).join('')}</tbody></table><div class="notice"><strong>Notice Content</strong><br><br>${escape(notice.contentText)}</div><p><strong>Internal Notes:</strong> ${escape(notice.notes || '—')}</p><div class="signatures"><span>Prepared By</span><span>Checked By</span><span>Communication Manager</span></div>`;
+        const html = `<header class="head"><div><h1>Official Notice</h1><p>Communication Department</p></div><div><strong>${escape(notice.noticeId)}</strong><br>Status: ${escape(notice.status)}</div></header><div class="meta">${[['Notice Title', notice.title], ['Category', notice.category], ['Audience', notice.audience], ['Priority', notice.priority], ['Department', notice.department], ['Posted By', notice.postedBy], ['Publish Date', formatDate(notice.publishDate)], ['Publish Time', notice.publishTime], ['Expiry Date', formatDate(notice.expiryDate)], ['Expiry Time', notice.expiryTime]].map(([label, value]) => `<div><strong>${escape(label)}</strong>${escape(value || '—')}</div>`).join('')}</div><table><thead><tr><th>Field</th><th>Details</th></tr></thead><tbody>${[['Display Style', notice.displayStyle], ['Notice Board', notice.displayBoard], ['SMS Alert', notice.sendSMS], ['Email', notice.sendEmail], ['WhatsApp', notice.sendWhatsApp || 'No'], ['Browser Push', notice.sendPush || 'No'], ['Website', notice.website], ['Portal', notice.portal], ['Selected Channels', getSelectedChannels(notice).join(', ') || 'None'], ['Delivery Status', notice.deliveryStatus || deliveryStatus], ['Pin To Top', notice.pin], ['Attachment', notice.attachment]].map(([label, value]) => `<tr><td>${escape(label)}</td><td>${escape(value || '—')}</td></tr>`).join('')}</tbody></table><div class="notice"><strong>Notice Content</strong><br><br>${escape(notice.contentText)}</div><p><strong>Internal Notes:</strong> ${escape(notice.notes || '—')}</p><div class="signatures"><span>Prepared By</span><span>Checked By</span><span>Communication Manager</span></div>`;
         printDocument(notice.noticeId, html);
     };
     const duplicateNotice = notice => {
@@ -143,10 +154,11 @@ function createNoticeBoardModule() {
     const publishNotice = notice => {
         if (!confirm(`Publish "${notice.title}" now?`)) return;
         notice.status = 'Published';
+        notice.deliveryStatus = deliveryStatus;
         save();
         render();
         closeView();
-        toast('Notice published successfully.');
+        toast('Published in this browser preview. No external notifications were sent.');
     };
 
     q('[data-nb-new]').addEventListener('click', () => openForm());
@@ -163,8 +175,8 @@ function createNoticeBoardModule() {
     });
     q('[data-nb-print-report]').addEventListener('click', () => {
         if (!notices.length) return toast('No notices available.');
-        const rows = notices.map(notice => `<tr><td>${escape(notice.noticeId)}</td><td>${escape(notice.title)}</td><td>${escape(notice.category)}</td><td>${escape(notice.audience)}</td><td>${escape(notice.priority)}</td><td>${formatDate(notice.publishDate)}</td><td>${formatDate(notice.expiryDate)}</td><td>${escape(notice.status)}</td></tr>`).join('');
-        printDocument('Notice Board Register', `<header class="head"><div><h1>Notice Board Register</h1><p>Communication Department</p></div><div>Total Notices: <strong>${notices.length}</strong></div></header><table><thead><tr><th>Notice ID</th><th>Title</th><th>Category</th><th>Audience</th><th>Priority</th><th>Publish Date</th><th>Expiry</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><div class="signatures"><span>Prepared By</span><span>Checked By</span><span>Communication Manager</span></div>`);
+        const rows = notices.map(notice => `<tr><td>${escape(notice.noticeId)}</td><td>${escape(notice.title)}</td><td>${escape(notice.category)}</td><td>${escape(notice.audience)}</td><td>${escape(getSelectedChannels(notice).join(', ') || 'None')}</td><td>${formatDate(notice.publishDate)}</td><td>${escape(notice.status)}</td><td>${escape(notice.deliveryStatus || deliveryStatus)}</td></tr>`).join('');
+        printDocument('Notice Board Register', `<header class="head"><div><h1>Notice Board Register</h1><p>Communication Department · Browser preview</p></div><div>Total Notices: <strong>${notices.length}</strong></div></header><table><thead><tr><th>Notice ID</th><th>Title</th><th>Category</th><th>Audience</th><th>Selected Channels</th><th>Publish Date</th><th>Status</th><th>Delivery Status</th></tr></thead><tbody>${rows}</tbody></table><div class="signatures"><span>Prepared By</span><span>Checked By</span><span>Communication Manager</span></div>`);
     });
     q('[data-nb-form]').addEventListener('submit', event => {
         event.preventDefault();
@@ -174,12 +186,14 @@ function createNoticeBoardModule() {
         notice.title = notice.title.trim();
         if (notices.some(item => item.noticeId.toLowerCase() === notice.noticeId.toLowerCase() && item.noticeId !== editingId)) return toast('Notice ID already exists.');
         const existing = notices.find(item => item.noticeId === editingId);
+        notice.channels = getSelectedChannels(notice);
+        notice.deliveryStatus = deliveryStatus;
         if (existing) notices = notices.map(item => item.noticeId === editingId ? notice : item);
         else notices.unshift(notice);
         save();
         closeForm();
         render();
-        toast(existing ? 'Notice updated successfully.' : 'Notice created successfully.');
+        toast(`${existing ? 'Notice updated' : 'Notice saved'} in this browser preview. No external notifications were sent.`);
     });
     q('[data-nb-rows]').addEventListener('click', event => {
         const button = event.target.closest('[data-nb-action]');

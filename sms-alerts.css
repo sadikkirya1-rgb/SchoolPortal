@@ -1,4 +1,5 @@
 .sms-alerts-module{--sms-ink:#172033;--sms-muted:#718096;--sms-border:#e7eaf0;padding:24px;color:var(--sms-ink);min-width:0}
+.sms-alerts-module .sms-demo-notice{display:flex;gap:8px;margin:0 0 16px;padding:11px 13px;border:1px solid #fbbf24;border-radius:8px;background:#fffbeb;color:#92400e;font-size:12px;line-height:1.5}
 .sms-alerts-module *{box-sizing:border-box}
 .sms-alerts-module .sms-header,.sms-alerts-module .sms-toolbar,.sms-alerts-module .sms-modal-head,.sms-alerts-module .sms-modal-actions,.sms-alerts-module .sms-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .sms-alerts-module .sms-header{margin-bottom:20px}.sms-alerts-module .sms-header h2{margin:0;color:#14213d;font-size:24px;line-height:1.3}.sms-alerts-module .sms-header p{margin:4px 0 0;color:var(--sms-muted);font-size:13px}

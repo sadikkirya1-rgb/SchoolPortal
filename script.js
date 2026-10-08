@@ -33,9 +33,11 @@ document.addEventListener('DOMContentLoaded', () => {
         'SCH-001': { schoolName: 'Central Campus', adminUser: 'Principal', password: 'principal', role: 'Head Teacher' }
     };
     let currentSchool = null;
+    let resetReferenceLogin = () => {};
 
     const logoutBtn = document.getElementById('logoutBtn');
     const storageKey = 'edumasterAdminSession';
+    const usersKey = 'edumasterUsers';
 
     const normalizeSchoolId = (value) => {
         return value
@@ -161,7 +163,21 @@ document.addEventListener('DOMContentLoaded', () => {
         sampleUsersContainer?.classList.add('hidden');
     };
 
+    function applyAccountSectionAccess(userData) {
+        const allowedSections = new Set(Array.isArray(userData.sections) ? userData.sections : []);
+        const canView = userData.perms?.view !== false;
+        document.querySelectorAll('.sidebar > .menu-title').forEach(title => {
+            const group = title.nextElementSibling;
+            if (!group?.classList.contains('nav-links')) return;
+            const sectionName = title.innerText.trim();
+            const canShow = canView && (sectionName === 'Main' || allowedSections.has(sectionName));
+            title.classList.toggle('account-access-hidden', !canShow);
+            group.classList.toggle('account-access-hidden', !canShow);
+        });
+    }
+
     const unlockDashboard = (userData) => {
+        applyAccountSectionAccess(userData);
         referenceLoginPage?.classList.add('hidden');
         if (loginScreen) {
             loginScreen.classList.remove('active');
@@ -193,8 +209,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (session.authenticated) {
             const users = loadUsers();
             const userObj = users.find(u => u.userId === session.userId);
+            if (!userObj || userObj.status === false || userObj.perms?.view === false) {
+                clearSession();
+                resetLoginScreen();
+                return;
+            }
             currentSchool = schoolData;
-            unlockDashboard(userObj || schoolData);
+            unlockDashboard(userObj);
             return;
         }
 
@@ -256,6 +277,10 @@ document.addEventListener('DOMContentLoaded', () => {
             showError(adminError, 'This account is deactivated. Please contact support.');
             return false;
         }
+        if (userObj.perms?.view === false) {
+            showError(adminError, 'This account does not have dashboard viewing access. Contact an administrator.');
+            return false;
+        }
         showError(adminError, '');
         saveSession({ schoolId: normalizeSchoolId(schoolIdInput.value), userId: userId, step: 2, authenticated: true });
         unlockDashboard(userObj);
@@ -281,6 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
             referenceLoginPage?.classList.remove('hidden');
             loginScreen?.classList.remove('active');
             loginScreen?.classList.add('hidden');
+            resetReferenceLogin();
         });
     }
 
@@ -371,6 +397,22 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             showReferenceMessage('');
         };
+        resetReferenceLogin = () => {
+            currentSchool = null;
+            schoolIdInput.value = '';
+            referenceSchoolName.value = '';
+            referenceSchoolId.value = '';
+            referenceUsername.value = '';
+            referencePassword.value = '';
+            referencePassword.type = 'password';
+            referenceSchoolInformation.classList.remove('hidden');
+            hideReferenceUserLogin();
+            referenceSchoolMessage.textContent = '';
+            showReferenceMessage('');
+            referenceLoginForm.classList.remove('hidden');
+            referenceLoginForm.classList.add('is-positioned');
+            requestAnimationFrame(updateReferenceCardBounds);
+        };
         const revealReferenceUserLogin = () => {
             referenceSchoolInformation.classList.add('hidden');
             referenceUserLogin.classList.remove('hidden');
@@ -404,6 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             referenceSchoolMessage.textContent = '';
             revealReferenceUserLogin();
+            return true;
         };
         hideReferenceUserLogin();
         document.getElementById('referenceSchoolContinue')?.addEventListener('click', verifyReferenceSchool);
@@ -556,6 +599,52 @@ document.addEventListener('DOMContentLoaded', () => {
     const profileModal = document.getElementById('profileModal');
     const closeProfileModal = document.getElementById('closeProfileModal');
 
+    const profileForm = document.getElementById('profileForm');
+    const profileSaveMessage = document.getElementById('profileSaveMessage');
+    const profilePhotoEdit = document.getElementById('profilePhotoEdit');
+    const notificationChannels = ['WhatsApp', 'SMS', 'Email', 'Push'];
+    const readNotificationPreferences = form => ({
+        WhatsApp: !!form.querySelector('[name="notifyWhatsApp"], #accountNotifyWhatsApp')?.checked,
+        SMS: !!form.querySelector('[name="notifySms"], #accountNotifySms')?.checked,
+        Email: !!form.querySelector('[name="notifyEmail"], #accountNotifyEmail')?.checked,
+        Push: !!form.querySelector('[name="notifyPush"], #accountNotifyPush')?.checked
+    });
+    const fillNotificationPreferences = (form, preferences = {}) => {
+        const ids = { WhatsApp: 'notifyWhatsApp', SMS: 'notifySms', Email: 'notifyEmail', Push: 'notifyPush' };
+        const accountIds = { WhatsApp: 'accountNotifyWhatsApp', SMS: 'accountNotifySms', Email: 'accountNotifyEmail', Push: 'accountNotifyPush' };
+        notificationChannels.forEach(channel => {
+            const control = form.querySelector(`[name="${ids[channel]}"], #${accountIds[channel]}`);
+            if (control) control.checked = preferences[channel] === true;
+        });
+    };
+    const readImageFile = file => new Promise((resolve, reject) => {
+        if (!file.type.startsWith('image/')) {
+            reject(new Error('Choose an image file.'));
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            reject(new Error('Choose an image smaller than 2 MB.'));
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            if (typeof reader.result === 'string') resolve(reader.result);
+            else reject(new Error('The selected image could not be read.'));
+        };
+        reader.onerror = () => reject(reader.error || new Error('The selected image could not be read.'));
+        reader.readAsDataURL(file);
+    });
+    const updateProfileSummary = user => {
+        document.getElementById('modalProfilePhoto').src = user.photo || 'https://i.pravatar.cc/100?img=12';
+        document.getElementById('modalProfileName').textContent = user.fullName || '';
+        document.getElementById('modalProfileRole').textContent = user.role || '';
+        document.getElementById('modalProfileId').textContent = user.userId || '';
+        const headerName = document.querySelector('.profile h4');
+        const headerPhoto = document.querySelector('.profile img');
+        if (headerName) headerName.textContent = user.fullName || '';
+        if (headerPhoto) headerPhoto.src = user.photo || 'https://i.pravatar.cc/100?img=12';
+    };
+
     headerProfile?.addEventListener('click', (e) => {
         if (e.target.closest('#logoutBtn')) return;
         
@@ -564,16 +653,50 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentUser = users.find(u => u.userId === session?.userId);
         
         if (currentUser) {
-            document.getElementById('modalProfilePhoto').src = currentUser.photo || 'https://i.pravatar.cc/100?img=12';
-            document.getElementById('modalProfileName').textContent = currentUser.fullName;
-            document.getElementById('modalProfileRole').textContent = currentUser.role;
-            document.getElementById('modalProfileId').textContent = currentUser.userId;
-            document.getElementById('modalProfilePass').textContent = currentUser.password;
+            updateProfileSummary(currentUser);
+            profileForm.elements.fullName.value = currentUser.fullName || '';
+            profileForm.elements.email.value = currentUser.email || '';
+            profileForm.elements.phone.value = currentUser.phone || '';
+            profileForm.elements.linkedRecordId.value = currentUser.linkedRecordId || '';
+            fillNotificationPreferences(profileForm, currentUser.notificationPreferences);
+            profilePhotoEdit.value = '';
+            profileSaveMessage.textContent = '';
             profileModal.classList.add('active');
         }
     });
 
     closeProfileModal?.addEventListener('click', () => profileModal.classList.remove('active'));
+    profileModal?.addEventListener('click', event => {
+        if (event.target === profileModal) profileModal.classList.remove('active');
+    });
+    profileForm?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const session = loadSession();
+        const users = loadUsers();
+        const userIndex = users.findIndex(user => user.userId === session?.userId);
+        if (userIndex < 0) {
+            profileSaveMessage.textContent = 'Unable to find your account in this browser preview.';
+            return;
+        }
+        const currentUser = users[userIndex];
+        const updatedUser = {
+            ...currentUser,
+            fullName: profileForm.elements.fullName.value.trim(),
+            email: profileForm.elements.email.value.trim(),
+            phone: profileForm.elements.phone.value.trim(),
+            notificationPreferences: readNotificationPreferences(profileForm)
+        };
+        try {
+            if (profilePhotoEdit.files?.[0]) updatedUser.photo = await readImageFile(profilePhotoEdit.files[0]);
+            users[userIndex] = updatedUser;
+            saveUsers(users);
+            updateProfileSummary(updatedUser);
+            renderUsersTable();
+            profileSaveMessage.textContent = 'Profile saved in this browser preview.';
+        } catch (error) {
+            profileSaveMessage.textContent = error.message || 'Unable to save the selected profile image.';
+        }
+    });
 
     // --- User Roles Management ---
     const userRolesBtn = document.getElementById('userRolesBtn');
@@ -630,7 +753,6 @@ document.addEventListener('DOMContentLoaded', () => {
         clearForm();
     });
 
-    const usersKey = 'edumasterUsers';
     let editingUserId = null;
 
     const adminData = schoolAccounts['SCH-UG-2026'];
@@ -640,7 +762,12 @@ document.addEventListener('DOMContentLoaded', () => {
         userId: adminData.adminUser.toLowerCase(),
         password: adminData.password,
         role: adminData.role,
-        sections: ['Main', 'System'],
+        sections: [
+            'Main', 'Front Office Department', 'Academic Department', 'E-Learning Department',
+            'Operations Department', 'Student Life Department', "Principal's Office Department",
+            'Human Resources Department', 'Payroll Department', 'Finance Department',
+            'Procurement Department', 'Assets & Security Department', 'Communication Department', 'System'
+        ],
         perms: { view: true, edit: true, delete: true },
         status: true,
         photo: 'https://i.pravatar.cc/100?img=12'
@@ -653,7 +780,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!storedUsers.some(user => user.userId === initialUser.userId)) {
         storedUsers.push(initialUser);
         saveUsers(storedUsers);
+    } else {
+        const savedDefaultAdmin = storedUsers.find(user => user.id === initialUser.id);
+        if (savedDefaultAdmin?.sections?.length === 2 && savedDefaultAdmin.sections.includes('Main') && savedDefaultAdmin.sections.includes('System')) {
+            savedDefaultAdmin.sections = initialUser.sections;
+            saveUsers(storedUsers);
+        }
     }
+    const activeSession = loadSession();
+    const activeUser = storedUsers.find(user => user.userId === activeSession?.userId);
+    if (activeSession?.authenticated && activeUser) applyAccountSectionAccess(activeUser);
 
     function updateBreadcrumb(items) {
         const breadcrumb = document.getElementById('breadcrumb');
@@ -1646,12 +1782,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function saveUsers(users){ localStorage.setItem(usersKey, JSON.stringify(users)); }
 
+    const rolePresets = {
+        'Super Admin': { sections: null, perms: { view: true, edit: true, delete: true } },
+        Administrator: { sections: null, perms: { view: true, edit: true, delete: true } },
+        Director: { sections: null, perms: { view: true, edit: true, delete: true } },
+        'Head Teacher': { sections: null, perms: { view: true, edit: true, delete: false } },
+        'Deputy Head Teacher': { sections: ['Main', 'Front Office Department', 'Academic Department', 'E-Learning Department', 'Student Life Department', "Principal's Office Department"], perms: { view: true, edit: true, delete: false } },
+        Bursar: { sections: ['Main', 'Finance Department', 'Payroll Department'], perms: { view: true, edit: true, delete: false } },
+        Teacher: { sections: ['Main', 'Academic Department', 'E-Learning Department', 'Student Life Department'], perms: { view: true, edit: true, delete: false } },
+        Librarian: { sections: ['Main', 'Academic Department', 'E-Learning Department', 'Student Life Department'], perms: { view: true, edit: true, delete: false } },
+        'HR Officer': { sections: ['Main', 'Human Resources Department', 'Payroll Department'], perms: { view: true, edit: true, delete: false } },
+        'Store Manager': { sections: ['Main', 'Operations Department', 'Procurement Department', 'Assets & Security Department'], perms: { view: true, edit: true, delete: false } },
+        Parent: { sections: ['Main', 'Student Life Department', 'Communication Department'], perms: { view: true, edit: false, delete: false } },
+        Student: { sections: ['Main', 'Academic Department', 'E-Learning Department', 'Student Life Department', 'Communication Department'], perms: { view: true, edit: false, delete: false } }
+    };
+
     function populateRoleOptions(){
-        const roles = Array.from(new Set(Object.keys(rolePermissions).concat(['Administrator'])));
+        const roles = Array.from(new Set([...Object.keys(rolePresets), ...loadUsers().map(user => user.role).filter(Boolean)]));
         roleSelectEl.innerHTML = '';
         roles.forEach(r => {
             const opt = document.createElement('option'); opt.value = r; opt.textContent = r; roleSelectEl.appendChild(opt);
         });
+    }
+
+    function applyRoleDefaults(role){
+        const preset = rolePresets[role] || rolePresets.Teacher;
+        const sectionCheckboxes = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]'));
+        sectionCheckboxes.forEach(checkbox => {
+            checkbox.checked = preset.sections === null || preset.sections.includes(checkbox.value);
+            checkbox.dispatchEvent(new Event('change'));
+        });
+        const selectAllSections = sectionsContainerEl.querySelector('#selectAllSections');
+        if (selectAllSections) selectAllSections.checked = sectionCheckboxes.length > 0 && sectionCheckboxes.every(checkbox => checkbox.checked);
+        Object.entries(preset.perms).forEach(([permission, checked]) => {
+            const checkbox = document.getElementById(`can${permission[0].toUpperCase()}${permission.slice(1)}`);
+            if (checkbox) {
+                checkbox.checked = checked;
+                checkbox.dispatchEvent(new Event('change'));
+            }
+        });
+        const selectAllPermissions = document.getElementById('selectAllPermissions');
+        if (selectAllPermissions) selectAllPermissions.checked = Object.values(preset.perms).every(Boolean);
     }
 
     function populateSectionsList(){
@@ -1821,6 +1992,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    const escapeUserHTML = value => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
     function renderUsersTable(){
         const users = loadUsers();
         const session = loadSession();
@@ -1842,28 +2020,27 @@ document.addEventListener('DOMContentLoaded', () => {
             if (u.perms?.view) perms.push('V');
             if (u.perms?.edit) perms.push('E');
             if (u.perms?.delete) perms.push('D');
+            const channels = notificationChannels
+                .filter(channel => u.notificationPreferences?.[channel])
+                .join(', ') || 'None selected';
 
             tr.innerHTML = `
                 <td style="text-align: center; width: 50px;">
-                    <img src="${u.photo || 'https://i.pravatar.cc/100?img=0'}" class="user-table-photo" alt="profile">
+                    <img src="${escapeUserHTML(u.photo || 'https://i.pravatar.cc/100?img=0')}" class="user-table-photo" alt="">
                 </td>
-                <td>${u.fullName} ${u.userId === currentUserId ? '<span class="badge" style="margin-left:8px; font-size:9px; padding:2px 6px; background:var(--primary); vertical-align: middle;">You</span>' : ''}</td>
-                <td>${u.userId}</td>
-                <td>
-                    <div class="pass-container">
-                        <code class="pass-masked">••••••••</code>
-                        <button type="button" class="pass-toggle" data-pass="${u.password}"><i class="fas fa-eye"></i></button>
-                    </div>
-                </td>
-                <td>${u.role}</td>
-                <td>${(u.sections||[]).join(', ')}</td>
-                <td class="small">${perms.join(', ')}</td>
+                <td>${escapeUserHTML(u.fullName)} ${u.userId === currentUserId ? '<span class="badge" style="margin-left:8px; font-size:9px; padding:2px 6px; background:var(--primary); vertical-align: middle;">You</span>' : ''}</td>
+                <td>${escapeUserHTML(u.userId)}</td>
+                <td>${escapeUserHTML(u.role)}</td>
+                <td>${escapeUserHTML(u.linkedRecordId || '—')}</td>
+                <td>${escapeUserHTML([u.email, u.phone].filter(Boolean).join(' · ') || '—')}<small class="user-notification-summary">Notices: ${escapeUserHTML(channels)}</small></td>
+                <td>${escapeUserHTML((u.sections || []).join(', '))}</td>
+                <td class="small">${escapeUserHTML(perms.join(', ') || '—')}</td>
                 <td>
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <button class="action-btn" data-action="edit" data-id="${u.id}" title="Edit User"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn" data-action="delete" data-id="${u.id}" title="Delete User"><i class="fas fa-trash"></i></button>
+                        <button class="action-btn" data-action="edit" data-id="${escapeUserHTML(u.id)}" title="Edit User"><i class="fas fa-edit"></i></button>
+                        <button class="action-btn" data-action="delete" data-id="${escapeUserHTML(u.id)}" title="Delete User"><i class="fas fa-trash"></i></button>
                         <label class="switch" style="transform: scale(0.75); transform-origin: left;" title="${isActive ? 'Deactivate' : 'Activate'}">
-                            <input type="checkbox" class="status-toggle" data-id="${u.id}" ${isActive ? 'checked' : ''}>
+                            <input type="checkbox" class="status-toggle" data-id="${escapeUserHTML(u.id)}" ${isActive ? 'checked' : ''}>
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -1875,81 +2052,92 @@ document.addEventListener('DOMContentLoaded', () => {
     function clearForm(){
         addUserForm.reset(); editingUserId = null;
         const passInput = document.getElementById('passwordInputNew');
-        if (passInput) passInput.type = 'password';
+        if (passInput) {
+            passInput.type = 'password';
+            passInput.required = true;
+            passInput.placeholder = 'Set a password';
+        }
         const submitBtn = document.getElementById('addUserBtn');
         if (submitBtn) submitBtn.textContent = 'Add User';
         if (photoPreview) {
             photoPreview.src = '';
             photoPreview.style.display = 'none';
         }
+        if (roleSelectEl) {
+            roleSelectEl.value = roleSelectEl.querySelector('option[value="Teacher"]') ? 'Teacher' : roleSelectEl.options[0]?.value;
+            applyRoleDefaults(roleSelectEl.value);
+        }
     }
 
     addUserForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const fullName = document.getElementById('fullNameInput').value.trim();
-        const userId = document.getElementById('userIdInputNew').value.trim();
-        const password = document.getElementById('passwordInputNew').value;
+        const userId = document.getElementById('userIdInputNew').value.trim().toLowerCase();
+        const passwordInput = document.getElementById('passwordInputNew');
+        const password = passwordInput.value;
         const role = document.getElementById('roleSelect').value;
-        const sections = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"]:checked')).map(i=>i.value);
+        const sections = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]:checked')).map(i => i.value);
         const perms = { view: !!document.getElementById('canView').checked, edit: !!document.getElementById('canEdit').checked, delete: !!document.getElementById('canDelete').checked };
         if (!fullName || !userId) return alert('Please provide name and user ID.');
 
+        const users = loadUsers();
+        if (editingUserId && !users.some(user => user.id === editingUserId)) {
+            return alert('This account could not be found. Close the form and try again.');
+        }
+        if (users.some(user => user.userId?.toLowerCase() === userId.toLowerCase() && user.id !== editingUserId)) {
+            return alert('That User ID is already assigned. Choose a unique User ID.');
+        }
+        const oldUser = editingUserId ? users.find(user => user.id === editingUserId) : null;
+        if (!oldUser && !password) return alert('Set a password for the new account.');
+
         const photoInput = document.getElementById('profilePhotoInput');
         let photoData = null;
-        
-        if (photoInput.files && photoInput.files[0]) {
-            photoData = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.readAsDataURL(photoInput.files[0]);
-            });
+        try {
+            if (photoInput.files?.[0]) photoData = await readImageFile(photoInput.files[0]);
+        } catch (error) {
+            return alert(error.message || 'Unable to read the selected profile image.');
         }
 
-        const users = loadUsers();
-        if (editingUserId){
-            const idx = users.findIndex(u=>u.id===editingUserId);
-            if (idx>=0){
-                const oldUser = users[idx];
-                users[idx] = { 
-                    ...oldUser, 
-                    fullName, 
-                    userId, 
-                    password, 
-                    role, 
-                    sections, 
-                    perms, 
-                    status: oldUser.status !== false,
-                    photo: photoData || oldUser.photo 
-                }; 
-                saveUsers(users); renderUsersTable(); clearForm(); addUserForm.classList.add('hidden');
-                return; 
-            }
+        const accountFields = {
+            fullName,
+            userId,
+            password: password || oldUser?.password || '',
+            role,
+            sections,
+            perms,
+            linkedRecordId: document.getElementById('accountRecordId').value.trim(),
+            email: document.getElementById('accountEmail').value.trim(),
+            phone: document.getElementById('accountPhone').value.trim(),
+            notificationPreferences: readNotificationPreferences(addUserForm),
+            photo: photoData || oldUser?.photo || null
+        };
+        if (oldUser) {
+            const index = users.findIndex(user => user.id === editingUserId);
+            users[index] = { ...oldUser, ...accountFields, status: oldUser.status !== false };
+        } else {
+            users.push({ id: 'u_' + Date.now(), ...accountFields, status: true });
         }
-        const id = 'u_' + Date.now();
-        users.push({ id, fullName, userId, password, role, sections, perms, status: true, photo: photoData });
-        saveUsers(users); renderUsersTable(); clearForm(); addUserForm.classList.add('hidden');
+        try {
+            saveUsers(users);
+            const session = loadSession();
+            const savedUser = users.find(user => user.userId === session?.userId);
+            if (savedUser?.perms?.view === false && savedUser.userId === oldUser.userId) {
+                document.getElementById('logoutBtn')?.click();
+            } else if (savedUser) {
+                applyAccountSectionAccess(savedUser);
+                document.querySelector('.profile h4').textContent = savedUser.fullName || '';
+                document.querySelector('.profile-role').textContent = savedUser.role || '';
+                document.querySelector('.profile img').src = savedUser.photo || 'https://i.pravatar.cc/100?img=12';
+            }
+            renderUsersTable();
+            clearForm();
+            addUserForm.classList.add('hidden');
+        } catch (error) {
+            alert(`Unable to save this account in browser storage: ${error.message}`);
+        }
     });
 
     usersTableBody.addEventListener('click', (e) => {
-        // Handle password toggle (Must be outside the data-action guard)
-        const passToggleBtn = e.target.closest('.pass-toggle');
-        if (passToggleBtn) {
-            const code = passToggleBtn.previousElementSibling;
-            const icon = passToggleBtn.querySelector('i');
-            const isHidden = code.textContent === '••••••••';
-            
-            if (isHidden) {
-                code.textContent = passToggleBtn.getAttribute('data-pass');
-                icon.classList.replace('fa-eye', 'fa-eye-slash');
-                passToggleBtn.classList.add('pulse-active');
-            } else {
-                code.textContent = '••••••••';
-                icon.classList.replace('fa-eye-slash', 'fa-eye');
-                passToggleBtn.classList.remove('pulse-active');
-            }
-            return;
-        }
-
         const btn = e.target.closest('button[data-action]');
         if (!btn) return;
         const action = btn.getAttribute('data-action');
@@ -1969,26 +2157,38 @@ document.addEventListener('DOMContentLoaded', () => {
             if (submitBtn) submitBtn.textContent = 'Update User';
             document.getElementById('fullNameInput').value = u.fullName;
             document.getElementById('userIdInputNew').value = u.userId;
-            document.getElementById('passwordInputNew').value = u.password;
+            document.getElementById('passwordInputNew').value = '';
+            document.getElementById('passwordInputNew').required = false;
+            document.getElementById('passwordInputNew').placeholder = 'Leave blank to keep current password';
             document.getElementById('roleSelect').value = u.role;
-            
+            document.getElementById('accountRecordId').value = u.linkedRecordId || '';
+            document.getElementById('accountEmail').value = u.email || '';
+            document.getElementById('accountPhone').value = u.phone || '';
+            fillNotificationPreferences(addUserForm, u.notificationPreferences);
+            if (photoInput) photoInput.value = '';
+
             if (u.photo && photoPreview) {
                 photoPreview.src = u.photo;
                 photoPreview.style.display = 'block';
             }
 
             // sections
-            sectionsContainerEl.querySelectorAll('input[type="checkbox"]').forEach(ch => {
-                ch.checked = u.sections?.includes(ch.value);
+            const sectionCheckboxes = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]'));
+            sectionCheckboxes.forEach(ch => {
+                ch.checked = u.sections?.includes(ch.value) || false;
                 ch.dispatchEvent(new Event('change'));
             });
+            const selectAllSections = sectionsContainerEl.querySelector('#selectAllSections');
+            if (selectAllSections) selectAllSections.checked = sectionCheckboxes.length > 0 && sectionCheckboxes.every(section => section.checked);
             ['canView', 'canEdit', 'canDelete'].forEach(id => {
                 const ch = document.getElementById(id);
                 if (ch) {
-                    ch.checked = !!u.perms[id.replace('can', '').toLowerCase()];
+                    ch.checked = !!u.perms?.[id.replace('can', '').toLowerCase()];
                     ch.dispatchEvent(new Event('change'));
                 }
             });
+            const selectAllPermissions = document.getElementById('selectAllPermissions');
+            if (selectAllPermissions) selectAllPermissions.checked = ['canView', 'canEdit', 'canDelete'].every(permissionId => document.getElementById(permissionId)?.checked);
             editingUserId = u.id;
             window.scrollTo({ top: addUserForm.offsetTop - 80, behavior: 'smooth' });
         }
@@ -2006,6 +2206,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    populateRoleOptions();
+    populateSectionsList();
+    roleSelectEl.addEventListener('change', () => applyRoleDefaults(roleSelectEl.value));
+    clearForm();
+    renderUsersTable();
 
     const escapeStaffHTML = (value) => String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -2777,8 +2983,19 @@ Total Amount: $4,820.00
     const activeSectionKey = 'edumasterActiveSection';
     const sectionKey = link => {
         const group = link.closest('.nav-links')?.previousElementSibling?.textContent.trim() || '';
-        const label = link.querySelector('span')?.innerText.trim() || link.innerText.trim();
+        const label = link.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.innerText.trim() || link.innerText.trim();
         return `${group}::${link.id || label}`;
+    };
+    const sectionIdentity = link => {
+        const group = link.closest('.nav-links');
+        return {
+            key: sectionKey(link),
+            id: link.dataset.menuId || link.id || '',
+            group: group?.previousElementSibling?.textContent.trim().toLowerCase() || '',
+            groupIndex: Array.from(document.querySelectorAll('.nav-links')).indexOf(group),
+            itemIndex: group ? Array.from(group.querySelectorAll('a')).indexOf(link) : -1,
+            label: (link.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.innerText.trim() || link.innerText.trim()).toLowerCase()
+        };
     };
 
     let collapsedGroups = [];
@@ -2821,7 +3038,7 @@ Total Amount: $4,820.00
             ev.preventDefault();
             navLinks.forEach(n => n.classList.remove('active'));
             link.classList.add('active');
-            localStorage.setItem(activeSectionKey, sectionKey(link));
+            localStorage.setItem(activeSectionKey, JSON.stringify(sectionIdentity(link)));
 
             const linkText = link.querySelector('span')?.innerText.trim() || link.innerText.trim();
             if (typeof window.updateHeaderAddButton === 'function') {
@@ -3674,15 +3891,40 @@ Total Amount: $4,820.00
     });
 
     restoreSavedSection = () => {
-        const savedKey = localStorage.getItem(activeSectionKey);
-        const savedLink = Array.from(navLinks).find(link => sectionKey(link) === savedKey);
-        if (!savedLink) return;
+        const savedValue = localStorage.getItem(activeSectionKey);
+        if (!savedValue) return;
+
+        let savedIdentity = null;
+        try {
+            const parsedValue = JSON.parse(savedValue);
+            if (parsedValue && typeof parsedValue === 'object') savedIdentity = parsedValue;
+        } catch (error) {
+            // The previous format stored the section key as plain text.
+        }
+
+        const links = Array.from(navLinks).filter(link => !link.closest('.nav-links')?.classList.contains('account-access-hidden'));
+        const savedKey = savedIdentity?.key || savedValue;
+        const savedGroup = savedIdentity?.group || savedKey.split('::')[0]?.toLowerCase() || '';
+        const savedLabel = savedIdentity?.label || savedKey.split('::').pop()?.toLowerCase() || '';
+        const savedLink = links.find(link => sectionKey(link) === savedKey)
+            || (savedIdentity?.id && links.find(link => (link.dataset.menuId || link.id) === savedIdentity.id))
+            || links.find(link => {
+                const identity = sectionIdentity(link);
+                return identity.group === savedGroup && identity.label === savedLabel;
+            })
+            || links.find(link => sectionIdentity(link).label === savedLabel)
+            || (savedIdentity && savedIdentity.groupIndex >= 0
+                ? Array.from(document.querySelectorAll('.nav-links'))[savedIdentity.groupIndex]?.querySelectorAll('a')[savedIdentity.itemIndex]
+                : null);
+        if (!savedLink || savedLink.closest('.nav-links')?.classList.contains('account-access-hidden')) return;
         const group = savedLink.closest('.nav-links');
         const heading = group?.previousElementSibling;
         if (heading?.getAttribute('aria-expanded') === 'false') heading.click();
         savedLink.click();
     };
-    if (!loginScreen.classList.contains('active')) restoreSavedSection();
+    if (loadSession()?.authenticated && !container.classList.contains('hidden')) {
+        requestAnimationFrame(restoreSavedSection);
+    }
 
 
     // Global Chart Defaults
