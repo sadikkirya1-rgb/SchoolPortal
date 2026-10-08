@@ -132,6 +132,7 @@ const createSchoolUser = httpsCallable(functions, 'createSchoolUser');
 const updateSchoolUser = httpsCallable(functions, 'updateSchoolUser');
 const setSchoolUserStatus = httpsCallable(functions, 'setSchoolUserStatus');
 const deleteSchoolUser = httpsCallable(functions, 'deleteSchoolUser');
+const getPublicPlatformStats = httpsCallable(functions, 'getPublicPlatformStats');
 
 window.schoolPortalFirebase = {
     app,
@@ -150,7 +151,8 @@ window.schoolPortalFirebase = {
     createSchoolUser,
     updateSchoolUser,
     setSchoolUserStatus,
-    deleteSchoolUser
+    deleteSchoolUser,
+    getPublicPlatformStats: async () => (await getPublicPlatformStats()).data
 };
 
 await import('./firebase-data.js');

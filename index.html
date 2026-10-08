@@ -223,6 +223,7 @@
                     <input id="referenceSchoolId" name="schoolId" type="text" placeholder="Enter your School ID" autocomplete="organization" required>
                 </label>
                 <button class="reference-sign-in" id="referenceSchoolContinue" type="button">Continue <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                <a class="reference-admin-link" href="./platform-admin.html"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> App Admin</a>
                 <p class="reference-login-message" id="referenceSchoolMessage" role="status" aria-live="polite"></p>
             </div>
             <div class="reference-user-login hidden" id="referenceUserLogin" aria-hidden="true">
@@ -258,21 +259,21 @@
             <p class="reference-login-message" id="referenceLoginMessage" role="status" aria-live="polite"></p>
             <p class="reference-contact">Don't have an account? <button class="reference-text-button" id="referenceContactAdmin" type="button">Contact your school administrator</button></p>
         </form>
-        <section class="login-usage-stats" aria-label="School community using the app">
-            <article class="login-usage-stat" aria-label="Schools using the app">
-                <strong class="login-usage-number schools-stat-icon count-value" data-stat-count="schools">0</strong>
+        <section class="login-usage-stats" aria-label="Live counts from cloud data">
+            <article class="login-usage-stat" aria-label="Registered schools in cloud data">
+                <strong class="login-usage-number schools-stat-icon" data-stat-count="schools">0</strong>
                 <span class="login-usage-label"><i class="fa-solid fa-building-columns" aria-hidden="true"></i> Schools</span>
             </article>
-            <article class="login-usage-stat" aria-label="Parents using the app">
-                <strong class="login-usage-number parents-stat-icon count-value" data-stat-count="parents">0</strong>
+            <article class="login-usage-stat" aria-label="Parent records synced to cloud">
+                <strong class="login-usage-number parents-stat-icon" data-stat-count="parents">0</strong>
                 <span class="login-usage-label"><i class="fa-solid fa-people-roof" aria-hidden="true"></i> Parents</span>
             </article>
-            <article class="login-usage-stat" aria-label="Students using the app">
-                <strong class="login-usage-number students-stat-icon count-value" data-stat-count="students">0</strong>
+            <article class="login-usage-stat" aria-label="Student records synced to cloud">
+                <strong class="login-usage-number students-stat-icon" data-stat-count="students">0</strong>
                 <span class="login-usage-label"><i class="fa-solid fa-user-graduate" aria-hidden="true"></i> Students</span>
             </article>
-            <article class="login-usage-stat" aria-label="Staff using the app">
-                <strong class="login-usage-number staff-stat-icon count-value" data-stat-count="staff">0</strong>
+            <article class="login-usage-stat" aria-label="Staff records synced to cloud">
+                <strong class="login-usage-number staff-stat-icon" data-stat-count="staff">0</strong>
                 <span class="login-usage-label"><i class="fa-solid fa-user-tie" aria-hidden="true"></i> Staff</span>
             </article>
         </section>
@@ -314,10 +315,10 @@
                 <p>Start by entering your registered school identifier.</p>
                 <div class="form-group">
                     <label for="schoolIdInput">School ID</label>
-                    <input type="text" id="schoolIdInput" placeholder="e.g. SCH-0001-UG-08102026">
+                    <input type="text" id="schoolIdInput" placeholder="e.g. SCH-UG-0001-08102026">
                 </div>
                 <button class="btn-primary" id="schoolNextBtn">Continue</button>
-                <p class="field-note">Format: <strong>SCH-0001-UG-08102026</strong> (sequence, country, creation date)</p>
+                <p class="field-note">Format: <strong>SCH-UG-0001-08102026</strong> (country, sequence, creation date)</p>
                 <p class="error-message" id="schoolError"></p>
             </div>
 

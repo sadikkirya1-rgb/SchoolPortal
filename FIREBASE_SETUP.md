@@ -22,8 +22,11 @@ The Firebase client is configured for the `delivery-app-6a47f` project and the `
    ```
 
    Protect this script and App Admin account as platform-owner credentials. Never add a callable that lets users grant themselves this claim.
-4. Open `https://smartskool.web.app/platform-admin.html`, sign in as the App Admin, and create a school. The first school created by this panel on 8 October 2026 will receive `SCH-0001-UG-08102026`. The sequence increments atomically; the date suffix is UTC `DDMMYYYY`. The panel writes the school document with `status: "active"` and optional HTTPS `logoURL`.
-5. Create the first school administrator using **Authentication → Add user**, then add a corresponding Firestore document using that Authentication UID:
+   Require multi-factor authentication for platform-owner accounts in Firebase Authentication settings, and grant the claim only to individually named operators.
+   Suspending or removing a user's membership changes only that school's membership document. It deliberately does not disable or delete the Firebase Authentication identity, which may be shared across schools.
+4. Open `https://smartskool.web.app/platform-admin.html` and sign in as the App Admin. The dashboard lists all registered schools using server pagination, provides per-school member counts, allows authorized school account provisioning/editing/suspension/deletion, and can suspend/reactivate a school. These account tools use callable Functions; the App Admin client has no direct Firestore bypass. The platform dashboard intentionally does not provide access to student, academic, medical, or financial records.
+5. Create a school from the dashboard. The first school created by this panel on 8 October 2026 will receive `SCH-UG-0001-08102026`. The sequence increments atomically; the date suffix is UTC `DDMMYYYY`. The panel writes the school document with `status: "active"` and optional HTTPS `logoURL`.
+6. After creating a school, the dashboard opens its account form with **School Admin** selected. Create the first school administrator there; after creation, use **Continue to school sign-in** to open the school login with its School ID filled and verified. Alternatively, use **Authentication → Add user** and a corresponding Firestore member document with that Authentication UID:
 
    ```text
    schools/{GENERATED_SCHOOL_ID}/members/{AUTH_UID}
@@ -39,13 +42,43 @@ The Firebase client is configured for the `delivery-app-6a47f` project and the `
    ```
 
    This one-time school-admin bootstrap is done in the Firebase Console because client rules intentionally prohibit creating or elevating school administrator memberships. Store the school ID in `schools/{schoolId}` and membership data in `schools/{schoolId}/members/{authUid}`; the school ID is the visible tenant identifier, while the Auth UID remains the secure account document key.
-6. Sign in using the generated School ID, the administrator's email, and password. Use the User Roles screen to provision non-administrator school accounts.
+7. Sign in using the generated School ID, the administrator's email, and password. Use the User Roles screen to provision non-administrator school accounts.
 
 ## Current implementation boundary
 
 - School lookup, email/password sign-in, school membership checks, account provisioning/status/deletion callables, profile updates, and profile-photo uploads use Firebase.
 - `firebase-data.js` provides a school-and-user-scoped IndexedDB cache/outbox and versioned Firestore synchronization API. It is a foundation, not yet wired to the existing feature modules.
 - Most school feature screens still use their existing browser-local data. Those records remain local and are not automatically uploaded. Migrate them through an explicit, reviewed school import or a collection-by-collection conversion; do not bulk-copy browser storage into Firestore.
+- Home-page school, parent, student, and staff counters use aggregate counts from Firestore only. Parent/student/staff values count cloud records in the matching school subcollections; unsynced browser-local data is intentionally excluded, and a cloud error displays `—` rather than demo values.
 - Offline edits made through `schoolPortalData` remain queued locally. Conflicts are saved for review, but a conflict-review screen and migration of existing modules are still outstanding.
 - User Roles section selections hide navigation only. Data authorization comes from the server-managed role permissions in `functions/index.js` and Firestore Rules.
 - Test Firestore/Storage rules and account callables with the Firebase Emulator before real school data is entered. Do not treat a successful Hosting deploy as proof that role or record-level rules are correct.
+const { initializeApp, applicationDefault } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
+
+async function main() {
+  const uid = 'WwJJgWnQGOP8PSSHRXQ6uC2gxdp2';
+  const expectedEmail = 'sadikkirya@gmail.com';
+  const app = initializeApp({
+    credential: applicationDefault(),
+    projectId: 'delivery-app-6a47f'
+  });
+  const auth = getAuth(app);
+  const user = await auth.getUser(uid);
+
+  if (user.email?.toLowerCase() !== expectedEmail) {
+    throw new Error(`UID email mismatch: found ${user.email || '(no email)'}`);
+  }
+
+  await auth.setCustomUserClaims(uid, {
+    ...user.customClaims,
+    appAdmin: true
+  });
+
+  console.log(`Granted appAdmin to ${user.email} (${uid}).`);
+}
+
+main().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

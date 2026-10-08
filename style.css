@@ -712,6 +712,33 @@ margin:0;
     background: #0755c5;
 }
 
+.reference-admin-link {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin-top: 3px;
+    border: 1px solid #cbdcf2;
+    border-radius: 8px;
+    background: #f5f9ff;
+    color: #315b93;
+    font-size: 0.7em;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.reference-admin-link:hover {
+    border-color: #8fb3e1;
+    background: #eaf2ff;
+}
+
+.reference-admin-link:focus-visible {
+    outline: 3px solid #f59e0b;
+    outline-offset: 2px;
+}
+
 .reference-or {
     display: flex;
     align-items: center;

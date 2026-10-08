@@ -15,13 +15,13 @@
             <div>
                 <p class="eyebrow">PLATFORM CONTROL</p>
                 <h1>App Admin</h1>
-                <p>Create a school workspace and issue its permanent School ID.</p>
+                <p>Manage school workspaces and authorized school accounts.</p>
             </div>
         </header>
 
         <section class="admin-card" id="signInCard">
             <h2>Secure sign in</h2>
-            <p>Only accounts explicitly authorized as App Admin can access school creation.</p>
+            <p>Only accounts explicitly authorized as App Admin can access the platform dashboard.</p>
             <form id="adminSignInForm">
                 <label>Email address<input name="email" type="email" autocomplete="username" required></label>
                 <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
@@ -32,18 +32,36 @@
 
         <section class="admin-card hidden" id="schoolCreateCard">
             <div class="signed-in-row">
-                <div><h2>Create a school</h2><p id="signedInAs"></p></div>
+                <div><h2>Platform dashboard</h2><p id="signedInAs"></p></div>
                 <button class="secondary-button" id="signOutButton" type="button">Sign out</button>
             </div>
-            <p>School IDs are generated securely as <code>SCH-0001-UG-08102026</code>: sequence, country code, and creation date (DDMMYYYY).</p>
-            <form id="createSchoolForm">
-                <label>School name<input name="name" type="text" minlength="2" maxlength="120" autocomplete="organization" required></label>
-                <div class="form-row">
-                    <label>Country code<input name="countryCode" type="text" value="UG" minlength="2" maxlength="2" pattern="[A-Za-z]{2}" autocomplete="country" required></label>
-                    <label>Public logo URL <span class="optional">(optional, HTTPS)</span><input name="logoURL" type="url" placeholder="https://example.org/logo.png"></label>
+            <div class="dashboard-stats">
+                <article><span>Registered schools</span><strong id="schoolTotal">—</strong></article>
+                <article><span>Active schools (current page)</span><strong id="activeSchoolTotal">—</strong></article>
+                <article><span>Accounts (selected school)</span><strong id="accountTotal">—</strong></article>
+            </div>
+            <section class="directory-section">
+                <div class="section-heading">
+                    <div><h3>Schools</h3><p>Only public school details and account totals are shown here.</p></div>
+                    <button class="primary-button compact-button" id="showCreateSchoolButton" type="button">Create school</button>
                 </div>
-                <button class="primary-button" type="submit">Create school and School ID</button>
-            </form>
+                <label class="directory-search">Search this page<input id="schoolSearch" type="search" placeholder="School name or ID"></label>
+                <form class="inline-create-form hidden" id="createSchoolForm">
+                    <label>School name<input name="name" type="text" minlength="2" maxlength="120" autocomplete="organization" required></label>
+                    <div class="form-row">
+                        <label>Country code<input name="countryCode" type="text" value="UG" minlength="2" maxlength="2" pattern="[A-Za-z]{2}" autocomplete="country" required></label>
+                        <label>Public logo URL <span class="optional">(optional, HTTPS)</span><input name="logoURL" type="url" placeholder="https://example.org/logo.png"></label>
+                    </div>
+                    <button class="primary-button" type="submit">Create school and School ID</button>
+                </form>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>School</th><th>School ID</th><th>Status</th><th>Accounts</th><th>Created</th><th>Action</th></tr></thead>
+                        <tbody id="schoolTableBody"><tr><td colspan="6">Loading schools…</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="list-pager"><button class="secondary-button" id="previousSchoolsButton" type="button" disabled>Previous</button><button class="secondary-button" id="nextSchoolsButton" type="button" disabled>Next</button></div>
+            </section>
             <div class="created-school hidden" id="createdSchool" role="status" aria-live="polite">
                 <span>School created successfully</span>
                 <strong id="createdSchoolId"></strong>
@@ -51,8 +69,52 @@
                 <button class="secondary-button" id="copySchoolIdButton" type="button">Copy School ID</button>
             </div>
             <p class="status-message" id="createMessage" role="status" aria-live="polite"></p>
+            <section class="directory-section hidden" id="schoolAccountsSection">
+                <div class="section-heading">
+                    <div><h3 id="selectedSchoolHeading">School accounts</h3><p id="selectedSchoolSummary"></p></div>
+                    <button class="secondary-button" id="closeSchoolAccountsButton" type="button">Close</button>
+                </div>
+                <label class="directory-search">Search this page<input id="accountSearch" type="search" placeholder="Name, email, role, or User ID"></label>
+                <form class="account-editor hidden" id="schoolAccountForm">
+                    <input name="uid" type="hidden">
+                    <div class="form-row">
+                        <label>Full name<input name="fullName" type="text" required maxlength="120"></label>
+                        <label>User ID<input name="userId" type="text" required maxlength="80"></label>
+                    </div>
+                    <div class="form-row">
+                        <label>Email<input name="email" type="email" autocomplete="email" required></label>
+                        <label>Phone<input name="phone" type="tel"></label>
+                    </div>
+                    <div class="form-row">
+                        <label>Role<select name="role" required>
+                            <option value="schoolAdmin">School Admin</option>
+                            <option value="deputyHeadTeacher">Deputy Head Teacher</option>
+                            <option value="bursar">Bursar</option>
+                            <option value="teacher">Teacher</option>
+                            <option value="librarian">Librarian</option>
+                            <option value="hrOfficer">HR Officer</option>
+                            <option value="storeManager">Store Manager</option>
+                            <option value="parent">Parent</option>
+                            <option value="student">Student</option>
+                        </select></label>
+                        <label>Linked student/parent/staff record ID<input name="linkedRecordId" type="text"></label>
+                    </div>
+                    <label>Password <span class="optional" id="accountPasswordHint">Required for a new account; minimum 8 characters.</span><input name="password" type="password" autocomplete="new-password"></label>
+                    <div class="form-actions"><button class="primary-button" type="submit">Create account</button><button class="secondary-button" id="cancelAccountEditButton" type="button">Cancel</button></div>
+                </form>
+                <div class="section-heading account-add-heading"><span>Suspending or removing affects only this school membership. Editing an email changes the shared Firebase sign-in identity; membership removal never deletes it.</span><button class="primary-button compact-button" id="showAccountFormButton" type="button">Add account</button></div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>User ID</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody id="accountTableBody"><tr><td colspan="6">Select a school to load accounts.</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="list-pager"><button class="secondary-button" id="previousAccountsButton" type="button" disabled>Previous</button><button class="secondary-button" id="nextAccountsButton" type="button" disabled>Next</button></div>
+                <p class="status-message" id="accountMessage" role="status" aria-live="polite"></p>
+                <a class="primary-button compact-button hidden" id="schoolAdminLoginLink">Continue to school sign-in</a>
+            </section>
         </section>
-        <footer>School creation is restricted by Firebase Authentication custom claims and a trusted server-side transaction.</footer>
+        <footer>App Admin can manage school metadata and user accounts across tenants. Student, academic, and financial records remain outside this platform account dashboard.</footer>
     </main>
     <script type="module" src="platform-admin.js"></script>
 </body>

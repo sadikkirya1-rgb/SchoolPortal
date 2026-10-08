@@ -1,5 +1,8 @@
-const { applicationDefault, initializeApp } = require('../functions/node_modules/firebase-admin/app');
-const { getAuth } = require('../functions/node_modules/firebase-admin/auth');
+const { createRequire } = require('node:module');
+
+const requireFirebase = createRequire(require.resolve('../functions/package.json'));
+const { applicationDefault, initializeApp } = requireFirebase('firebase-admin/app');
+const { getAuth } = requireFirebase('firebase-admin/auth');
 
 const projectId = 'delivery-app-6a47f';
 const uid = process.argv[2];

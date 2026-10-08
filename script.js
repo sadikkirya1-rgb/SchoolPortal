@@ -59,60 +59,34 @@ document.addEventListener('DOMContentLoaded', () => {
         element.textContent = message || '';
     };
 
-    const animateCounter = (element) => {
-        const target = Number(element.dataset.target || 0);
-        const suffix = element.dataset.suffix || '';
-        const duration = 1400;
-        let start = 0;
-        const startTime = performance.now();
-
-        const tick = (now) => {
-            const progress = Math.min((now - startTime) / duration, 1);
-            const value = Math.round(progress * target);
-            element.textContent = `${value.toLocaleString()}${suffix}`;
-            if (progress < 1) {
-                requestAnimationFrame(tick);
-            } else {
-                element.textContent = `${target.toLocaleString()}${suffix}`;
-            }
-        };
-
-        requestAnimationFrame(tick);
-    };
-
-    const landingStatDefaults = {
-        parents: 6,
-        students: 2,
-        staff: 2
-    };
-    document.querySelectorAll('[data-stat-count]').forEach((element) => {
-        const stat = element.dataset.statCount;
-        let count = 0;
-        const storageKeyByStat = {
-            parents: 'schoolParentContacts',
-            students: 'school_students',
-            staff: 'school_staff_directory'
-        };
-
-        if (stat !== 'schools') {
-            count = landingStatDefaults[stat] || 0;
-            try {
-                const storedRecords = localStorage.getItem(storageKeyByStat[stat]);
-                if (storedRecords !== null) {
-                    const records = JSON.parse(storedRecords);
-                    if (Array.isArray(records)) {
-                        count = records.length;
-                    } else {
-                        console.warn(`Landing page ${stat} statistics were not an array; showing the demo total.`);
-                    }
+    const landingStatElements = new Map(
+        Array.from(document.querySelectorAll('[data-stat-count]'), element => [element.dataset.statCount, element])
+    );
+    const loadLandingStats = async () => {
+        if (!landingStatElements.size) return;
+        try {
+            const response = await fetch('https://us-central1-delivery-app-6a47f.cloudfunctions.net/getPublicPlatformStats', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: {} })
+            });
+            if (!response.ok) throw new Error(`Cloud statistics request failed with HTTP ${response.status}.`);
+            const payload = await response.json();
+            const stats = payload.result;
+            if (!stats || typeof stats !== 'object') throw new Error('Cloud statistics response was invalid.');
+            for (const [name, element] of landingStatElements) {
+                const count = stats[name];
+                if (!Number.isSafeInteger(count) || count < 0) {
+                    throw new Error(`Cloud statistics returned an invalid ${name} count.`);
                 }
-            } catch (error) {
-                console.warn(`Unable to load landing page ${stat} statistics; showing the demo total.`, error);
+                element.textContent = count.toLocaleString();
             }
+        } catch (error) {
+            console.error('Unable to load live cloud statistics.', error);
+            landingStatElements.forEach(element => { element.textContent = '0'; });
         }
-
-        element.dataset.target = String(count);
-    });
+    };
+    loadLandingStats();
 
     const saveSession = (session) => {
         localStorage.setItem(storageKey, JSON.stringify(session));
@@ -225,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (schoolId.includes(',')) {
-            showError(schoolError, 'Enter only one School ID at a time. Example: SCH-0001-UG-08102026.');
+            showError(schoolError, 'Enter only one School ID at a time. Example: SCH-UG-0001-08102026.');
             return;
         }
         schoolNextBtn.disabled = true;
@@ -485,6 +459,20 @@ document.addEventListener('DOMContentLoaded', () => {
             referenceSchoolIdentity.classList.add('hidden');
             referenceSchoolMessage.textContent = '';
         });
+        const linkedSchoolId = new URLSearchParams(window.location.search).get('schoolId');
+        if (linkedSchoolId) {
+            referenceSchoolId.value = normalizeSchoolId(linkedSchoolId);
+            if (!loadSession()?.authenticated) {
+                const verifyLinkedSchool = () => {
+                    verifyReferenceSchool();
+                };
+                if (window.schoolPortalFirebase) {
+                    verifyLinkedSchool();
+                } else {
+                    window.addEventListener('school-portal-firebase-ready', verifyLinkedSchool, { once: true });
+                }
+            }
+        }
 
         try {
             const rememberedUsername = localStorage.getItem(rememberedUsernameKey);
@@ -548,10 +536,6 @@ document.addEventListener('DOMContentLoaded', () => {
             firebaseSetupMessage.textContent = 'Firebase could not initialize. Check your network and Firebase project settings.';
         }, { once: true });
     }
-
-    document.querySelectorAll('.count-value').forEach((countEl) => {
-        animateCounter(countEl);
-    });
 
     restoreSession();
 
