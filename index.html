@@ -232,11 +232,11 @@
             </div>
             <div class="reference-user-login hidden" id="referenceUserLogin" aria-hidden="true">
                 <h4 class="reference-login-section-title">User Login</h4>
-                <p class="reference-credential-hint">Demo credentials: <strong>admin</strong> / <strong>admin</strong></p>
+                <p class="reference-credential-hint">Sign in with the email and password provided by your school administrator.</p>
                 <label class="reference-login-field">
-                    <i class="fa-regular fa-user" aria-hidden="true"></i>
-                    <span class="visually-hidden">Username</span>
-                    <input id="referenceLoginUsername" name="username" type="text" placeholder="Username" autocomplete="username" required disabled>
+                    <i class="fa-regular fa-envelope" aria-hidden="true"></i>
+                    <span class="visually-hidden">Email</span>
+                    <input id="referenceLoginUsername" name="email" type="email" placeholder="Email address" autocomplete="username" required disabled>
                 </label>
                 <label class="reference-login-field">
                     <i class="fa-solid fa-id-badge" aria-hidden="true"></i>
@@ -250,7 +250,7 @@
                 </div>
                 <button class="reference-sign-in" type="submit">Sign In <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
                 <div class="reference-or"><span>Or continue with</span></div>
-                <button class="reference-google" id="referenceGoogleSignIn" type="button"><span class="reference-google-mark" aria-hidden="true">G</span> Sign in with Google</button>
+                <p class="firebase-setup-notice" id="firebaseSetupMessage" role="status" aria-live="polite">Connecting to Firebase…</p>
             </div>
             <p class="reference-login-message" id="referenceLoginMessage" role="status" aria-live="polite"></p>
             <p class="reference-contact">Don't have an account? <button class="reference-text-button" id="referenceContactAdmin" type="button">Contact your school administrator</button></p>
@@ -290,7 +290,7 @@
             </ul>
             <div class="marketing-cta">
                 <strong>Enter your School ID first.</strong>
-                <p>Then choose one of the sample school user IDs to continue.</p>
+                    <p>Then sign in with the email and password provided by your school.</p>
             </div>
         </div>
         <div class="login-card">
@@ -320,10 +320,10 @@
 
             <div class="login-panel hidden" id="adminStep">
                 <h3>Step 2: School User Login</h3>
-                <p>Sign in with the user ID and password assigned to this school.</p>
+                <p>Sign in with the email address and password assigned to this school.</p>
                 <div class="form-group">
-                    <label for="adminUserInput">User ID</label>
-                    <input type="text" id="adminUserInput" placeholder="Enter your user ID">
+                    <label for="adminUserInput">Email</label>
+                    <input type="email" id="adminUserInput" autocomplete="username" placeholder="name@example.com">
                 </div>
                 <div class="form-group">
                     <label for="adminPassInput">Password</label>
@@ -540,7 +540,7 @@
 
     <div class="user-roles-content">
         <form id="addUserForm" class="user-form hidden" style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
-            <p class="account-demo-notice"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i> Front-end preview only: accounts and passwords are stored in this browser, not securely on a server. Do not use real passwords. Firebase authentication and server-enforced permissions are not connected yet.</p>
+            <p class="account-demo-notice"><i class="fas fa-circle-info" aria-hidden="true"></i> Accounts are created in Firebase Authentication. Roles determine server-enforced data permissions; selected sections control which navigation groups are shown.</p>
             <div class="form-row">
                 <div class="form-group">
                     <label for="fullNameInput">Full Name</label>
@@ -558,7 +558,7 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="passwordInputNew">Password <span class="account-field-hint">(browser preview only)</span></label>
+                    <label for="passwordInputNew">Password</label>
                     <div style="display: flex; gap: 8px;">
                         <input id="passwordInputNew" type="password" placeholder="Set a password" autocomplete="new-password" style="flex: 1;">
                         <button type="button" class="btn-secondary" id="generatePassBtn" style="margin-top: 0; width: auto; padding: 0 15px;" title="Generate Password"><i class="fas fa-key"></i></button>
@@ -602,10 +602,8 @@
                     <div id="sectionsContainer" class="sections-list"></div>
                 </div>
                 <div class="form-group perms-group">
-                    <label>Permissions</label>
-                    <div class="perm-row"><label><input type="checkbox" id="canView"> View</label></div>
-                    <div class="perm-row"><label><input type="checkbox" id="canEdit"> Edit</label></div>
-                    <div class="perm-row"><label><input type="checkbox" id="canDelete"> Delete</label></div>
+                    <label>Data permissions</label>
+                    <p>Automatically assigned by role and enforced by Firebase. Contact your Firebase administrator to change a role's access policy.</p>
                 </div>
             </div>
 
@@ -914,11 +912,11 @@ Developer: Sadik Kirya | Contact: sadikkirya@gmail.com
                 <img id="modalProfilePhoto" src="" alt="Profile photo">
                 <div><h2 id="modalProfileName"></h2><p id="modalProfileRole"></p><span>User ID: <strong id="modalProfileId"></strong></span></div>
             </div>
-            <p class="account-demo-notice"><i class="fas fa-circle-info" aria-hidden="true"></i> Profile edits are saved in this browser preview. Passwords are never displayed here.</p>
+            <p class="account-demo-notice"><i class="fas fa-circle-info" aria-hidden="true"></i> Profile edits are saved to your school account. Passwords are never displayed here.</p>
             <form id="profileForm">
                 <div class="profile-edit-grid">
                     <label>Full name<input id="profileFullName" name="fullName" required autocomplete="name"></label>
-                    <label>Email<input id="profileEmail" name="email" type="email" autocomplete="email"></label>
+                    <label>Contact email<input id="profileEmail" name="contactEmail" type="email" autocomplete="email"></label>
                     <label>Mobile number<input id="profilePhone" name="phone" type="tel" autocomplete="tel"></label>
                     <label>Linked record ID<input id="profileRecordId" name="linkedRecordId" readonly></label>
                     <label class="profile-photo-field">Profile photo<input id="profilePhotoEdit" name="photo" type="file" accept="image/*"></label>
@@ -940,6 +938,7 @@ Developer: Sadik Kirya | Contact: sadikkirya@gmail.com
 </div>
 
 <script src="script.js"></script>
+<script type="module" src="firebase-client.js"></script>
 <script src="id-cards.js"></script>
 <script src="certificates.js"></script>
 <script src="library.js"></script>

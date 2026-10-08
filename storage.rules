@@ -1,0 +1,52 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function member(schoolId) {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid)).data.status == 'active';
+    }
+
+    function schoolAdmin(schoolId) {
+      return member(schoolId)
+        && firestore.get(/databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid)).data.role
+          in ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'];
+    }
+
+    match /schools/{schoolId}/members/{uid}/profile/{fileName} {
+      allow read: if member(schoolId) && (request.auth.uid == uid || schoolAdmin(schoolId));
+      allow create, update: if member(schoolId)
+        && (request.auth.uid == uid || schoolAdmin(schoolId))
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if member(schoolId) && request.auth.uid == uid;
+    }
+
+    match /schools/{schoolId}/students/{studentId}/{fileName=**} {
+      allow read: if schoolAdmin(schoolId)
+        || (member(schoolId)
+          && firestore.get(/databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid)).data.linkedRecordType == 'student'
+          && firestore.get(/databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid)).data.linkedRecordId == studentId)
+        || (member(schoolId)
+          && firestore.exists(/databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid)/linkedStudents/$(studentId)));
+      allow create, update: if schoolAdmin(schoolId)
+        && request.resource.size < 20 * 1024 * 1024;
+      allow delete: if schoolAdmin(schoolId);
+    }
+
+    match /schools/{schoolId}/schoolAssets/{fileName=**} {
+      allow read: if member(schoolId);
+      allow create, update: if schoolAdmin(schoolId)
+        && request.resource.size < 20 * 1024 * 1024;
+      allow delete: if schoolAdmin(schoolId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

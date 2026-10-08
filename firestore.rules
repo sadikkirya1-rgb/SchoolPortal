@@ -1,0 +1,167 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function schoolIsActive(schoolId) {
+      return exists(/databases/$(database)/documents/schools/$(schoolId))
+        && get(/databases/$(database)/documents/schools/$(schoolId)).data.status == 'active';
+    }
+
+    function memberPath(schoolId) {
+      return /databases/$(database)/documents/schools/$(schoolId)/members/$(request.auth.uid);
+    }
+
+    function isMember(schoolId) {
+      return signedIn()
+        && schoolIsActive(schoolId)
+        && exists(memberPath(schoolId))
+        && get(memberPath(schoolId)).data.status == 'active';
+    }
+
+    function role(schoolId) {
+      return get(memberPath(schoolId)).data.role;
+    }
+
+    function isSchoolAdmin(schoolId) {
+      return isMember(schoolId)
+        && role(schoolId) in ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'];
+    }
+
+    function canView(schoolId, collectionName) {
+      return isMember(schoolId)
+        && (isSchoolAdmin(schoolId)
+          || get(memberPath(schoolId)).data.permissions[collectionName].view == true);
+    }
+
+    function canEdit(schoolId, collectionName) {
+      return isSchoolAdmin(schoolId)
+        || (isMember(schoolId)
+          && get(memberPath(schoolId)).data.permissions[collectionName].edit == true);
+    }
+
+    function isLinkedStudent(schoolId, studentId) {
+      return isMember(schoolId)
+        && get(memberPath(schoolId)).data.linkedRecordType == 'student'
+        && get(memberPath(schoolId)).data.linkedRecordId == studentId;
+    }
+
+    function isLinkedParent(schoolId, studentId) {
+      return isMember(schoolId)
+        && exists(/databases/$(database)/documents/schools/$(schoolId)/members/$(request.auth.uid)/linkedStudents/$(studentId));
+    }
+
+    function isAssignedStaff(schoolId, classId) {
+      return isMember(schoolId)
+        && role(schoolId) in ['teacher', 'deputyHeadTeacher']
+        && classId in get(memberPath(schoolId)).data.assignedClassIds;
+    }
+
+    function canReadStudentRecord(schoolId, studentId) {
+      return isSchoolAdmin(schoolId)
+        || isLinkedStudent(schoolId, studentId)
+        || isLinkedParent(schoolId, studentId);
+    }
+
+    function recordReadAllowed(schoolId, collectionName) {
+      return canView(schoolId, collectionName)
+        && (collectionName != 'students'
+          || isSchoolAdmin(schoolId)
+          || (resource.data.data.keys().hasAll(['classId'])
+            && isAssignedStaff(schoolId, resource.data.data.classId))
+        || (resource.data.data.keys().hasAll(['studentId'])
+          && isLinkedStudent(schoolId, resource.data.data.studentId))
+        || (resource.data.data.keys().hasAll(['studentId'])
+          && isLinkedParent(schoolId, resource.data.data.studentId)))
+      && (!(collectionName in ['attendance', 'assessments', 'fees', 'reportCards', 'healthRecords'])
+        || isSchoolAdmin(schoolId)
+        || canEdit(schoolId, collectionName)
+        || (resource.data.data.keys().hasAll(['classId'])
+          && isAssignedStaff(schoolId, resource.data.data.classId))
+        || (resource.data.data.keys().hasAll(['studentId'])
+          && isLinkedStudent(schoolId, resource.data.data.studentId))
+        || (resource.data.data.keys().hasAll(['studentId'])
+          && isLinkedParent(schoolId, resource.data.data.studentId)));
+    }
+
+    function validVersionedRecord() {
+      return request.resource.data.keys().hasAll(['data', 'version', 'updatedBy', 'updatedAt'])
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.version is int;
+    }
+
+    function isAppCollection(collectionName) {
+      return collectionName in [
+        'students', 'parents', 'staff', 'classes', 'subjects', 'attendance',
+        'assessments', 'reportCards', 'fees', 'feeInvoices', 'expenses',
+        'timetables', 'notices', 'smsAlerts', 'libraryBooks', 'libraryLoans',
+        'healthRecords', 'transportRoutes', 'disciplineCases', 'clubs',
+        'studyMaterials', 'quizzes', 'inventory', 'assets', 'visitors',
+        'appointments', 'staffAttendance', 'leaveRequests', 'payroll',
+        'suppliers', 'purchaseOrders', 'purchaseRequests', 'auditEvents',
+        'settings', 'schoolProfile'
+      ];
+    }
+
+    match /schools/{schoolId} {
+      allow get: if resource.data.status == 'active';
+      allow list: if false;
+      allow create, update, delete: if false;
+
+      match /members/{uid} {
+        allow get: if isMember(schoolId) && (request.auth.uid == uid || isSchoolAdmin(schoolId));
+        allow list: if isSchoolAdmin(schoolId);
+        allow create, delete: if false;
+        allow update: if isMember(schoolId)
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'fullName', 'contactEmail', 'phone', 'photoURL', 'notificationPreferences', 'updatedAt'
+          ]);
+
+        match /linkedStudents/{studentId} {
+          allow get: if isMember(schoolId) && (request.auth.uid == uid || isSchoolAdmin(schoolId));
+          allow list: if isSchoolAdmin(schoolId);
+          allow write: if false;
+        }
+
+        match /syncConflicts/{conflictId} {
+          allow get, list: if isMember(schoolId) && request.auth.uid == uid;
+          allow create: if isMember(schoolId)
+            && request.auth.uid == uid
+            && canEdit(schoolId, request.resource.data.collection)
+            && request.resource.data.createdBy == request.auth.uid
+            && request.resource.data.status == 'open';
+          allow update: if isMember(schoolId)
+            && request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolvedAt', 'resolvedBy'])
+            && request.resource.data.status == 'resolved'
+            && request.resource.data.resolvedBy == request.auth.uid;
+          allow delete: if false;
+        }
+      }
+
+      match /{collectionName}/{recordId} {
+        allow get, list: if isAppCollection(collectionName) && recordReadAllowed(schoolId, collectionName);
+        allow create: if isAppCollection(collectionName) && canEdit(schoolId, collectionName) && validVersionedRecord()
+          && request.resource.data.version == 1;
+        allow update: if isAppCollection(collectionName) && canEdit(schoolId, collectionName)
+          && validVersionedRecord()
+          && request.resource.data.version == resource.data.version + 1
+          && request.resource.data.updatedBy == request.auth.uid;
+        allow delete: if isAppCollection(collectionName) && (isSchoolAdmin(schoolId)
+          || (isMember(schoolId)
+            && get(memberPath(schoolId)).data.permissions[collectionName].delete == true));
+
+        match /versions/{versionId} {
+          allow read: if isAppCollection(collectionName) && recordReadAllowed(schoolId, collectionName);
+          allow create: if isAppCollection(collectionName) && canEdit(schoolId, collectionName)
+            && request.resource.data.createdBy == request.auth.uid;
+          allow update, delete: if false;
+        }
+      }
+
+    }
+  }
+}

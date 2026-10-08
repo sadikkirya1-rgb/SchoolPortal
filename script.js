@@ -28,16 +28,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const backToSchoolBtn = document.getElementById('backToSchoolBtn');
     const stepIndicators = document.querySelectorAll('.login-steps .step');
 
-    const schoolAccounts = {
-        'SCH-UG-2026': { schoolName: 'EduMaster Uganda', adminUser: 'Admin', password: 'admin', role: 'Head Teacher' },
-        'SCH-001': { schoolName: 'Central Campus', adminUser: 'Principal', password: 'principal', role: 'Head Teacher' }
-    };
     let currentSchool = null;
     let resetReferenceLogin = () => {};
 
     const logoutBtn = document.getElementById('logoutBtn');
     const storageKey = 'edumasterAdminSession';
-    const usersKey = 'edumasterUsers';
 
     const normalizeSchoolId = (value) => {
         return value
@@ -45,10 +40,6 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/\s+/g, '')
             .toUpperCase();
     };
-
-    const sampleUsersContainer = document.getElementById('sampleUsers');
-    const sampleUserValue = document.getElementById('sampleUserValue');
-    const samplePasswordValue = document.getElementById('samplePasswordValue');
 
     const loginCard = document.querySelector('.login-card');
 
@@ -96,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     document.querySelectorAll('[data-stat-count]').forEach((element) => {
         const stat = element.dataset.statCount;
-        let count = Object.keys(schoolAccounts).length;
+        let count = 0;
         const storageKeyByStat = {
             parents: 'schoolParentContacts',
             students: 'school_students',
@@ -144,33 +135,34 @@ document.addEventListener('DOMContentLoaded', () => {
         schoolIdInput.value = '';
         adminUserInput.value = '';
         adminPassInput.value = '';
-        sampleUsersContainer?.classList.add('hidden');
         showError(schoolError, '');
         showError(adminError, '');
     };
 
-    const showSampleUser = () => {
-        const users = loadUsers();
-        if (!sampleUsersContainer || users.length === 0) return;
-        // Show the first available active user as a sample
-        const sample = users.find(u => u.status !== false) || users[0];
-        sampleUserValue.textContent = sample.userId;
-        samplePasswordValue.textContent = sample.password;
-        sampleUsersContainer.classList.remove('hidden');
+    const getFirebase = () => {
+        if (!window.schoolPortalFirebase) throw new Error('Firebase is not ready yet. Check your connection and try again.');
+        return window.schoolPortalFirebase;
     };
-
-    const hideSampleUser = () => {
-        sampleUsersContainer?.classList.add('hidden');
-    };
+    const normalizeMember = (membership, authUser) => ({
+        ...membership,
+        fullName: membership.fullName || membership.profile?.name || authUser.displayName || authUser.email || 'User',
+        userId: membership.userId || authUser.email,
+        email: membership.email || authUser.email,
+        role: membership.role || 'student',
+        sections: Array.isArray(membership.sections) ? membership.sections : [],
+        perms: membership.perms || { view: true },
+        photo: membership.photoURL || membership.photo || membership.profile?.photoURL || authUser.photoURL || ''
+    });
 
     function applyAccountSectionAccess(userData) {
         const allowedSections = new Set(Array.isArray(userData.sections) ? userData.sections : []);
         const canView = userData.perms?.view !== false;
+        const unrestrictedRole = ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(userData.role);
         document.querySelectorAll('.sidebar > .menu-title').forEach(title => {
             const group = title.nextElementSibling;
             if (!group?.classList.contains('nav-links')) return;
             const sectionName = title.innerText.trim();
-            const canShow = canView && (sectionName === 'Main' || allowedSections.has(sectionName));
+            const canShow = canView && (unrestrictedRole || sectionName === 'Main' || allowedSections.has(sectionName));
             title.classList.toggle('account-access-hidden', !canShow);
             group.classList.toggle('account-access-hidden', !canShow);
         });
@@ -184,8 +176,8 @@ document.addEventListener('DOMContentLoaded', () => {
             loginScreen.classList.add('hidden');
         }
         container.classList.remove('hidden');
-        const schoolName = currentSchool?.schoolName || 'EduMaster Uganda';
-        document.querySelector('.welcome h1').textContent = `${schoolName} Admin Dashboard`;
+        const schoolName = currentSchool?.schoolName || 'School';
+        document.querySelector('.welcome h1').textContent = `${schoolName} Dashboard`;
         document.querySelector('.welcome p').textContent = 'Welcome back, School Admin. Your dashboard is ready.';
         
         document.querySelector('.profile h4').textContent = userData.fullName || userData.adminUser || 'Administrator';
@@ -195,42 +187,38 @@ document.addEventListener('DOMContentLoaded', () => {
         restoreSavedSection();
     };
 
-    const restoreSession = () => {
+    const restoreSession = async () => {
         const session = loadSession();
-        if (!session || !session.schoolId) return;
-
-        const schoolId = normalizeSchoolId(session.schoolId);
-        const schoolData = schoolAccounts[schoolId];
-        if (!schoolData) {
-            clearSession();
-            return;
-        }
-
-        if (session.authenticated) {
-            const users = loadUsers();
-            const userObj = users.find(u => u.userId === session.userId);
-            if (!userObj || userObj.status === false || userObj.perms?.view === false) {
+        if (!session?.schoolId || !session.authenticated) return;
+        try {
+            const firebase = getFirebase();
+            const authUser = await firebase.authReady;
+            if (!authUser) {
                 clearSession();
-                resetLoginScreen();
                 return;
             }
-            currentSchool = schoolData;
-            unlockDashboard(userObj);
-            return;
-        }
-
-        schoolIdInput.value = session.schoolId;
-        if (session.step === 1) {
-            currentSchool = schoolData;
-            updateStep(1);
-            showSampleUser(currentSchool);
-            adminUserInput.focus();
-        } else {
-            updateStep(0);
+            currentSchool = await firebase.getSchool(session.schoolId);
+            const membership = await firebase.getMembership(currentSchool.id, authUser.uid);
+            if (!membership || membership.perms?.view === false) {
+                clearSession();
+                await firebase.signOut();
+                resetLoginScreen();
+                window.location.reload();
+                return;
+            }
+            const user = normalizeMember(membership, authUser);
+            schoolIdInput.value = currentSchool.id;
+            saveSession({ schoolId: currentSchool.id, userId: authUser.uid, authenticated: true, user });
+            window.schoolPortalData?.setIdentity(currentSchool.id, authUser.uid);
+            unlockDashboard(user);
+        } catch (error) {
+            console.error('Unable to restore Firebase session.', error);
+            const message = document.getElementById('firebaseSetupMessage');
+            if (message) message.textContent = 'Could not verify your saved school access. Check your connection and sign in again.';
         }
     };
 
-    schoolNextBtn.addEventListener('click', () => {
+    schoolNextBtn.addEventListener('click', async () => {
         const schoolId = normalizeSchoolId(schoolIdInput.value);
         if (!schoolId) {
             showError(schoolError, 'Please enter your school ID.');
@@ -240,51 +228,50 @@ document.addEventListener('DOMContentLoaded', () => {
             showError(schoolError, 'Enter only one school ID at a time. Examples: SCH-UG-2026 or SCH-001.');
             return;
         }
-        const schoolData = schoolAccounts[schoolId];
-        if (!schoolData) {
-            showError(schoolError, 'School ID not recognized. Please enter a valid registered School ID.');
-            return;
+        schoolNextBtn.disabled = true;
+        try {
+            currentSchool = await getFirebase().getSchool(schoolId);
+            schoolIdInput.value = currentSchool.id;
+            showError(schoolError, '');
+            showError(adminError, '');
+            saveSession({ schoolId: currentSchool.id, step: 1, authenticated: false });
+            updateStep(1);
+            setTimeout(() => adminUserInput.focus(), 100);
+        } catch (error) {
+            showError(schoolError, error.message || 'Unable to verify this School ID.');
+        } finally {
+            schoolNextBtn.disabled = false;
         }
-        currentSchool = schoolData;
-        showError(schoolError, '');
-        showError(adminError, '');
-        saveSession({ schoolId, step: 1, authenticated: false });
-        updateStep(1);
-        showSampleUser();
-        setTimeout(() => adminUserInput.focus(), 100);
     });
 
-    const normalizeUserId = (value) => value.trim().toLowerCase();
-
-    const authenticateAdmin = (rawUserId, rawPassword) => {
-        const userId = normalizeUserId(rawUserId);
-        const password = rawPassword.trim();
-        if (!userId || !password) {
-            showError(adminError, 'Please enter both user ID and password.');
+    const authenticateAdmin = async (rawEmail, rawPassword, schoolId = schoolIdInput.value) => {
+        const email = String(rawEmail || '').trim();
+        const password = String(rawPassword || '');
+        if (!email || !password) {
+            showError(adminError, 'Please enter your email and password.');
             return false;
         }
-        if (!currentSchool) {
-            showError(adminError, 'Start with a valid school ID first.');
+        if (!schoolId) {
+            showError(adminError, 'Enter and verify your School ID first.');
             return false;
         }
-        const users = loadUsers();
-        const userObj = users.find(u => u.userId === userId && u.password === password);
-        if (!userObj) {
-            showError(adminError, 'Incorrect user ID or password.');
+        try {
+            const { school, user: authUser, membership } = await getFirebase().signIn(schoolId, email, password);
+            if (membership.perms?.view === false) throw new Error('This account does not have dashboard access. Contact your school administrator.');
+            currentSchool = school;
+            const user = normalizeMember(membership, authUser);
+            saveSession({ schoolId: school.id, userId: authUser.uid, step: 2, authenticated: true, user });
+            window.schoolPortalData?.setIdentity(school.id, authUser.uid);
+            showError(adminError, '');
+            unlockDashboard(user);
+            return true;
+        } catch (error) {
+            console.error('Firebase sign-in failed.', error);
+            showError(adminError, error.code === 'auth/invalid-credential'
+                ? 'Email or password is incorrect.'
+                : error.message || 'Unable to sign in. Check your connection and try again.');
             return false;
         }
-        if (userObj.status === false) {
-            showError(adminError, 'This account is deactivated. Please contact support.');
-            return false;
-        }
-        if (userObj.perms?.view === false) {
-            showError(adminError, 'This account does not have dashboard viewing access. Contact an administrator.');
-            return false;
-        }
-        showError(adminError, '');
-        saveSession({ schoolId: normalizeSchoolId(schoolIdInput.value), userId: userId, step: 2, authenticated: true });
-        unlockDashboard(userObj);
-        return true;
     };
 
     adminLoginBtn.addEventListener('click', () => {
@@ -294,12 +281,19 @@ document.addEventListener('DOMContentLoaded', () => {
     backToSchoolBtn.addEventListener('click', () => {
         showError(adminError, '');
         saveSession({ schoolId: schoolIdInput.value.trim().toUpperCase(), step: 0, authenticated: false });
-        hideSampleUser();
         updateStep(0);
     });
 
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                if (window.schoolPortalFirebase) await window.schoolPortalFirebase.signOut();
+            } catch (error) {
+                console.error('Firebase sign-out failed.', error);
+                showError(adminError, 'Could not sign out. Please try again.');
+                return;
+            }
+            window.schoolPortalData?.clearIdentity();
             clearSession();
             resetLoginScreen();
             container.classList.add('hidden');
@@ -307,6 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loginScreen?.classList.remove('active');
             loginScreen?.classList.add('hidden');
             resetReferenceLogin();
+            window.location.reload();
         });
     }
 
@@ -423,30 +418,32 @@ document.addEventListener('DOMContentLoaded', () => {
             referenceSchoolMessage.textContent = 'School information confirmed. Enter your user details.';
             referenceUsername.focus();
         };
-        const verifyReferenceSchool = () => {
+        const verifyReferenceSchool = async () => {
             const schoolId = normalizeSchoolId(referenceSchoolId.value);
-            const school = schoolAccounts[schoolId];
             if (!schoolId) {
                 referenceSchoolMessage.textContent = 'Enter your School ID.';
                 return;
             }
-            if (!school) {
-                referenceSchoolMessage.textContent = 'School ID not recognized. Enter a registered School ID.';
+            const continueButton = document.getElementById('referenceSchoolContinue');
+            continueButton.disabled = true;
+            try {
+                const school = await getFirebase().getSchool(schoolId);
+                if (referenceSchoolName.value.trim() && school.schoolName.trim().toLowerCase() !== referenceSchoolName.value.trim().toLowerCase()) {
+                    referenceSchoolMessage.textContent = 'School Name does not match the School ID.';
+                    return false;
+                }
+                currentSchool = school;
+                schoolIdInput.value = school.id;
+                saveSession({ schoolId: school.id, step: 1, authenticated: false });
+                referenceSchoolMessage.textContent = '';
+                revealReferenceUserLogin();
+                return true;
+            } catch (error) {
+                referenceSchoolMessage.textContent = error.message || 'Unable to verify school information.';
                 return;
+            } finally {
+                continueButton.disabled = false;
             }
-            if (referenceSchoolName.value.trim() && school.schoolName.trim().toLowerCase() !== referenceSchoolName.value.trim().toLowerCase()) {
-                referenceSchoolMessage.textContent = 'School Name does not match the School ID.';
-                return;
-            }
-            schoolIdInput.value = schoolId;
-            schoolNextBtn.click();
-            if (!currentSchool) {
-                referenceSchoolMessage.textContent = schoolError.textContent || 'Unable to verify school information.';
-                return;
-            }
-            referenceSchoolMessage.textContent = '';
-            revealReferenceUserLogin();
-            return true;
         };
         hideReferenceUserLogin();
         document.getElementById('referenceSchoolContinue')?.addEventListener('click', verifyReferenceSchool);
@@ -487,18 +484,16 @@ document.addEventListener('DOMContentLoaded', () => {
             button.innerHTML = `<i class="fa-regular ${isVisible ? 'fa-eye' : 'fa-eye-slash'}" aria-hidden="true"></i>`;
         });
 
-        document.getElementById('referenceGoogleSignIn')?.addEventListener('click', () => {
-            showReferenceMessage('Google sign-in is not configured. Sign in with your school username and password instead.');
-        });
-
         document.getElementById('referenceContactAdmin')?.addEventListener('click', () => {
             showReferenceMessage('Please contact your school administrator to request or recover your account.');
         });
 
-        referenceLoginForm.addEventListener('submit', (event) => {
+        referenceLoginForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-            if (!verifyReferenceSchool()) return;
-            if (!authenticateAdmin(referenceUsername.value, referencePassword.value)) {
+            const verified = currentSchool?.id === normalizeSchoolId(referenceSchoolId.value) || await verifyReferenceSchool();
+            if (!verified) return;
+            const signedIn = await authenticateAdmin(referenceUsername.value, referencePassword.value, currentSchool.id);
+            if (!signedIn) {
                 showReferenceMessage(adminError.textContent);
                 return;
             }
@@ -509,9 +504,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.removeItem(rememberedUsernameKey);
                 }
             } catch (error) {
-                console.warn('Unable to save the remembered login name.', error);
+                console.warn('Unable to save the remembered email address.', error);
             }
         });
+    }
+
+    const firebaseSetupMessage = document.getElementById('firebaseSetupMessage');
+    if (firebaseSetupMessage) {
+        firebaseSetupMessage.textContent = window.schoolPortalFirebase
+            ? 'Connected to Firebase. Your school and account must be provisioned before sign-in.'
+            : 'Loading Firebase services…';
+        window.addEventListener('school-portal-firebase-ready', () => {
+            firebaseSetupMessage.textContent = 'Connected to Firebase. Your school and account must be provisioned before sign-in.';
+        }, { once: true });
+        window.addEventListener('school-portal-firebase-error', event => {
+            console.error('Firebase client initialization failed.', event.detail);
+            firebaseSetupMessage.textContent = 'Firebase could not initialize. Check your network and Firebase project settings.';
+        }, { once: true });
     }
 
     document.querySelectorAll('.count-value').forEach((countEl) => {
@@ -635,27 +644,25 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
     });
     const updateProfileSummary = user => {
-        document.getElementById('modalProfilePhoto').src = user.photo || 'https://i.pravatar.cc/100?img=12';
+        document.getElementById('modalProfilePhoto').src = user.photoURL || user.photo || 'https://i.pravatar.cc/100?img=12';
         document.getElementById('modalProfileName').textContent = user.fullName || '';
         document.getElementById('modalProfileRole').textContent = user.role || '';
         document.getElementById('modalProfileId').textContent = user.userId || '';
         const headerName = document.querySelector('.profile h4');
         const headerPhoto = document.querySelector('.profile img');
         if (headerName) headerName.textContent = user.fullName || '';
-        if (headerPhoto) headerPhoto.src = user.photo || 'https://i.pravatar.cc/100?img=12';
+        if (headerPhoto) headerPhoto.src = user.photoURL || user.photo || 'https://i.pravatar.cc/100?img=12';
     };
 
     headerProfile?.addEventListener('click', (e) => {
         if (e.target.closest('#logoutBtn')) return;
         
         const session = loadSession();
-        const users = loadUsers();
-        const currentUser = users.find(u => u.userId === session?.userId);
-        
+        const currentUser = session?.user;
         if (currentUser) {
             updateProfileSummary(currentUser);
             profileForm.elements.fullName.value = currentUser.fullName || '';
-            profileForm.elements.email.value = currentUser.email || '';
+            profileForm.elements.contactEmail.value = currentUser.contactEmail || '';
             profileForm.elements.phone.value = currentUser.phone || '';
             profileForm.elements.linkedRecordId.value = currentUser.linkedRecordId || '';
             fillNotificationPreferences(profileForm, currentUser.notificationPreferences);
@@ -672,29 +679,32 @@ document.addEventListener('DOMContentLoaded', () => {
     profileForm?.addEventListener('submit', async event => {
         event.preventDefault();
         const session = loadSession();
-        const users = loadUsers();
-        const userIndex = users.findIndex(user => user.userId === session?.userId);
-        if (userIndex < 0) {
-            profileSaveMessage.textContent = 'Unable to find your account in this browser preview.';
+        const currentUser = session?.user;
+        if (!session?.schoolId || !session?.userId || !currentUser) {
+            profileSaveMessage.textContent = 'Your school account could not be verified. Sign in again.';
             return;
         }
-        const currentUser = users[userIndex];
         const updatedUser = {
             ...currentUser,
             fullName: profileForm.elements.fullName.value.trim(),
-            email: profileForm.elements.email.value.trim(),
+            contactEmail: profileForm.elements.contactEmail.value.trim(),
             phone: profileForm.elements.phone.value.trim(),
             notificationPreferences: readNotificationPreferences(profileForm)
         };
         try {
-            if (profilePhotoEdit.files?.[0]) updatedUser.photo = await readImageFile(profilePhotoEdit.files[0]);
-            users[userIndex] = updatedUser;
-            saveUsers(users);
+            const firebase = getFirebase();
+            if (profilePhotoEdit.files?.[0]) {
+                await readImageFile(profilePhotoEdit.files[0]);
+                updatedUser.photoURL = await firebase.uploadProfilePhoto(session.schoolId, session.userId, profilePhotoEdit.files[0]);
+            }
+            await firebase.updateProfile(session.schoolId, session.userId, updatedUser);
+            session.user = updatedUser;
+            saveSession(session);
             updateProfileSummary(updatedUser);
-            renderUsersTable();
-            profileSaveMessage.textContent = 'Profile saved in this browser preview.';
+            profileSaveMessage.textContent = 'Profile saved to your school account.';
         } catch (error) {
-            profileSaveMessage.textContent = error.message || 'Unable to save the selected profile image.';
+            console.error('Unable to update Firebase profile.', error);
+            profileSaveMessage.textContent = error.message || 'Unable to save profile changes.';
         }
     });
 
@@ -755,41 +765,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let editingUserId = null;
 
-    const adminData = schoolAccounts['SCH-UG-2026'];
-    const initialUser = {
-        id: 'u_admin_default',
-        fullName: adminData.adminUser,
-        userId: adminData.adminUser.toLowerCase(),
-        password: adminData.password,
-        role: adminData.role,
-        sections: [
-            'Main', 'Front Office Department', 'Academic Department', 'E-Learning Department',
-            'Operations Department', 'Student Life Department', "Principal's Office Department",
-            'Human Resources Department', 'Payroll Department', 'Finance Department',
-            'Procurement Department', 'Assets & Security Department', 'Communication Department', 'System'
-        ],
-        perms: { view: true, edit: true, delete: true },
-        status: true,
-        photo: 'https://i.pravatar.cc/100?img=12'
-    };
-    let storedUsers = loadUsers();
-    if (!Array.isArray(storedUsers)) {
-        console.warn('Saved users were not a list; initializing the default administrator account.');
-        storedUsers = [];
-    }
-    if (!storedUsers.some(user => user.userId === initialUser.userId)) {
-        storedUsers.push(initialUser);
-        saveUsers(storedUsers);
-    } else {
-        const savedDefaultAdmin = storedUsers.find(user => user.id === initialUser.id);
-        if (savedDefaultAdmin?.sections?.length === 2 && savedDefaultAdmin.sections.includes('Main') && savedDefaultAdmin.sections.includes('System')) {
-            savedDefaultAdmin.sections = initialUser.sections;
-            saveUsers(storedUsers);
-        }
-    }
     const activeSession = loadSession();
-    const activeUser = storedUsers.find(user => user.userId === activeSession?.userId);
-    if (activeSession?.authenticated && activeUser) applyAccountSectionAccess(activeUser);
+    if (activeSession?.authenticated && activeSession.user) applyAccountSectionAccess(activeSession.user);
 
     function updateBreadcrumb(items) {
         const breadcrumb = document.getElementById('breadcrumb');
@@ -1777,11 +1754,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return sec;
     }
 
-    function loadUsers(){
-        try{ return JSON.parse(localStorage.getItem(usersKey)) || []; }catch(e){return []}
-    }
-    function saveUsers(users){ localStorage.setItem(usersKey, JSON.stringify(users)); }
-
     const rolePresets = {
         'Super Admin': { sections: null, perms: { view: true, edit: true, delete: true } },
         Administrator: { sections: null, perms: { view: true, edit: true, delete: true } },
@@ -1798,7 +1770,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function populateRoleOptions(){
-        const roles = Array.from(new Set([...Object.keys(rolePresets), ...loadUsers().map(user => user.role).filter(Boolean)]));
+        const roles = ['Deputy Head Teacher', 'Bursar', 'Teacher', 'Librarian', 'HR Officer', 'Store Manager', 'Parent', 'Student'];
         roleSelectEl.innerHTML = '';
         roles.forEach(r => {
             const opt = document.createElement('option'); opt.value = r; opt.textContent = r; roleSelectEl.appendChild(opt);
@@ -1918,78 +1890,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const parentRow = sectionsContainerEl.closest('.form-row');
         if (parentRow) parentRow.style.display = 'block';
 
-        // Arrange Permissions (View, Edit, Delete) on one row line inline as a 1-row grid
         const permsGroup = document.querySelector('.perms-group');
-        if (permsGroup) {
-            // Add "Select All" for permissions
-            const existingSelectAll = permsGroup.querySelector('.select-all-perms-wrapper');
-            if (existingSelectAll) existingSelectAll.remove();
-
-            const selectAllPermsDiv = document.createElement('div');
-            selectAllPermsDiv.className = 'select-all-perms-wrapper';
-            Object.assign(selectAllPermsDiv.style, {
-                gridColumn: '1 / -1',
-                marginBottom: '10px',
-                padding: '6px 12px',
-                background: 'var(--pill-bg)',
-                borderRadius: '8px',
-                width: 'fit-content'
-            });
-            selectAllPermsDiv.innerHTML = `
-                <label style="display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
-                    <span class="switch">
-                        <input type="checkbox" id="selectAllPermissions">
-                        <span class="slider"></span>
-                    </span>
-                    <span>Select All Permissions</span>
-                </label>`;
-
-            const groupLabel = permsGroup.querySelector('label');
-            if (groupLabel) {
-                groupLabel.style.gridColumn = '1 / -1';
-                groupLabel.after(selectAllPermsDiv);
-            }
-
-            Object.assign(permsGroup.style, {
-                marginTop: '15px',
-                paddingTop: '15px',
-                borderTop: '1px solid #e2e8f0',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '10px',
-                alignItems: 'center',
-                width: '100%'
-            });
-            permsGroup.querySelectorAll('.perm-row').forEach(row => {
-                const cb = row.querySelector('input');
-                const text = row.innerText.trim();
-                const id = cb.id;
-                row.innerHTML = `
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 12px; background: #fff; padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; transition: all 0.25s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.05); width: 100%;">
-                        <span class="switch" style="transform: scale(0.85); transform-origin: left center;">
-                            <input type="checkbox" id="${id}" ${cb.checked ? 'checked' : ''}>
-                            <span class="slider"></span>
-                        </span>
-                        <span style="font-weight: 500;">${text}</span>
-                    </label>`;
-                row.style.margin = '0';
-                const newLabel = row.querySelector('label');
-                const newCb = newLabel.querySelector('input');
-                newCb.addEventListener('change', () => syncCard(newCb, newLabel));
-                syncCard(newCb, newLabel);
-            });
-
-            const selectAllCB = selectAllPermsDiv.querySelector('#selectAllPermissions');
-            selectAllCB.addEventListener('change', (e) => {
-                permsGroup.querySelectorAll('.perm-row input[type="checkbox"]').forEach(cb => {
-                    cb.checked = e.target.checked;
-                    syncCard(cb, cb.closest('label'));
-                });
-            });
-
-            const mainLabel = permsGroup.querySelector('label');
-            if (mainLabel) mainLabel.style.marginBottom = '0';
-        }
+        if (permsGroup) permsGroup.style.marginTop = '15px';
     }
 
     const escapeUserHTML = value => String(value ?? '')
@@ -1999,17 +1901,26 @@ document.addEventListener('DOMContentLoaded', () => {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 
-    function renderUsersTable(){
-        const users = loadUsers();
+    async function renderUsersTable(){
         const session = loadSession();
-        const currentUserId = session?.userId;
-
         usersTableBody.innerHTML = '';
+        if (!session?.schoolId || !session.userId) {
+            usersTableBody.innerHTML = '<tr><td colspan="9">Sign in to view accounts for this school.</td></tr>';
+            return;
+        }
+        let users;
+        try {
+            users = await getFirebase().listMembers(session.schoolId);
+        } catch (error) {
+            console.error('Unable to load school accounts from Firestore.', error);
+            usersTableBody.innerHTML = '<tr><td colspan="9">Unable to load accounts. Check your administrator access and connection.</td></tr>';
+            return;
+        }
         users.forEach(u => {
             const tr = document.createElement('tr');
-            const isActive = u.status !== false;
+            const isActive = u.status === 'active';
 
-            if (u.userId === currentUserId) {
+            if (u.uid === session.userId) {
                 tr.classList.add('current-user-row');
             }
             if (!isActive) {
@@ -2017,30 +1928,27 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const perms = [];
-            if (u.perms?.view) perms.push('V');
-            if (u.perms?.edit) perms.push('E');
-            if (u.perms?.delete) perms.push('D');
             const channels = notificationChannels
                 .filter(channel => u.notificationPreferences?.[channel])
                 .join(', ') || 'None selected';
 
             tr.innerHTML = `
                 <td style="text-align: center; width: 50px;">
-                    <img src="${escapeUserHTML(u.photo || 'https://i.pravatar.cc/100?img=0')}" class="user-table-photo" alt="">
+                    <img src="${escapeUserHTML(u.photoURL || 'https://i.pravatar.cc/100?img=0')}" class="user-table-photo" alt="">
                 </td>
-                <td>${escapeUserHTML(u.fullName)} ${u.userId === currentUserId ? '<span class="badge" style="margin-left:8px; font-size:9px; padding:2px 6px; background:var(--primary); vertical-align: middle;">You</span>' : ''}</td>
+                <td>${escapeUserHTML(u.fullName)} ${u.uid === session.userId ? '<span class="badge" style="margin-left:8px; font-size:9px; padding:2px 6px; background:var(--primary); vertical-align: middle;">You</span>' : ''}</td>
                 <td>${escapeUserHTML(u.userId)}</td>
                 <td>${escapeUserHTML(u.role)}</td>
                 <td>${escapeUserHTML(u.linkedRecordId || '—')}</td>
                 <td>${escapeUserHTML([u.email, u.phone].filter(Boolean).join(' · ') || '—')}<small class="user-notification-summary">Notices: ${escapeUserHTML(channels)}</small></td>
                 <td>${escapeUserHTML((u.sections || []).join(', '))}</td>
-                <td class="small">${escapeUserHTML(perms.join(', ') || '—')}</td>
+                <td class="small">${u.uid === session.userId || ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'Protected' : 'Role-based'}</td>
                 <td>
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <button class="action-btn" data-action="edit" data-id="${escapeUserHTML(u.id)}" title="Edit User"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn" data-action="delete" data-id="${escapeUserHTML(u.id)}" title="Delete User"><i class="fas fa-trash"></i></button>
+                        <button class="action-btn" data-action="edit" data-id="${escapeUserHTML(u.uid)}" title="Edit User" ${['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'disabled' : ''}><i class="fas fa-edit"></i></button>
+                        <button class="action-btn" data-action="delete" data-id="${escapeUserHTML(u.uid)}" title="Delete User" ${u.uid === session.userId || ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'disabled' : ''}><i class="fas fa-trash"></i></button>
                         <label class="switch" style="transform: scale(0.75); transform-origin: left;" title="${isActive ? 'Deactivate' : 'Activate'}">
-                            <input type="checkbox" class="status-toggle" data-id="${escapeUserHTML(u.id)}" ${isActive ? 'checked' : ''}>
+                            <input type="checkbox" class="status-toggle" data-id="${escapeUserHTML(u.uid)}" ${isActive ? 'checked' : ''} ${u.uid === session.userId || ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'disabled' : ''}>
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -2057,6 +1965,7 @@ document.addEventListener('DOMContentLoaded', () => {
             passInput.required = true;
             passInput.placeholder = 'Set a password';
         }
+        if (roleSelectEl) roleSelectEl.disabled = false;
         const submitBtn = document.getElementById('addUserBtn');
         if (submitBtn) submitBtn.textContent = 'Add User';
         if (photoPreview) {
@@ -2071,104 +1980,122 @@ document.addEventListener('DOMContentLoaded', () => {
 
     addUserForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const session = loadSession();
+        if (!session?.schoolId || !session.userId) return alert('Sign in to a school before creating accounts.');
         const fullName = document.getElementById('fullNameInput').value.trim();
         const userId = document.getElementById('userIdInputNew').value.trim().toLowerCase();
         const passwordInput = document.getElementById('passwordInputNew');
         const password = passwordInput.value;
         const role = document.getElementById('roleSelect').value;
         const sections = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]:checked')).map(i => i.value);
-        const perms = { view: !!document.getElementById('canView').checked, edit: !!document.getElementById('canEdit').checked, delete: !!document.getElementById('canDelete').checked };
-        if (!fullName || !userId) return alert('Please provide name and user ID.');
-
-        const users = loadUsers();
-        if (editingUserId && !users.some(user => user.id === editingUserId)) {
-            return alert('This account could not be found. Close the form and try again.');
-        }
-        if (users.some(user => user.userId?.toLowerCase() === userId.toLowerCase() && user.id !== editingUserId)) {
-            return alert('That User ID is already assigned. Choose a unique User ID.');
-        }
-        const oldUser = editingUserId ? users.find(user => user.id === editingUserId) : null;
-        if (!oldUser && !password) return alert('Set a password for the new account.');
-
+        const email = document.getElementById('accountEmail').value.trim().toLowerCase();
+        if (!fullName || !userId || !email) return alert('Provide the full name, User ID, and email address.');
+        if (!editingUserId && password.length < 8) return alert('Set a password with at least 8 characters.');
         const photoInput = document.getElementById('profilePhotoInput');
-        let photoData = null;
         try {
-            if (photoInput.files?.[0]) photoData = await readImageFile(photoInput.files[0]);
+            if (photoInput.files?.[0]) await readImageFile(photoInput.files[0]);
         } catch (error) {
             return alert(error.message || 'Unable to read the selected profile image.');
         }
 
         const accountFields = {
+            schoolId: session.schoolId,
             fullName,
             userId,
-            password: password || oldUser?.password || '',
+            email,
+            password,
             role,
             sections,
-            perms,
             linkedRecordId: document.getElementById('accountRecordId').value.trim(),
-            email: document.getElementById('accountEmail').value.trim(),
             phone: document.getElementById('accountPhone').value.trim(),
-            notificationPreferences: readNotificationPreferences(addUserForm),
-            photo: photoData || oldUser?.photo || null
+            notificationPreferences: readNotificationPreferences(addUserForm)
         };
-        if (oldUser) {
-            const index = users.findIndex(user => user.id === editingUserId);
-            users[index] = { ...oldUser, ...accountFields, status: oldUser.status !== false };
-        } else {
-            users.push({ id: 'u_' + Date.now(), ...accountFields, status: true });
-        }
         try {
-            saveUsers(users);
-            const session = loadSession();
-            const savedUser = users.find(user => user.userId === session?.userId);
-            if (savedUser?.perms?.view === false && savedUser.userId === oldUser.userId) {
-                document.getElementById('logoutBtn')?.click();
-            } else if (savedUser) {
-                applyAccountSectionAccess(savedUser);
-                document.querySelector('.profile h4').textContent = savedUser.fullName || '';
-                document.querySelector('.profile-role').textContent = savedUser.role || '';
-                document.querySelector('.profile img').src = savedUser.photo || 'https://i.pravatar.cc/100?img=12';
+            const firebase = getFirebase();
+            let uid = editingUserId;
+            if (editingUserId) {
+                const result = await firebase.updateSchoolUser({ ...accountFields, uid: editingUserId });
+                uid = result.data.uid;
+            } else {
+                const result = await firebase.createSchoolUser(accountFields);
+                uid = result.data.uid;
             }
-            renderUsersTable();
+            if (photoInput.files?.[0]) {
+                try {
+                    const photoURL = await firebase.uploadMemberPhoto(session.schoolId, uid, photoInput.files[0]);
+                    await firebase.updateSchoolUser({
+                        schoolId: session.schoolId,
+                        uid,
+                        fullName,
+                        userId,
+                        email,
+                        phone: accountFields.phone,
+                        linkedRecordId: accountFields.linkedRecordId,
+                        sections,
+                        notificationPreferences: accountFields.notificationPreferences,
+                        photoURL
+                    });
+                } catch (photoError) {
+                    console.error('The account was saved, but the profile photo upload failed.', photoError);
+                    alert(`Account saved, but its photo could not be uploaded: ${photoError.message}`);
+                }
+            }
+            await renderUsersTable();
             clearForm();
             addUserForm.classList.add('hidden');
         } catch (error) {
-            alert(`Unable to save this account in browser storage: ${error.message}`);
+            console.error('Unable to save the Firebase school account.', error);
+            alert(error.message || 'Unable to save this school account.');
         }
     });
 
-    usersTableBody.addEventListener('click', (e) => {
+    usersTableBody.addEventListener('click', async (e) => {
         const btn = e.target.closest('button[data-action]');
         if (!btn) return;
         const action = btn.getAttribute('data-action');
         const id = btn.getAttribute('data-id');
-        const users = loadUsers();
         if (action === 'delete'){
-            const u = users.find(x=>x.id===id);
-            if (!u || !confirm(`⚠️ WARNING: Are you sure you want to permanently delete the account for "${u.fullName}"?\n\nThis action cannot be undone.`)) return;
-            const updated = users.filter(u=>u.id!==id); saveUsers(updated); renderUsersTable();
+            if (!confirm('Permanently delete this school account? The account will no longer be able to sign in.')) return;
+            try {
+                await getFirebase().deleteSchoolUser({ schoolId: loadSession().schoolId, uid: id });
+                await renderUsersTable();
+            } catch (error) {
+                console.error('Unable to delete the Firebase school account.', error);
+                alert(error.message || 'Unable to delete this account.');
+            }
             return;
         }
 
         if (action === 'edit'){
-            const u = users.find(x=>x.id===id); if (!u) return;
+            let u;
+            try {
+                const users = await getFirebase().listMembers(loadSession().schoolId);
+                u = users.find(user => user.uid === id);
+            } catch (error) {
+                console.error('Unable to load the Firebase account for editing.', error);
+                alert(error.message || 'Unable to load this account.');
+                return;
+            }
+            if (!u) return alert('This account is no longer available.');
             addUserForm.classList.remove('hidden');
             const submitBtn = document.getElementById('addUserBtn');
             if (submitBtn) submitBtn.textContent = 'Update User';
             document.getElementById('fullNameInput').value = u.fullName;
-            document.getElementById('userIdInputNew').value = u.userId;
+            document.getElementById('userIdInputNew').value = u.userId || '';
             document.getElementById('passwordInputNew').value = '';
             document.getElementById('passwordInputNew').required = false;
             document.getElementById('passwordInputNew').placeholder = 'Leave blank to keep current password';
             document.getElementById('roleSelect').value = u.role;
+            document.getElementById('roleSelect').disabled = true;
             document.getElementById('accountRecordId').value = u.linkedRecordId || '';
             document.getElementById('accountEmail').value = u.email || '';
             document.getElementById('accountPhone').value = u.phone || '';
             fillNotificationPreferences(addUserForm, u.notificationPreferences);
+            const photoInput = document.getElementById('profilePhotoInput');
             if (photoInput) photoInput.value = '';
 
-            if (u.photo && photoPreview) {
-                photoPreview.src = u.photo;
+            if (u.photoURL && photoPreview) {
+                photoPreview.src = u.photoURL;
                 photoPreview.style.display = 'block';
             }
 
@@ -2180,29 +2107,25 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const selectAllSections = sectionsContainerEl.querySelector('#selectAllSections');
             if (selectAllSections) selectAllSections.checked = sectionCheckboxes.length > 0 && sectionCheckboxes.every(section => section.checked);
-            ['canView', 'canEdit', 'canDelete'].forEach(id => {
-                const ch = document.getElementById(id);
-                if (ch) {
-                    ch.checked = !!u.perms?.[id.replace('can', '').toLowerCase()];
-                    ch.dispatchEvent(new Event('change'));
-                }
-            });
-            const selectAllPermissions = document.getElementById('selectAllPermissions');
-            if (selectAllPermissions) selectAllPermissions.checked = ['canView', 'canEdit', 'canDelete'].every(permissionId => document.getElementById(permissionId)?.checked);
-            editingUserId = u.id;
+            editingUserId = u.uid;
             window.scrollTo({ top: addUserForm.offsetTop - 80, behavior: 'smooth' });
         }
     });
 
-    usersTableBody.addEventListener('change', (e) => {
+    usersTableBody.addEventListener('change', async (e) => {
         if (e.target.classList.contains('status-toggle')) {
             const id = e.target.getAttribute('data-id');
-            const users = loadUsers();
-            const idx = users.findIndex(u => u.id === id);
-            if (idx >= 0) {
-                users[idx].status = e.target.checked;
-                saveUsers(users);
-                renderUsersTable();
+            try {
+                await getFirebase().setSchoolUserStatus({
+                    schoolId: loadSession().schoolId,
+                    uid: id,
+                    status: e.target.checked
+                });
+                await renderUsersTable();
+            } catch (error) {
+                console.error('Unable to change Firebase account status.', error);
+                alert(error.message || 'Unable to change this account status.');
+                await renderUsersTable();
             }
         }
     });
@@ -3063,13 +2986,8 @@ Total Amount: $4,820.00
             }
 
             if (link.id === 'userRolesBtn') {
-                let roleManagementModule = document.getElementById('roleManagementModule');
-                if (!roleManagementModule) {
-                    roleManagementModule = createRoleManagementModule();
-                    const dashboardEl = document.querySelector('.dashboard');
-                    if (dashboardEl) dashboardEl.parentNode.insertBefore(roleManagementModule, dashboardEl);
-                }
-                showSection('roleManagementModule');
+                showSection('userRolesSection');
+                renderUsersTable();
                 updateBreadcrumb(['System', 'User Roles']);
                 return;
             }
