@@ -406,14 +406,10 @@ margin:0;
 .login-usage-stats {
     position: absolute;
     z-index: 1;
-    right: 18px;
-    bottom: 16px;
-    left: 18px;
     display: grid;
-    width: min(760px, calc(100% - 36px));
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-    margin: 0 auto;
+    gap: 3px;
+    margin: 0;
 }
 
 .login-usage-stat {
@@ -424,19 +420,45 @@ margin:0;
     padding: 0;
 }
 
+.login-usage-label {
+    display: inline-flex;
+    min-width: 0;
+    min-height: 25px;
+    align-items: center;
+    gap: 4px;
+    margin-left: -4px;
+    padding: 0 7px 0 8px;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-radius: 0 999px 999px 0;
+    background: rgba(255, 255, 255, 0.88);
+    color: #173e76;
+    font-size: 0.62rem;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(15, 45, 86, 0.18);
+    backdrop-filter: blur(10px);
+}
+
+.login-usage-label i {
+    color: #1262bf;
+    font-size: 0.72rem;
+}
+
 .login-usage-stats .login-usage-number {
     display: grid;
-    width: clamp(32px, 3.5vw, 46px);
-    height: clamp(32px, 3.5vw, 46px);
-    min-width: clamp(32px, 3.5vw, 46px);
+    width: clamp(26px, 2.5vw, 34px);
+    height: clamp(26px, 2.5vw, 34px);
+    min-width: clamp(26px, 2.5vw, 34px);
     aspect-ratio: 1 / 1;
     flex: 0 0 auto;
     place-items: center;
+    position: relative;
+    z-index: 1;
     border-radius: 50% !important;
     border: 2px solid rgba(255, 255, 255, 0.9);
     box-sizing: border-box;
     color: #fff;
-    font-size: clamp(0.72rem, 1.2vw, 0.95rem);
+    font-size: clamp(0.62rem, 1vw, 0.78rem);
     font-variant-numeric: tabular-nums;
     font-weight: 700;
     line-height: 1;
@@ -710,23 +732,29 @@ margin:0;
         background-position: center;
     }
 
-    .login-usage-stats {
-        right: 10px;
-        bottom: 12px;
-        left: 10px;
-        width: calc(100% - 20px);
-        gap: 6px;
-    }
-
     .login-usage-stat {
         padding: 0;
+        justify-content: flex-start;
     }
 
     .login-usage-stats .login-usage-number {
-        width: clamp(28px, 8vw, 36px);
-        height: clamp(28px, 8vw, 36px);
-        min-width: clamp(28px, 8vw, 36px);
-        font-size: clamp(0.65rem, 3vw, 0.78rem);
+        width: clamp(24px, 7vw, 30px);
+        height: clamp(24px, 7vw, 30px);
+        min-width: clamp(24px, 7vw, 30px);
+        font-size: clamp(0.58rem, 2.8vw, 0.7rem);
+    }
+
+    .login-usage-label {
+        min-height: 22px;
+        gap: 3px;
+        margin-left: -3px;
+        padding-right: 4px;
+        padding-left: 5px;
+        font-size: 0.54rem;
+    }
+
+    .login-usage-label i {
+        font-size: 0.58rem;
     }
 }
 

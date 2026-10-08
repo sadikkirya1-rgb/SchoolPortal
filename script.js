@@ -315,6 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (referenceLoginForm && referenceSchoolName && referenceSchoolId && referenceSchoolInformation && referenceUsername && referencePassword && referenceUserLogin && referenceRemember instanceof HTMLInputElement) {
         const referenceLoginStage = document.querySelector('.reference-login-stage');
+        const referenceLoginStats = document.querySelector('.login-usage-stats');
         const updateReferenceCardBounds = () => {
             if (!referenceLoginStage) return;
             const stageRect = referenceLoginStage.getBoundingClientRect();
@@ -322,6 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const imageOffsetX = (stageRect.width - 1672 * imageScale) / 2;
             const imageOffsetY = (stageRect.height - 940 * imageScale) / 2;
             const cardBounds = { left: 540, top: 90, right: 1080, bottom: 832 };
+            const statsBounds = { left: 560, right: 1060, bottom: 822 };
             const card = referenceLoginForm;
 
             card.style.left = `${imageOffsetX + cardBounds.left * imageScale}px`;
@@ -332,6 +334,11 @@ document.addEventListener('DOMContentLoaded', () => {
             card.style.paddingLeft = `${74 * imageScale}px`;
             card.style.fontSize = `${16 * imageScale}px`;
             card.style.borderRadius = `${22 * imageScale}px`;
+            if (referenceLoginStats) {
+                referenceLoginStats.style.left = `${imageOffsetX + statsBounds.left * imageScale}px`;
+                referenceLoginStats.style.width = `${(statsBounds.right - statsBounds.left) * imageScale}px`;
+                referenceLoginStats.style.bottom = `${stageRect.height - imageOffsetY - statsBounds.bottom * imageScale}px`;
+            }
         };
         const revealReferenceLogin = () => {
             updateReferenceCardBounds();
