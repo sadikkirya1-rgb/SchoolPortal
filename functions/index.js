@@ -47,6 +47,83 @@ function validateSchoolId(value) {
     return schoolId;
 }
 
+function requirePlatformAdmin(request) {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to the App Admin panel.');
+    if (request.auth.token.appAdmin !== true) {
+        throw new HttpsError('permission-denied', 'Only an authorized App Admin can create schools.');
+    }
+}
+
+function schoolIdDate(date) {
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const year = String(date.getUTCFullYear());
+    return `${day}${month}${year}`;
+}
+
+exports.createSchool = onCall(async request => {
+    requirePlatformAdmin(request);
+    const name = String(request.data?.name || '').trim();
+    const countryCode = String(request.data?.countryCode || '').trim().toUpperCase();
+    const logoURL = String(request.data?.logoURL || '').trim();
+    if (name.length < 2 || name.length > 120) {
+        throw new HttpsError('invalid-argument', 'Enter a school name between 2 and 120 characters.');
+    }
+    if (!/^[A-Z]{2}$/.test(countryCode)) {
+        throw new HttpsError('invalid-argument', 'Enter a two-letter ISO country code, such as UG.');
+    }
+    if (logoURL) {
+        let parsedLogo;
+        try {
+            parsedLogo = new URL(logoURL);
+        } catch {
+            throw new HttpsError('invalid-argument', 'Enter a valid HTTPS logo URL.');
+        }
+        if (parsedLogo.protocol !== 'https:') {
+            throw new HttpsError('invalid-argument', 'School logo URLs must use HTTPS.');
+        }
+    }
+
+    const dateSuffix = schoolIdDate(new Date());
+    const counterRef = db.doc('platformMetadata/schoolSequence');
+    const schoolId = await db.runTransaction(async transaction => {
+        const counterSnapshot = await transaction.get(counterRef);
+        let nextSequence = (counterSnapshot.data()?.lastSequence || 0) + 1;
+        if (!Number.isSafeInteger(nextSequence) || nextSequence < 1) {
+            throw new HttpsError('resource-exhausted', 'The school ID sequence is unavailable.');
+        }
+        let allocatedId;
+        let schoolRef;
+        let existingSchool;
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+            allocatedId = `SCH-${String(nextSequence).padStart(4, '0')}-${countryCode}-${dateSuffix}`;
+            schoolRef = db.doc(`schools/${allocatedId}`);
+            existingSchool = await transaction.get(schoolRef);
+            if (!existingSchool.exists) break;
+            nextSequence += 1;
+        }
+        if (existingSchool?.exists) {
+            throw new HttpsError('already-exists', 'The generated School ID is already in use. Please retry.');
+        }
+        transaction.set(counterRef, {
+            lastSequence: nextSequence,
+            updatedAt: FieldValue.serverTimestamp()
+        });
+        transaction.create(schoolRef, {
+            schoolId: allocatedId,
+            name,
+            countryCode,
+            logoURL,
+            status: 'active',
+            createdAt: FieldValue.serverTimestamp(),
+            createdBy: request.auth.uid
+        });
+        return allocatedId;
+    });
+
+    return { schoolId, name, countryCode, logoURL };
+});
+
 async function requireSchoolAdmin(request, schoolId) {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to manage school accounts.');
     const callerRef = db.doc(`schools/${schoolId}/members/${request.auth.uid}`);

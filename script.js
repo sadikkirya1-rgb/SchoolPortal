@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (schoolId.includes(',')) {
-            showError(schoolError, 'Enter only one school ID at a time. Examples: SCH-UG-2026 or SCH-001.');
+            showError(schoolError, 'Enter only one School ID at a time. Example: SCH-0001-UG-08102026.');
             return;
         }
         schoolNextBtn.disabled = true;
@@ -320,9 +320,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const referenceLoginForm = document.getElementById('referenceLoginForm');
-    const referenceSchoolName = document.getElementById('referenceSchoolName');
     const referenceSchoolId = document.getElementById('referenceSchoolId');
     const referenceSchoolInformation = document.getElementById('referenceSchoolInformation');
+    const referenceSchoolIdentity = document.getElementById('referenceSchoolIdentity');
+    const referenceVerifiedSchoolName = document.getElementById('referenceVerifiedSchoolName');
+    const referenceVerifiedSchoolId = document.getElementById('referenceVerifiedSchoolId');
+    const referenceSchoolLogo = document.getElementById('referenceSchoolLogo');
+    const referenceSchoolLogoFallback = document.getElementById('referenceSchoolLogoFallback');
     const referenceUsername = document.getElementById('referenceLoginUsername');
     const referencePassword = document.getElementById('referenceLoginPassword');
     const referenceUserLogin = document.getElementById('referenceUserLogin');
@@ -334,7 +338,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const rememberedUsernameKey = 'schoolPortalRememberedUsername';
 
-    if (referenceLoginForm && referenceSchoolName && referenceSchoolId && referenceSchoolInformation && referenceUsername && referencePassword && referenceUserLogin && referenceRemember instanceof HTMLInputElement) {
+    if (referenceLoginForm && referenceSchoolId && referenceSchoolInformation && referenceSchoolIdentity
+        && referenceVerifiedSchoolName && referenceVerifiedSchoolId && referenceSchoolLogo
+        && referenceSchoolLogoFallback && referenceUsername && referencePassword && referenceUserLogin
+        && referenceRemember instanceof HTMLInputElement) {
         const referenceLoginStage = document.querySelector('.reference-login-stage');
         const referenceLoginStats = document.querySelector('.login-usage-stats');
         const updateReferenceCardBounds = () => {
@@ -395,11 +402,17 @@ document.addEventListener('DOMContentLoaded', () => {
         resetReferenceLogin = () => {
             currentSchool = null;
             schoolIdInput.value = '';
-            referenceSchoolName.value = '';
             referenceSchoolId.value = '';
             referenceUsername.value = '';
             referencePassword.value = '';
             referencePassword.type = 'password';
+            referenceSchoolIdentity.classList.add('hidden');
+            referenceVerifiedSchoolName.textContent = '';
+            referenceVerifiedSchoolId.textContent = '';
+            referenceSchoolLogo.removeAttribute('src');
+            referenceSchoolLogo.alt = '';
+            referenceSchoolLogo.classList.add('hidden');
+            referenceSchoolLogoFallback.classList.remove('hidden');
             referenceSchoolInformation.classList.remove('hidden');
             hideReferenceUserLogin();
             referenceSchoolMessage.textContent = '';
@@ -410,6 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const revealReferenceUserLogin = () => {
             referenceSchoolInformation.classList.add('hidden');
+            referenceSchoolIdentity.classList.remove('hidden');
             referenceUserLogin.classList.remove('hidden');
             referenceUserLogin.setAttribute('aria-hidden', 'false');
             referenceUserLogin.querySelectorAll('input, button').forEach(control => {
@@ -428,12 +442,25 @@ document.addEventListener('DOMContentLoaded', () => {
             continueButton.disabled = true;
             try {
                 const school = await getFirebase().getSchool(schoolId);
-                if (referenceSchoolName.value.trim() && school.schoolName.trim().toLowerCase() !== referenceSchoolName.value.trim().toLowerCase()) {
-                    referenceSchoolMessage.textContent = 'School Name does not match the School ID.';
-                    return false;
-                }
                 currentSchool = school;
                 schoolIdInput.value = school.id;
+                referenceSchoolId.value = school.id;
+                referenceVerifiedSchoolName.textContent = school.schoolName;
+                referenceVerifiedSchoolId.textContent = school.id;
+                if (school.logoURL) {
+                    referenceSchoolLogo.src = school.logoURL;
+                    referenceSchoolLogo.alt = `${school.schoolName} logo`;
+                    referenceSchoolLogo.classList.remove('hidden');
+                    referenceSchoolLogoFallback.classList.add('hidden');
+                    referenceSchoolLogo.onerror = () => {
+                        referenceSchoolLogo.classList.add('hidden');
+                        referenceSchoolLogoFallback.classList.remove('hidden');
+                    };
+                } else {
+                    referenceSchoolLogo.removeAttribute('src');
+                    referenceSchoolLogo.classList.add('hidden');
+                    referenceSchoolLogoFallback.classList.remove('hidden');
+                }
                 saveSession({ schoolId: school.id, step: 1, authenticated: false });
                 referenceSchoolMessage.textContent = '';
                 revealReferenceUserLogin();
@@ -453,11 +480,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 verifyReferenceSchool();
             }
         });
-        [referenceSchoolName, referenceSchoolId].forEach(input => {
-            input.addEventListener('input', () => {
-                hideReferenceUserLogin();
-                referenceSchoolMessage.textContent = '';
-            });
+        referenceSchoolId.addEventListener('input', () => {
+            hideReferenceUserLogin();
+            referenceSchoolIdentity.classList.add('hidden');
+            referenceSchoolMessage.textContent = '';
         });
 
         try {

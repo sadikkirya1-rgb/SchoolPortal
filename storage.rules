@@ -5,44 +5,72 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function member(schoolId) {
-      return signedIn()
-        && firestore.exists(/databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid))
-        && firestore.get(/databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid)).data.status == 'active';
+    function memberPath(schoolId) {
+      return /databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid);
     }
 
-    function schoolAdmin(schoolId) {
-      return member(schoolId)
-        && firestore.get(/databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid)).data.role
-          in ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'];
+    function schoolPath(schoolId) {
+      return /databases/(default)/documents/schools/$(schoolId);
+    }
+
+    function member(schoolId) {
+      return firestore.get(memberPath(schoolId)).data;
+    }
+
+    function isMember(schoolId) {
+      return signedIn()
+        && firestore.exists(schoolPath(schoolId))
+        && firestore.get(schoolPath(schoolId)).data.status == 'active'
+        && firestore.exists(memberPath(schoolId))
+        && member(schoolId).status == 'active';
+    }
+
+    function isSchoolAdmin(schoolId) {
+      return isMember(schoolId)
+        && member(schoolId).role in ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'];
+    }
+
+    function isLinkedStudent(schoolId, studentId) {
+      return isMember(schoolId)
+        && member(schoolId).role == 'student'
+        && member(schoolId).get('linkedRecordType', '') == 'student'
+        && member(schoolId).get('linkedRecordId', '') == studentId;
+    }
+
+    function isLinkedParent(schoolId, studentId) {
+      return isMember(schoolId)
+        && member(schoolId).role == 'parent'
+        && firestore.exists(/databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid)/linkedStudents/$(studentId));
+    }
+
+    function validImage(maxBytes) {
+      return request.resource.size <= maxBytes
+        && request.resource.contentType.matches('image/.*');
     }
 
     match /schools/{schoolId}/members/{uid}/profile/{fileName} {
-      allow read: if member(schoolId) && (request.auth.uid == uid || schoolAdmin(schoolId));
-      allow create, update: if member(schoolId)
-        && (request.auth.uid == uid || schoolAdmin(schoolId))
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
-      allow delete: if member(schoolId) && request.auth.uid == uid;
+      allow read: if isMember(schoolId) && (request.auth.uid == uid || isSchoolAdmin(schoolId));
+      allow create, update: if isMember(schoolId)
+        && (request.auth.uid == uid || isSchoolAdmin(schoolId))
+        && validImage(5 * 1024 * 1024);
+      allow delete: if isMember(schoolId) && (request.auth.uid == uid || isSchoolAdmin(schoolId));
     }
 
     match /schools/{schoolId}/students/{studentId}/{fileName=**} {
-      allow read: if schoolAdmin(schoolId)
-        || (member(schoolId)
-          && firestore.get(/databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid)).data.linkedRecordType == 'student'
-          && firestore.get(/databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid)).data.linkedRecordId == studentId)
-        || (member(schoolId)
-          && firestore.exists(/databases/(default)/documents/schools/$(schoolId)/members/$(request.auth.uid)/linkedStudents/$(studentId)));
-      allow create, update: if schoolAdmin(schoolId)
-        && request.resource.size < 20 * 1024 * 1024;
-      allow delete: if schoolAdmin(schoolId);
+      allow read: if isSchoolAdmin(schoolId)
+        || isLinkedStudent(schoolId, studentId)
+        || isLinkedParent(schoolId, studentId);
+      allow create, update: if isSchoolAdmin(schoolId)
+        && validImage(20 * 1024 * 1024);
+      allow delete: if isSchoolAdmin(schoolId);
     }
 
     match /schools/{schoolId}/schoolAssets/{fileName=**} {
-      allow read: if member(schoolId);
-      allow create, update: if schoolAdmin(schoolId)
-        && request.resource.size < 20 * 1024 * 1024;
-      allow delete: if schoolAdmin(schoolId);
+      allow read: if isMember(schoolId);
+      allow create, update: if isSchoolAdmin(schoolId)
+        && request.resource.size <= 20 * 1024 * 1024
+        && request.resource.contentType != null;
+      allow delete: if isSchoolAdmin(schoolId);
     }
 
     match /{allPaths=**} {

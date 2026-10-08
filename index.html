@@ -218,19 +218,22 @@
             <div id="referenceSchoolInformation">
                 <h4 class="reference-login-section-title">School Information</h4>
                 <label class="reference-login-field">
-                    <i class="fa-solid fa-school" aria-hidden="true"></i>
-                    <span class="visually-hidden">School Name</span>
-                    <input id="referenceSchoolName" name="schoolName" type="text" placeholder="School Name (optional)" autocomplete="organization">
-                </label>
-                <label class="reference-login-field">
                     <i class="fa-solid fa-id-card" aria-hidden="true"></i>
                     <span class="visually-hidden">School ID</span>
-                    <input id="referenceSchoolId" name="schoolId" type="text" placeholder="Enter School ID (e.g. SCH-UG-2026)" autocomplete="off" required>
+                    <input id="referenceSchoolId" name="schoolId" type="text" placeholder="Enter your School ID" autocomplete="organization" required>
                 </label>
                 <button class="reference-sign-in" id="referenceSchoolContinue" type="button">Continue <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
                 <p class="reference-login-message" id="referenceSchoolMessage" role="status" aria-live="polite"></p>
             </div>
             <div class="reference-user-login hidden" id="referenceUserLogin" aria-hidden="true">
+                <div class="reference-school-identity" id="referenceSchoolIdentity" aria-live="polite">
+                    <span class="reference-school-logo-fallback" id="referenceSchoolLogoFallback" aria-hidden="true"><i class="fa-solid fa-school"></i></span>
+                    <img class="reference-school-logo hidden" id="referenceSchoolLogo" alt="">
+                    <span class="reference-school-identity-copy">
+                        <strong id="referenceVerifiedSchoolName"></strong>
+                        <small>School ID: <span id="referenceVerifiedSchoolId"></span></small>
+                    </span>
+                </div>
                 <h4 class="reference-login-section-title">User Login</h4>
                 <p class="reference-credential-hint">Sign in with the email and password provided by your school administrator.</p>
                 <label class="reference-login-field">
@@ -311,10 +314,10 @@
                 <p>Start by entering your registered school identifier.</p>
                 <div class="form-group">
                     <label for="schoolIdInput">School ID</label>
-                    <input type="text" id="schoolIdInput" placeholder="e.g. SCH-UG-2026">
+                    <input type="text" id="schoolIdInput" placeholder="e.g. SCH-0001-UG-08102026">
                 </div>
                 <button class="btn-primary" id="schoolNextBtn">Continue</button>
-                <p class="field-note">Format: <strong>SCH-UG-2026</strong> or <strong>SCH-001</strong></p>
+                <p class="field-note">Format: <strong>SCH-0001-UG-08102026</strong> (sequence, country, creation date)</p>
                 <p class="error-message" id="schoolError"></p>
             </div>
 

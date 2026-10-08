@@ -61,7 +61,18 @@ async function getSchool(schoolCode) {
         throw new Error('School ID not recognized or the school is inactive.');
     }
     const school = snapshot.data();
-    return { id: schoolId, schoolName: school.name || school.schoolName || schoolId };
+    const logoURL = [
+        school.logoURL,
+        school.logoUrl,
+        school.logo,
+        school.branding?.logoURL,
+        school.branding?.logoUrl
+    ].find(value => typeof value === 'string' && value.trim()) || '';
+    return {
+        id: schoolId,
+        schoolName: school.name || school.schoolName || schoolId,
+        logoURL
+    };
 }
 
 async function getMembership(schoolId, uid) {

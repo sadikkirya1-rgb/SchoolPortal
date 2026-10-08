@@ -5,13 +5,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function schoolIsActive(schoolId) {
-      return exists(/databases/$(database)/documents/schools/$(schoolId))
-        && get(/databases/$(database)/documents/schools/$(schoolId)).data.status == 'active';
+    function schoolPath(schoolId) {
+      return /databases/$(database)/documents/schools/$(schoolId);
     }
 
     function memberPath(schoolId) {
       return /databases/$(database)/documents/schools/$(schoolId)/members/$(request.auth.uid);
+    }
+
+    function schoolIsActive(schoolId) {
+      return exists(schoolPath(schoolId))
+        && get(schoolPath(schoolId)).data.status == 'active';
     }
 
     function isMember(schoolId) {
@@ -21,73 +25,94 @@ service cloud.firestore {
         && get(memberPath(schoolId)).data.status == 'active';
     }
 
-    function role(schoolId) {
-      return get(memberPath(schoolId)).data.role;
+    function member(schoolId) {
+      return get(memberPath(schoolId)).data;
     }
 
     function isSchoolAdmin(schoolId) {
       return isMember(schoolId)
-        && role(schoolId) in ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'];
+        && member(schoolId).role in ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'];
+    }
+
+    function hasPermission(schoolId, collectionName, permission) {
+      return isMember(schoolId)
+        && member(schoolId).keys().hasAll(['permissions'])
+        && member(schoolId).permissions is map
+        && member(schoolId).permissions.keys().hasAny([collectionName])
+        && member(schoolId).permissions[collectionName] is map
+        && member(schoolId).permissions[collectionName].get(permission, false) == true;
     }
 
     function canView(schoolId, collectionName) {
-      return isMember(schoolId)
-        && (isSchoolAdmin(schoolId)
-          || get(memberPath(schoolId)).data.permissions[collectionName].view == true);
+      return isSchoolAdmin(schoolId) || hasPermission(schoolId, collectionName, 'view');
     }
 
     function canEdit(schoolId, collectionName) {
-      return isSchoolAdmin(schoolId)
-        || (isMember(schoolId)
-          && get(memberPath(schoolId)).data.permissions[collectionName].edit == true);
+      return isSchoolAdmin(schoolId) || hasPermission(schoolId, collectionName, 'edit');
+    }
+
+    function canDelete(schoolId, collectionName) {
+      return isSchoolAdmin(schoolId) || hasPermission(schoolId, collectionName, 'delete');
     }
 
     function isLinkedStudent(schoolId, studentId) {
       return isMember(schoolId)
-        && get(memberPath(schoolId)).data.linkedRecordType == 'student'
-        && get(memberPath(schoolId)).data.linkedRecordId == studentId;
+        && member(schoolId).role == 'student'
+        && member(schoolId).get('linkedRecordType', '') == 'student'
+        && member(schoolId).get('linkedRecordId', '') == studentId;
     }
 
     function isLinkedParent(schoolId, studentId) {
       return isMember(schoolId)
+        && member(schoolId).role == 'parent'
         && exists(/databases/$(database)/documents/schools/$(schoolId)/members/$(request.auth.uid)/linkedStudents/$(studentId));
     }
 
     function isAssignedStaff(schoolId, classId) {
       return isMember(schoolId)
-        && role(schoolId) in ['teacher', 'deputyHeadTeacher']
-        && classId in get(memberPath(schoolId)).data.assignedClassIds;
+        && member(schoolId).role in ['teacher', 'deputyHeadTeacher']
+        && member(schoolId).keys().hasAll(['assignedClassIds'])
+        && member(schoolId).assignedClassIds is list
+        && classId in member(schoolId).assignedClassIds;
     }
 
-    function canReadStudentRecord(schoolId, studentId) {
+    function isPersonalCollection(collectionName) {
+      return collectionName in [
+        'students', 'attendance', 'assessments', 'reportCards', 'fees',
+        'feeInvoices', 'healthRecords', 'libraryLoans', 'disciplineCases'
+      ];
+    }
+
+    function recordData(record) {
+      return record.data is map ? record.data : {};
+    }
+
+    function canReadPersonalRecord(schoolId, recordId, record) {
+      let data = recordData(record);
+      let studentId = data.get('studentId', recordId);
       return isSchoolAdmin(schoolId)
+        || (data.keys().hasAny(['classId']) && isAssignedStaff(schoolId, data.classId))
         || isLinkedStudent(schoolId, studentId)
         || isLinkedParent(schoolId, studentId);
     }
 
-    function recordReadAllowed(schoolId, collectionName) {
+    function recordReadAllowed(schoolId, collectionName, recordId, record) {
       return canView(schoolId, collectionName)
-        && (collectionName != 'students'
-          || isSchoolAdmin(schoolId)
-          || (resource.data.data.keys().hasAll(['classId'])
-            && isAssignedStaff(schoolId, resource.data.data.classId))
-        || (resource.data.data.keys().hasAll(['studentId'])
-          && isLinkedStudent(schoolId, resource.data.data.studentId))
-        || (resource.data.data.keys().hasAll(['studentId'])
-          && isLinkedParent(schoolId, resource.data.data.studentId)))
-      && (!(collectionName in ['attendance', 'assessments', 'fees', 'reportCards', 'healthRecords'])
-        || isSchoolAdmin(schoolId)
-        || canEdit(schoolId, collectionName)
-        || (resource.data.data.keys().hasAll(['classId'])
-          && isAssignedStaff(schoolId, resource.data.data.classId))
-        || (resource.data.data.keys().hasAll(['studentId'])
-          && isLinkedStudent(schoolId, resource.data.data.studentId))
-        || (resource.data.data.keys().hasAll(['studentId'])
-          && isLinkedParent(schoolId, resource.data.data.studentId)));
+        && (!isPersonalCollection(collectionName)
+          || canReadPersonalRecord(schoolId, recordId, record));
+    }
+
+    function canEditRecord(schoolId, collectionName, record) {
+      let data = recordData(record);
+      return isSchoolAdmin(schoolId)
+        || (canEdit(schoolId, collectionName)
+          && (!isPersonalCollection(collectionName)
+            || (data.keys().hasAll(['classId']) && isAssignedStaff(schoolId, data.classId))));
     }
 
     function validVersionedRecord() {
       return request.resource.data.keys().hasAll(['data', 'version', 'updatedBy', 'updatedAt'])
+        && request.resource.data.data is map
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.version is int;
     }
@@ -105,10 +130,13 @@ service cloud.firestore {
       ];
     }
 
+    function recordPath(schoolId, collectionName, recordId) {
+      return /databases/$(database)/documents/schools/$(schoolId)/$(collectionName)/$(recordId);
+    }
+
     match /schools/{schoolId} {
       allow get: if resource.data.status == 'active';
-      allow list: if false;
-      allow create, update, delete: if false;
+      allow list, create, update, delete: if false;
 
       match /members/{uid} {
         allow get: if isMember(schoolId) && (request.auth.uid == uid || isSchoolAdmin(schoolId));
@@ -121,8 +149,8 @@ service cloud.firestore {
           ]);
 
         match /linkedStudents/{studentId} {
-          allow get: if isMember(schoolId) && (request.auth.uid == uid || isSchoolAdmin(schoolId));
-          allow list: if isSchoolAdmin(schoolId);
+          allow get, list: if isMember(schoolId)
+            && (request.auth.uid == uid || isSchoolAdmin(schoolId));
           allow write: if false;
         }
 
@@ -130,12 +158,20 @@ service cloud.firestore {
           allow get, list: if isMember(schoolId) && request.auth.uid == uid;
           allow create: if isMember(schoolId)
             && request.auth.uid == uid
+            && isAppCollection(request.resource.data.collection)
             && canEdit(schoolId, request.resource.data.collection)
             && request.resource.data.createdBy == request.auth.uid
-            && request.resource.data.status == 'open';
+            && request.resource.data.status == 'open'
+            && request.resource.data.keys().hasAll([
+              'collection', 'recordId', 'baseVersion', 'serverVersion',
+              'localData', 'remoteData', 'createdBy', 'createdAt', 'status'
+            ]);
           allow update: if isMember(schoolId)
             && request.auth.uid == uid
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolvedAt', 'resolvedBy'])
+            && resource.data.status == 'open'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status', 'resolvedAt', 'resolvedBy'
+            ])
             && request.resource.data.status == 'resolved'
             && request.resource.data.resolvedBy == request.auth.uid;
           allow delete: if false;
@@ -143,25 +179,41 @@ service cloud.firestore {
       }
 
       match /{collectionName}/{recordId} {
-        allow get, list: if isAppCollection(collectionName) && recordReadAllowed(schoolId, collectionName);
-        allow create: if isAppCollection(collectionName) && canEdit(schoolId, collectionName) && validVersionedRecord()
+        allow get, list: if isAppCollection(collectionName)
+          && recordReadAllowed(schoolId, collectionName, recordId, resource.data);
+        allow create: if isAppCollection(collectionName)
+          && canEditRecord(schoolId, collectionName, request.resource.data)
+          && validVersionedRecord()
           && request.resource.data.version == 1;
-        allow update: if isAppCollection(collectionName) && canEdit(schoolId, collectionName)
+        allow update: if isAppCollection(collectionName)
+          && canEditRecord(schoolId, collectionName, resource.data)
           && validVersionedRecord()
           && request.resource.data.version == resource.data.version + 1
-          && request.resource.data.updatedBy == request.auth.uid;
-        allow delete: if isAppCollection(collectionName) && (isSchoolAdmin(schoolId)
-          || (isMember(schoolId)
-            && get(memberPath(schoolId)).data.permissions[collectionName].delete == true));
+          && request.resource.data.updatedBy == request.auth.uid
+          && (!isPersonalCollection(collectionName)
+            || request.resource.data.data.get('studentId', recordId)
+              == resource.data.data.get('studentId', recordId));
+        allow delete: if isAppCollection(collectionName) && canDelete(schoolId, collectionName);
 
         match /versions/{versionId} {
-          allow read: if isAppCollection(collectionName) && recordReadAllowed(schoolId, collectionName);
-          allow create: if isAppCollection(collectionName) && canEdit(schoolId, collectionName)
+          allow get, list: if isAppCollection(collectionName)
+            && exists(/databases/$(database)/documents/schools/$(schoolId)/$(collectionName)/$(recordId))
+            && recordReadAllowed(
+              schoolId,
+              collectionName,
+              recordId,
+              get(/databases/$(database)/documents/schools/$(schoolId)/$(collectionName)/$(recordId)).data
+            );
+          allow create: if isAppCollection(collectionName)
+            && canEditRecord(
+              schoolId,
+              collectionName,
+              getAfter(recordPath(schoolId, collectionName, recordId)).data
+            )
             && request.resource.data.createdBy == request.auth.uid;
           allow update, delete: if false;
         }
       }
-
     }
   }
 }

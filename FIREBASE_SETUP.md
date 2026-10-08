@@ -13,19 +13,20 @@ The Firebase client is configured for the `delivery-app-6a47f` project and the `
    ```
 
    Cloud Functions deployment requires a billing-enabled Firebase project. Review and test the rules with the Firebase Emulator before deploying them to a production school.
-3. In Firestore, create a school document whose document ID is the school-facing ID (for example, `SCH-UG-2026`):
+3. Create your initial App Admin Auth user in Firebase Console. Find its Authentication UID, then grant the restricted App Admin custom claim from a trusted environment that has Firebase Admin SDK dependencies and Google Application Default Credentials:
 
-   ```text
-   schools/SCH-UG-2026
-     name: "Example School"
-     status: "active"
+   ```sh
+   gcloud auth application-default login
+   npm --prefix functions install
+   node scripts/grant-app-admin.js FIREBASE_AUTH_UID
    ```
 
-   The public lookup document must not contain secrets.
-4. Create the first administrator using **Authentication → Add user**, then add a corresponding Firestore document using that Authentication UID:
+   Protect this script and App Admin account as platform-owner credentials. Never add a callable that lets users grant themselves this claim.
+4. Open `https://smartskool.web.app/platform-admin.html`, sign in as the App Admin, and create a school. The first school created by this panel on 8 October 2026 will receive `SCH-0001-UG-08102026`. The sequence increments atomically; the date suffix is UTC `DDMMYYYY`. The panel writes the school document with `status: "active"` and optional HTTPS `logoURL`.
+5. Create the first school administrator using **Authentication → Add user**, then add a corresponding Firestore document using that Authentication UID:
 
    ```text
-   schools/SCH-UG-2026/members/{AUTH_UID}
+   schools/{GENERATED_SCHOOL_ID}/members/{AUTH_UID}
      role: "schoolAdmin"
      status: "active"
      fullName: "School Administrator"
@@ -37,8 +38,8 @@ The Firebase client is configured for the `delivery-app-6a47f` project and the `
      notificationPreferences: {}
    ```
 
-   This one-time bootstrap is done in the Firebase Console because client rules intentionally prohibit creating or elevating administrator memberships. Store the school ID in `schools/{schoolId}` and membership data in `schools/{schoolId}/members/{authUid}`; the school ID is the visible tenant identifier, while the Auth UID remains the secure account document key.
-5. Sign in using the school ID, the administrator's email, and password. Use the User Roles screen to provision non-administrator school accounts.
+   This one-time school-admin bootstrap is done in the Firebase Console because client rules intentionally prohibit creating or elevating school administrator memberships. Store the school ID in `schools/{schoolId}` and membership data in `schools/{schoolId}/members/{authUid}`; the school ID is the visible tenant identifier, while the Auth UID remains the secure account document key.
+6. Sign in using the generated School ID, the administrator's email, and password. Use the User Roles screen to provision non-administrator school accounts.
 
 ## Current implementation boundary
 

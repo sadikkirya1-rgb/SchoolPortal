@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>App Admin | Smart School</title>
+    <link rel="stylesheet" href="platform-admin.css">
+</head>
+<body>
+    <main class="admin-shell">
+        <a class="back-link" href="./index.html">&larr; Return to school sign in</a>
+        <header class="admin-heading">
+            <span class="admin-mark" aria-hidden="true">SS</span>
+            <div>
+                <p class="eyebrow">PLATFORM CONTROL</p>
+                <h1>App Admin</h1>
+                <p>Create a school workspace and issue its permanent School ID.</p>
+            </div>
+        </header>
+
+        <section class="admin-card" id="signInCard">
+            <h2>Secure sign in</h2>
+            <p>Only accounts explicitly authorized as App Admin can access school creation.</p>
+            <form id="adminSignInForm">
+                <label>Email address<input name="email" type="email" autocomplete="username" required></label>
+                <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+                <button class="primary-button" type="submit">Sign in</button>
+            </form>
+            <p class="status-message" id="signInMessage" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="admin-card hidden" id="schoolCreateCard">
+            <div class="signed-in-row">
+                <div><h2>Create a school</h2><p id="signedInAs"></p></div>
+                <button class="secondary-button" id="signOutButton" type="button">Sign out</button>
+            </div>
+            <p>School IDs are generated securely as <code>SCH-0001-UG-08102026</code>: sequence, country code, and creation date (DDMMYYYY).</p>
+            <form id="createSchoolForm">
+                <label>School name<input name="name" type="text" minlength="2" maxlength="120" autocomplete="organization" required></label>
+                <div class="form-row">
+                    <label>Country code<input name="countryCode" type="text" value="UG" minlength="2" maxlength="2" pattern="[A-Za-z]{2}" autocomplete="country" required></label>
+                    <label>Public logo URL <span class="optional">(optional, HTTPS)</span><input name="logoURL" type="url" placeholder="https://example.org/logo.png"></label>
+                </div>
+                <button class="primary-button" type="submit">Create school and School ID</button>
+            </form>
+            <div class="created-school hidden" id="createdSchool" role="status" aria-live="polite">
+                <span>School created successfully</span>
+                <strong id="createdSchoolId"></strong>
+                <p id="createdSchoolName"></p>
+                <button class="secondary-button" id="copySchoolIdButton" type="button">Copy School ID</button>
+            </div>
+            <p class="status-message" id="createMessage" role="status" aria-live="polite"></p>
+        </section>
+        <footer>School creation is restricted by Firebase Authentication custom claims and a trusted server-side transaction.</footer>
+    </main>
+    <script type="module" src="platform-admin.js"></script>
+</body>
+</html>
