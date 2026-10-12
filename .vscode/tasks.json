@@ -11,6 +11,18 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "test"
+		},
+		{
+			"label": "Check App Syntax",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"check"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
 		}
 	]
 }

@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.profile h4').textContent = userData.fullName || userData.adminUser || 'Administrator';
         document.querySelector('.profile-role').textContent = userData.role;
         document.querySelector('.profile img').src = userData.photo || 'https://i.pravatar.cc/100?img=12';
-        showDashboard();
+        showDashboard({ persist: false });
         restoreSavedSection();
     };
 
@@ -760,12 +760,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.classList.remove('hidden');
     }
 
-    function showDashboard(){
+    function showDashboard({ persist = true } = {}){
         hideAllContentAreas();
         document.querySelectorAll('.main > .dashboard, .main > .modules, .main > .charts, .main > .table-card').forEach(el => {
             if (el) el.classList.remove('hidden');
         });
         updateBreadcrumb(['Main', 'Dashboard']);
+        if (persist) persistDashboardSection();
     }
 
     function createFrontOfficeDashboard(category) {
@@ -2872,6 +2873,13 @@ Total Amount: $4,820.00
 
     const navLinks = document.querySelectorAll('.nav-links a');
     const activeSectionKey = 'edumasterActiveSection';
+    const activeSectionStorageKey = () => {
+        const session = loadSession();
+        return session?.schoolId && session?.userId
+            ? `${activeSectionKey}:${encodeURIComponent(session.schoolId)}:${encodeURIComponent(session.userId)}`
+            : activeSectionKey;
+    };
+    const saveActiveSection = value => localStorage.setItem(activeSectionStorageKey(), JSON.stringify(value));
     const sectionKey = link => {
         const group = link.closest('.nav-links')?.previousElementSibling?.textContent.trim() || '';
         const label = link.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.innerText.trim() || link.innerText.trim();
@@ -2888,6 +2896,17 @@ Total Amount: $4,820.00
             label: (link.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.innerText.trim() || link.innerText.trim()).toLowerCase()
         };
     };
+    function persistDashboardSection() {
+        const dashboardLink = Array.from(navLinks).find(link =>
+            link.id === 'dashboardBtn' || link.dataset.menuId === 'dashboard'
+        );
+        if (dashboardLink) {
+            navLinks.forEach(link => link.classList.toggle('active', link === dashboardLink));
+            saveActiveSection(sectionIdentity(dashboardLink));
+        } else {
+            saveActiveSection({ key: 'Main::Dashboard', group: 'main', label: 'dashboard', kind: 'dashboard' });
+        }
+    }
 
     let collapsedGroups = [];
     try {
@@ -2929,7 +2948,7 @@ Total Amount: $4,820.00
             ev.preventDefault();
             navLinks.forEach(n => n.classList.remove('active'));
             link.classList.add('active');
-            localStorage.setItem(activeSectionKey, JSON.stringify(sectionIdentity(link)));
+            saveActiveSection(sectionIdentity(link));
 
             const linkText = link.querySelector('span')?.innerText.trim() || link.innerText.trim();
             if (typeof window.updateHeaderAddButton === 'function') {
@@ -3777,8 +3796,12 @@ Total Amount: $4,820.00
     });
 
     restoreSavedSection = () => {
-        const savedValue = localStorage.getItem(activeSectionKey);
-        if (!savedValue) return;
+        const scopedKey = activeSectionStorageKey();
+        const savedValue = localStorage.getItem(scopedKey) || localStorage.getItem(activeSectionKey);
+        if (!savedValue) {
+            persistDashboardSection();
+            return;
+        }
 
         let savedIdentity = null;
         try {
@@ -3802,7 +3825,13 @@ Total Amount: $4,820.00
             || (savedIdentity && savedIdentity.groupIndex >= 0
                 ? Array.from(document.querySelectorAll('.nav-links'))[savedIdentity.groupIndex]?.querySelectorAll('a')[savedIdentity.itemIndex]
                 : null);
-        if (!savedLink || savedLink.closest('.nav-links')?.classList.contains('account-access-hidden')) return;
+        if (!savedLink || savedLink.closest('.nav-links')?.classList.contains('account-access-hidden')) {
+            persistDashboardSection();
+            return;
+        }
+        if (scopedKey !== activeSectionKey && !localStorage.getItem(scopedKey)) {
+            saveActiveSection(savedIdentity || savedValue);
+        }
         const group = savedLink.closest('.nav-links');
         const heading = group?.previousElementSibling;
         if (heading?.getAttribute('aria-expanded') === 'false') heading.click();
