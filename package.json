@@ -1,5 +1,16 @@
 {
+  "scripts": {
+    "check": "for file in *.js functions/index.js tests/*.js scripts/*.js; do node --check \"$file\" || exit 1; done",
+    "test": "firebase emulators:exec --only firestore,functions,storage,pubsub --project demo-school-portal \"node --test tests/*.test.js\""
+  },
   "dependencies": {
     "firebase": "^13.0.0"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.6"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase-tools": "^15.33.0"
   }
 }

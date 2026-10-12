@@ -12,7 +12,7 @@ function createAuditLogsModule() {
         <div class="al-overlay" data-al-view-overlay><section class="al-modal" role="dialog" aria-modal="true" aria-labelledby="al-view-title"><header class="al-modal-head"><h3 id="al-view-title">Audit Log Details</h3><button class="al-close" type="button" data-al-close aria-label="Close">&times;</button></header><div class="al-view"><div class="al-detail-grid"><div><span>Log ID</span><strong data-al-detail="id"></strong></div><div><span>User</span><strong data-al-detail="user"></strong></div><div><span>Role</span><strong data-al-detail="role"></strong></div><div><span>Action</span><strong data-al-detail="action"></strong></div><div><span>Module</span><strong data-al-detail="module"></strong></div><div><span>Status</span><strong data-al-detail="status"></strong></div><div><span>IP Address</span><strong data-al-detail="ip"></strong></div><div><span>Date &amp; Time</span><strong data-al-detail="time"></strong></div><div><span>Device</span><strong data-al-detail="device"></strong></div><div class="al-detail-full"><span>Description</span><strong data-al-detail="description"></strong></div></div><div class="al-security-info"><b>Security Information</b><p data-al-detail="security"></p></div></div><footer class="al-modal-actions"><button class="al-button al-light" type="button" data-al-close>Close</button><button class="al-button al-primary" type="button" data-al-print-current><i class="fas fa-print"></i> Print / PDF</button></footer></section></div>
         <div class="al-toast" role="status" aria-live="polite" data-al-toast></div>`;
 
-    const logs = [
+    let logs = [
         { id: 'AUD-8642', user: 'Ahmed Saleh', role: 'Administrator', action: 'Login', module: 'System', description: 'User successfully logged into the system.', ip: '192.168.1.24', timestamp: '2026-10-04T10:42:00', timeLabel: '04 Oct 2026 · 10:42 AM', status: 'Success', device: 'Chrome / Windows', security: 'Authentication was completed successfully. No suspicious activity was detected for this event.' },
         { id: 'AUD-8641', user: 'Maria Khan', role: 'HR Manager', action: 'Update', module: 'Users', description: 'Updated user role and access permissions.', ip: '192.168.1.31', timestamp: '2026-10-04T10:28:00', timeLabel: '04 Oct 2026 · 10:28 AM', status: 'Success', device: 'Edge / Windows', security: 'Authorized administrative change detected.' },
         { id: 'AUD-8640', user: 'Omar Malik', role: 'Procurement Officer', action: 'Create', module: 'Procurement', description: 'Created purchase order PO-2026-0187.', ip: '192.168.1.44', timestamp: '2026-10-04T10:14:00', timeLabel: '04 Oct 2026 · 10:14 AM', status: 'Success', device: 'Chrome / Windows', security: 'Transaction was created by an authorized procurement user.' },
@@ -24,6 +24,7 @@ function createAuditLogsModule() {
         { id: 'AUD-8634', user: 'Nadia Ahmed', role: 'Communication Officer', action: 'Update', module: 'Communication', description: 'Updated notice board announcement.', ip: '192.168.1.42', timestamp: '2026-10-03T14:22:00', timeLabel: '03 Oct 2026 · 02:22 PM', status: 'Success', device: 'Chrome / Windows', security: 'Content modification was performed by an authorized communication user.' }
     ];
     const q = selector => section.querySelector(selector);
+    logs = [];
     let currentLogId = null;
     let toastTimer;
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
@@ -56,22 +57,49 @@ function createAuditLogsModule() {
     };
     const updateTable = () => {
         const filtered = filteredLogs();
+        const today = new Date().toDateString();
+        const todayCount = logs.filter(log => new Date(log.timestamp).toDateString() === today).length;
+        const stats = [logs.length, todayCount, logs.length, '—', '—'];
+        const statNotes = ['Cloud events', 'Today', 'Recorded writes', 'Not tracked', 'Not tracked'];
+        section.querySelectorAll('.al-stat').forEach((stat, index) => {
+            stat.querySelector('strong').textContent = stats[index];
+            stat.querySelector('small').textContent = statNotes[index];
+        });
         q('[data-al-rows]').innerHTML = filtered.length ? filtered.map(log => `<tr><td><strong class="al-log-id">${escape(log.id)}</strong></td><td><span class="al-user"><i>${escape(initials(log.user))}</i><span><b>${escape(log.user)}</b><small>${escape(log.role)}</small></span></span></td><td><span class="al-badge ${escape(actionClass(log.action))}">${escape(log.action)}</span></td><td class="al-module">${escape(log.module)}</td><td>${escape(log.description)}</td><td>${escape(log.ip)}</td><td class="al-time">${escape(log.timeLabel)}</td><td><span class="al-badge ${log.status === 'Success' ? 'success' : 'danger'}">${escape(log.status)}</span></td><td><div class="al-actions"><button class="al-action" type="button" title="View" aria-label="View ${escape(log.id)}" data-al-action="view" data-id="${escape(log.id)}"><i class="fas fa-eye"></i></button><button class="al-action" type="button" title="Print" aria-label="Print ${escape(log.id)}" data-al-action="print" data-id="${escape(log.id)}"><i class="fas fa-print"></i></button></div></td></tr>`).join('') : '<tr><td colspan="9"><div class="al-empty">No audit logs match these filters.</div></td></tr>';
     };
-    const actionBreakdown = [
-        ['Login', 'Authentication events', 78, '3,420', 'blue', 'fa-right-to-bracket'],
-        ['Create', 'New records created', 42, '1,830', 'green', 'fa-plus'],
-        ['Update', 'Records modified', 34, '1,482', 'orange', 'fa-pen'],
-        ['View', 'Records accessed', 29, '1,214', 'purple', 'fa-eye'],
-        ['Delete', 'Records removed', 6, '214', 'red', 'fa-trash']
-    ];
+    const actionBreakdown = () => {
+        const colors = ['blue', 'green', 'orange', 'purple', 'red'];
+        const icons = { create: 'fa-plus', update: 'fa-pen', delete: 'fa-trash' };
+        const counts = new Map();
+        logs.forEach(log => counts.set(log.action, (counts.get(log.action) || 0) + 1));
+        const maximum = Math.max(1, ...counts.values());
+        return Array.from(counts, ([action, count], index) => [
+            action,
+            `${action} record changes`,
+            Math.round(count / maximum * 100),
+            count.toLocaleString(),
+            colors[index % colors.length],
+            icons[action.toLowerCase()] || 'fa-list-check'
+        ]);
+    };
     const renderBreakdown = () => {
-        q('[data-al-action-summary]').innerHTML = actionBreakdown.map(([name, summary, percent, count, color, icon]) => `<div class="al-event-row"><i class="al-event-icon ${color} fas ${icon}"></i><div class="al-event-info"><b>${name}</b><small>${summary}</small></div><div class="al-event-bar"><span class="${color}" style="width:${percent}%"></span></div><strong class="al-event-count">${count}</strong></div>`).join('');
+        q('[data-al-action-summary]').innerHTML = actionBreakdown().map(([name, summary, percent, count, color, icon]) => `<div class="al-event-row"><i class="al-event-icon ${color} fas ${icon}"></i><div class="al-event-info"><b>${escape(name)}</b><small>${escape(summary)}</small></div><div class="al-event-bar"><span class="${color}" style="width:${percent}%"></span></div><strong class="al-event-count">${escape(count)}</strong></div>`).join('') || '<p class="al-empty">No cloud audit events yet.</p>';
     };
     const renderChart = () => {
-        const values = [612, 794, 541, 911, 726, 458, 365];
-        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        q('[data-al-chart]').innerHTML = values.map((value, index) => `<div class="al-bar-group"><div class="al-bar" style="height:${Math.max(8, value / Math.max(...values) * 88)}%"><b>${value}</b></div><span>${labels[index]}</span></div>`).join('');
+        const days = Array.from({ length: 7 }, (_, index) => {
+            const date = new Date();
+            date.setHours(0, 0, 0, 0);
+            date.setDate(date.getDate() - 6 + index);
+            const nextDate = new Date(date);
+            nextDate.setDate(nextDate.getDate() + 1);
+            const count = logs.filter(log => {
+                const timestamp = new Date(log.timestamp);
+                return timestamp >= date && timestamp < nextDate;
+            }).length;
+            return { label: date.toLocaleDateString('en', { weekday: 'short' }), count };
+        });
+        const maximum = Math.max(1, ...days.map(day => day.count));
+        q('[data-al-chart]').innerHTML = days.map(day => `<div class="al-bar-group"><div class="al-bar" style="height:${Math.max(8, day.count / maximum * 88)}%"><b>${day.count}</b></div><span>${day.label}</span></div>`).join('');
     };
     const closeView = () => q('[data-al-view-overlay]').classList.remove('is-open');
     const openView = log => {
@@ -137,6 +165,39 @@ function createAuditLogsModule() {
     });
     q('[data-al-view-overlay]').addEventListener('click', event => { if (event.target === event.currentTarget) closeView(); });
     document.addEventListener('keydown', event => { if (event.key === 'Escape') closeView(); });
+    q('.al-table thead th:nth-child(6)').textContent = 'Source';
+    q('[data-al-detail="ip"]').previousElementSibling.textContent = 'Source';
+    if (window.schoolPortalData) {
+        window.schoolPortalData.subscribe('auditEvents', records => {
+            logs = records.map(record => {
+                const rawTimestamp = record.occurredAt?.toDate?.() || new Date(record.occurredAt || Date.now());
+                const timestamp = Number.isNaN(rawTimestamp.getTime()) ? new Date() : rawTimestamp;
+                const action = String(record.action || 'update');
+                const collection = String(record.collection || 'records');
+                const changedFields = Array.isArray(record.changedFields) ? record.changedFields.join(', ') : '';
+                return {
+                    id: record.id,
+                    user: record.actorUid || 'System',
+                    role: record.actorRole || 'School user',
+                    action: action.charAt(0).toUpperCase() + action.slice(1),
+                    module: collection,
+                    description: `${action} ${collection} record ${record.recordId || ''}${changedFields ? `. Changed fields: ${changedFields}` : ''}`,
+                    ip: '—',
+                    timestamp: timestamp.toISOString(),
+                    timeLabel: timestamp.toLocaleString(),
+                    status: 'Success',
+                    device: 'Server-generated Firestore event',
+                    security: changedFields ? `Changed fields: ${changedFields}` : 'Server-generated record change'
+                };
+            }).sort((left, right) => new Date(right.timestamp) - new Date(left.timestamp));
+            renderChart();
+            renderBreakdown();
+            updateTable();
+        }, [], { orderByField: 'updatedAt', orderDirection: 'desc', limit: 500 }).catch(error => {
+            console.error('Unable to load school audit events.', error);
+            toast('Cloud audit events could not be loaded.');
+        });
+    }
     renderChart();
     renderBreakdown();
     updateTable();

@@ -2,11 +2,15 @@ const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { FieldPath, FieldValue, getFirestore } = require('firebase-admin/firestore');
 const { HttpsError, onCall } = require('firebase-functions/v2/https');
+const { onDocumentWritten } = require('firebase-functions/v2/firestore');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { GoogleAuth } = require('google-auth-library');
 
 initializeApp();
 
 const db = getFirestore();
 const auth = getAuth();
+const backupAuth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
 const privilegedRoles = new Set(['schoolAdmin', 'superAdmin', 'director', 'headTeacher']);
 let publicStatsCache = null;
 let publicStatsCacheTime = 0;
@@ -25,20 +29,28 @@ const roleAliases = {
     headteacher: 'headTeacher'
 };
 const rolePermissions = {
-    deputyHeadTeacher: ['students', 'parents', 'staff', 'classes', 'subjects', 'attendance', 'assessments', 'reportCards', 'timetables', 'notices', 'studyMaterials', 'quizzes', 'libraryBooks', 'libraryLoans', 'disciplineCases', 'clubs', 'healthRecords', 'transportRoutes'],
-    bursar: ['students', 'parents', 'fees', 'feeInvoices', 'expenses', 'notices'],
-    teacher: ['students', 'classes', 'subjects', 'attendance', 'assessments', 'reportCards', 'timetables', 'notices', 'studyMaterials', 'quizzes', 'libraryBooks', 'libraryLoans', 'disciplineCases', 'clubs'],
+    deputyHeadTeacher: ['students', 'parents', 'staff', 'teachers', 'classes', 'subjects', 'attendance', 'assessments', 'reportCards', 'timetables', 'notices', 'announcements', 'smsMessages', 'notifications', 'studyMaterials', 'quizzes', 'libraryBooks', 'libraryLoans', 'disciplineCases', 'clubs', 'healthRecords', 'transportRoutes', 'curriculum', 'streams', 'lessonPlans', 'schemesOfWork', 'admissions', 'applications', 'interviews', 'admissionLetters', 'waitingList', 'studentTransfers', 'enquiries', 'visitors', 'visitorLogs', 'appointments', 'incomingMail', 'followUps', 'dispatches', 'callLogs', 'calendarEvents'],
+    bursar: ['students', 'parents', 'fees', 'feeInvoices', 'expenses', 'notices', 'payroll', 'paySlips', 'statutoryReturns', 'payrollReports', 'purchaseRequests', 'purchaseComparisons', 'quotations', 'purchaseOrders', 'goodsReceipts', 'supplierInvoices', 'suppliers'],
+    teacher: ['students', 'classes', 'subjects', 'attendance', 'assessments', 'reportCards', 'timetables', 'notices', 'announcements', 'studyMaterials', 'quizzes', 'libraryBooks', 'libraryLoans', 'disciplineCases', 'clubs', 'curriculum', 'lessonPlans', 'schemesOfWork', 'sportsActivities'],
     librarian: ['students', 'classes', 'libraryBooks', 'libraryLoans', 'notices'],
-    hrOfficer: ['staff', 'staffAttendance', 'leaveRequests', 'payroll', 'notices'],
-    storeManager: ['inventory', 'assets', 'suppliers', 'purchaseOrders', 'purchaseRequests', 'notices'],
+    hrOfficer: ['staff', 'staffDirectory', 'teachers', 'staffAttendance', 'leaveRequests', 'recruitment', 'notices'],
+    storeManager: ['inventory', 'assets', 'suppliers', 'purchaseOrders', 'purchaseRequests', 'purchaseComparisons', 'quotations', 'goodsReceipts', 'supplierInvoices', 'maintenanceWorkOrders', 'notices'],
     parent: ['students', 'attendance', 'assessments', 'reportCards', 'timetables', 'notices', 'studyMaterials', 'quizzes', 'fees', 'libraryLoans', 'transportRoutes'],
     student: ['students', 'attendance', 'assessments', 'reportCards', 'timetables', 'notices', 'studyMaterials', 'quizzes', 'libraryLoans']
+};
+const editableCollections = {
+    deputyHeadTeacher: ['attendance', 'assessments', 'disciplineCases', 'clubs', 'healthRecords', 'transportRoutes', 'admissions', 'applications', 'interviews', 'admissionLetters', 'waitingList', 'studentTransfers', 'enquiries', 'visitors', 'visitorLogs', 'appointments', 'incomingMail', 'followUps', 'dispatches', 'callLogs', 'calendarEvents'],
+    bursar: ['fees', 'feeInvoices', 'expenses', 'payroll', 'paySlips', 'statutoryReturns', 'payrollReports', 'purchaseRequests', 'purchaseComparisons', 'quotations', 'purchaseOrders', 'goodsReceipts', 'supplierInvoices'],
+    teacher: ['attendance', 'assessments', 'studyMaterials', 'quizzes', 'disciplineCases', 'clubs', 'lessonPlans', 'schemesOfWork', 'sportsActivities'],
+    librarian: ['libraryBooks', 'libraryLoans'],
+    hrOfficer: ['staff', 'staffDirectory', 'teachers', 'staffAttendance', 'leaveRequests', 'recruitment'],
+    storeManager: ['inventory', 'assets', 'purchaseOrders', 'purchaseRequests', 'quotations', 'goodsReceipts', 'supplierInvoices', 'maintenanceWorkOrders']
 };
 const normalizeRole = role => roleAliases[String(role || '').trim().toLowerCase().replace(/[\s_-]+/g, '')] || '';
 const assignableRoles = new Set(Object.keys(rolePermissions));
 const buildPermissions = role => Object.fromEntries((rolePermissions[role] || []).map(collection => [
     collection,
-    { view: true, edit: ['teacher', 'deputyHeadTeacher'].includes(role) && ['attendance', 'assessments', 'studyMaterials', 'quizzes'].includes(collection) }
+    { view: true, edit: (editableCollections[role] || []).includes(collection) }
 ]));
 
 function validateSchoolId(value) {
@@ -496,4 +508,165 @@ exports.deleteSchoolUser = onCall(async request => {
         }
     }
     return { uid };
+});
+
+const auditedCollections = new Set([
+    'members', 'students', 'parents', 'staff', 'classes', 'subjects', 'attendance',
+    'assessments', 'reportCards', 'fees', 'feeInvoices', 'expenses', 'timetables',
+    'notices', 'smsAlerts', 'libraryBooks', 'libraryLoans', 'healthRecords',
+    'transportRoutes', 'disciplineCases', 'clubs', 'studyMaterials', 'quizzes',
+    'inventory', 'assets', 'visitors', 'appointments', 'staffAttendance',
+    'leaveRequests', 'payroll', 'suppliers', 'purchaseOrders', 'purchaseRequests',
+    'settings', 'schoolProfile', 'announcements', 'smsMessages', 'notifications',
+    'teachers', 'staffDirectory', 'visitorLogs', 'alumni',
+    'boardingRecords', 'certificates', 'counseling', 'curriculum', 'idCards',
+    'sportsActivities', 'recruitment', 'payrollReports', 'paySlips', 'statutoryReturns',
+    'purchaseComparisons', 'quotations', 'goodsReceipts', 'supplierInvoices',
+    'maintenanceWorkOrders', 'enquiries', 'incomingMail', 'followUps', 'dispatches',
+    'callLogs', 'admissions', 'applications', 'interviews', 'admissionLetters',
+    'waitingList', 'studentTransfers', 'questionBank', 'onlineClasses',
+    'learningAnalytics', 'transcripts', 'unebExams', 'schemesOfWork', 'streams',
+    'lessonPlans', 'schoolDocuments', 'calendarEvents', 'ministryReports', 'emisReports'
+]);
+
+exports.auditSchoolRecordChanges = onDocumentWritten(
+    'schools/{schoolId}/{collectionName}/{recordId}',
+    async event => {
+        const { schoolId, collectionName, recordId } = event.params;
+        if (collectionName === 'auditEvents' || !auditedCollections.has(collectionName)) return;
+
+        const before = event.data?.before.exists ? event.data.before.data() : null;
+        const after = event.data?.after.exists ? event.data.after.data() : null;
+        if (!before && !after) return;
+
+        const beforeData = before?.data && typeof before.data === 'object' ? before.data : before || {};
+        const afterData = after?.data && typeof after.data === 'object' ? after.data : after || {};
+        const action = !before || !afterData.deleted && beforeData.deleted
+            ? 'create'
+            : !after || afterData.deleted === true && beforeData.deleted !== true
+                ? 'delete'
+                : 'update';
+        const changedFields = Array.from(new Set([...Object.keys(beforeData), ...Object.keys(afterData)]))
+            .filter(field => JSON.stringify(beforeData[field]) !== JSON.stringify(afterData[field]))
+            .slice(0, 50);
+        const actorUid = after?.updatedBy || before?.updatedBy || null;
+        const auditRef = db.doc(`schools/${schoolId}/auditEvents/${event.id}`);
+
+        return auditRef.create({
+            data: {
+                actorUid,
+                action,
+                collection: collectionName,
+                recordId,
+                changedFields,
+                source: 'firestore-trigger',
+                occurredAt: FieldValue.serverTimestamp()
+            },
+            version: 1,
+            updatedBy: actorUid || 'system',
+            updatedAt: FieldValue.serverTimestamp()
+        }).catch(async error => {
+            if (error.code !== 6 && error.code !== 'already-exists') throw error;
+        });
+    }
+);
+
+exports.startScheduledFirestoreExport = onSchedule({
+    schedule: '0 2 * * *',
+    timeZone: 'Africa/Kampala',
+    region: 'us-central1',
+    timeoutSeconds: 540,
+    maxInstances: 1
+}, async event => {
+    const bucketName = String(process.env.FIRESTORE_BACKUP_BUCKET || '').trim();
+    if (!/^[a-z0-9][a-z0-9._-]{1,220}[a-z0-9]$/.test(bucketName)) {
+        throw new Error('Set FIRESTORE_BACKUP_BUCKET to a valid Cloud Storage bucket before enabling scheduled exports.');
+    }
+    const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+    if (!projectId) throw new Error('The Google Cloud project ID is unavailable.');
+
+    const scheduleDate = new Date(event.scheduleTime || Date.now());
+    const backupId = scheduleDate.toISOString().replace(/[-:.]/g, '');
+    const outputUriPrefix = `gs://${bucketName}/firestore-exports/${backupId}`;
+    const backupRef = db.doc(`platformBackupJobs/${backupId}`);
+    const reserved = await db.runTransaction(async transaction => {
+        const existing = await transaction.get(backupRef);
+        if (existing.exists && existing.data().status !== 'failed') return false;
+        transaction.set(backupRef, {
+            status: 'starting',
+            outputUriPrefix,
+            scheduleTime: scheduleDate.toISOString(),
+            requestedAt: FieldValue.serverTimestamp()
+        });
+        return true;
+    });
+    if (!reserved) return;
+
+    try {
+        const client = await backupAuth.getClient();
+        const response = await client.request({
+            url: `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default):exportDocuments`,
+            method: 'POST',
+            data: { outputUriPrefix }
+        });
+        const operationName = response.data?.name;
+        if (!operationName) throw new Error('Firestore did not return an export operation name.');
+        await backupRef.update({
+            status: 'running',
+            operationName,
+            startedAt: FieldValue.serverTimestamp()
+        });
+    } catch (error) {
+        await backupRef.update({
+            status: 'failed',
+            errorCode: String(error.code || 'export-start-failed'),
+            errorMessage: String(error.message || 'Unable to start Firestore export.').slice(0, 500),
+            finishedAt: FieldValue.serverTimestamp()
+        });
+        throw error;
+    }
+});
+
+exports.reconcileFirestoreExports = onSchedule({
+    schedule: 'every 60 minutes',
+    timeZone: 'Africa/Kampala',
+    region: 'us-central1',
+    timeoutSeconds: 540,
+    maxInstances: 1
+}, async () => {
+    const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+    if (!projectId) throw new Error('The Google Cloud project ID is unavailable.');
+    const jobs = await db.collection('platformBackupJobs')
+        .where('status', '==', 'running')
+        .limit(50)
+        .get();
+    const client = await backupAuth.getClient();
+
+    for (const job of jobs.docs) {
+        const operationName = job.data().operationName;
+        if (!operationName) continue;
+        try {
+            const response = await client.request({
+                url: `https://firestore.googleapis.com/v1/${operationName}`,
+                method: 'GET'
+            });
+            const operation = response.data;
+            if (!operation.done) continue;
+            if (operation.error) {
+                await job.ref.update({
+                    status: 'failed',
+                    errorCode: String(operation.error.code || 'export-failed'),
+                    errorMessage: String(operation.error.message || 'Firestore export failed.').slice(0, 500),
+                    finishedAt: FieldValue.serverTimestamp()
+                });
+            } else {
+                await job.ref.update({
+                    status: 'completed',
+                    completedAt: FieldValue.serverTimestamp()
+                });
+            }
+        } catch (error) {
+            console.error(`Unable to check Firestore export ${job.id}.`, error);
+        }
+    }
 });

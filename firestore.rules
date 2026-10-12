@@ -79,7 +79,8 @@ service cloud.firestore {
     function isPersonalCollection(collectionName) {
       return collectionName in [
         'students', 'attendance', 'assessments', 'reportCards', 'fees',
-        'feeInvoices', 'healthRecords', 'libraryLoans', 'disciplineCases'
+        'feeInvoices', 'healthRecords', 'libraryLoans', 'disciplineCases',
+        'certificates', 'idCards', 'transcripts', 'unebExams'
       ];
     }
 
@@ -126,7 +127,16 @@ service cloud.firestore {
         'studyMaterials', 'quizzes', 'inventory', 'assets', 'visitors',
         'appointments', 'staffAttendance', 'leaveRequests', 'payroll',
         'suppliers', 'purchaseOrders', 'purchaseRequests', 'auditEvents',
-        'settings', 'schoolProfile'
+        'settings', 'schoolProfile', 'announcements', 'smsMessages', 'notifications',
+        'alumni', 'boardingRecords', 'certificates', 'counseling', 'curriculum',
+        'idCards', 'sportsActivities', 'recruitment', 'payrollReports', 'paySlips',
+        'statutoryReturns', 'purchaseComparisons', 'quotations', 'goodsReceipts',
+        'supplierInvoices', 'maintenanceWorkOrders', 'enquiries', 'incomingMail',
+        'followUps', 'dispatches', 'callLogs', 'admissions', 'applications',
+        'interviews', 'admissionLetters', 'waitingList', 'studentTransfers',
+        'questionBank', 'onlineClasses', 'learningAnalytics', 'transcripts',
+        'unebExams', 'schemesOfWork', 'streams', 'lessonPlans', 'schoolDocuments',
+        'calendarEvents', 'ministryReports', 'emisReports', 'teachers', 'staffDirectory', 'visitorLogs'
       ];
     }
 
@@ -181,11 +191,13 @@ service cloud.firestore {
       match /{collectionName}/{recordId} {
         allow get, list: if isAppCollection(collectionName)
           && recordReadAllowed(schoolId, collectionName, recordId, resource.data);
-        allow create: if isAppCollection(collectionName)
+        allow create: if collectionName != 'auditEvents'
+          && isAppCollection(collectionName)
           && canEditRecord(schoolId, collectionName, request.resource.data)
           && validVersionedRecord()
           && request.resource.data.version == 1;
-        allow update: if isAppCollection(collectionName)
+        allow update: if collectionName != 'auditEvents'
+          && isAppCollection(collectionName)
           && canEditRecord(schoolId, collectionName, resource.data)
           && validVersionedRecord()
           && request.resource.data.version == resource.data.version + 1
@@ -193,7 +205,9 @@ service cloud.firestore {
           && (!isPersonalCollection(collectionName)
             || request.resource.data.data.get('studentId', recordId)
               == resource.data.data.get('studentId', recordId));
-        allow delete: if isAppCollection(collectionName) && canDelete(schoolId, collectionName);
+        allow delete: if collectionName != 'auditEvents'
+          && isAppCollection(collectionName)
+          && canDelete(schoolId, collectionName);
 
         match /versions/{versionId} {
           allow get, list: if isAppCollection(collectionName)

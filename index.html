@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EduMaster Uganda - Advanced School Management Portal</title>
 
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+            .catch(error => console.warn('Offline app shell could not be registered.', error));
+    });
+}
+</script>
+
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
@@ -254,7 +263,7 @@
                 </div>
                 <button class="reference-sign-in" type="submit">Sign In <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
                 <div class="reference-or"><span>Or continue with</span></div>
-                <p class="firebase-setup-notice" id="firebaseSetupMessage" role="status" aria-live="polite">Connecting to Firebase…</p>
+                <p class="firebase-setup-notice" id="firebaseSetupMessage" role="status" aria-live="polite"></p>
             </div>
             <p class="reference-login-message" id="referenceLoginMessage" role="status" aria-live="polite"></p>
             <p class="reference-contact">Don't have an account? <button class="reference-text-button" id="referenceContactAdmin" type="button">Contact your school administrator</button></p>

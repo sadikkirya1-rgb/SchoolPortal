@@ -4,9 +4,11 @@ import {
     getDoc,
     getDocs,
     onSnapshot,
+    orderBy,
     query,
     runTransaction,
     serverTimestamp,
+    limit,
     where
 } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
@@ -19,13 +21,56 @@ const allowedCollections = new Set([
     'studyMaterials', 'quizzes', 'inventory', 'assets', 'visitors',
     'appointments', 'staffAttendance', 'leaveRequests', 'payroll',
     'suppliers', 'purchaseOrders', 'purchaseRequests', 'auditEvents',
-    'settings', 'schoolProfile'
+    'settings', 'schoolProfile', 'alumni', 'boardingRecords', 'certificates',
+    'counseling', 'curriculum', 'idCards', 'sportsActivities', 'recruitment',
+    'payrollReports', 'paySlips', 'statutoryReturns', 'purchaseComparisons',
+    'quotations', 'goodsReceipts', 'supplierInvoices', 'maintenanceWorkOrders',
+    'enquiries', 'incomingMail', 'followUps', 'dispatches', 'callLogs',
+    'admissions', 'applications', 'interviews', 'admissionLetters', 'waitingList',
+    'studentTransfers', 'questionBank', 'onlineClasses', 'learningAnalytics',
+    'transcripts', 'unebExams', 'schemesOfWork', 'streams', 'lessonPlans',
+    'schoolDocuments', 'calendarEvents', 'announcements', 'smsMessages',
+    'ministryReports', 'emisReports', 'teachers', 'staffDirectory', 'visitorLogs', 'notifications'
+]);
+const legacyDataCollections = new Map([
+    ['school_teachers', 'teachers'], ['school_staff', 'staff'], ['school_staff_directory', 'staffDirectory'],
+    ['school_timetables', 'timetables'],
+    ['schoolParentContacts', 'parents'], ['schoolAttendanceRecords', 'attendance'],
+    ['staff_attendance', 'staffAttendance'], ['schoolHealthRecords', 'healthRecords'],
+    ['schoolBoardingRecords', 'boardingRecords'], ['schoolTransportRecords', 'transportRoutes'],
+    ['schoolAlumniRecords', 'alumni'], ['schoolInventoryRecords', 'inventory'],
+    ['schoolAssignments', 'assessments'], ['schoolStudyMaterials', 'studyMaterials'],
+    ['schoolOnlineQuizzes', 'quizzes'], ['schoolDisciplineCases', 'disciplineCases'],
+    ['schoolClubsSocieties', 'clubs'], ['school_curriculum', 'curriculum'],
+    ['school_activities', 'sportsActivities'], ['school_counseling', 'counseling'],
+    ['school_leaves', 'leaveRequests'], ['schoolRecruitment', 'recruitment'],
+    ['schoolFixedAssets', 'assets'], ['schoolGoodsReceipts', 'goodsReceipts'],
+    ['schoolMaintenanceWorkOrders', 'maintenanceWorkOrders'], ['schoolCertificates', 'certificates'],
+    ['schoolIDRecords', 'idCards'], ['schoolLibraryBooks', 'libraryBooks'],
+    ['schoolFeeRecords', 'fees'], ['schoolExpenseRecords', 'expenses'],
+    ['schoolPurchaseComparisons', 'purchaseComparisons'], ['schoolPurchaseOrders', 'purchaseOrders'],
+    ['schoolPurchaseRequests', 'purchaseRequests'], ['schoolQuotations', 'quotations'],
+    ['schoolSupplierInvoices', 'supplierInvoices'], ['schoolSupplierDirectory', 'suppliers'],
+    ['schoolNoticeBoard', 'notices'], ['edumasterEnquiries', 'enquiries'],
+    ['schoolSmsAlerts', 'smsAlerts'], ['edumasterAnnouncements', 'announcements'],
+    ['edumasterCalendar', 'calendarEvents'], ['edumasterDocuments', 'schoolDocuments'],
+    ['edumasterNotifications', 'notifications'], ['edumasterVisitorLogs', 'visitorLogs'],
+    ['edumasterReportCards', 'reportCards'], ['edumasterFollowUps', 'followUps'],
+    ['edumasterIncomingMail', 'incomingMail'], ['edumasterAppointments', 'appointments'],
+    ['edumasterVisitors', 'visitors'], ['schoolVisitorLogs', 'visitorLogs'],
+    ['edumasterDispatches', 'dispatches'],
+    ['edumasterCallLogs', 'callLogs'], ['schoolPayroll', 'payroll'],
+    ['schoolPaySlips', 'paySlips'], ['schoolStatutoryReturns', 'statutoryReturns'],
+    ['schoolPayrollReports', 'payrollReports']
 ]);
 const databaseName = 'school-portal-local-first';
 const databaseVersion = 1;
 let identity = null;
 let databasePromise;
 let syncRunning = false;
+let syncRetryAttempt = 0;
+let syncRetryTimer = null;
+let syncIndicator;
 
 function openDatabase() {
     if (databasePromise) return databasePromise;
@@ -89,9 +134,26 @@ function copyValue(value) {
     return JSON.parse(JSON.stringify(value));
 }
 
+async function prepareCloudAssets(value, collectionName, recordId, fieldPath = 'record') {
+    if (typeof value === 'string' && value.startsWith('data:')) {
+        const uploadAsset = window.schoolPortalFirebase?.uploadSchoolAsset;
+        if (!uploadAsset) throw new Error('Firebase Storage is unavailable for record attachments.');
+        return uploadAsset(assertIdentity().schoolId, collectionName, recordId, fieldPath, value);
+    }
+    if (Array.isArray(value)) {
+        return Promise.all(value.map((item, index) => prepareCloudAssets(item, collectionName, recordId, `${fieldPath}.${index}`)));
+    }
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(await Promise.all(Object.entries(value).map(async ([key, item]) => [
+        key,
+        await prepareCloudAssets(item, collectionName, recordId, `${fieldPath}.${key}`)
+    ])));
+}
+
 async function processMutation(mutation) {
     const owner = assertIdentity();
     if (mutation.schoolId !== owner.schoolId || mutation.uid !== owner.uid) return;
+    const cloudData = await prepareCloudAssets(mutation.data, mutation.collection, mutation.recordId);
     const recordRef = cloudRecordRef(owner, mutation.collection, mutation.recordId);
     const versionRef = doc(db, 'schools', owner.schoolId, mutation.collection, String(mutation.recordId), 'versions', mutation.mutationId);
     const conflictRef = doc(db, 'schools', owner.schoolId, 'members', owner.uid, 'syncConflicts', mutation.mutationId);
@@ -110,7 +172,7 @@ async function processMutation(mutation) {
                     recordId: mutation.recordId,
                     baseVersion: mutation.baseVersion,
                     serverVersion: currentVersion,
-                    localData: mutation.data,
+                    localData: cloudData,
                     remoteData: current?.data ?? null,
                     createdBy: owner.uid,
                     createdAt: serverTimestamp(),
@@ -122,7 +184,7 @@ async function processMutation(mutation) {
 
         const nextVersion = currentVersion + 1;
         const next = {
-            data: mutation.data,
+            data: cloudData,
             version: nextVersion,
             updatedBy: owner.uid,
             updatedAt: new Date().toISOString(),
@@ -130,7 +192,7 @@ async function processMutation(mutation) {
         };
         transaction.set(recordRef, next);
         transaction.set(versionRef, {
-            data: mutation.data,
+            data: cloudData,
             version: nextVersion,
             createdBy: owner.uid,
             createdAt: serverTimestamp()
@@ -145,7 +207,7 @@ async function processMutation(mutation) {
         uid: owner.uid,
         collection: mutation.collection,
         recordId: String(mutation.recordId),
-        data: result.current?.data ?? mutation.data,
+        data: result.current?.data ?? cloudData,
         version: result.current?.version || mutation.baseVersion,
         syncState: result.state === 'conflict' ? 'conflict' : 'synced',
         updatedAt: Date.now()
@@ -187,11 +249,55 @@ async function syncOutbox() {
         const activeHasPendingMutations = activeIdentity && (await listOutbox()).some(mutation =>
             mutation.schoolId === activeIdentity.schoolId && mutation.uid === activeIdentity.uid
         );
+        if (failed && navigator.onLine && !syncRetryTimer) {
+            const retryDelay = Math.min(60_000, 1000 * 2 ** Math.min(syncRetryAttempt, 6));
+            syncRetryAttempt += 1;
+            syncRetryTimer = setTimeout(() => {
+                syncRetryTimer = null;
+                void syncOutbox();
+            }, retryDelay);
+        } else if (!failed) {
+            syncRetryAttempt = 0;
+        }
+        window.dispatchEvent(new CustomEvent('school-portal-sync-status'));
         if (navigator.onLine && (identityChanged || (!failed && activeHasPendingMutations))) {
             setTimeout(() => void syncOutbox(), 0);
         }
     }
 }
+
+async function refreshSyncIndicator() {
+    if (!syncIndicator) {
+        const actions = document.querySelector('.top-actions');
+        if (!actions) return;
+        syncIndicator = document.createElement('span');
+        syncIndicator.className = 'portal-sync-indicator';
+        syncIndicator.setAttribute('role', 'status');
+        syncIndicator.setAttribute('aria-live', 'polite');
+        actions.prepend(syncIndicator);
+    }
+    if (!identity) {
+        syncIndicator.textContent = 'Signed out';
+        syncIndicator.dataset.state = 'idle';
+        return;
+    }
+    if (!navigator.onLine) {
+        syncIndicator.textContent = 'Offline · changes saved';
+        syncIndicator.dataset.state = 'offline';
+        return;
+    }
+    const pending = (await listOutbox()).filter(item => item.schoolId === identity.schoolId && item.uid === identity.uid).length;
+    syncIndicator.textContent = syncRunning ? 'Syncing…' : pending ? `${pending} change${pending === 1 ? '' : 's'} queued` : 'Cloud synced';
+    syncIndicator.dataset.state = syncRunning || pending ? 'pending' : 'synced';
+}
+
+window.addEventListener('school-portal-sync-status', () => void refreshSyncIndicator());
+window.addEventListener('school-portal-sync-update', () => void refreshSyncIndicator());
+window.addEventListener('school-portal-identity-ready', () => void refreshSyncIndicator());
+window.addEventListener('school-portal-identity-cleared', () => void refreshSyncIndicator());
+window.addEventListener('online', () => void refreshSyncIndicator());
+window.addEventListener('offline', () => void refreshSyncIndicator());
+document.addEventListener('DOMContentLoaded', () => void refreshSyncIndicator());
 
 async function listLocal(collectionName) {
     const owner = assertIdentity();
@@ -257,12 +363,181 @@ async function deleteRecord(collectionName, recordId) {
     return saveRecord(collectionName, recordId, { deleted: true });
 }
 
-async function subscribe(collectionName, onRecords, filters = []) {
+function legacyRecordId(record, index, key) {
+    const stableId = record.id ?? record.recordId ?? record.admissionNo ?? record.receiptNo
+        ?? record.employeeId ?? record.memberId ?? record.code ?? record.requestNo
+        ?? record.orderNo ?? record.title ?? record.name;
+    return String(stableId ?? `${key}-${index}`);
+}
+
+function parseLegacyRecords(serialized) {
+    try {
+        const parsed = JSON.parse(serialized || 'null');
+        return Array.isArray(parsed) ? parsed.filter(record => record && typeof record === 'object' && !Array.isArray(record)) : [];
+    } catch {
+        return [];
+    }
+}
+
+async function syncLegacyDataset(key, previousSerialized, nextSerialized) {
+    const owner = assertIdentity();
+    const collectionName = legacyDataCollections.get(key);
+    if (!collectionName) return;
+    const previousRecords = parseLegacyRecords(previousSerialized);
+    const nextRecords = parseLegacyRecords(nextSerialized);
+    const previousById = new Map(previousRecords.map((record, index) => [legacyRecordId(record, index, key), record]));
+    const nextById = new Map(nextRecords.map((record, index) => [legacyRecordId(record, index, key), record]));
+
+    for (const [recordId, record] of nextById) {
+        if (JSON.stringify(previousById.get(recordId)) === JSON.stringify(record)) continue;
+        await saveRecord(collectionName, recordId, { ...record, id: record.id ?? recordId });
+    }
+    for (const recordId of previousById.keys()) {
+        if (!nextById.has(recordId)) await deleteRecord(collectionName, recordId);
+    }
+    if (navigator.onLine) void syncOutbox();
+}
+
+let legacyMigrationIdentity = '';
+const legacyApprovedKey = owner => `schoolPortalSyncApproved:${owner.schoolId}:${owner.uid}`;
+function approvedLegacyStores(owner) {
+    try {
+        const value = JSON.parse(localStorage.getItem(legacyApprovedKey(owner)) || '[]');
+        return new Set(Array.isArray(value) ? value : []);
+    } catch {
+        return new Set();
+    }
+}
+async function queueLegacyStorageChange(key, previousSerialized, nextSerialized) {
+    const owner = assertIdentity();
+    const collectionName = legacyDataCollections.get(key);
+    if (!collectionName) return;
+    const approved = approvedLegacyStores(owner);
+    if (!approved.has(key)) {
+        const count = parseLegacyRecords(nextSerialized).length;
+        const confirmed = window.confirm(
+            `Sync ${count} ${collectionName} record(s) from this device to ${owner.schoolId}? Review this module first; its stored data may include sample records.`
+        );
+        if (!confirmed) return;
+        approved.add(key);
+        originalStorageSetItem.call(localStorage, legacyApprovedKey(owner), JSON.stringify([...approved]));
+    }
+    await syncLegacyDataset(key, previousSerialized || '[]', nextSerialized);
+    preserveLegacyStorage(owner);
+}
+async function migrateLegacyLocalData() {
+    const owner = assertIdentity();
+    const identityKey = `${owner.schoolId}:${owner.uid}`;
+    if (legacyMigrationIdentity === identityKey) return;
+    if (localStorage.getItem(`schoolPortalMigrationDone:${identityKey}`) === 'true') return;
+    legacyMigrationIdentity = identityKey;
+    const isSchoolAdmin = ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(owner.role);
+    const datasets = Array.from(legacyDataCollections, ([key, collectionName]) => ({
+        key,
+        collectionName,
+        serialized: localStorage.getItem(key),
+        count: parseLegacyRecords(localStorage.getItem(key)).length
+    })).filter(dataset => dataset.count > 0
+        && (isSchoolAdmin || owner.permissions[dataset.collectionName]?.edit === true));
+    const total = datasets.reduce((count, dataset) => count + dataset.count, 0);
+    if (!total) return;
+
+    const summary = datasets.map(dataset => `${dataset.collectionName}: ${dataset.count}`).join('\n');
+    const approved = window.confirm(
+        `Upload ${total} locally stored school record(s) to ${owner.schoolId}?\n\n${summary}\n\nSome existing records may be sample data. Review your local data before confirming. This uploads school records to the cloud.`
+    );
+    if (!approved) {
+        legacyMigrationIdentity = '';
+        return;
+    }
+
+    const approvedStores = approvedLegacyStores(owner);
+    for (const dataset of datasets) {
+        await syncLegacyDataset(dataset.key, '[]', dataset.serialized);
+        approvedStores.add(dataset.key);
+    }
+    originalStorageSetItem.call(localStorage, legacyApprovedKey(owner), JSON.stringify([...approvedStores]));
+    originalStorageSetItem.call(localStorage, `schoolPortalMigrationDone:${identityKey}`, 'true');
+    preserveLegacyStorage(owner);
+    window.dispatchEvent(new CustomEvent('school-portal-legacy-migration-complete', {
+        detail: { schoolId: owner.schoolId, count: total }
+    }));
+}
+
+const originalStorageSetItem = Storage.prototype.setItem;
+const originalStorageRemoveItem = Storage.prototype.removeItem;
+const legacySchoolOwnerKey = 'schoolPortalLegacySchoolOwner';
+const scopedLegacyStorageKey = (owner, key) => `schoolPortalRecords:${owner.schoolId}:${owner.uid}:${key}`;
+let suppressLegacyStorageBridge = false;
+
+function preserveLegacyStorage(owner) {
+    if (!owner) return;
+    legacyDataCollections.forEach((collectionName, key) => {
+        const value = localStorage.getItem(key);
+        if (value !== null) originalStorageSetItem.call(localStorage, scopedLegacyStorageKey(owner, key), value);
+    });
+}
+
+function clearLegacyPublicStorage() {
+    suppressLegacyStorageBridge = true;
+    legacyDataCollections.forEach((collectionName, key) => originalStorageRemoveItem.call(localStorage, key));
+    suppressLegacyStorageBridge = false;
+}
+
+function activateLegacyStorage(owner) {
+    const entries = Array.from(legacyDataCollections.keys(), key => [key, localStorage.getItem(scopedLegacyStorageKey(owner, key))]);
+    const hasScopedData = entries.some(([, value]) => value !== null);
+    const legacySchoolOwner = localStorage.getItem(legacySchoolOwnerKey);
+    const hasUnscopedData = Array.from(legacyDataCollections.keys()).some(key => localStorage.getItem(key) !== null);
+    const mayUseUnscopedData = !hasScopedData && (!legacySchoolOwner || legacySchoolOwner === owner.schoolId);
+    if (!legacySchoolOwner && hasUnscopedData) originalStorageSetItem.call(localStorage, legacySchoolOwnerKey, owner.schoolId);
+
+    suppressLegacyStorageBridge = true;
+    for (const [key, value] of entries) {
+        if (value !== null) originalStorageSetItem.call(localStorage, key, value);
+        else if (hasScopedData || !mayUseUnscopedData) originalStorageRemoveItem.call(localStorage, key);
+    }
+    suppressLegacyStorageBridge = false;
+}
+
+Storage.prototype.setItem = function (key, value) {
+    const previous = this === localStorage && legacyDataCollections.has(String(key))
+        ? this.getItem(key)
+        : null;
+    originalStorageSetItem.call(this, key, value);
+    if (this === localStorage && identity && !suppressLegacyStorageBridge
+        && legacyDataCollections.has(String(key)) && previous !== String(value)) {
+        originalStorageSetItem.call(localStorage, scopedLegacyStorageKey(identity, String(key)), String(value));
+        void queueLegacyStorageChange(String(key), previous, String(value)).catch(error => {
+            console.error(`Unable to queue local ${legacyDataCollections.get(String(key))} changes.`, error);
+            window.dispatchEvent(new CustomEvent('school-portal-sync-error', {
+                detail: { collection: legacyDataCollections.get(String(key)), error }
+            }));
+        });
+    }
+};
+Storage.prototype.removeItem = function (key) {
+    const previous = this === localStorage && legacyDataCollections.has(String(key))
+        ? this.getItem(key)
+        : null;
+    originalStorageRemoveItem.call(this, key);
+    if (previous !== null && this === localStorage && identity && !suppressLegacyStorageBridge
+        && legacyDataCollections.has(String(key))) {
+        originalStorageRemoveItem.call(localStorage, scopedLegacyStorageKey(identity, String(key)));
+        void syncLegacyDataset(String(key), previous, '[]').catch(error => {
+            console.error(`Unable to queue local ${legacyDataCollections.get(String(key))} deletions.`, error);
+        });
+    }
+};
+
+async function subscribe(collectionName, onRecords, filters = [], options = {}) {
     const owner = assertIdentity();
     assertCollection(collectionName);
     const local = await listLocal(collectionName);
     onRecords(local, { source: 'local' });
     const constraints = filters.map(filter => where(filter.field, filter.operator || '==', filter.value));
+    if (options.orderByField) constraints.push(orderBy(options.orderByField, options.orderDirection || 'asc'));
+    if (Number.isInteger(options.limit) && options.limit > 0) constraints.push(limit(options.limit));
     const collectionQuery = query(collection(db, 'schools', owner.schoolId, collectionName), ...constraints);
     return onSnapshot(collectionQuery, snapshot => {
         const records = snapshot.docs.map(item => ({
@@ -308,6 +583,40 @@ async function subscribe(collectionName, onRecords, filters = []) {
         console.error(`Unable to synchronize the ${collectionName} collection.`, error);
         window.dispatchEvent(new CustomEvent('school-portal-sync-error', { detail: { collection: collectionName, error } }));
     });
+}
+
+let legacySubscriptions = [];
+async function subscribeLegacyCollections() {
+    const owner = assertIdentity();
+    const isSchoolAdmin = ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(owner.role);
+    legacySubscriptions.forEach(unsubscribe => unsubscribe());
+    legacySubscriptions = [];
+
+    const collectionNames = new Set(legacyDataCollections.values());
+    for (const collectionName of collectionNames) {
+        const mayView = isSchoolAdmin || owner.permissions[collectionName]?.view === true;
+        if (!mayView || (!isSchoolAdmin && isPersonalCollection(collectionName))) continue;
+        const storageKeys = Array.from(legacyDataCollections)
+            .filter(([, mappedCollection]) => mappedCollection === collectionName)
+            .map(([key]) => key);
+        try {
+            const unsubscribe = await subscribe(collectionName, (records, metadata) => {
+                if (metadata?.source !== 'cloud') return;
+                const cleanRecords = records.map(({ _syncState, ...record }) => record);
+                const serialized = JSON.stringify(cleanRecords);
+                storageKeys.forEach(key => {
+                    originalStorageSetItem.call(localStorage, key, serialized);
+                    originalStorageSetItem.call(localStorage, scopedLegacyStorageKey(owner, key), serialized);
+                });
+                window.dispatchEvent(new CustomEvent('school-portal-cloud-data-update', {
+                    detail: { collection: collectionName, count: cleanRecords.length }
+                }));
+            });
+            legacySubscriptions.push(unsubscribe);
+        } catch (error) {
+            console.error(`Unable to subscribe to ${collectionName} for ${owner.role}.`, error);
+        }
+    }
 }
 
 async function getConflicts() {
@@ -361,14 +670,52 @@ async function resolveConflict(conflictId, choice) {
 }
 
 window.schoolPortalData = {
-    setIdentity(schoolId, uid) {
-        identity = { schoolId, uid };
+    setIdentity(schoolId, uid, membership = null) {
+        const nextIdentity = {
+            schoolId,
+            uid,
+            role: membership?.role || '',
+            permissions: membership?.permissions || membership?.perms || {}
+        };
+        if (identity && (identity.schoolId !== schoolId || identity.uid !== uid)) {
+            preserveLegacyStorage(identity);
+            clearLegacyPublicStorage();
+        }
+        identity = nextIdentity;
+        activateLegacyStorage(identity);
+        const identityKey = `${schoolId}:${uid}`;
+        let loadedIdentity = '';
+        let canPersistIdentityMarker = false;
+        try {
+            loadedIdentity = sessionStorage.getItem('schoolPortalLoadedIdentity') || '';
+            sessionStorage.setItem('schoolPortalLoadedIdentity', identityKey);
+            canPersistIdentityMarker = true;
+        } catch (error) {
+            console.warn('Unable to persist the active school identity for this tab.', error);
+        }
+        if (canPersistIdentityMarker && loadedIdentity !== identityKey) {
+            window.location.reload();
+            return identity;
+        }
+        void subscribeLegacyCollections();
         void syncOutbox();
+        window.dispatchEvent(new CustomEvent('school-portal-identity-ready', { detail: identity }));
+        void migrateLegacyLocalData().catch(error => {
+            legacyMigrationIdentity = '';
+            console.error('Legacy school record migration could not be completed.', error);
+        });
         return identity;
     },
     clearIdentity() {
+        legacySubscriptions.forEach(unsubscribe => unsubscribe());
+        legacySubscriptions = [];
+        preserveLegacyStorage(identity);
         identity = null;
+        clearLegacyPublicStorage();
+        window.dispatchEvent(new CustomEvent('school-portal-identity-cleared'));
     },
+    getIdentity() { return identity; },
+    migrateLegacyLocalData,
     listLocal,
     saveRecord,
     deleteRecord,

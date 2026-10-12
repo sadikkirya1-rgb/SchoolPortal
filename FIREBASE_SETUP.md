@@ -47,12 +47,36 @@ The Firebase client is configured for the `delivery-app-6a47f` project and the `
 ## Current implementation boundary
 
 - School lookup, email/password sign-in, school membership checks, account provisioning/status/deletion callables, profile updates, and profile-photo uploads use Firebase.
-- `firebase-data.js` provides a school-and-user-scoped IndexedDB cache/outbox and versioned Firestore synchronization API. It is a foundation, not yet wired to the existing feature modules.
-- Most school feature screens still use their existing browser-local data. Those records remain local and are not automatically uploaded. Migrate them through an explicit, reviewed school import or a collection-by-collection conversion; do not bulk-copy browser storage into Firestore.
+- `firebase-data.js` provides a school-and-user-scoped IndexedDB cache/outbox, tenant-namespaced legacy browser cache, and versioned Firestore synchronization API. The Student directory uses the API directly; an explicit allowlist also bridges implemented module record arrays into Firestore when saved. Sessions, interface preferences, role-registry preview data, backup-prototype data, visitor correction audit arrays, and other non-record browser keys are intentionally excluded.
+- On first login, the user is shown a school-specific review prompt listing existing allowlisted datasets before import. Individual datasets initialized after that prompt require their own confirmation before automatic sync is enabled. Review local data for sample/demo records before accepting. Offline writes remain queued in IndexedDB and are retried with backoff when connectivity returns; the app shell is cached by the service worker for later visits.
+- Firestore snapshots hydrate tenant-scoped local stores for collections the user's role may view. Broad subscriptions are intentionally skipped for personal-record collections for non-admin roles because their rules require linked-student/class-specific query shapes. Some legacy module records use names such as `className` where Firestore requires stable `classId`/linked-student IDs; those writes may remain queued until relationships are normalized.
 - Home-page school, parent, student, and staff counters use aggregate counts from Firestore only. Parent/student/staff values count cloud records in the matching school subcollections; unsynced browser-local data is intentionally excluded, and a cloud error displays `—` rather than demo values.
-- Offline edits made through `schoolPortalData` remain queued locally. Conflicts are saved for review, but a conflict-review screen and migration of existing modules are still outstanding.
+- Offline edits made through the shared data API and allowlisted legacy bridge remain queued locally. Version conflicts are saved, but a conflict-resolution screen and user-facing retry for permission/schema failures are still outstanding.
 - User Roles section selections hide navigation only. Data authorization comes from the server-managed role permissions in `functions/index.js` and Firestore Rules.
 - Test Firestore/Storage rules and account callables with the Firebase Emulator before real school data is entered. Do not treat a successful Hosting deploy as proof that role or record-level rules are correct.
+
+## Production safeguards in this repository
+
+- `npm run check` syntax-checks application, Functions, test, and utility JavaScript.
+- `npm test` runs Firestore, Functions, Storage, and Pub/Sub Emulator tests for tenant isolation, class-scoped student reads, immutable audit events, the actual audit trigger, and profile upload boundaries. Upload rules allow JPEG, PNG, and WebP only. The GitHub Actions workflow runs these checks for pushes and pull requests.
+- Firestore record creates, updates, and deletes in supported school collections generate server-side metadata-only records at `schools/{schoolId}/auditEvents/{eventId}`. The Audit Logs screen reads these cloud events. The current trigger records actor UID, record ID, action, and changed field names; it does not capture client IP addresses, authentication failures, or read-only access.
+- A Cloud Scheduler function starts a native Firestore export daily at 02:00 Africa/Kampala and records status in `platformBackupJobs`. A second scheduled function checks export operation status hourly. This is a platform-wide export, not a per-school backup; the Backups screen is still a local prototype and is not connected to these job records.
+
+## Configure scheduled backups
+
+1. Create a private Cloud Storage bucket in the same location as the Firestore database. Configure the bucket's retention and lifecycle policy to meet the school's approved retention schedule.
+2. Grant the deployed Functions service account Firestore export permission (`roles/datastore.importExportAdmin`) and write access to the backup bucket (`roles/storage.objectAdmin`). Enable billing and the Firestore, Cloud Scheduler, and Cloud Functions services.
+3. Copy `functions/.env.example` to `functions/.env.delivery-app-6a47f` and set `FIRESTORE_BACKUP_BUCKET` to the bucket name. Keep the project-specific environment file out of source control.
+4. Deploy Functions, then verify `platformBackupJobs` reports a completed export and run a restore drill in a non-production Firebase project. A completed export without a tested restore is not a verified recovery plan.
+5. Restore a native export with `gcloud firestore import gs://BUCKET_NAME/firestore-exports/EXPORT_ID` after selecting the intended project. Never test restore commands against the live school project.
+
+## Remaining rollout work
+
+- Modules whose browser keys are in `legacyDataCollections` are bridged, but not every menu item has an implemented record store or mapping. Add explicit serializers and tests for object-valued settings, forms not stored as arrays, file attachments, and remaining front-office/admissions/compliance records before calling the whole portal fully synchronized.
+- Syncing SMS campaign records does not send messages. SMS/email delivery, payment reconciliation, absence alerts, fee reminders, and approval escalations remain disabled until message templates, recipient/consent rules, provider selection, and Secret Manager credentials are configured and tested.
+- The conflict-review screen and role-specific linked-student/class feeds remain outstanding. Do not treat the all-module write bridge as proof that parent/student/teacher read paths are complete.
+- The Firestore suite is a starting point, not complete coverage. Add tests for Storage rules, callable account functions, migration/import behavior, notification retries, and restore procedures before production data is entered.
+- The Functions dependency tree still reports moderate UUID advisories from the current Firebase Admin major. The CI workflow gates high and critical production advisories; review and upgrade the Firebase Admin/Functions major as a separate tested change.
 const { initializeApp, applicationDefault } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 

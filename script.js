@@ -183,9 +183,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const user = normalizeMember(membership, authUser);
             schoolIdInput.value = currentSchool.id;
             saveSession({ schoolId: currentSchool.id, userId: authUser.uid, authenticated: true, user });
-            window.schoolPortalData?.setIdentity(currentSchool.id, authUser.uid);
+            window.schoolPortalData?.setIdentity(currentSchool.id, authUser.uid, membership);
             unlockDashboard(user);
         } catch (error) {
+            const cachedUser = session?.user;
+            const authenticatedUid = window.schoolPortalFirebase?.auth?.currentUser?.uid;
+            if (!navigator.onLine && cachedUser && authenticatedUid === session.userId) {
+                currentSchool = { id: session.schoolId, schoolName: cachedUser.schoolName || 'School' };
+                schoolIdInput.value = currentSchool.id;
+                window.schoolPortalData?.setIdentity(session.schoolId, authenticatedUid, cachedUser);
+                unlockDashboard(cachedUser);
+                return;
+            }
             console.error('Unable to restore Firebase session.', error);
             const message = document.getElementById('firebaseSetupMessage');
             if (message) message.textContent = 'Could not verify your saved school access. Check your connection and sign in again.';
@@ -235,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentSchool = school;
             const user = normalizeMember(membership, authUser);
             saveSession({ schoolId: school.id, userId: authUser.uid, step: 2, authenticated: true, user });
-            window.schoolPortalData?.setIdentity(school.id, authUser.uid);
+            window.schoolPortalData?.setIdentity(school.id, authUser.uid, membership);
             showError(adminError, '');
             unlockDashboard(user);
             return true;
@@ -316,55 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
         && referenceVerifiedSchoolName && referenceVerifiedSchoolId && referenceSchoolLogo
         && referenceSchoolLogoFallback && referenceUsername && referencePassword && referenceUserLogin
         && referenceRemember instanceof HTMLInputElement) {
-        const referenceLoginStage = document.querySelector('.reference-login-stage');
-        const referenceLoginStats = document.querySelector('.login-usage-stats');
-        const updateReferenceCardBounds = () => {
-            if (!referenceLoginStage) return;
-            const stageRect = referenceLoginStage.getBoundingClientRect();
-            const imageScale = Math.max(stageRect.width / 1672, stageRect.height / 940);
-            const imageOffsetX = (stageRect.width - 1672 * imageScale) / 2;
-            const imageOffsetY = (stageRect.height - 940 * imageScale) / 2;
-            const cardBounds = { left: 540, top: 90, right: 1080, bottom: 832 };
-            const statsBounds = { left: 560, right: 1060, bottom: 822 };
-            const card = referenceLoginForm;
-
-            card.style.left = `${imageOffsetX + cardBounds.left * imageScale}px`;
-            card.style.top = `${imageOffsetY + cardBounds.top * imageScale}px`;
-            card.style.width = `${(cardBounds.right - cardBounds.left) * imageScale}px`;
-            card.style.height = `${(cardBounds.bottom - cardBounds.top) * imageScale}px`;
-            card.style.padding = `${34 * imageScale}px`;
-            card.style.paddingLeft = `${74 * imageScale}px`;
-            card.style.fontSize = `${16 * imageScale}px`;
-            card.style.borderRadius = `${22 * imageScale}px`;
-            if (referenceLoginStats) {
-                referenceLoginStats.style.left = `${imageOffsetX + statsBounds.left * imageScale}px`;
-                referenceLoginStats.style.width = `${(statsBounds.right - statsBounds.left) * imageScale}px`;
-                referenceLoginStats.style.bottom = `${stageRect.height - imageOffsetY - statsBounds.bottom * imageScale}px`;
-            }
-        };
-        const revealReferenceLogin = () => {
-            updateReferenceCardBounds();
-            referenceLoginForm.classList.add('is-positioned');
-        };
-        window.addEventListener('resize', updateReferenceCardBounds);
-
-        const handleReferenceBackgroundError = () => {
-            if (referenceLoginForm.classList.contains('is-positioned')) return;
-            console.error('Unable to load the school login background image.');
-            revealReferenceLogin();
-        };
-        const referenceLoginBackground = new Image();
-        referenceLoginBackground.addEventListener('load', revealReferenceLogin, { once: true });
-        referenceLoginBackground.addEventListener('error', handleReferenceBackgroundError, { once: true });
-        referenceLoginBackground.src = './assets/Smart School Management Login.png';
-        if (referenceLoginBackground.complete) {
-            if (referenceLoginBackground.naturalWidth > 0) {
-                revealReferenceLogin();
-            } else {
-                handleReferenceBackgroundError();
-            }
-        }
-
         const hideReferenceUserLogin = () => {
             referenceUserLogin.classList.add('hidden');
             referenceUserLogin.setAttribute('aria-hidden', 'true');
@@ -392,8 +352,6 @@ document.addEventListener('DOMContentLoaded', () => {
             referenceSchoolMessage.textContent = '';
             showReferenceMessage('');
             referenceLoginForm.classList.remove('hidden');
-            referenceLoginForm.classList.add('is-positioned');
-            requestAnimationFrame(updateReferenceCardBounds);
         };
         const revealReferenceUserLogin = () => {
             referenceSchoolInformation.classList.add('hidden');

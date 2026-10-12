@@ -14,7 +14,8 @@ import {
     getDocs,
     getFirestore,
     initializeFirestore,
-    memoryLocalCache,
+    persistentLocalCache,
+    persistentMultipleTabManager,
     serverTimestamp,
     updateDoc
 } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
@@ -36,9 +37,11 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 let db;
 try {
-    db = initializeFirestore(app, { localCache: memoryLocalCache() });
+    db = initializeFirestore(app, {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+    });
 } catch (error) {
-    console.warn('Firestore memory cache initialization failed; using the default cache.', error);
+    console.warn('Firestore persistent cache initialization failed; using the default cache.', error);
     db = getFirestore(app);
 }
 
@@ -112,6 +115,29 @@ async function uploadMemberPhoto(schoolId, uid, file) {
     return getDownloadURL(imageRef);
 }
 
+async function uploadStudentPhoto(schoolId, studentId, dataUrl) {
+    const blob = await (await fetch(dataUrl)).blob();
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(blob.type)) {
+        throw new Error('Student photos must be JPEG, PNG, or WebP images.');
+    }
+    const extension = blob.type.split('/')[1];
+    const imageRef = ref(storage, `schools/${schoolId}/students/${encodeURIComponent(studentId)}/photo.${extension}`);
+    await uploadBytes(imageRef, blob, { contentType: blob.type });
+    return getDownloadURL(imageRef);
+}
+
+async function uploadSchoolAsset(schoolId, collectionName, recordId, fieldPath, dataUrl) {
+    const blob = await (await fetch(dataUrl)).blob();
+    if (!blob.type || blob.size > 20 * 1024 * 1024) {
+        throw new Error('Record attachments must have a content type and be smaller than 20 MB.');
+    }
+    const safe = value => encodeURIComponent(String(value)).replace(/%/g, '_');
+    const extension = blob.type.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'bin';
+    const imageRef = ref(storage, `schools/${schoolId}/schoolAssets/${safe(collectionName)}/${safe(recordId)}/${safe(fieldPath)}.${extension}`);
+    await uploadBytes(imageRef, blob, { contentType: blob.type });
+    return getDownloadURL(imageRef);
+}
+
 async function signIn(schoolCode, email, password) {
     const school = await getSchool(schoolCode);
     await setPersistence(auth, browserLocalPersistence);
@@ -146,6 +172,8 @@ window.schoolPortalFirebase = {
     updateProfile,
     uploadProfilePhoto,
     uploadMemberPhoto,
+    uploadStudentPhoto,
+    uploadSchoolAsset,
     signIn,
     signOut: signOutCurrentUser,
     createSchoolUser,
