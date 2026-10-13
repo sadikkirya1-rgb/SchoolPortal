@@ -4090,7 +4090,7 @@ input:checked + .slider:before {
 /* RESPONSIVE */
 
 :root{
-    --sidebar-width:264px;
+    --sidebar-width:216px;
     --sidebar-collapsed-width:76px;
     --sidebar-background:#0b2f5b;
     --sidebar-border:rgba(255,255,255,.09);
