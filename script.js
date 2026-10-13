@@ -97,6 +97,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentSchool = null;
     let resetReferenceLogin = () => {};
+    const appBaseTitle = document.title;
+    const schoolLabelElement = document.querySelector('.logo-copy h2');
+    const defaultSchoolName = schoolLabelElement?.textContent.trim() || 'EduMaster UG';
+    const schoolLogoMark = document.getElementById('schoolLogoMark');
+    const defaultSchoolLogo = schoolLogoMark?.querySelector('i')?.cloneNode(true);
+    const setApplicationPage = (section = 'Dashboard') => {
+        const schoolName = currentSchool?.schoolName || defaultSchoolName;
+        const title = document.querySelector('.welcome h1');
+        if (title) title.textContent = section === 'Dashboard' ? `${schoolName} Dashboard` : section;
+        if (schoolLabelElement) schoolLabelElement.textContent = schoolName;
+        document.title = section === 'Dashboard'
+            ? `${schoolName} | Dashboard`
+            : `${section} | ${schoolName || appBaseTitle}`;
+
+        const logoUrl = currentSchool?.logoURL;
+        if (schoolLogoMark && logoUrl) {
+            let safeLogoUrl = '';
+            try {
+                const parsedLogoUrl = new URL(logoUrl, window.location.href);
+                if (parsedLogoUrl.protocol === 'https:' || parsedLogoUrl.origin === window.location.origin) {
+                    safeLogoUrl = parsedLogoUrl.href;
+                }
+            } catch (error) {
+                console.warn('The school logo URL is invalid.', error);
+            }
+            if (safeLogoUrl) {
+                let logoImage = schoolLogoMark.querySelector('img');
+                if (!logoImage) {
+                    logoImage = document.createElement('img');
+                    logoImage.loading = 'eager';
+                    schoolLogoMark.replaceChildren(logoImage);
+                    logoImage.addEventListener('error', () => {
+                        if (schoolLogoMark.querySelector('img') !== logoImage) return;
+                        console.warn(`Unable to load the logo for ${schoolName}.`);
+                        if (defaultSchoolLogo) schoolLogoMark.replaceChildren(defaultSchoolLogo.cloneNode(true));
+                    }, { once: true });
+                }
+                logoImage.alt = `${schoolName} logo`;
+                logoImage.src = safeLogoUrl;
+                return;
+            }
+        }
+        const logoImage = schoolLogoMark?.querySelector('img');
+        if (logoImage && defaultSchoolLogo) schoolLogoMark.replaceChildren(defaultSchoolLogo.cloneNode(true));
+    };
 
     const logoutBtn = document.getElementById('logoutBtn');
     const storageKey = 'edumasterAdminSession';
@@ -883,6 +928,58 @@ document.addEventListener('DOMContentLoaded', () => {
         renderDashboardData();
     });
 
+    const sidebarSearchInput = document.querySelector('.topbar-search input');
+    const sidebarSearchEmpty = document.createElement('p');
+    sidebarSearchEmpty.className = 'sidebar-search-empty hidden';
+    sidebarSearchEmpty.setAttribute('role', 'status');
+    sidebarSearchEmpty.textContent = 'No matching navigation items.';
+    const sidebarElement = document.getElementById('appSidebar');
+    const firstSidebarHeading = sidebarElement?.querySelector('.menu-title');
+    if (firstSidebarHeading) firstSidebarHeading.before(sidebarSearchEmpty);
+    const updateNavigationSearch = () => {
+        const query = sidebarSearchInput?.value.trim().toLocaleLowerCase() || '';
+        let visibleCount = 0;
+        document.querySelectorAll('.sidebar > .nav-links').forEach(group => {
+            const heading = group.previousElementSibling;
+            let groupVisibleCount = 0;
+            group.querySelectorAll(':scope > li').forEach(item => {
+                const link = item.querySelector('a');
+                const accessHidden = item.hidden
+                    || item.classList.contains('hidden')
+                    || item.classList.contains('account-access-hidden')
+                    || group.classList.contains('account-access-hidden')
+                    || heading?.classList.contains('account-access-hidden');
+                const label = link?.textContent.trim().toLocaleLowerCase() || '';
+                const visible = !accessHidden && (!query || label.includes(query));
+                item.classList.toggle('nav-search-hidden', !visible);
+                if (visible) {
+                    groupVisibleCount += 1;
+                    visibleCount += 1;
+                }
+            });
+            const hideGroup = Boolean(query) && groupVisibleCount === 0;
+            group.classList.toggle('nav-search-group-hidden', hideGroup);
+            heading?.classList.toggle('nav-search-group-hidden', hideGroup);
+        });
+        sidebarSearchEmpty.classList.toggle('hidden', !query || visibleCount > 0);
+    };
+    updateNavigationSearch();
+    sidebarSearchInput?.addEventListener('input', updateNavigationSearch);
+    document.addEventListener('keydown', event => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+            event.preventDefault();
+            sidebarSearchInput?.focus();
+            sidebarSearchInput?.select();
+        } else if (event.key === 'Escape' && document.activeElement === sidebarSearchInput) {
+            if (sidebarSearchInput.value) {
+                sidebarSearchInput.value = '';
+                updateNavigationSearch();
+            } else {
+                sidebarSearchInput.blur();
+            }
+        }
+    });
+
     function applyAccountSectionAccess(userData) {
         const allowedSections = new Set(Array.isArray(userData.sections) ? userData.sections : []);
         const canView = userData.perms?.view !== false;
@@ -895,6 +992,7 @@ document.addEventListener('DOMContentLoaded', () => {
             title.classList.toggle('account-access-hidden', !canShow);
             group.classList.toggle('account-access-hidden', !canShow);
         });
+        updateNavigationSearch();
         updateDashboardActionAccess();
     }
 
@@ -907,11 +1005,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         container.classList.remove('hidden');
 
-        const schoolName = currentSchool?.schoolName || 'School';
-        const welcomeHeading = document.querySelector('.welcome h1');
         const welcomeSubheading = document.querySelector('.welcome p');
         const accountName = userData.fullName || userData.adminUser || userData.email || 'there';
-        if (welcomeHeading) welcomeHeading.textContent = `${schoolName} Dashboard`;
+        setApplicationPage('Dashboard');
         if (welcomeSubheading) welcomeSubheading.textContent = `Welcome back, ${accountName}.`;
 
         const profileNameEl = document.querySelector('.profile-meta strong') || document.querySelector('.profile h4');
@@ -1538,6 +1634,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.main > .dashboard, .main > .modules, .main > .charts, .main > .table-card').forEach(el => {
             if (el) el.classList.remove('hidden');
         });
+        setApplicationPage('Dashboard');
         updateBreadcrumb(['Main', 'Dashboard']);
         if (persist) persistDashboardSection();
     }
@@ -3740,6 +3837,10 @@ Total Amount: $4,820.00
 
         link.addEventListener('click', (ev) => {
             ev.preventDefault();
+            if (sidebarSearchInput?.value) {
+                sidebarSearchInput.value = '';
+                updateNavigationSearch();
+            }
             if (window.matchMedia('(max-width: 768px)').matches) {
                 setMobileSidebarOpen(false);
             }
@@ -3755,6 +3856,7 @@ Total Amount: $4,820.00
             if (typeof window.updateHeaderAddButton === 'function') {
                 window.updateHeaderAddButton(linkText);
             }
+            setApplicationPage(linkText);
 
             if (link.id === 'dashboardBtn' || link.dataset.menuId === 'dashboard') {
                 showDashboard();
