@@ -8,8 +8,20 @@
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js')
-            .catch(error => console.warn('Offline app shell could not be registered.', error));
+        navigator.serviceWorker.register('./service-worker.js', {
+            scope: './',
+            updateViaCache: 'none'
+        }).then((registration) => {
+            registration.addEventListener('updatefound', () => {
+                const installingWorker = registration.installing;
+                if (!installingWorker) return;
+                installingWorker.addEventListener('statechange', () => {
+                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        window.location.reload();
+                    }
+                });
+            });
+        }).catch(error => console.warn('Offline app shell could not be registered.', error));
     });
 }
 </script>
@@ -499,28 +511,38 @@ if ('serviceWorker' in navigator) {
 <!-- TOPBAR -->
 
 <div class="topbar">
+    <div class="topbar-heading">
+        <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle navigation" aria-controls="appSidebar" aria-expanded="true">
+            <i class="fas fa-bars" aria-hidden="true"></i>
+        </button>
+        <div class="welcome">
+            <h1>Dashboard</h1>
+        </div>
+        <div class="topbar-search">
+            <i class="fas fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search">
+        </div>
+    </div>
 
-<div class="topbar-heading">
-<button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle navigation" aria-controls="appSidebar" aria-expanded="true">
-    <i class="fas fa-bars" aria-hidden="true"></i>
-</button>
-<div class="welcome">
-<h1>Uganda School Management Portal</h1>
-<p>Modern Professional Responsive School ERP System</p>
-</div>
-</div>
+    <div class="top-actions">
+        <div class="header-badge">
+            <span class="header-badge-icon"><i class="fas fa-earth-americas"></i></span>
+            <span>EN</span>
+            <i class="fas fa-chevron-down"></i>
+        </div>
 
-<div class="top-actions">
+        <button class="icon-button" type="button" aria-label="Messages"><i class="fas fa-envelope"></i><span class="dot-indicator">8</span></button>
 
-<!-- search removed to keep header compact -->
-
-<div class="profile" id="headerProfile">
-    <img src="https://i.pravatar.cc/100?img=12" alt="User profile">
-    <button class="btn-secondary logout-inline" id="logoutBtn" type="button" aria-label="Logout" title="Logout"><i class="fas fa-right-from-bracket" aria-hidden="true"></i></button>
-</div>
-
-</div>
-
+        <div class="profile" id="headerProfile">
+            <img src="https://i.pravatar.cc/100?img=12" alt="User profile">
+            <div class="profile-meta">
+                <strong>Steven Jhon</strong>
+                <span>Admin</span>
+            </div>
+            <i class="fas fa-chevron-down tiny-chevron"></i>
+            <button class="btn-secondary logout-inline" id="logoutBtn" type="button" aria-label="Logout" title="Logout"><i class="fas fa-right-from-bracket" aria-hidden="true"></i></button>
+        </div>
+    </div>
 </div>
 
 <!-- User Roles Section -->
@@ -621,93 +643,122 @@ if ('serviceWorker' in navigator) {
 
 <!-- DASHBOARD -->
 
-<section class="dashboard">
+<section class="dashboard-shell">
+    <div class="dashboard-main">
+        <div class="stats-strip">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Students</span>
+                        <strong data-dashboard-stat="students">—</strong>
+                    </div>
+                    <div class="stat-icon purple">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                </div>
+            </div>
 
-<div class="card">
-<div class="card-top">
-<div>
-<h3>Total Students</h3>
-<h2>4,560</h2>
-</div>
-<div class="icon bg1">
-<i class="fas fa-user-graduate"></i>
-</div>
-</div>
-<p>+12% Increase</p>
-</div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Teachers</span>
+                        <strong data-dashboard-stat="teachers">—</strong>
+                    </div>
+                    <div class="stat-icon blue">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                </div>
+            </div>
 
-<div class="card">
-<div class="card-top">
-<div>
-<h3>Total Teachers</h3>
-<h2>186</h2>
-</div>
-<div class="icon bg2">
-<i class="fas fa-chalkboard-teacher"></i>
-</div>
-</div>
-<p>+6 New Staff</p>
-</div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Parents</span>
+                        <strong data-dashboard-stat="parents">—</strong>
+                    </div>
+                    <div class="stat-icon gold">
+                        <i class="fas fa-people-roof"></i>
+                    </div>
+                </div>
+            </div>
 
-<div class="card">
-<div class="card-top">
-<div>
-<h3>Fees Collected</h3>
-<h2>UGX 98M</h2>
-</div>
-<div class="icon bg3">
-<i class="fas fa-wallet"></i>
-</div>
-</div>
-<p>82% Paid</p>
-</div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Fees Collected</span>
+                        <strong data-dashboard-stat="earnings">—</strong>
+                    </div>
+                    <div class="stat-icon coral">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-<div class="card">
-<div class="card-top">
-<div>
-<h3>Attendance</h3>
-<h2>94%</h2>
-</div>
-<div class="icon bg4">
-<i class="fas fa-calendar-check"></i>
-</div>
-</div>
-<p>Excellent</p>
-</div>
+        <div class="analytics-row">
+            <div class="panel earnings-panel">
+                <div class="panel-header">
+                    <h3>Fees &amp; Expenses</h3>
+                    <div class="period-select" id="dashboardChartYear"></div>
+                </div>
 
-</section>
+                <div class="chart-legend">
+                    <span data-dashboard-series="fees"><i class="dot dot-primary"></i>Fees collected</span>
+                    <span data-dashboard-series="expenses"><i class="dot dot-muted"></i>Expenses</span>
+                </div>
 
-<!-- CHARTS -->
+                <div class="bar-chart" id="dashboardEarningsChart" aria-label="Monthly collected fees and expenses"></div>
+                <div class="chart-months" id="dashboardChartMonths"></div>
+            </div>
 
-<section class="charts">
+            <div class="panel students-panel">
+                <div class="panel-header"><h3>Students</h3><i class="fas fa-ellipsis"></i></div>
+                <div class="donut-wrap">
+                    <div class="donut-chart">
+                        <div class="donut-ring" id="dashboardGenderChart"></div>
+                        <div class="donut-core">
+                            <span>Students</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="legend-inline">
+                    <div><span class="dot dot-primary"></span> Male <strong data-dashboard-stat="maleShare">—</strong></div>
+                    <div><span class="dot dot-muted"></span> Female <strong data-dashboard-stat="femaleShare">—</strong></div>
+                </div>
+            </div>
+        </div>
 
-<div class="chart-card pie-chart-card">
-<h3>School Fees Analytics</h3>
-<canvas id="pieChart"></canvas>
-</div>
+        <div class="notice-panel panel">
+            <div class="panel-header">
+                <h3>Notice Board</h3>
+                <i class="fas fa-ellipsis"></i>
+            </div>
 
-<div class="chart-card pie-chart-card">
-<h3>Performance Overview</h3>
-<canvas id="radarChart"></canvas>
-</div>
-
-<div class="chart-card">
-    <div class="chart-header">
-        <h3>Student Enrollment</h3>
-        <div class="chart-toggle">
-            <button class="toggle-btn" data-period="weekly">W</button>
-            <button class="toggle-btn" data-period="monthly">M</button>
-            <button class="toggle-btn active" data-period="yearly">Y</button>
+            <div class="notice-copy">Recently published school notices</div>
+            <div id="dashboardNotices" aria-live="polite"></div>
         </div>
     </div>
-<canvas id="lineChart"></canvas>
-</div>
 
-<div class="chart-card">
-<h3>Attendance by Stream</h3>
-<canvas id="barChart"></canvas>
-</div>
+    <aside class="dashboard-side">
+        <div class="panel calendar-panel">
+            <div class="calendar-header">
+                <h3>Event Calendar</h3>
+                <i class="fas fa-ellipsis"></i>
+            </div>
 
+            <div class="calendar-month">
+                <span id="dashboardCalendarMonth"></span>
+                <div class="calendar-nav"><i class="fas fa-chevron-left"></i><i class="fas fa-chevron-right"></i></div>
+            </div>
+
+            <div class="calendar-grid" id="dashboardCalendarGrid"></div>
+        </div>
+
+        <div class="panel upcoming-events-panel">
+            <div class="panel-header"><h3>Upcoming Events</h3></div>
+            <div id="dashboardEvents" aria-live="polite"></div>
+        </div>
+    </aside>
 </section>
 
 <!-- TABLE -->
@@ -728,41 +779,7 @@ if ('serviceWorker' in navigator) {
 </tr>
 </thead>
 
-<tbody>
-
-<tr>
-<td>Sarah Namugenyi</td>
-<td>S.4 Blue</td>
-<td>UGX 850,000</td>
-<td><span class="badge paid">Paid</span></td>
-<td>23 May 2026</td>
-</tr>
-
-<tr>
-<td>Brian Okello</td>
-<td>P.7 East</td>
-<td>UGX 600,000</td>
-<td><span class="badge pending">Pending</span></td>
-<td>22 May 2026</td>
-</tr>
-
-<tr>
-<td>Mercy Achieng</td>
-<td>S.2 Red</td>
-<td>UGX 920,000</td>
-<td><span class="badge paid">Paid</span></td>
-<td>21 May 2026</td>
-</tr>
-
-<tr>
-<td>David Mugisha</td>
-<td>P.5 West</td>
-<td>UGX 450,000</td>
-<td><span class="badge pending">Pending</span></td>
-<td>20 May 2026</td>
-</tr>
-
-</tbody>
+<tbody id="dashboardRecentFees"></tbody>
 
 </table>
 

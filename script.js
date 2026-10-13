@@ -195,6 +195,224 @@ document.addEventListener('DOMContentLoaded', () => {
         photo: membership.photoURL || membership.photo || membership.profile?.photoURL || authUser.photoURL || ''
     });
 
+    const dashboardCollections = ['students', 'teachers', 'parents', 'fees', 'expenses', 'notices', 'calendarEvents'];
+    const dashboardData = Object.fromEntries(dashboardCollections.map(name => [name, { loaded: false, records: [] }]));
+    let dashboardSubscriptions = [];
+    let dashboardIdentityKey = '';
+
+    const dashboardNumber = value => {
+        const number = typeof value === 'number' ? value : Number(String(value ?? '').replace(/[^0-9.-]/g, ''));
+        return Number.isFinite(number) ? number : 0;
+    };
+    const dashboardDate = record => {
+        const value = record.paymentDate || record.expenseDate || record.eventDate || record.scheduledDate
+            || record.startDate || record.publishDate || record.date || record.createdAt || '';
+        const date = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+    };
+    const dashboardDateLabel = value => {
+        const date = value ? new Date(value) : null;
+        return date && !Number.isNaN(date.getTime())
+            ? date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+            : 'Date not set';
+    };
+    const dashboardEscape = value => String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[character]);
+
+    function renderDashboardData() {
+        const recordsFor = collection => dashboardData[collection].records;
+        const setStat = (name, value) => {
+            const element = document.querySelector(`[data-dashboard-stat="${name}"]`);
+            if (element) element.textContent = value;
+        };
+        const availableCount = collection => dashboardData[collection].loaded
+            ? recordsFor(collection).length.toLocaleString()
+            : '—';
+
+        setStat('students', availableCount('students'));
+        setStat('teachers', availableCount('teachers'));
+        setStat('parents', availableCount('parents'));
+
+        const fees = recordsFor('fees');
+        const earnings = fees.reduce((sum, fee) => sum + dashboardNumber(fee.amountPaid ?? fee.paidAmount ?? fee.amountCollected), 0);
+        setStat('earnings', dashboardData.fees.loaded
+            ? `UGX ${earnings.toLocaleString('en-UG', { maximumFractionDigits: 0 })}`
+            : '—');
+
+        const students = recordsFor('students');
+        if (dashboardData.students.loaded) {
+            const maleCount = students.filter(student => String(student.gender || '').toLowerCase() === 'male').length;
+            const femaleCount = students.filter(student => String(student.gender || '').toLowerCase() === 'female').length;
+            const totalGenderRecords = maleCount + femaleCount;
+            const malePercent = totalGenderRecords ? Math.round(maleCount / totalGenderRecords * 100) : 0;
+            const femalePercent = totalGenderRecords ? 100 - malePercent : 0;
+            setStat('maleShare', `${malePercent}%`);
+            setStat('femaleShare', `${femalePercent}%`);
+            const genderChart = document.getElementById('dashboardGenderChart');
+            if (genderChart) {
+                genderChart.style.background = `conic-gradient(#d4a080 0 ${malePercent}%, #5f6d9c ${malePercent}% 100%)`;
+            }
+        } else {
+            setStat('maleShare', '—');
+            setStat('femaleShare', '—');
+        }
+
+        const year = new Date().getFullYear();
+        const monthlyFees = Array(12).fill(0);
+        const monthlyExpenses = Array(12).fill(0);
+        fees.forEach(fee => {
+            const date = fee.paymentDate ? new Date(fee.paymentDate) : null;
+            if (date && !Number.isNaN(date.getTime()) && date.getFullYear() === year) {
+                monthlyFees[date.getMonth()] += dashboardNumber(fee.amountPaid ?? fee.paidAmount ?? fee.amountCollected);
+            }
+        });
+        recordsFor('expenses').forEach(expense => {
+            const date = expense.expenseDate ? new Date(expense.expenseDate) : null;
+            if (date && !Number.isNaN(date.getTime()) && date.getFullYear() === year) {
+                monthlyExpenses[date.getMonth()] += dashboardNumber(expense.amount);
+            }
+        });
+        const barChart = document.getElementById('dashboardEarningsChart');
+        const monthLabels = document.getElementById('dashboardChartMonths');
+        const chartYear = document.getElementById('dashboardChartYear');
+        const feesLoaded = dashboardData.fees.loaded;
+        const expensesLoaded = dashboardData.expenses.loaded;
+        if (chartYear) chartYear.textContent = String(year);
+        if (barChart && monthLabels) {
+            document.querySelectorAll('[data-dashboard-series="fees"]').forEach(element => { element.hidden = !feesLoaded; });
+            document.querySelectorAll('[data-dashboard-series="expenses"]').forEach(element => { element.hidden = !expensesLoaded; });
+            if (!feesLoaded && !expensesLoaded) {
+                barChart.innerHTML = '<p class="dashboard-empty">Financial data unavailable for this account.</p>';
+                monthLabels.replaceChildren();
+            } else {
+                const months = Array.from({ length: 12 }, (_, index) => new Date(year, index, 1).toLocaleString(undefined, { month: 'short' }));
+                const max = Math.max(0, ...(feesLoaded ? monthlyFees : []), ...(expensesLoaded ? monthlyExpenses : []));
+                barChart.innerHTML = months.map((month, index) => {
+                    const feesHeight = feesLoaded && max ? Math.max(2, monthlyFees[index] / max * 100) : 0;
+                    const expenseHeight = expensesLoaded && max ? Math.max(2, monthlyExpenses[index] / max * 100) : 0;
+                    return `<div class="bar-group" title="${month}: fees ${feesLoaded ? `UGX ${monthlyFees[index].toLocaleString()}` : 'unavailable'}, expenses ${expensesLoaded ? `UGX ${monthlyExpenses[index].toLocaleString()}` : 'unavailable'}"><span class="bar primary" style="--h:${feesHeight}%"></span><span class="bar secondary" style="--h:${expenseHeight}%"></span></div>`;
+                }).join('');
+                monthLabels.innerHTML = months.map(month => `<span>${dashboardEscape(month)}</span>`).join('');
+            }
+        }
+
+        const noticesContainer = document.getElementById('dashboardNotices');
+        if (noticesContainer) {
+            const notices = recordsFor('notices')
+                .filter(notice => String(notice.status || '').toLowerCase() === 'published')
+                .sort((left, right) => (dashboardDate(right)?.getTime() || 0) - (dashboardDate(left)?.getTime() || 0))
+                .slice(0, 4);
+            noticesContainer.innerHTML = notices.length
+                ? notices.map(notice => `<article class="notice-item"><div class="notice-thumb"></div><div class="notice-text"><p>${dashboardEscape(notice.title || notice.subject || 'School notice')}</p></div><div class="notice-meta"><span>${dashboardEscape(dashboardDateLabel(notice.publishDate || notice.date || notice.createdAt))}</span></div></article>`).join('')
+                : `<p class="dashboard-empty">${dashboardData.notices.loaded ? 'No published notices.' : 'Notice data unavailable for this account.'}</p>`;
+        }
+
+        const eventRecords = recordsFor('calendarEvents');
+        const today = new Date();
+        const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const calendarMonth = document.getElementById('dashboardCalendarMonth');
+        const calendarGrid = document.getElementById('dashboardCalendarGrid');
+        if (calendarMonth) calendarMonth.textContent = currentMonth.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+        if (calendarGrid) {
+            const firstDayOffset = (currentMonth.getDay() + 6) % 7;
+            const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+            const eventDays = new Set(eventRecords.map(event => dashboardDate(event))
+                .filter(date => date && date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth())
+                .map(date => date.getDate()));
+            const weekdayLabels = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+            calendarGrid.innerHTML = weekdayLabels.map(day => `<span>${day}</span>`).join('')
+                + Array.from({ length: firstDayOffset }, () => '<span class="mute"></span>').join('')
+                + Array.from({ length: daysInMonth }, (_, index) => {
+                    const day = index + 1;
+                    const classes = [eventDays.has(day) ? 'marked' : '', day === today.getDate() ? 'today' : ''].filter(Boolean).join(' ');
+                    return `<span class="${classes}">${day}</span>`;
+                }).join('');
+        }
+
+        const eventsContainer = document.getElementById('dashboardEvents');
+        if (eventsContainer) {
+            const upcomingEvents = eventRecords.map(event => ({ event, date: dashboardDate(event) }))
+                .filter(item => item.date && item.date >= new Date(today.getFullYear(), today.getMonth(), today.getDate()))
+                .sort((left, right) => left.date - right.date)
+                .slice(0, 5);
+            eventsContainer.innerHTML = upcomingEvents.length
+                ? upcomingEvents.map(({ event, date }) => `<div class="dashboard-event"><span>${dashboardEscape(dashboardDateLabel(date))}</span><strong>${dashboardEscape(event.title || event.eventName || event.name || 'School event')}</strong></div>`).join('')
+                : `<p class="dashboard-empty">${dashboardData.calendarEvents.loaded ? 'No upcoming events.' : 'Event data unavailable for this account.'}</p>`;
+        }
+
+        const recentFees = document.getElementById('dashboardRecentFees');
+        if (recentFees) {
+            const payments = fees.map(fee => ({
+                fee,
+                amount: dashboardNumber(fee.amountPaid ?? fee.paidAmount ?? fee.amountCollected),
+                date: fee.paymentDate ? new Date(fee.paymentDate) : null
+            })).filter(item => item.amount > 0)
+                .sort((left, right) => (right.date?.getTime() || 0) - (left.date?.getTime() || 0))
+                .slice(0, 5);
+            recentFees.innerHTML = payments.length
+                ? payments.map(({ fee, amount, date }) => `<tr><td>${dashboardEscape(fee.studentName || fee.name || 'Student')}</td><td>${dashboardEscape(fee.studentClass || fee.className || '—')}</td><td>UGX ${amount.toLocaleString('en-UG', { maximumFractionDigits: 0 })}</td><td><span class="badge ${String(fee.status || '').toLowerCase() === 'paid' ? 'paid' : 'pending'}">${dashboardEscape(fee.status || 'Received')}</span></td><td>${dashboardEscape(dashboardDateLabel(date))}</td></tr>`).join('')
+                : `<tr><td colspan="5" class="dashboard-empty">${dashboardData.fees.loaded ? 'No fee payments recorded.' : 'Fee data unavailable for this account.'}</td></tr>`;
+        }
+    }
+
+    async function startDashboardData(userData) {
+        const api = window.schoolPortalData;
+        const identity = api?.getIdentity();
+        if (!api || !identity) return;
+        const identityKey = `${identity.schoolId}:${identity.uid}`;
+        if (dashboardIdentityKey === identityKey && dashboardSubscriptions.length) return;
+        dashboardSubscriptions.forEach(unsubscribe => unsubscribe());
+        dashboardSubscriptions = [];
+        dashboardIdentityKey = identityKey;
+
+        const adminRole = ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(userData.role);
+        const permissions = identity.permissions || userData.permissions || userData.perms || {};
+        dashboardCollections.forEach(collection => {
+            dashboardData[collection] = { loaded: false, records: [] };
+        });
+        renderDashboardData();
+
+        const permittedCollections = dashboardCollections
+            .filter(collection => adminRole || permissions[collection]?.view === true);
+        const subscriptions = permittedCollections.map(async collection => {
+            const unsubscribe = await api.subscribe(collection, records => {
+                dashboardData[collection] = { loaded: true, records };
+                renderDashboardData();
+            });
+            if (dashboardIdentityKey === identityKey) {
+                dashboardSubscriptions.push(unsubscribe);
+            } else {
+                unsubscribe();
+            }
+        });
+        const results = await Promise.allSettled(subscriptions);
+        results.forEach((result, index) => {
+            if (result.status === 'rejected') {
+                dashboardData[permittedCollections[index]] = { loaded: false, records: [] };
+                console.error(`Unable to load dashboard ${permittedCollections[index]} data.`, result.reason);
+            }
+        });
+        renderDashboardData();
+    }
+
+    window.addEventListener('school-portal-sync-error', event => {
+        const collection = event.detail?.collection;
+        if (!navigator.onLine || !dashboardCollections.includes(collection)) return;
+        dashboardData[collection] = { loaded: false, records: [] };
+        renderDashboardData();
+    });
+
+    window.addEventListener('school-portal-identity-cleared', () => {
+        dashboardSubscriptions.forEach(unsubscribe => unsubscribe());
+        dashboardSubscriptions = [];
+        dashboardIdentityKey = '';
+        dashboardCollections.forEach(collection => {
+            dashboardData[collection] = { loaded: false, records: [] };
+        });
+        renderDashboardData();
+    });
+
     function applyAccountSectionAccess(userData) {
         const allowedSections = new Set(Array.isArray(userData.sections) ? userData.sections : []);
         const canView = userData.perms?.view !== false;
@@ -217,15 +435,23 @@ document.addEventListener('DOMContentLoaded', () => {
             loginScreen.classList.add('hidden');
         }
         container.classList.remove('hidden');
+
         const schoolName = currentSchool?.schoolName || 'School';
-        document.querySelector('.welcome h1').textContent = `${schoolName} Dashboard`;
-        document.querySelector('.welcome p').textContent = 'Welcome back, School Admin.';
-        
-        document.querySelector('.profile h4').textContent = userData.fullName || userData.adminUser || 'Administrator';
-        document.querySelector('.profile-role').textContent = userData.role;
-        document.querySelector('.profile img').src = userData.photo || 'https://i.pravatar.cc/100?img=12';
+        const welcomeHeading = document.querySelector('.welcome h1');
+        const welcomeSubheading = document.querySelector('.welcome p');
+        if (welcomeHeading) welcomeHeading.textContent = `${schoolName} Dashboard`;
+        if (welcomeSubheading) welcomeSubheading.textContent = 'Welcome back, School Admin.';
+
+        const profileNameEl = document.querySelector('.profile-meta strong') || document.querySelector('.profile h4');
+        const profileRoleEl = document.querySelector('.profile-meta span') || document.querySelector('.profile-role');
+        const profilePhotoEl = document.querySelector('.profile img');
+        if (profileNameEl) profileNameEl.textContent = userData.fullName || userData.adminUser || 'Administrator';
+        if (profileRoleEl) profileRoleEl.textContent = userData.role || 'Administrator';
+        if (profilePhotoEl) profilePhotoEl.src = userData.photo || userData.photoURL || 'https://i.pravatar.cc/100?img=12';
+
         showDashboard({ persist: false });
         restoreSavedSection();
+        void startDashboardData(userData);
     };
 
     const restoreSession = async () => {
@@ -679,13 +905,21 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
     });
     const updateProfileSummary = user => {
-        document.getElementById('modalProfilePhoto').src = user.photoURL || user.photo || 'https://i.pravatar.cc/100?img=12';
-        document.getElementById('modalProfileName').textContent = user.fullName || '';
-        document.getElementById('modalProfileRole').textContent = user.role || '';
-        document.getElementById('modalProfileId').textContent = user.userId || '';
-        const headerName = document.querySelector('.profile h4');
+        const modalProfilePhoto = document.getElementById('modalProfilePhoto');
+        const modalProfileName = document.getElementById('modalProfileName');
+        const modalProfileRole = document.getElementById('modalProfileRole');
+        const modalProfileId = document.getElementById('modalProfileId');
+
+        if (modalProfilePhoto) modalProfilePhoto.src = user.photoURL || user.photo || 'https://i.pravatar.cc/100?img=12';
+        if (modalProfileName) modalProfileName.textContent = user.fullName || '';
+        if (modalProfileRole) modalProfileRole.textContent = user.role || '';
+        if (modalProfileId) modalProfileId.textContent = user.userId || '';
+
+        const headerName = document.querySelector('.profile-meta strong') || document.querySelector('.profile h4');
+        const headerRole = document.querySelector('.profile-meta span') || document.querySelector('.profile-role');
         const headerPhoto = document.querySelector('.profile img');
         if (headerName) headerName.textContent = user.fullName || '';
+        if (headerRole) headerRole.textContent = user.role || '';
         if (headerPhoto) headerPhoto.src = user.photoURL || user.photo || 'https://i.pravatar.cc/100?img=12';
     };
 
@@ -3938,42 +4172,55 @@ Total Amount: $4,820.00
 
 
     // Global Chart Defaults
-    Chart.defaults.font.family = "'Poppins', sans-serif";
-    Chart.defaults.font.size = 12;
-    Chart.defaults.color = colors.text;
-    Chart.defaults.plugins.legend.labels.usePointStyle = true;
-    Chart.defaults.responsive = true;
-    Chart.defaults.maintainAspectRatio = false;
+    if (typeof Chart !== 'undefined') {
+        Chart.defaults.font.family = "'Poppins', sans-serif";
+        Chart.defaults.font.size = 12;
+        Chart.defaults.color = colors.text;
+        Chart.defaults.plugins.legend.labels.usePointStyle = true;
+        Chart.defaults.responsive = true;
+        Chart.defaults.maintainAspectRatio = false;
+    }
+
+    const createChartIfPresent = (canvasId, factory) => {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || typeof canvas.getContext !== 'function') return null;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        return factory(ctx);
+    };
+
+    let enrollmentChart = null;
 
     // 1. Enrollment Line Chart
-    const lineCtx = document.getElementById('lineChart').getContext('2d');
-    const lineGradient = lineCtx.createLinearGradient(0, 0, 0, 200);
-    lineGradient.addColorStop(0, 'rgba(79, 70, 229, 0.2)');
-    lineGradient.addColorStop(1, 'rgba(79, 70, 229, 0)');
+    enrollmentChart = createChartIfPresent('lineChart', (lineCtx) => {
+        const lineGradient = lineCtx.createLinearGradient(0, 0, 0, 200);
+        lineGradient.addColorStop(0, 'rgba(79, 70, 229, 0.2)');
+        lineGradient.addColorStop(1, 'rgba(79, 70, 229, 0)');
 
-    const enrollmentChart = new Chart(lineCtx, {
-        type: 'line',
-        data: {
-            labels: ['2021', '2022', '2023', '2024', '2025', '2026'],
-            datasets: [{
-                label: 'Students',
-                data: [3200, 3550, 3900, 4100, 4400, 4560],
-                borderColor: colors.primary,
-                backgroundColor: lineGradient,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 4,
-                pointBackgroundColor: colors.primary,
-                borderWidth: 3
-            }]
-        },
-        options: {
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { grid: { color: 'rgba(0,0,0,0.03)' }, beginAtZero: false },
-                x: { grid: { display: false } }
+        return new Chart(lineCtx, {
+            type: 'line',
+            data: {
+                labels: ['2021', '2022', '2023', '2024', '2025', '2026'],
+                datasets: [{
+                    label: 'Students',
+                    data: [3200, 3550, 3900, 4100, 4400, 4560],
+                    borderColor: colors.primary,
+                    backgroundColor: lineGradient,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: colors.primary,
+                    borderWidth: 3
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: 'rgba(0,0,0,0.03)' }, beginAtZero: false },
+                    x: { grid: { display: false } }
+                }
             }
-        }
+        });
     });
 
     // Enrollment Toggle Logic
@@ -3994,13 +4241,13 @@ Total Amount: $4,820.00
 
     document.querySelectorAll('.toggle-btn').forEach(btn => {
         btn.addEventListener('click', function() {
+            if (!enrollmentChart) return;
             const period = this.getAttribute('data-period');
-            
-            // Update UI
-            this.parentElement.querySelector('.active').classList.remove('active');
+            const toggleContainer = this.parentElement;
+            const activeToggle = toggleContainer?.querySelector('.active');
+            if (activeToggle) activeToggle.classList.remove('active');
             this.classList.add('active');
-            
-            // Update Chart
+            if (!enrollmentData[period]) return;
             enrollmentChart.data.labels = enrollmentData[period].labels;
             enrollmentChart.data.datasets[0].data = enrollmentData[period].data;
             enrollmentChart.update();
@@ -4008,79 +4255,82 @@ Total Amount: $4,820.00
     });
 
     // 2. Fees Doughnut Chart
-    const pieCtx = document.getElementById('pieChart').getContext('2d');
-    new Chart(pieCtx, {
-        type: 'pie',
-        data: {
-            labels: ['Paid', 'Pending'],
-            datasets: [{
-                data: [82, 18],
-                backgroundColor: [colors.success, colors.warning],
-                borderWidth: 2,
-                borderColor: '#ffffff',
-                hoverOffset: 15
-            }]
-        },
-        options: {
-            maintainAspectRatio: true,
-            aspectRatio: 1,
-            plugins: {
-                legend: { position: 'bottom', labels: { padding: 15 } }
+    createChartIfPresent('pieChart', (pieCtx) => {
+        return new Chart(pieCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Paid', 'Pending'],
+                datasets: [{
+                    data: [82, 18],
+                    backgroundColor: [colors.success, colors.warning],
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                maintainAspectRatio: true,
+                aspectRatio: 1,
+                plugins: {
+                    legend: { position: 'bottom', labels: { padding: 15 } }
+                }
             }
-        }
+        });
     });
 
     // 3. Attendance Bar Chart
-    const barCtx = document.getElementById('barChart').getContext('2d');
-    new Chart(barCtx, {
-        type: 'bar',
-        data: {
-            labels: ['S.1', 'S.2', 'S.3', 'S.4', 'S.5', 'S.6'],
-            datasets: [{
-                label: 'Attendance %',
-                data: [96, 92, 95, 98, 91, 93],
-                backgroundColor: colors.secondary,
-                borderRadius: 6,
-                barThickness: 18
-            }]
-        },
-        options: {
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { max: 100, grid: { borderDash: [5, 5], color: 'rgba(0,0,0,0.05)' } },
-                x: { grid: { display: false } }
+    createChartIfPresent('barChart', (barCtx) => {
+        return new Chart(barCtx, {
+            type: 'bar',
+            data: {
+                labels: ['S.1', 'S.2', 'S.3', 'S.4', 'S.5', 'S.6'],
+                datasets: [{
+                    label: 'Attendance %',
+                    data: [96, 92, 95, 98, 91, 93],
+                    backgroundColor: colors.secondary,
+                    borderRadius: 6,
+                    barThickness: 18
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { max: 100, grid: { borderDash: [5, 5], color: 'rgba(0,0,0,0.05)' } },
+                    x: { grid: { display: false } }
+                }
             }
-        }
+        });
     });
 
     // 4. Performance Radar Chart
-    const piePerfCtx = document.getElementById('radarChart').getContext('2d');
-    new Chart(piePerfCtx, {
-        type: 'pie',
-        data: {
-            labels: ['Math', 'English', 'Science', 'History', 'Geography', 'Art'],
-            datasets: [{
-                label: 'Avg Score',
-                data: [85, 78, 90, 75, 82, 88],
-                backgroundColor: [
-                    colors.primary, 
-                    colors.secondary, 
-                    colors.success, 
-                    colors.warning, 
-                    colors.danger, 
-                    '#8b5cf6'
-                ],
-                borderWidth: 2,
-                borderColor: '#ffffff'
-            }]
-        },
-        options: {
-            maintainAspectRatio: true,
-            aspectRatio: 1,
-            plugins: {
-                legend: { position: 'bottom', labels: { padding: 15 } }
+    createChartIfPresent('radarChart', (piePerfCtx) => {
+        return new Chart(piePerfCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Math', 'English', 'Science', 'History', 'Geography', 'Art'],
+                datasets: [{
+                    label: 'Avg Score',
+                    data: [85, 78, 90, 75, 82, 88],
+                    backgroundColor: [
+                        colors.primary,
+                        colors.secondary,
+                        colors.success,
+                        colors.warning,
+                        colors.danger,
+                        '#8b5cf6'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                maintainAspectRatio: true,
+                aspectRatio: 1,
+                plugins: {
+                    legend: { position: 'bottom', labels: { padding: 15 } }
+                }
             }
-        }
+        });
     });
 
     // Modal Control Logic

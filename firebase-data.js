@@ -269,25 +269,45 @@ async function syncOutbox() {
 async function refreshSyncIndicator() {
     if (!syncIndicator) {
         const actions = document.querySelector('.top-actions');
+        const languageSelector = actions?.querySelector('.header-badge');
         if (!actions) return;
         syncIndicator = document.createElement('span');
         syncIndicator.className = 'portal-sync-indicator';
         syncIndicator.setAttribute('role', 'status');
         syncIndicator.setAttribute('aria-live', 'polite');
-        actions.prepend(syncIndicator);
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-cloud';
+        icon.setAttribute('aria-hidden', 'true');
+        const label = document.createElement('span');
+        syncIndicator.append(icon, label);
+        if (languageSelector) {
+            languageSelector.insertAdjacentElement('afterend', syncIndicator);
+        } else {
+            actions.prepend(syncIndicator);
+        }
     }
+    const icon = syncIndicator.querySelector('i');
+    const label = syncIndicator.querySelector('span');
     if (!identity) {
-        syncIndicator.textContent = 'Signed out';
         syncIndicator.dataset.state = 'idle';
+        if (icon) icon.className = 'fas fa-cloud';
+        if (label) label.textContent = 'Signed out';
         return;
     }
     if (!navigator.onLine) {
-        syncIndicator.textContent = 'Offline · changes saved';
         syncIndicator.dataset.state = 'offline';
+        if (icon) icon.className = 'fas fa-cloud-slash';
+        if (label) label.textContent = 'Offline';
         return;
     }
     const pending = (await listOutbox()).filter(item => item.schoolId === identity.schoolId && item.uid === identity.uid).length;
-    syncIndicator.textContent = syncRunning ? 'Syncing…' : pending ? `${pending} change${pending === 1 ? '' : 's'} queued` : 'Cloud synced';
+    if (syncRunning || pending) {
+        if (icon) icon.className = 'fas fa-cloud-arrow-up';
+        if (label) label.textContent = 'Syncing';
+    } else {
+        if (icon) icon.className = 'fas fa-cloud';
+        if (label) label.textContent = 'Synced';
+    }
     syncIndicator.dataset.state = syncRunning || pending ? 'pending' : 'synced';
 }
 
