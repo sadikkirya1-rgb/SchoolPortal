@@ -1552,11 +1552,94 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const roleSelectEl = document.getElementById('roleSelect');
     const sectionsContainerEl = document.getElementById('sectionsContainer');
+    const dataPermissionsContainerEl = document.getElementById('dataPermissionsContainer');
     const addUserForm = document.getElementById('addUserForm');
     const usersTableBody = document.getElementById('usersTableBody');
     const toggleAddUserFormBtn = document.getElementById('toggleAddUserFormBtn');
     const generatePassBtn = document.getElementById('generatePassBtn');
     const cancelUserFormBtn = document.getElementById('cancelUserFormBtn');
+    let assignablePermissionOptions = null;
+    let permissionOptionsSchoolId = '';
+    const roleKeysByLabel = {
+        'Deputy Head Teacher': 'deputyHeadTeacher',
+        Bursar: 'bursar',
+        Teacher: 'teacher',
+        Librarian: 'librarian',
+        'HR Officer': 'hrOfficer',
+        'Store Manager': 'storeManager',
+        Parent: 'parent',
+        Student: 'student'
+    };
+    const roleKeyForSelection = role => roleKeysByLabel[role] || role;
+    const loadAssignablePermissionOptions = async schoolId => {
+        if (assignablePermissionOptions && permissionOptionsSchoolId === schoolId) return assignablePermissionOptions;
+        assignablePermissionOptions = null;
+        permissionOptionsSchoolId = '';
+        const options = await getFirebase().getAssignableSchoolPermissions(schoolId);
+        assignablePermissionOptions = options;
+        permissionOptionsSchoolId = schoolId;
+        return assignablePermissionOptions;
+    };
+    const renderDataPermissions = (role, selectedPermissions) => {
+        if (!dataPermissionsContainerEl) return;
+        const roleOptions = assignablePermissionOptions?.[roleKeyForSelection(role)];
+        if (!roleOptions) {
+            dataPermissionsContainerEl.innerHTML = '<p class="data-permissions-empty">Load the role permission options to configure access.</p>';
+            return;
+        }
+        const selected = selectedPermissions || Object.fromEntries(roleOptions.view.map(collection => [
+            collection,
+            { view: true, edit: roleOptions.edit.includes(collection), delete: false }
+        ]));
+        dataPermissionsContainerEl.innerHTML = `
+            <div class="data-permissions-table-wrap">
+                <table class="data-permissions-table">
+                    <thead><tr><th>Data area</th><th>View</th><th>Edit</th><th>Delete</th></tr></thead>
+                    <tbody>${roleOptions.view.map(collection => {
+                        const access = selected[collection] || {};
+                        const canEdit = roleOptions.edit.includes(collection);
+                        return `<tr class="data-permission-row" data-collection="${escapeUserHTML(collection)}">
+                            <th scope="row">${escapeUserHTML(collection.replace(/([A-Z])/g, ' $1'))}</th>
+                            <td><input type="checkbox" data-permission="view" aria-label="View ${escapeUserHTML(collection)}" ${access.view === true ? 'checked' : ''}></td>
+                            <td><input type="checkbox" data-permission="edit" aria-label="Edit ${escapeUserHTML(collection)}" ${canEdit && access.edit === true ? 'checked' : ''} ${canEdit ? '' : 'disabled'}></td>
+                            <td><input type="checkbox" data-permission="delete" aria-label="Delete ${escapeUserHTML(collection)}" ${canEdit && access.delete === true ? 'checked' : ''} ${canEdit ? '' : 'disabled'}></td>
+                        </tr>`;
+                    }).join('')}</tbody>
+                </table>
+            </div>`;
+        dataPermissionsContainerEl.querySelectorAll('.data-permission-row').forEach(row => {
+            const viewCheckbox = row.querySelector('[data-permission="view"]');
+            const editCheckbox = row.querySelector('[data-permission="edit"]');
+            const deleteCheckbox = row.querySelector('[data-permission="delete"]');
+            const updateDependencies = () => {
+                if (!viewCheckbox.checked) {
+                    editCheckbox.checked = false;
+                    deleteCheckbox.checked = false;
+                }
+                editCheckbox.disabled = !viewCheckbox.checked || !roleOptions.edit.includes(row.dataset.collection);
+                deleteCheckbox.disabled = !viewCheckbox.checked || !roleOptions.edit.includes(row.dataset.collection) || !editCheckbox.checked;
+                if (!editCheckbox.checked) deleteCheckbox.checked = false;
+            };
+            viewCheckbox.addEventListener('change', updateDependencies);
+            editCheckbox.addEventListener('change', updateDependencies);
+            updateDependencies();
+        });
+    };
+    const readDataPermissions = () => Object.fromEntries(
+        Array.from(dataPermissionsContainerEl.querySelectorAll('.data-permission-row')).map(row => [
+            row.dataset.collection,
+            Object.fromEntries(Array.from(row.querySelectorAll('[data-permission]')).map(input => [
+                input.dataset.permission,
+                input.checked
+            ]))
+        ])
+    );
+    const permissionSummary = permissions => {
+        if (!permissions || !Object.keys(permissions).length) return 'Role defaults';
+        const entries = Object.values(permissions || {});
+        const count = level => entries.filter(access => access?.[level] === true).length;
+        return `${count('view')} view · ${count('edit')} edit · ${count('delete')} delete`;
+    };
 
     const showUserRolesAddButton = () => {
         userRolesSection?.querySelectorAll('button').forEach(button => {
@@ -1569,11 +1652,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    toggleAddUserFormBtn?.addEventListener('click', () => {
+    toggleAddUserFormBtn?.addEventListener('click', async () => {
         const isHidden = addUserForm.classList.contains('hidden');
         if (isHidden) {
             addUserForm.classList.remove('hidden');
             clearForm();
+            const session = loadSession();
+            try {
+                await loadAssignablePermissionOptions(session.schoolId);
+                renderDataPermissions(roleSelectEl.value);
+            } catch (error) {
+                console.error('Unable to load role permission options.', error);
+                dataPermissionsContainerEl.innerHTML = `<p class="data-permissions-error">${escapeUserHTML(error.message || 'Unable to load role permissions.')}</p>`;
+            }
         } else {
             addUserForm.classList.add('hidden');
         }
@@ -2898,7 +2989,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 tr.classList.add('deactivated-row');
             }
 
-            const perms = [];
             const channels = notificationChannels
                 .filter(channel => u.notificationPreferences?.[channel])
                 .join(', ') || 'None selected';
@@ -2913,7 +3003,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${escapeUserHTML(u.linkedRecordId || '—')}</td>
                 <td>${escapeUserHTML([u.email, u.phone].filter(Boolean).join(' · ') || '—')}<small class="user-notification-summary">Notices: ${escapeUserHTML(channels)}</small></td>
                 <td>${escapeUserHTML((u.sections || []).join(', '))}</td>
-                <td class="small">${u.uid === session.userId || ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'Protected' : 'Role-based'}</td>
+                <td class="small">${u.uid === session.userId || ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'Protected' : escapeUserHTML(permissionSummary(u.permissions))}</td>
                 <td>
                     <div style="display:flex; align-items:center; gap:10px;">
                         <button class="action-btn" data-action="edit" data-id="${escapeUserHTML(u.uid)}" title="Edit User" ${['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'disabled' : ''}><i class="fas fa-edit"></i></button>
@@ -2946,6 +3036,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (roleSelectEl) {
             roleSelectEl.value = roleSelectEl.querySelector('option[value="Teacher"]') ? 'Teacher' : roleSelectEl.options[0]?.value;
             applyRoleDefaults(roleSelectEl.value);
+            renderDataPermissions(roleSelectEl.value);
         }
     }
 
@@ -2962,6 +3053,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const email = document.getElementById('accountEmail').value.trim().toLowerCase();
         if (!fullName || !userId || !email) return alert('Provide the full name, User ID, and email address.');
         if (!editingUserId && password.length < 8) return alert('Set a password with at least 8 characters.');
+        if (!assignablePermissionOptions?.[roleKeyForSelection(role)] || !dataPermissionsContainerEl.querySelector('.data-permission-row')) {
+            return alert('Role permissions are not available. Reopen the user form and try again.');
+        }
         const photoInput = document.getElementById('profilePhotoInput');
         try {
             if (photoInput.files?.[0]) await readImageFile(photoInput.files[0]);
@@ -2977,6 +3071,7 @@ document.addEventListener('DOMContentLoaded', () => {
             password,
             role,
             sections,
+            permissions: readDataPermissions(),
             linkedRecordId: document.getElementById('accountRecordId').value.trim(),
             phone: document.getElementById('accountPhone').value.trim(),
             notificationPreferences: readNotificationPreferences(addUserForm)
@@ -3002,7 +3097,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         email,
                         phone: accountFields.phone,
                         linkedRecordId: accountFields.linkedRecordId,
+                        role,
                         sections,
+                        permissions: accountFields.permissions,
                         notificationPreferences: accountFields.notificationPreferences,
                         photoURL
                     });
@@ -3048,6 +3145,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (!u) return alert('This account is no longer available.');
+            try {
+                await loadAssignablePermissionOptions(loadSession().schoolId);
+            } catch (error) {
+                console.error('Unable to load role permission options for editing.', error);
+                alert(error.message || 'Unable to load role permissions.');
+                return;
+            }
             addUserForm.classList.remove('hidden');
             const submitBtn = document.getElementById('addUserBtn');
             if (submitBtn) submitBtn.textContent = 'Update User';
@@ -3056,8 +3160,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('passwordInputNew').value = '';
             document.getElementById('passwordInputNew').required = false;
             document.getElementById('passwordInputNew').placeholder = 'Leave blank to keep current password';
-            document.getElementById('roleSelect').value = u.role;
-            document.getElementById('roleSelect').disabled = true;
+            const roleLabel = Object.entries(roleKeysByLabel).find(([, roleKey]) => roleKey === u.role)?.[0];
+            document.getElementById('roleSelect').value = roleLabel || u.role;
+            renderDataPermissions(document.getElementById('roleSelect').value, u.permissions || undefined);
             document.getElementById('accountRecordId').value = u.linkedRecordId || '';
             document.getElementById('accountEmail').value = u.email || '';
             document.getElementById('accountPhone').value = u.phone || '';
@@ -3103,7 +3208,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     populateRoleOptions();
     populateSectionsList();
-    roleSelectEl.addEventListener('change', () => applyRoleDefaults(roleSelectEl.value));
+    roleSelectEl.addEventListener('change', () => {
+        applyRoleDefaults(roleSelectEl.value);
+        renderDataPermissions(roleSelectEl.value);
+    });
     clearForm();
 
     const escapeStaffHTML = (value) => String(value ?? '')

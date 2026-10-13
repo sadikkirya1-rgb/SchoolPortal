@@ -623,7 +623,8 @@ if ('serviceWorker' in navigator) {
                 </div>
                 <div class="form-group perms-group">
                     <label>Data permissions</label>
-                    <p>Automatically assigned by role and enforced by Firebase. Contact your Firebase administrator to change a role's access policy.</p>
+                    <p>Choose what this account can view, edit, and delete. Available permissions are limited by the selected role and enforced by Firebase.</p>
+                    <div id="dataPermissionsContainer" class="data-permissions-list" aria-live="polite"></div>
                 </div>
             </div>
 

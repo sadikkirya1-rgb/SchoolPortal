@@ -32,6 +32,23 @@ before(async () => {
             assignedClassIds: ['CLASS-A'],
             permissions: { students: { view: true, edit: true } }
         });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/teacher-reader-1'), {
+            role: 'teacher',
+            status: 'active',
+            permissions: { notices: { view: true } }
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/teacher-deleter-1'), {
+            role: 'teacher',
+            status: 'active',
+            assignedClassIds: ['CLASS-A'],
+            permissions: { students: { view: true, edit: true, delete: true } }
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/notices/NOTICE-A'), {
+            data: { title: 'School notice' },
+            version: 1,
+            updatedBy: 'admin-1',
+            updatedAt: '2026-01-01T00:00:00.000Z'
+        });
         await setDoc(doc(firestore, 'schools/SCH-TEST/students/STUDENT-A'), {
             data: { studentId: 'STUDENT-A', classId: 'CLASS-A', fullName: 'Test Student' },
             version: 1,
@@ -42,6 +59,12 @@ before(async () => {
             data: { studentId: 'STUDENT-B', classId: 'CLASS-B', fullName: 'Other Student' },
             version: 1,
             updatedBy: 'teacher-1',
+            updatedAt: '2026-01-01T00:00:00.000Z'
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/students/STUDENT-C'), {
+            data: { studentId: 'STUDENT-C', classId: 'CLASS-A', fullName: 'Delete Test Student' },
+            version: 1,
+            updatedBy: 'teacher-deleter-1',
             updatedAt: '2026-01-01T00:00:00.000Z'
         });
         await setDoc(doc(firestore, 'schools/SCH-TEST/auditEvents/EVENT-1'), {
@@ -66,6 +89,22 @@ test('teachers can read assigned-class students but not other classes', async ()
     const firestore = testEnvironment.authenticatedContext('teacher-1').firestore();
     await assertSucceeds(getDoc(doc(firestore, 'schools/SCH-TEST/students/STUDENT-A')));
     await assertFails(getDoc(doc(firestore, 'schools/SCH-TEST/students/STUDENT-B')));
+});
+
+test('assigned data permissions limit accounts to the selected access levels', async () => {
+    const readerDb = testEnvironment.authenticatedContext('teacher-reader-1').firestore();
+    const noticeRef = doc(readerDb, 'schools/SCH-TEST/notices/NOTICE-A');
+    await assertSucceeds(getDoc(noticeRef));
+    await assertFails(setDoc(doc(readerDb, 'schools/SCH-TEST/notices/NOTICE-B'), {
+        data: { title: 'Unauthorized notice' },
+        version: 1,
+        updatedBy: 'teacher-reader-1',
+        updatedAt: '2026-01-01T00:00:00.000Z'
+    }));
+    await assertFails(deleteDoc(noticeRef));
+
+    const deleterDb = testEnvironment.authenticatedContext('teacher-deleter-1').firestore();
+    await assertSucceeds(deleteDoc(doc(deleterDb, 'schools/SCH-TEST/students/STUDENT-C')));
 });
 
 test('school admins can read server-generated audit events', async () => {

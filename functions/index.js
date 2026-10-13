@@ -311,6 +311,57 @@ function sanitizeAccount(data, { allowSchoolAdmin = false } = {}) {
     };
 }
 
+function rolePermissionOptions() {
+    return Object.fromEntries(Object.entries(rolePermissions).map(([role, collections]) => [
+        role,
+        {
+            view: collections,
+            edit: editableCollections[role] || []
+        }
+    ]));
+}
+
+function sanitizePermissions(role, permissions) {
+    if (permissions === undefined) return buildPermissions(role);
+    if (!permissions || typeof permissions !== 'object' || Array.isArray(permissions)) {
+        throw new HttpsError('invalid-argument', 'Data permissions must be a collection permission map.');
+    }
+    const viewableCollections = new Set(rolePermissions[role] || []);
+    const editableRoleCollections = new Set(editableCollections[role] || []);
+    const sanitized = {};
+    for (const [collection, access] of Object.entries(permissions)) {
+        if (!viewableCollections.has(collection) || !access || typeof access !== 'object' || Array.isArray(access)) {
+            throw new HttpsError('invalid-argument', `The ${collection} permission is not available for this role.`);
+        }
+        if (Object.keys(access).some(permission => !['view', 'edit', 'delete'].includes(permission))
+            || Object.values(access).some(value => typeof value !== 'boolean')) {
+            throw new HttpsError('invalid-argument', `The ${collection} permission contains an unsupported access level.`);
+        }
+        const permission = {
+            view: access.view === true,
+            edit: access.edit === true,
+            delete: access.delete === true
+        };
+        if ((permission.edit || permission.delete) && !editableRoleCollections.has(collection)) {
+            throw new HttpsError('permission-denied', `The ${role} role cannot edit or delete ${collection}.`);
+        }
+        if ((permission.edit || permission.delete) && !permission.view) {
+            throw new HttpsError('invalid-argument', `Edit and delete access to ${collection} require view access.`);
+        }
+        if (permission.delete && !permission.edit) {
+            throw new HttpsError('invalid-argument', `Delete access to ${collection} requires edit access.`);
+        }
+        if (permission.view || permission.edit || permission.delete) sanitized[collection] = permission;
+    }
+    return sanitized;
+}
+
+exports.getAssignableSchoolPermissions = onCall(async request => {
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    await requireSchoolAdmin(request, schoolId);
+    return rolePermissionOptions();
+});
+
 exports.createSchoolUser = onCall(async request => {
     const schoolId = validateSchoolId(request.data?.schoolId);
     const caller = await requireSchoolAdmin(request, schoolId);
@@ -347,7 +398,7 @@ exports.createSchoolUser = onCall(async request => {
             linkedRecordId: account.linkedRecordId || null,
             linkedRecordType: account.linkedRecordType,
             sections: account.sections,
-            permissions: buildPermissions(account.role),
+            permissions: sanitizePermissions(account.role, request.data?.permissions),
             perms: { view: true },
             notificationPreferences: account.notificationPreferences,
             profile: account.profile,
@@ -396,6 +447,11 @@ exports.updateSchoolUser = onCall(async request => {
     if (privilegedRoles.has(memberSnapshot.data().role) && !isPlatformAdmin(request)) {
         throw new HttpsError('permission-denied', 'Administrator accounts cannot be changed from this form.');
     }
+    const currentMember = memberSnapshot.data();
+    const role = normalizeRole(request.data?.role === undefined ? currentMember.role : request.data.role);
+    if (!assignableRoles.has(role)) {
+        throw new HttpsError('invalid-argument', 'Choose a supported role.');
+    }
     const fullName = String(request.data?.fullName || '').trim();
     const email = String(request.data?.email || '').trim().toLowerCase();
     const userId = String(request.data?.userId || '').trim().toLowerCase();
@@ -405,6 +461,13 @@ exports.updateSchoolUser = onCall(async request => {
     if (linkedRecordId !== (memberSnapshot.data().linkedRecordId || '')) {
         throw new HttpsError('failed-precondition', 'Linked student, parent, or staff records must be changed through an approved linking workflow.');
     }
+    const linkedRecordType = role === 'student' ? 'student' : role === 'parent' ? 'parent' : 'staff';
+    if (linkedRecordId && linkedRecordType !== (currentMember.linkedRecordType || 'staff')) {
+        throw new HttpsError('failed-precondition', 'The assigned role is incompatible with this linked record.');
+    }
+    const permissions = request.data?.permissions === undefined
+        ? (role === normalizeRole(currentMember.role) ? currentMember.permissions || buildPermissions(role) : buildPermissions(role))
+        : sanitizePermissions(role, request.data.permissions);
     const duplicateUserId = await db.collection(`schools/${schoolId}/members`)
         .where('userId', '==', userId).limit(2).get();
     if (duplicateUserId.docs.some(snapshot => snapshot.id !== uid)) {
@@ -416,6 +479,8 @@ exports.updateSchoolUser = onCall(async request => {
         fullName,
         userId,
         email,
+        role,
+        permissions,
         phone: String(request.data?.phone || '').trim(),
         photoURL: String(request.data?.photoURL || ''),
         sections: Array.isArray(request.data?.sections) ? request.data.sections.filter(value => typeof value === 'string').slice(0, 32) : [],

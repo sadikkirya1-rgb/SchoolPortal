@@ -3388,6 +3388,16 @@ color:#64748b;
 .account-access-hidden{display:none!important}
 .user-form .form-row{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .user-form .form-group{flex:1;min-width:160px}
+.data-permissions-list{margin-top:10px;max-height:360px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;background:#fff}
+.data-permissions-table{width:100%;border-collapse:collapse;font-size:11px}
+.data-permissions-table th,.data-permissions-table td{padding:8px 10px;border-bottom:1px solid #edf1f5;text-align:center}
+.data-permissions-table thead th{position:sticky;top:0;background:#f8fafc;color:#475569}
+.data-permissions-table th:first-child{text-align:left}
+.data-permissions-table tbody th{font-weight:500;color:#334155}
+.data-permissions-table input{width:16px;height:16px;accent-color:var(--primary)}
+.data-permissions-table input:disabled{cursor:not-allowed;opacity:.45}
+.data-permissions-empty,.data-permissions-error{padding:10px;color:#64748b;font-size:11px}
+.data-permissions-error{color:#b42318}
 .account-demo-notice{
     display:flex;
     align-items:flex-start;

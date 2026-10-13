@@ -155,6 +155,7 @@ async function signOutCurrentUser() {
 }
 
 const createSchoolUser = httpsCallable(functions, 'createSchoolUser');
+const getAssignableSchoolPermissions = httpsCallable(functions, 'getAssignableSchoolPermissions');
 const updateSchoolUser = httpsCallable(functions, 'updateSchoolUser');
 const setSchoolUserStatus = httpsCallable(functions, 'setSchoolUserStatus');
 const deleteSchoolUser = httpsCallable(functions, 'deleteSchoolUser');
@@ -177,6 +178,7 @@ window.schoolPortalFirebase = {
     signIn,
     signOut: signOutCurrentUser,
     createSchoolUser,
+    getAssignableSchoolPermissions: async schoolId => (await getAssignableSchoolPermissions({ schoolId })).data,
     updateSchoolUser,
     setSchoolUserStatus,
     deleteSchoolUser,
