@@ -199,19 +199,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const dashboardData = Object.fromEntries(dashboardCollections.map(name => [name, { loaded: false, records: [] }]));
     let dashboardSubscriptions = [];
     let dashboardIdentityKey = '';
+    const dashboardToday = new Date();
+    let calendarViewMonth = new Date(dashboardToday.getFullYear(), dashboardToday.getMonth(), 1);
+    let calendarSelectedDate = new Date(dashboardToday.getFullYear(), dashboardToday.getMonth(), dashboardToday.getDate());
+    let chartViewYear = dashboardToday.getFullYear();
+    let selectedChartMonth = null;
+    let selectedGender = null;
 
     const dashboardNumber = value => {
         const number = typeof value === 'number' ? value : Number(String(value ?? '').replace(/[^0-9.-]/g, ''));
         return Number.isFinite(number) ? number : 0;
     };
+    const parseDashboardDate = value => {
+        if (typeof value?.toDate === 'function') return value.toDate();
+        if (value instanceof Date) return new Date(value.getTime());
+        if (typeof value === 'string') {
+            const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (dateOnly) {
+                const year = Number(dateOnly[1]);
+                const month = Number(dateOnly[2]) - 1;
+                const day = Number(dateOnly[3]);
+                const date = new Date(year, month, day);
+                return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day
+                    ? date
+                    : new Date(Number.NaN);
+            }
+        }
+        return new Date(value);
+    };
     const dashboardDate = record => {
         const value = record.paymentDate || record.expenseDate || record.eventDate || record.scheduledDate
             || record.startDate || record.publishDate || record.date || record.createdAt || '';
-        const date = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+        const date = parseDashboardDate(value);
         return Number.isNaN(date.getTime()) ? null : date;
     };
     const dashboardDateLabel = value => {
-        const date = value ? new Date(value) : null;
+        const date = value ? parseDashboardDate(value) : null;
         return date && !Number.isNaN(date.getTime())
             ? date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
             : 'Date not set';
@@ -252,23 +275,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const genderChart = document.getElementById('dashboardGenderChart');
             if (genderChart) {
                 genderChart.style.background = `conic-gradient(#d4a080 0 ${malePercent}%, #5f6d9c ${malePercent}% 100%)`;
+                genderChart.classList.toggle('is-male-selected', selectedGender === 'male');
+                genderChart.classList.toggle('is-female-selected', selectedGender === 'female');
             }
+            const genderDetail = document.getElementById('dashboardGenderDetail');
+            if (genderDetail) {
+                const selectedCount = selectedGender === 'male' ? maleCount : selectedGender === 'female' ? femaleCount : students.length;
+                const detailText = selectedGender
+                    ? `${selectedGender === 'male' ? 'Male' : 'Female'} · ${selectedCount}`
+                    : `Students · ${students.length}`;
+                genderDetail.textContent = detailText;
+            }
+            document.querySelectorAll('[data-gender-select]').forEach(button => {
+                button.setAttribute('aria-pressed', String(button.dataset.genderSelect === selectedGender));
+            });
         } else {
             setStat('maleShare', '—');
             setStat('femaleShare', '—');
         }
 
-        const year = new Date().getFullYear();
+        const year = chartViewYear;
         const monthlyFees = Array(12).fill(0);
         const monthlyExpenses = Array(12).fill(0);
         fees.forEach(fee => {
-            const date = fee.paymentDate ? new Date(fee.paymentDate) : null;
+            const date = fee.paymentDate ? parseDashboardDate(fee.paymentDate) : null;
             if (date && !Number.isNaN(date.getTime()) && date.getFullYear() === year) {
                 monthlyFees[date.getMonth()] += dashboardNumber(fee.amountPaid ?? fee.paidAmount ?? fee.amountCollected);
             }
         });
         recordsFor('expenses').forEach(expense => {
-            const date = expense.expenseDate ? new Date(expense.expenseDate) : null;
+            const date = expense.expenseDate ? parseDashboardDate(expense.expenseDate) : null;
             if (date && !Number.isNaN(date.getTime()) && date.getFullYear() === year) {
                 monthlyExpenses[date.getMonth()] += dashboardNumber(expense.amount);
             }
@@ -276,6 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const barChart = document.getElementById('dashboardEarningsChart');
         const monthLabels = document.getElementById('dashboardChartMonths');
         const chartYear = document.getElementById('dashboardChartYear');
+        const chartDetail = document.getElementById('dashboardChartDetail');
         const feesLoaded = dashboardData.fees.loaded;
         const expensesLoaded = dashboardData.expenses.loaded;
         if (chartYear) chartYear.textContent = String(year);
@@ -285,15 +322,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!feesLoaded && !expensesLoaded) {
                 barChart.innerHTML = '<p class="dashboard-empty">Financial data unavailable for this account.</p>';
                 monthLabels.replaceChildren();
+                if (chartDetail) chartDetail.textContent = '';
             } else {
                 const months = Array.from({ length: 12 }, (_, index) => new Date(year, index, 1).toLocaleString(undefined, { month: 'short' }));
                 const max = Math.max(0, ...(feesLoaded ? monthlyFees : []), ...(expensesLoaded ? monthlyExpenses : []));
                 barChart.innerHTML = months.map((month, index) => {
                     const feesHeight = feesLoaded && max ? Math.max(2, monthlyFees[index] / max * 100) : 0;
                     const expenseHeight = expensesLoaded && max ? Math.max(2, monthlyExpenses[index] / max * 100) : 0;
-                    return `<div class="bar-group" title="${month}: fees ${feesLoaded ? `UGX ${monthlyFees[index].toLocaleString()}` : 'unavailable'}, expenses ${expensesLoaded ? `UGX ${monthlyExpenses[index].toLocaleString()}` : 'unavailable'}"><span class="bar primary" style="--h:${feesHeight}%"></span><span class="bar secondary" style="--h:${expenseHeight}%"></span></div>`;
+                    const isSelected = selectedChartMonth === index;
+                    return `<button type="button" class="bar-group${isSelected ? ' selected' : ''}" data-chart-month="${index}" aria-pressed="${isSelected}" aria-label="${month} ${year}: fees ${feesLoaded ? `UGX ${monthlyFees[index].toLocaleString()}` : 'unavailable'}, expenses ${expensesLoaded ? `UGX ${monthlyExpenses[index].toLocaleString()}` : 'unavailable'}"><span class="bar primary" style="--h:${feesHeight}%"></span><span class="bar secondary" style="--h:${expenseHeight}%"></span></button>`;
                 }).join('');
-                monthLabels.innerHTML = months.map(month => `<span>${dashboardEscape(month)}</span>`).join('');
+                monthLabels.innerHTML = months.map((month, index) => `<button type="button" data-chart-month="${index}" aria-pressed="${selectedChartMonth === index}">${dashboardEscape(month)}</button>`).join('');
+                const detailMonth = selectedChartMonth ?? dashboardToday.getMonth();
+                if (chartDetail) {
+                    const monthName = months[detailMonth];
+                    const feeSummary = feesLoaded ? `Fees collected: UGX ${monthlyFees[detailMonth].toLocaleString('en-UG')}` : 'Fees: unavailable';
+                    const expenseSummary = expensesLoaded ? `Expenses: UGX ${monthlyExpenses[detailMonth].toLocaleString('en-UG')}` : 'Expenses: unavailable';
+                    chartDetail.textContent = `${monthName} ${year} · ${feeSummary} · ${expenseSummary}`;
+                }
             }
         }
 
@@ -310,35 +356,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const eventRecords = recordsFor('calendarEvents');
         const today = new Date();
-        const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const currentMonth = calendarViewMonth;
         const calendarMonth = document.getElementById('dashboardCalendarMonth');
         const calendarGrid = document.getElementById('dashboardCalendarGrid');
         if (calendarMonth) calendarMonth.textContent = currentMonth.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
         if (calendarGrid) {
             const firstDayOffset = (currentMonth.getDay() + 6) % 7;
-            const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+            const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
             const eventDays = new Set(eventRecords.map(event => dashboardDate(event))
-                .filter(date => date && date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth())
+                .filter(date => date && date.getFullYear() === currentMonth.getFullYear() && date.getMonth() === currentMonth.getMonth())
                 .map(date => date.getDate()));
             const weekdayLabels = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
             calendarGrid.innerHTML = weekdayLabels.map(day => `<span>${day}</span>`).join('')
                 + Array.from({ length: firstDayOffset }, () => '<span class="mute"></span>').join('')
                 + Array.from({ length: daysInMonth }, (_, index) => {
                     const day = index + 1;
-                    const classes = [eventDays.has(day) ? 'marked' : '', day === today.getDate() ? 'today' : ''].filter(Boolean).join(' ');
-                    return `<span class="${classes}">${day}</span>`;
+                    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                    const isToday = date.toDateString() === today.toDateString();
+                    const isSelected = date.toDateString() === calendarSelectedDate.toDateString();
+                    const classes = [eventDays.has(day) ? 'has-event' : '', isToday ? 'today' : '', isSelected ? 'selected' : ''].filter(Boolean).join(' ');
+                    const dateKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    return `<button type="button" class="${classes}" data-calendar-date="${dateKey}" aria-pressed="${isSelected}" aria-label="${date.toLocaleDateString(undefined, { dateStyle: 'full' })}${eventDays.has(day) ? ', has events' : ''}">${day}</button>`;
                 }).join('');
         }
 
         const eventsContainer = document.getElementById('dashboardEvents');
         if (eventsContainer) {
-            const upcomingEvents = eventRecords.map(event => ({ event, date: dashboardDate(event) }))
-                .filter(item => item.date && item.date >= new Date(today.getFullYear(), today.getMonth(), today.getDate()))
-                .sort((left, right) => left.date - right.date)
-                .slice(0, 5);
-            eventsContainer.innerHTML = upcomingEvents.length
-                ? upcomingEvents.map(({ event, date }) => `<div class="dashboard-event"><span>${dashboardEscape(dashboardDateLabel(date))}</span><strong>${dashboardEscape(event.title || event.eventName || event.name || 'School event')}</strong></div>`).join('')
-                : `<p class="dashboard-empty">${dashboardData.calendarEvents.loaded ? 'No upcoming events.' : 'Event data unavailable for this account.'}</p>`;
+            const selectedDay = new Date(calendarSelectedDate.getFullYear(), calendarSelectedDate.getMonth(), calendarSelectedDate.getDate());
+            const selectedEvents = eventRecords.map(event => ({ event, date: dashboardDate(event) }))
+                .filter(item => item.date && item.date.toDateString() === selectedDay.toDateString())
+                .sort((left, right) => left.date - right.date);
+            const eventsTitle = document.querySelector('.upcoming-events-panel .panel-header h3');
+            if (eventsTitle) eventsTitle.textContent = `Events · ${dashboardDateLabel(selectedDay)}`;
+            eventsContainer.innerHTML = selectedEvents.length
+                ? selectedEvents.map(({ event, date }) => `<div class="dashboard-event"><span>${dashboardEscape(dashboardDateLabel(date))}</span><strong>${dashboardEscape(event.title || event.eventName || event.name || 'School event')}</strong></div>`).join('')
+                : `<p class="dashboard-empty">${dashboardData.calendarEvents.loaded ? `No events on ${dashboardEscape(dashboardDateLabel(selectedDay))}.` : 'Event data unavailable for this account.'}</p>`;
         }
 
         const recentFees = document.getElementById('dashboardRecentFees');
@@ -346,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const payments = fees.map(fee => ({
                 fee,
                 amount: dashboardNumber(fee.amountPaid ?? fee.paidAmount ?? fee.amountCollected),
-                date: fee.paymentDate ? new Date(fee.paymentDate) : null
+                date: fee.paymentDate ? parseDashboardDate(fee.paymentDate) : null
             })).filter(item => item.amount > 0)
                 .sort((left, right) => (right.date?.getTime() || 0) - (left.date?.getTime() || 0))
                 .slice(0, 5);
@@ -355,6 +407,98 @@ document.addEventListener('DOMContentLoaded', () => {
                 : `<tr><td colspan="5" class="dashboard-empty">${dashboardData.fees.loaded ? 'No fee payments recorded.' : 'Fee data unavailable for this account.'}</td></tr>`;
         }
     }
+
+    document.getElementById('dashboardCalendarPrev')?.addEventListener('click', () => {
+        calendarViewMonth = new Date(calendarViewMonth.getFullYear(), calendarViewMonth.getMonth() - 1, 1);
+        calendarSelectedDate = new Date(calendarViewMonth.getFullYear(), calendarViewMonth.getMonth(), 1);
+        renderDashboardData();
+    });
+    document.getElementById('dashboardCalendarNext')?.addEventListener('click', () => {
+        calendarViewMonth = new Date(calendarViewMonth.getFullYear(), calendarViewMonth.getMonth() + 1, 1);
+        calendarSelectedDate = new Date(calendarViewMonth.getFullYear(), calendarViewMonth.getMonth(), 1);
+        renderDashboardData();
+    });
+    document.getElementById('dashboardCalendarGrid')?.addEventListener('click', event => {
+        const dateButton = event.target.closest('[data-calendar-date]');
+        if (!dateButton) return;
+        const selectedDate = parseDashboardDate(dateButton.dataset.calendarDate);
+        if (Number.isNaN(selectedDate.getTime())) return;
+        calendarSelectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+        calendarViewMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+        renderDashboardData();
+    });
+
+    document.getElementById('dashboardEarningsChart')?.addEventListener('click', event => {
+        const monthButton = event.target.closest('[data-chart-month]');
+        if (!monthButton) return;
+        selectedChartMonth = Number(monthButton.dataset.chartMonth);
+        if (!Number.isInteger(selectedChartMonth) || selectedChartMonth < 0 || selectedChartMonth > 11) return;
+        renderDashboardData();
+    });
+    document.getElementById('dashboardChartMonths')?.addEventListener('click', event => {
+        const monthButton = event.target.closest('[data-chart-month]');
+        if (!monthButton) return;
+        selectedChartMonth = Number(monthButton.dataset.chartMonth);
+        if (!Number.isInteger(selectedChartMonth) || selectedChartMonth < 0 || selectedChartMonth > 11) return;
+        renderDashboardData();
+    });
+    document.getElementById('dashboardChartPrevYear')?.addEventListener('click', () => {
+        chartViewYear -= 1;
+        selectedChartMonth = null;
+        renderDashboardData();
+    });
+    document.getElementById('dashboardChartNextYear')?.addEventListener('click', () => {
+        chartViewYear += 1;
+        selectedChartMonth = null;
+        renderDashboardData();
+    });
+
+    const chooseGender = gender => {
+        selectedGender = selectedGender === gender ? null : gender;
+        renderDashboardData();
+    };
+    document.querySelectorAll('[data-gender-select]').forEach(button => {
+        button.addEventListener('click', () => chooseGender(button.dataset.genderSelect));
+    });
+    document.getElementById('dashboardGenderToggle')?.addEventListener('click', () => {
+        chooseGender(selectedGender === 'male' ? 'female' : 'male');
+    });
+
+    const calendarMenu = document.getElementById('dashboardCalendarMenu');
+    const calendarMenuToggle = document.getElementById('dashboardCalendarMenuToggle');
+    const closeCalendarMenu = () => {
+        calendarMenu?.classList.add('hidden');
+        calendarMenuToggle?.setAttribute('aria-expanded', 'false');
+    };
+    calendarMenuToggle?.addEventListener('click', () => {
+        const isOpen = calendarMenu?.classList.toggle('hidden') === false;
+        calendarMenuToggle.setAttribute('aria-expanded', String(isOpen));
+    });
+    document.getElementById('dashboardCalendarToday')?.addEventListener('click', () => {
+        calendarSelectedDate = new Date(dashboardToday.getFullYear(), dashboardToday.getMonth(), dashboardToday.getDate());
+        calendarViewMonth = new Date(dashboardToday.getFullYear(), dashboardToday.getMonth(), 1);
+        closeCalendarMenu();
+        renderDashboardData();
+    });
+    document.getElementById('dashboardCalendarNextEvent')?.addEventListener('click', () => {
+        const nextEvent = dashboardData.calendarEvents.records.map(event => ({ event, date: dashboardDate(event) }))
+            .filter(item => item.date && item.date >= new Date(dashboardToday.getFullYear(), dashboardToday.getMonth(), dashboardToday.getDate()))
+            .sort((left, right) => left.date - right.date)[0];
+        closeCalendarMenu();
+        if (!nextEvent) {
+            renderDashboardData();
+            return;
+        }
+        calendarSelectedDate = new Date(nextEvent.date.getFullYear(), nextEvent.date.getMonth(), nextEvent.date.getDate());
+        calendarViewMonth = new Date(nextEvent.date.getFullYear(), nextEvent.date.getMonth(), 1);
+        renderDashboardData();
+    });
+    document.addEventListener('click', event => {
+        if (!event.target.closest('.calendar-menu-wrap')) closeCalendarMenu();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeCalendarMenu();
+    });
 
     async function startDashboardData(userData) {
         const api = window.schoolPortalData;

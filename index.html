@@ -699,7 +699,11 @@ if ('serviceWorker' in navigator) {
             <div class="panel earnings-panel">
                 <div class="panel-header">
                     <h3>Fees &amp; Expenses</h3>
-                    <div class="period-select" id="dashboardChartYear"></div>
+                    <div class="chart-period-control">
+                        <button type="button" id="dashboardChartPrevYear" aria-label="Previous year"><i class="fas fa-chevron-left"></i></button>
+                        <span class="period-select" id="dashboardChartYear"></span>
+                        <button type="button" id="dashboardChartNextYear" aria-label="Next year"><i class="fas fa-chevron-right"></i></button>
+                    </div>
                 </div>
 
                 <div class="chart-legend">
@@ -709,21 +713,22 @@ if ('serviceWorker' in navigator) {
 
                 <div class="bar-chart" id="dashboardEarningsChart" aria-label="Monthly collected fees and expenses"></div>
                 <div class="chart-months" id="dashboardChartMonths"></div>
+                <div class="chart-month-detail" id="dashboardChartDetail" aria-live="polite"></div>
             </div>
 
             <div class="panel students-panel">
-                <div class="panel-header"><h3>Students</h3><i class="fas fa-ellipsis"></i></div>
+                <div class="panel-header"><h3>Students</h3></div>
                 <div class="donut-wrap">
-                    <div class="donut-chart">
+                    <button class="donut-chart" id="dashboardGenderToggle" type="button" aria-label="Toggle gender breakdown">
                         <div class="donut-ring" id="dashboardGenderChart"></div>
                         <div class="donut-core">
-                            <span>Students</span>
+                            <span id="dashboardGenderDetail">Students</span>
                         </div>
-                    </div>
+                    </button>
                 </div>
                 <div class="legend-inline">
-                    <div><span class="dot dot-primary"></span> Male <strong data-dashboard-stat="maleShare">—</strong></div>
-                    <div><span class="dot dot-muted"></span> Female <strong data-dashboard-stat="femaleShare">—</strong></div>
+                    <button type="button" data-gender-select="male"><span class="dot dot-primary"></span> Male <strong data-dashboard-stat="maleShare">—</strong></button>
+                    <button type="button" data-gender-select="female"><span class="dot dot-muted"></span> Female <strong data-dashboard-stat="femaleShare">—</strong></button>
                 </div>
             </div>
         </div>
@@ -743,12 +748,21 @@ if ('serviceWorker' in navigator) {
         <div class="panel calendar-panel">
             <div class="calendar-header">
                 <h3>Event Calendar</h3>
-                <i class="fas fa-ellipsis"></i>
+                <div class="calendar-menu-wrap">
+                    <button class="calendar-menu-button" id="dashboardCalendarMenuToggle" type="button" aria-label="Calendar options" aria-expanded="false" aria-controls="dashboardCalendarMenu"><i class="fas fa-ellipsis"></i></button>
+                    <div class="calendar-menu hidden" id="dashboardCalendarMenu">
+                        <button type="button" id="dashboardCalendarToday">Go to today</button>
+                        <button type="button" id="dashboardCalendarNextEvent">Next event</button>
+                    </div>
+                </div>
             </div>
 
             <div class="calendar-month">
                 <span id="dashboardCalendarMonth"></span>
-                <div class="calendar-nav"><i class="fas fa-chevron-left"></i><i class="fas fa-chevron-right"></i></div>
+                <div class="calendar-nav">
+                    <button type="button" id="dashboardCalendarPrev" aria-label="Previous month"><i class="fas fa-chevron-left"></i></button>
+                    <button type="button" id="dashboardCalendarNext" aria-label="Next month"><i class="fas fa-chevron-right"></i></button>
+                </div>
             </div>
 
             <div class="calendar-grid" id="dashboardCalendarGrid"></div>
