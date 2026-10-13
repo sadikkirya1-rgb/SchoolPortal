@@ -1615,12 +1615,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function hideAllContentAreas(){
-        const sections = ['.main > .dashboard', '.main > .modules', '.main > .charts', '.main > .table-card', '#userRolesSection', '#studentsModule'];
-        sections.forEach(sel => {
-            document.querySelectorAll(sel).forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.main > section, .main > .modules, .main > .charts').forEach(section => {
+            section.classList.add('hidden');
         });
-        // Hide dynamically created department modules
-        document.querySelectorAll('.main > section.module').forEach(m => m.classList.add('hidden'));
     }
 
     function showSection(sectionId){
@@ -1631,8 +1628,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showDashboard({ persist = true } = {}){
         hideAllContentAreas();
-        document.querySelectorAll('.main > .dashboard, .main > .modules, .main > .charts, .main > .table-card').forEach(el => {
-            if (el) el.classList.remove('hidden');
+        document.querySelectorAll('.main > .dashboard-toolbar, .main > .dashboard-quick-actions, .main > .dashboard-shell, .main > .table-card, .main > .modules, .main > .charts').forEach(section => {
+            section.classList.remove('hidden');
         });
         setApplicationPage('Dashboard');
         updateBreadcrumb(['Main', 'Dashboard']);
@@ -2747,6 +2744,10 @@ document.addEventListener('DOMContentLoaded', () => {
             usersTableBody.innerHTML = '<tr><td colspan="9">Sign in to view accounts for this school.</td></tr>';
             return;
         }
+        if (!['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(session.user?.role)) {
+            usersTableBody.innerHTML = '<tr><td colspan="9">Only school administrators can view school accounts.</td></tr>';
+            return;
+        }
         let users;
         try {
             users = await getFirebase().listMembers(session.schoolId);
@@ -2973,7 +2974,6 @@ document.addEventListener('DOMContentLoaded', () => {
     populateSectionsList();
     roleSelectEl.addEventListener('change', () => applyRoleDefaults(roleSelectEl.value));
     clearForm();
-    renderUsersTable();
 
     const escapeStaffHTML = (value) => String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -3867,7 +3867,7 @@ Total Amount: $4,820.00
                 let frontOfficeDashboard = document.getElementById('module_front_office_dashboard');
                 if (!frontOfficeDashboard) {
                     frontOfficeDashboard = createFrontOfficeDashboard('Front Office Department');
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(frontOfficeDashboard, dashboardEl);
                 }
                 showSection('module_front_office_dashboard');
@@ -3892,7 +3892,7 @@ Total Amount: $4,820.00
                 let payslipsModule = document.getElementById('payslipsModule');
                 if (!payslipsModule) {
                     payslipsModule = createPayslipsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(payslipsModule, dashboardEl);
                 }
                 showSection('payslipsModule');
@@ -3904,7 +3904,7 @@ Total Amount: $4,820.00
                 let statutoryModule = document.getElementById('statutoryReturnsModule');
                 if (!statutoryModule) {
                     statutoryModule = createStatutoryReturnsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(statutoryModule, dashboardEl);
                 }
                 showSection('statutoryReturnsModule');
@@ -3916,7 +3916,7 @@ Total Amount: $4,820.00
                 let feesModule = document.getElementById('feesModule');
                 if (!feesModule) {
                     feesModule = createFeesModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(feesModule, dashboardEl);
                 }
                 showSection('feesModule');
@@ -3928,7 +3928,7 @@ Total Amount: $4,820.00
                 let feeInvoicesModule = document.getElementById('feeInvoicesModule');
                 if (!feeInvoicesModule) {
                     feeInvoicesModule = createFeeInvoicesModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(feeInvoicesModule, dashboardEl);
                 }
                 showSection('feeInvoicesModule');
@@ -3940,7 +3940,7 @@ Total Amount: $4,820.00
                 let expensesModule = document.getElementById('expensesModule');
                 if (!expensesModule) {
                     expensesModule = createExpensesModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(expensesModule, dashboardEl);
                 }
                 showSection('expensesModule');
@@ -3952,7 +3952,7 @@ Total Amount: $4,820.00
                 let purchaseRequestsModule = document.getElementById('purchaseRequestsModule');
                 if (!purchaseRequestsModule) {
                     purchaseRequestsModule = createPurchaseRequestsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(purchaseRequestsModule, dashboardEl);
                 }
                 showSection('purchaseRequestsModule');
@@ -3964,7 +3964,7 @@ Total Amount: $4,820.00
                 let purchaseOrdersModule = document.getElementById('purchaseOrdersModule');
                 if (!purchaseOrdersModule) {
                     purchaseOrdersModule = createPurchaseOrdersModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(purchaseOrdersModule, dashboardEl);
                 }
                 showSection('purchaseOrdersModule');
@@ -3976,7 +3976,7 @@ Total Amount: $4,820.00
                 let purchaseComparisonsModule = document.getElementById('purchaseComparisonsModule');
                 if (!purchaseComparisonsModule) {
                     purchaseComparisonsModule = createPurchaseComparisonsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(purchaseComparisonsModule, dashboardEl);
                 }
                 showSection('purchaseComparisonsModule');
@@ -3988,7 +3988,7 @@ Total Amount: $4,820.00
                 let quotationsModule = document.getElementById('quotationsModule');
                 if (!quotationsModule) {
                     quotationsModule = createQuotationsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(quotationsModule, dashboardEl);
                 }
                 showSection('quotationsModule');
@@ -4000,7 +4000,7 @@ Total Amount: $4,820.00
                 let goodsReceiptModule = document.getElementById('goodsReceiptModule');
                 if (!goodsReceiptModule) {
                     goodsReceiptModule = createGoodsReceiptModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(goodsReceiptModule, dashboardEl);
                 }
                 showSection('goodsReceiptModule');
@@ -4012,7 +4012,7 @@ Total Amount: $4,820.00
                 let supplierInvoicesModule = document.getElementById('supplierInvoicesModule');
                 if (!supplierInvoicesModule) {
                     supplierInvoicesModule = createSupplierInvoicesModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(supplierInvoicesModule, dashboardEl);
                 }
                 showSection('supplierInvoicesModule');
@@ -4024,7 +4024,7 @@ Total Amount: $4,820.00
                 let suppliersModule = document.getElementById('suppliersModule');
                 if (!suppliersModule) {
                     suppliersModule = createSuppliersModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(suppliersModule, dashboardEl);
                 }
                 showSection('suppliersModule');
@@ -4036,7 +4036,7 @@ Total Amount: $4,820.00
                 let fixedAssetsModule = document.getElementById('fixedAssetsModule');
                 if (!fixedAssetsModule) {
                     fixedAssetsModule = createFixedAssetsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(fixedAssetsModule, dashboardEl);
                 }
                 showSection('fixedAssetsModule');
@@ -4048,7 +4048,7 @@ Total Amount: $4,820.00
                 let maintenanceModule = document.getElementById('maintenanceManagementModule');
                 if (!maintenanceModule) {
                     maintenanceModule = createMaintenanceManagementModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(maintenanceModule, dashboardEl);
                 }
                 showSection('maintenanceManagementModule');
@@ -4060,7 +4060,7 @@ Total Amount: $4,820.00
                 let visitorLogsModule = document.getElementById('visitorLogsModule');
                 if (!visitorLogsModule) {
                     visitorLogsModule = createVisitorLogsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(visitorLogsModule, dashboardEl);
                 }
                 showSection('visitorLogsModule');
@@ -4073,7 +4073,7 @@ Total Amount: $4,820.00
                 let parentsModule = document.getElementById('parentsModule');
                 if (!parentsModule) {
                     parentsModule = createParentsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(parentsModule, dashboardEl);
                 }
                 showSection('parentsModule');
@@ -4086,7 +4086,7 @@ Total Amount: $4,820.00
                 let smsAlertsModule = document.getElementById('smsAlertsModule');
                 if (!smsAlertsModule) {
                     smsAlertsModule = createSmsAlertsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(smsAlertsModule, dashboardEl);
                 }
                 showSection('smsAlertsModule');
@@ -4099,7 +4099,7 @@ Total Amount: $4,820.00
                 let noticeBoardModule = document.getElementById('noticeBoardModule');
                 if (!noticeBoardModule) {
                     noticeBoardModule = createNoticeBoardModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(noticeBoardModule, dashboardEl);
                 }
                 showSection('noticeBoardModule');
@@ -4112,7 +4112,7 @@ Total Amount: $4,820.00
                 let systemAnalyticsModule = document.getElementById('systemAnalyticsModule');
                 if (!systemAnalyticsModule) {
                     systemAnalyticsModule = createSystemAnalyticsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(systemAnalyticsModule, dashboardEl);
                 }
                 showSection('systemAnalyticsModule');
@@ -4125,7 +4125,7 @@ Total Amount: $4,820.00
                 let auditLogsModule = document.getElementById('auditLogsModule');
                 if (!auditLogsModule) {
                     auditLogsModule = createAuditLogsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(auditLogsModule, dashboardEl);
                 }
                 showSection('auditLogsModule');
@@ -4137,7 +4137,7 @@ Total Amount: $4,820.00
                 let backupsModule = document.getElementById('backupsModule');
                 if (!backupsModule) {
                     backupsModule = createBackupsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(backupsModule, dashboardEl);
                 }
                 showSection('backupsModule');
@@ -4149,7 +4149,7 @@ Total Amount: $4,820.00
                 let closedPOsModule = document.getElementById('closedPOsModule');
                 if (!closedPOsModule) {
                     closedPOsModule = createClosedPOsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(closedPOsModule, dashboardEl);
                 }
                 showSection('closedPOsModule');
@@ -4161,7 +4161,7 @@ Total Amount: $4,820.00
                 let reportsModule = document.getElementById('payrollReportsModule');
                 if (!reportsModule) {
                     reportsModule = createPayrollReportsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(reportsModule, dashboardEl);
                 }
                 showSection('payrollReportsModule');
@@ -4173,7 +4173,7 @@ Total Amount: $4,820.00
                 let teachersModule = document.getElementById('teachersModule');
                 if (!teachersModule) {
                     teachersModule = createTeachersModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(teachersModule, dashboardEl);
                 }
                 showSection('teachersModule');
@@ -4185,7 +4185,7 @@ Total Amount: $4,820.00
                 let curriculumModule = document.getElementById('curriculumModule');
                 if (!curriculumModule) {
                     curriculumModule = createCurriculumModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(curriculumModule, dashboardEl);
                 }
                 showSection('curriculumModule');
@@ -4197,7 +4197,7 @@ Total Amount: $4,820.00
                 let timetablesModule = document.getElementById('timetablesModule');
                 if (!timetablesModule) {
                     timetablesModule = createTimetablesModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(timetablesModule, dashboardEl);
                 }
                 showSection('timetablesModule');
@@ -4211,7 +4211,7 @@ Total Amount: $4,820.00
                 let enquiriesModule = document.getElementById('module_enquiries');
                 if (!enquiriesModule) {
                     enquiriesModule = createEnquiriesModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(enquiriesModule, dashboardEl);
                 }
                 enquiriesModule.querySelector('.enquiry-entry-card')?.classList.add('hidden');
@@ -4227,7 +4227,7 @@ Total Amount: $4,820.00
                 let callLogsModule = document.getElementById('module_call_logs');
                 if (!callLogsModule) {
                     callLogsModule = createCallLogsModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(callLogsModule, dashboardEl);
                 }
                 showSection('module_call_logs');
@@ -4241,7 +4241,7 @@ Total Amount: $4,820.00
                 let dispatchModule = document.getElementById('module_dispatch');
                 if (!dispatchModule) {
                     dispatchModule = createDispatchModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(dispatchModule, dashboardEl);
                 }
                 showSection('module_dispatch');
@@ -4255,7 +4255,7 @@ Total Amount: $4,820.00
                 let visitorsModule = document.getElementById('module_visitors');
                 if (!visitorsModule) {
                     visitorsModule = createVisitorsModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(visitorsModule, dashboardEl);
                 }
                 showSection('module_visitors');
@@ -4269,7 +4269,7 @@ Total Amount: $4,820.00
                 let appointmentsModule = document.getElementById('module_appointments');
                 if (!appointmentsModule) {
                     appointmentsModule = createAppointmentsModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(appointmentsModule, dashboardEl);
                 }
                 showSection('module_appointments');
@@ -4283,7 +4283,7 @@ Total Amount: $4,820.00
                 let incomingMailModule = document.getElementById('module_incoming_mail');
                 if (!incomingMailModule) {
                     incomingMailModule = createIncomingMailModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(incomingMailModule, dashboardEl);
                 }
                 showSection('module_incoming_mail');
@@ -4297,7 +4297,7 @@ Total Amount: $4,820.00
                 let followUpsModule = document.getElementById('module_follow_ups');
                 if (!followUpsModule) {
                     followUpsModule = createFollowUpsModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(followUpsModule, dashboardEl);
                 }
                 showSection('module_follow_ups');
@@ -4311,7 +4311,7 @@ Total Amount: $4,820.00
                 let reportsModule = document.getElementById('module_front_office_reports');
                 if (!reportsModule) {
                     reportsModule = createReportsModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(reportsModule, dashboardEl);
                 }
                 showSection('module_front_office_reports');
@@ -4325,7 +4325,7 @@ Total Amount: $4,820.00
                 let reportCardsModule = document.getElementById('module_report_cards');
                 if (!reportCardsModule) {
                     reportCardsModule = createReportCardsModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(reportCardsModule, dashboardEl);
                 }
                 showSection('module_report_cards');
@@ -4339,7 +4339,7 @@ Total Amount: $4,820.00
                 let idCardsModule = document.getElementById('idCardsModule');
                 if (!idCardsModule) {
                     idCardsModule = createIDCardsModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(idCardsModule, dashboardEl);
                 }
                 showSection('idCardsModule');
@@ -4353,7 +4353,7 @@ Total Amount: $4,820.00
                 let certificateModule = document.getElementById('certificateModule');
                 if (!certificateModule) {
                     certificateModule = createCertificateModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(certificateModule, dashboardEl);
                 }
                 showSection('certificateModule');
@@ -4367,7 +4367,7 @@ Total Amount: $4,820.00
                 let libraryModule = document.getElementById('libraryModule');
                 if (!libraryModule) {
                     libraryModule = createLibraryModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(libraryModule, dashboardEl);
                 }
                 showSection('libraryModule');
@@ -4381,7 +4381,7 @@ Total Amount: $4,820.00
                 let attendanceModule = document.getElementById('attendanceModule');
                 if (!attendanceModule) {
                     attendanceModule = createAttendanceModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(attendanceModule, dashboardEl);
                 }
                 showSection('attendanceModule');
@@ -4393,7 +4393,7 @@ Total Amount: $4,820.00
                 let staffAttendanceModule = document.getElementById('staffAttendanceModule');
                 if (!staffAttendanceModule) {
                     staffAttendanceModule = window.createStaffAttendanceModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(staffAttendanceModule, dashboardEl);
                 }
                 showSection('staffAttendanceModule');
@@ -4407,7 +4407,7 @@ Total Amount: $4,820.00
                 let healthModule = document.getElementById('healthModule');
                 if (!healthModule) {
                     healthModule = createHealthModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(healthModule, dashboardEl);
                 }
                 showSection('healthModule');
@@ -4421,7 +4421,7 @@ Total Amount: $4,820.00
                 let boardingModule = document.getElementById('boardingModule');
                 if (!boardingModule) {
                     boardingModule = createBoardingModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(boardingModule, dashboardEl);
                 }
                 showSection('boardingModule');
@@ -4435,7 +4435,7 @@ Total Amount: $4,820.00
                 let transportModule = document.getElementById('transportModule');
                 if (!transportModule) {
                     transportModule = createTransportModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(transportModule, dashboardEl);
                 }
                 showSection('transportModule');
@@ -4449,7 +4449,7 @@ Total Amount: $4,820.00
                 let alumniModule = document.getElementById('alumniModule');
                 if (!alumniModule) {
                     alumniModule = createAlumniModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(alumniModule, dashboardEl);
                 }
                 showSection('alumniModule');
@@ -4463,7 +4463,7 @@ Total Amount: $4,820.00
                 let inventoryModule = document.getElementById('inventoryModule');
                 if (!inventoryModule) {
                     inventoryModule = createInventoryModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(inventoryModule, dashboardEl);
                 }
                 showSection('inventoryModule');
@@ -4477,7 +4477,7 @@ Total Amount: $4,820.00
                 let assessmentModule = document.getElementById('assessmentModule');
                 if (!assessmentModule) {
                     assessmentModule = createAssessmentModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(assessmentModule, dashboardEl);
                 }
                 showSection('assessmentModule');
@@ -4491,7 +4491,7 @@ Total Amount: $4,820.00
                 let studyMaterialsModule = document.getElementById('studyMaterialsModule');
                 if (!studyMaterialsModule) {
                     studyMaterialsModule = createStudyMaterialsModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(studyMaterialsModule, dashboardEl);
                 }
                 showSection('studyMaterialsModule');
@@ -4505,7 +4505,7 @@ Total Amount: $4,820.00
                 let onlineQuizzesModule = document.getElementById('onlineQuizzesModule');
                 if (!onlineQuizzesModule) {
                     onlineQuizzesModule = createOnlineQuizzesModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(onlineQuizzesModule, dashboardEl);
                 }
                 showSection('onlineQuizzesModule');
@@ -4519,7 +4519,7 @@ Total Amount: $4,820.00
                 let disciplineCasesModule = document.getElementById('disciplineCasesModule');
                 if (!disciplineCasesModule) {
                     disciplineCasesModule = createDisciplineCasesModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(disciplineCasesModule, dashboardEl);
                 }
                 showSection('disciplineCasesModule');
@@ -4533,7 +4533,7 @@ Total Amount: $4,820.00
                 let clubsSocietiesModule = document.getElementById('clubsSocietiesModule');
                 if (!clubsSocietiesModule) {
                     clubsSocietiesModule = createClubsSocietiesModule(category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(clubsSocietiesModule, dashboardEl);
                 }
                 showSection('clubsSocietiesModule');
@@ -4545,7 +4545,7 @@ Total Amount: $4,820.00
                 let sportsActivitiesModule = document.getElementById('sportsActivitiesModule');
                 if (!sportsActivitiesModule) {
                     sportsActivitiesModule = createSportsActivitiesModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(sportsActivitiesModule, dashboardEl);
                 }
                 showSection('sportsActivitiesModule');
@@ -4557,7 +4557,7 @@ Total Amount: $4,820.00
                 let counselingModule = document.getElementById('counselingModule');
                 if (!counselingModule) {
                     counselingModule = createCounselingModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(counselingModule, dashboardEl);
                 }
                 showSection('counselingModule');
@@ -4572,7 +4572,7 @@ Total Amount: $4,820.00
                 let utilityModule = document.getElementById(moduleId);
                 if (!utilityModule) {
                     utilityModule = createFrontOfficeRecordsModule(linkText, category);
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(utilityModule, dashboardEl);
                 }
                 showSection(moduleId);
@@ -4586,7 +4586,7 @@ Total Amount: $4,820.00
                 let staffDirectoryModule = document.getElementById('module_staff_directory');
                 if (!staffDirectoryModule) {
                     staffDirectoryModule = window.createStaffDirectoryModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(staffDirectoryModule, dashboardEl);
                 }
                 showSection('module_staff_directory');
@@ -4600,7 +4600,7 @@ Total Amount: $4,820.00
                 let leaveManagementModule = document.getElementById('leaveManagementModule');
                 if (!leaveManagementModule) {
                     leaveManagementModule = window.createLeaveManagementModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(leaveManagementModule, dashboardEl);
                 }
                 showSection('leaveManagementModule');
@@ -4614,7 +4614,7 @@ Total Amount: $4,820.00
                 let recruitmentModule = document.getElementById('recruitmentModule');
                 if (!recruitmentModule) {
                     recruitmentModule = window.createRecruitmentModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(recruitmentModule, dashboardEl);
                 }
                 showSection('recruitmentModule');
@@ -4627,7 +4627,7 @@ Total Amount: $4,820.00
                 let settingsModule = document.getElementById('settingsModule');
                 if (!settingsModule) {
                     settingsModule = window.createSettingsModule();
-                    const dashboardEl = document.querySelector('.dashboard');
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(settingsModule, dashboardEl);
                 }
                 showSection('settingsModule');
@@ -4690,7 +4690,7 @@ Total Amount: $4,820.00
                             <button class="btn-primary" onclick="document.getElementById('dashboardBtn').click()">Back to Dashboard</button>
                         </div>
                     </div>`;
-                const dashboardEl = document.querySelector('.dashboard');
+                const dashboardEl = document.querySelector('.main > .dashboard-shell');
                 if (dashboardEl) dashboardEl.parentNode.insertBefore(sec, dashboardEl);
             }
             showSection(moduleId);

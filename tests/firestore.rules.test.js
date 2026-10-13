@@ -7,7 +7,7 @@ const {
     assertSucceeds,
     initializeTestEnvironment
 } = require('@firebase/rules-unit-testing');
-const { deleteDoc, doc, getDoc, setDoc, updateDoc } = require('firebase/firestore');
+const { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } = require('firebase/firestore');
 
 let testEnvironment;
 
@@ -82,6 +82,22 @@ test('school admins can sync representative academic, admissions, payroll, and f
             updatedBy: 'admin-1',
             updatedAt: '2026-01-01T00:00:00.000Z'
         }));
+    }
+});
+
+test('school admins can read every collection used by legacy synchronization', async () => {
+    const firestore = testEnvironment.authenticatedContext('admin-1').firestore();
+    const collectionNames = [
+        'teachers', 'counseling', 'boardingRecords', 'curriculum', 'calendarEvents',
+        'alumni', 'sportsActivities', 'staffDirectory', 'visitorLogs', 'schoolDocuments',
+        'followUps', 'dispatches', 'payrollReports', 'supplierInvoices',
+        'maintenanceWorkOrders', 'purchaseComparisons', 'callLogs', 'goodsReceipts',
+        'enquiries', 'incomingMail', 'recruitment', 'notifications', 'paySlips',
+        'announcements', 'idCards', 'statutoryReturns', 'certificates', 'quotations'
+    ];
+
+    for (const collectionName of collectionNames) {
+        await assertSucceeds(getDocs(collection(firestore, `schools/SCH-TEST/${collectionName}`)));
     }
 });
 
