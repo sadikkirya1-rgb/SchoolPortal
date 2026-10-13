@@ -987,7 +987,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.sidebar > .menu-title').forEach(title => {
             const group = title.nextElementSibling;
             if (!group?.classList.contains('nav-links')) return;
-            const sectionName = title.innerText.trim();
+            const sectionName = title.dataset.accessSection || title.innerText.trim();
             const canShow = canView && (unrestrictedRole || sectionName === 'Main' || allowedSections.has(sectionName));
             title.classList.toggle('account-access-hidden', !canShow);
             group.classList.toggle('account-access-hidden', !canShow);
@@ -3751,16 +3751,18 @@ Total Amount: $4,820.00
     };
     const saveActiveSection = value => localStorage.setItem(activeSectionStorageKey(), JSON.stringify(value));
     const sectionKey = link => {
-        const group = link.closest('.nav-links')?.previousElementSibling?.textContent.trim() || '';
+        const heading = link.closest('.nav-links')?.previousElementSibling;
+        const group = heading?.dataset.accessSection || heading?.textContent.trim() || '';
         const label = link.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.innerText.trim() || link.innerText.trim();
         return `${group}::${link.id || label}`;
     };
     const sectionIdentity = link => {
         const group = link.closest('.nav-links');
+        const heading = group?.previousElementSibling;
         return {
             key: sectionKey(link),
             id: link.dataset.menuId || link.id || '',
-            group: group?.previousElementSibling?.textContent.trim().toLowerCase() || '',
+            group: (heading?.dataset.accessSection || heading?.textContent.trim() || '').toLowerCase(),
             groupIndex: Array.from(document.querySelectorAll('.nav-links')).indexOf(group),
             itemIndex: group ? Array.from(group.querySelectorAll('a')).indexOf(link) : -1,
             label: (link.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.innerText.trim() || link.innerText.trim()).toLowerCase()
@@ -3796,7 +3798,7 @@ Total Amount: $4,820.00
     document.querySelectorAll('.sidebar > .menu-title').forEach((title, index) => {
         const group = title.nextElementSibling;
         if (!group?.classList.contains('nav-links')) return;
-        const groupKey = title.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || `group-${index}`;
+        const groupKey = (title.dataset.accessSection || title.textContent.trim()).toLowerCase().replace(/[^a-z0-9]+/g, '-') || `group-${index}`;
         title.setAttribute('role', 'button');
         title.setAttribute('tabindex', '0');
         title.setAttribute('aria-controls', group.id || `nav-group-${index}`);
