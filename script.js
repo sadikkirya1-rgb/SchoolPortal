@@ -195,21 +195,25 @@ document.addEventListener('DOMContentLoaded', () => {
         photo: membership.photoURL || membership.photo || membership.profile?.photoURL || authUser.photoURL || ''
     });
 
-    const dashboardCollections = ['students', 'teachers', 'parents', 'fees', 'expenses', 'notices', 'calendarEvents'];
-    const dashboardData = Object.fromEntries(dashboardCollections.map(name => [name, { loaded: false, records: [] }]));
+    const dashboardCollections = ['students', 'teachers', 'parents', 'fees', 'expenses', 'notices', 'calendarEvents', 'attendance'];
+    const dashboardData = Object.fromEntries(dashboardCollections.map(name => [name, { loaded: false, records: [], error: false }]));
     let dashboardSubscriptions = [];
     let dashboardIdentityKey = '';
+    let dashboardSubscribedCollections = new Set();
+    let dashboardLastUpdated = null;
     const dashboardToday = new Date();
     let calendarViewMonth = new Date(dashboardToday.getFullYear(), dashboardToday.getMonth(), 1);
     let calendarSelectedDate = new Date(dashboardToday.getFullYear(), dashboardToday.getMonth(), dashboardToday.getDate());
     let chartViewYear = dashboardToday.getFullYear();
     let selectedChartMonth = null;
     let selectedGender = null;
+    let selectedDashboardPeriod = 'month';
 
     const dashboardNumber = value => {
         const number = typeof value === 'number' ? value : Number(String(value ?? '').replace(/[^0-9.-]/g, ''));
         return Number.isFinite(number) ? number : 0;
     };
+    const dashboardDateKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     const parseDashboardDate = value => {
         if (typeof value?.toDate === 'function') return value.toDate();
         if (value instanceof Date) return new Date(value.getTime());
@@ -228,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return new Date(value);
     };
     const dashboardDate = record => {
-        const value = record.paymentDate || record.expenseDate || record.eventDate || record.scheduledDate
+        const value = record.paymentDate || record.expenseDate || record.eventDate || record.scheduledDate || record.dueDate
             || record.startDate || record.publishDate || record.date || record.createdAt || '';
         const date = parseDashboardDate(value);
         return Number.isNaN(date.getTime()) ? null : date;
@@ -242,6 +246,69 @@ document.addEventListener('DOMContentLoaded', () => {
     const dashboardEscape = value => String(value ?? '').replace(/[&<>"']/g, character => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     })[character]);
+    const dashboardMoney = value => `UGX ${value.toLocaleString('en-UG', { maximumFractionDigits: 0 })}`;
+    const feePaidAmount = fee => dashboardNumber(fee.amountPaid ?? fee.paidAmount ?? fee.amountCollected);
+    const feeBilledAmount = fee => {
+        const billed = fee.totalFee ?? fee.totalAmount ?? fee.amountDue;
+        if (billed !== undefined && billed !== null) return dashboardNumber(billed);
+        const balance = fee.balance ?? fee.balanceDue;
+        return balance !== undefined && balance !== null ? feePaidAmount(fee) + dashboardNumber(balance) : 0;
+    };
+    const feeOutstandingAmount = fee => {
+        const balance = fee.balance ?? fee.balanceDue;
+        return balance !== undefined && balance !== null
+            ? Math.max(0, dashboardNumber(balance))
+            : Math.max(0, feeBilledAmount(fee) - feePaidAmount(fee));
+    };
+    const dashboardRange = () => {
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (selectedDashboardPeriod === 'today') {
+            return { start: todayStart, end: new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate(), 23, 59, 59, 999) };
+        }
+        if (selectedDashboardPeriod === 'yesterday') {
+            const yesterday = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() - 1);
+            return { start: yesterday, end: new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999) };
+        }
+        if (selectedDashboardPeriod === 'lastWeek') {
+            const thisWeekStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() - ((todayStart.getDay() + 6) % 7));
+            const lastWeekStart = new Date(thisWeekStart.getFullYear(), thisWeekStart.getMonth(), thisWeekStart.getDate() - 7);
+            return {
+                start: lastWeekStart,
+                end: new Date(thisWeekStart.getFullYear(), thisWeekStart.getMonth(), thisWeekStart.getDate() - 1, 23, 59, 59, 999)
+            };
+        }
+        if (selectedDashboardPeriod === 'month') {
+            return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999) };
+        }
+        if (selectedDashboardPeriod === 'year') {
+            return { start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999) };
+        }
+        if (selectedDashboardPeriod === 'custom') {
+            const startValue = document.getElementById('dashboardStartDate')?.value;
+            const endValue = document.getElementById('dashboardEndDate')?.value;
+            const start = startValue ? parseDashboardDate(startValue) : null;
+            const end = endValue ? parseDashboardDate(endValue) : null;
+            if (start && !Number.isNaN(start.getTime())) start.setHours(0, 0, 0, 0);
+            if (end && !Number.isNaN(end.getTime())) end.setHours(23, 59, 59, 999);
+            return { start, end, invalid: !start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end };
+        }
+        return { start: null, end: null };
+    };
+    const dashboardPeriodLabel = range => ({
+        today: 'Today',
+        yesterday: 'Yesterday',
+        lastWeek: 'Last week',
+        month: 'Current month',
+        year: 'This year',
+        all: 'All time'
+    })[selectedDashboardPeriod] || (range.invalid
+        ? 'Invalid range'
+        : `${range.start ? dashboardDateLabel(range.start) : 'Any date'} – ${range.end ? dashboardDateLabel(range.end) : 'Any date'}`);
+    const dashboardDateInRange = (date, range, includeUndated = false) => {
+        if (!date) return includeUndated && !range.start && !range.end;
+        return (!range.start || date >= range.start) && (!range.end || date <= range.end);
+    };
 
     function renderDashboardData() {
         const recordsFor = collection => dashboardData[collection].records;
@@ -258,10 +325,124 @@ document.addEventListener('DOMContentLoaded', () => {
         setStat('parents', availableCount('parents'));
 
         const fees = recordsFor('fees');
-        const earnings = fees.reduce((sum, fee) => sum + dashboardNumber(fee.amountPaid ?? fee.paidAmount ?? fee.amountCollected), 0);
-        setStat('earnings', dashboardData.fees.loaded
-            ? `UGX ${earnings.toLocaleString('en-UG', { maximumFractionDigits: 0 })}`
+        const expenses = recordsFor('expenses');
+        const attendance = recordsFor('attendance');
+        const range = dashboardRange();
+        const periodLabel = dashboardPeriodLabel(range);
+        const periodLabelElement = document.getElementById('dashboardPeriodLabel');
+        const periodElement = document.getElementById('dashboardPeriod');
+        const customRangeElement = document.getElementById('dashboardDateRange');
+        if (periodLabelElement) periodLabelElement.textContent = periodLabel;
+        if (periodElement && periodElement.value !== selectedDashboardPeriod) periodElement.value = selectedDashboardPeriod;
+        customRangeElement?.classList.toggle('hidden', selectedDashboardPeriod !== 'custom');
+
+        const collectedInPeriod = fees.reduce((sum, fee) => {
+            const paymentDate = fee.paymentDate ? parseDashboardDate(fee.paymentDate) : null;
+            return dashboardDateInRange(paymentDate && !Number.isNaN(paymentDate.getTime()) ? paymentDate : null, range, true)
+                ? sum + feePaidAmount(fee)
+                : sum;
+        }, 0);
+        const outstanding = fees.reduce((sum, fee) => sum + feeOutstandingAmount(fee), 0);
+        const overdueFees = fees.filter(fee => {
+            const dueDate = fee.dueDate ? parseDashboardDate(fee.dueDate) : null;
+            return feeOutstandingAmount(fee) > 0 && (
+                String(fee.status || '').toLowerCase() === 'overdue'
+                || (dueDate && !Number.isNaN(dueDate.getTime()) && dueDate < new Date(new Date().setHours(0, 0, 0, 0)))
+            );
+        });
+        const periodBilledFees = fees.filter(fee => {
+            const billedDateValue = fee.dueDate || fee.paymentDate || fee.date;
+            const billedDate = billedDateValue ? parseDashboardDate(billedDateValue) : null;
+            return dashboardDateInRange(billedDate && !Number.isNaN(billedDate.getTime()) ? billedDate : null, range, true);
+        });
+        const billedInPeriod = periodBilledFees.reduce((sum, fee) => sum + feeBilledAmount(fee), 0);
+        const collectedAgainstBilled = periodBilledFees.reduce((sum, fee) => sum + Math.min(feePaidAmount(fee), feeBilledAmount(fee)), 0);
+        const expensesInPeriod = expenses.reduce((sum, expense) => {
+            const expenseDate = expense.expenseDate ? parseDashboardDate(expense.expenseDate) : null;
+            return dashboardDateInRange(expenseDate && !Number.isNaN(expenseDate.getTime()) ? expenseDate : null, range, true)
+                ? sum + dashboardNumber(expense.amount)
+                : sum;
+        }, 0);
+        const todayKey = dashboardDateKey(new Date());
+        const attendanceToday = attendance.filter(record => {
+            const date = record.date ? parseDashboardDate(record.date) : null;
+            return date && !Number.isNaN(date.getTime()) && dashboardDateKey(date) === todayKey;
+        });
+        const attendedToday = attendanceToday.filter(record => ['present', 'late', 'excused'].includes(String(record.status || '').toLowerCase())).length;
+        setStat('earnings', dashboardData.fees.loaded && !range.invalid ? dashboardMoney(collectedInPeriod) : '—');
+        setStat('outstanding', dashboardData.fees.loaded ? dashboardMoney(outstanding) : '—');
+        setStat('collectionRate', dashboardData.fees.loaded && !range.invalid && billedInPeriod > 0
+            ? `${Math.round(collectedAgainstBilled / billedInPeriod * 100)}%`
             : '—');
+        setStat('overdueFees', dashboardData.fees.loaded ? overdueFees.length.toLocaleString() : '—');
+        setStat('expenses', dashboardData.expenses.loaded && !range.invalid ? dashboardMoney(expensesInPeriod) : '—');
+        setStat('attendanceRate', dashboardData.attendance.loaded && attendanceToday.length
+            ? `${Math.round(attendedToday / attendanceToday.length * 100)}%`
+            : '—');
+        setStat('attendanceRecords', dashboardData.attendance.loaded ? attendanceToday.length.toLocaleString() : '—');
+
+        const dateRangeInputs = [document.getElementById('dashboardStartDate'), document.getElementById('dashboardEndDate')];
+        dateRangeInputs.forEach(input => input?.setAttribute('aria-invalid', String(Boolean(range.invalid))));
+
+        const schoolContext = document.getElementById('dashboardSchoolContext');
+        if (schoolContext) {
+            const academicYears = [...new Set(fees.map(fee => fee.academicYear).filter(Boolean))].sort();
+            schoolContext.textContent = [currentSchool?.schoolName || 'School dashboard', academicYears.at(-1)].filter(Boolean).join(' · ');
+        }
+        const dataStatus = document.getElementById('dashboardDataStatus');
+        if (dataStatus) {
+            const loadedCount = [...dashboardSubscribedCollections].filter(collection => dashboardData[collection]?.loaded).length;
+            const hasErrors = [...dashboardSubscribedCollections].some(collection => dashboardData[collection]?.error);
+            const syncIndicator = document.querySelector('.portal-sync-indicator');
+            const syncState = syncIndicator?.dataset.state;
+            const lastUpdatedLabel = dashboardLastUpdated
+                ? ` · Updated ${dashboardLastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+                : '';
+            dataStatus.textContent = range.invalid ? 'Choose a valid date range.'
+                : !navigator.onLine ? `Offline · Showing available local data${lastUpdatedLabel}`
+                    : hasErrors ? `Some data is unavailable${lastUpdatedLabel}`
+                        : dashboardSubscribedCollections.size
+                            ? `${loadedCount} of ${dashboardSubscribedCollections.size} permitted data sources loaded${lastUpdatedLabel}${syncState === 'pending' ? ' · Syncing' : ''}`
+                            : 'No dashboard data sources are available for this account.';
+            dataStatus.dataset.state = !navigator.onLine ? 'offline' : hasErrors ? 'error' : 'ready';
+        }
+        const queue = [];
+        if (dashboardData.fees.loaded && overdueFees.length) {
+            queue.push({
+                title: `${overdueFees.length} fee ${overdueFees.length === 1 ? 'balance is' : 'balances are'} overdue`,
+                detail: `Outstanding total: ${dashboardMoney(overdueFees.reduce((sum, fee) => sum + feeOutstandingAmount(fee), 0))}`,
+                section: 'Fees'
+            });
+        }
+        if (dashboardData.notices.loaded) {
+            const drafts = recordsFor('notices').filter(notice => ['draft', 'pending', 'awaiting approval'].includes(String(notice.status || '').toLowerCase()));
+            if (drafts.length) {
+                queue.push({
+                    title: `${drafts.length} notice ${drafts.length === 1 ? 'needs' : 'need'} review`,
+                    detail: 'Draft or pending notices are not yet published.',
+                    section: 'Notice Board'
+                });
+            }
+        }
+        const absentToday = attendanceToday.filter(record => String(record.status || '').toLowerCase() === 'absent').length;
+        if (dashboardData.attendance.loaded && absentToday) {
+            queue.push({
+                title: `${absentToday} ${absentToday === 1 ? 'absence is' : 'absences are'} recorded today`,
+                detail: 'Review today’s attendance register.',
+                section: 'Attendance'
+            });
+        }
+        const queueContainer = document.getElementById('dashboardActionQueue');
+        const queueCount = document.getElementById('dashboardQueueCount');
+        if (queueCount) queueCount.textContent = String(queue.length);
+        if (queueContainer) {
+            const loadedActionSources = [...dashboardSubscribedCollections].some(collection => dashboardData[collection].loaded);
+            const actionSourceError = [...dashboardSubscribedCollections].some(collection => dashboardData[collection].error);
+            queueContainer.innerHTML = queue.length
+                ? queue.map(item => `<article class="dashboard-queue-item"><div><strong>${dashboardEscape(item.title)}</strong><span>${dashboardEscape(item.detail)}</span></div><button type="button" data-dashboard-open="${dashboardEscape(item.section)}">Review <i class="fas fa-arrow-right" aria-hidden="true"></i></button></article>`).join('')
+                : `<p class="dashboard-empty">${actionSourceError ? 'Some action items are unavailable because a permitted data source could not be loaded.' : loadedActionSources ? 'Nothing currently needs attention based on available records.' : 'No action items are available to this account.'}</p>`;
+        }
+        updateDashboardActionAccess();
 
         const students = recordsFor('students');
         if (dashboardData.students.loaded) {
@@ -397,16 +578,149 @@ document.addEventListener('DOMContentLoaded', () => {
         if (recentFees) {
             const payments = fees.map(fee => ({
                 fee,
-                amount: dashboardNumber(fee.amountPaid ?? fee.paidAmount ?? fee.amountCollected),
+                amount: feePaidAmount(fee),
                 date: fee.paymentDate ? parseDashboardDate(fee.paymentDate) : null
-            })).filter(item => item.amount > 0)
+            })).filter(item => item.amount > 0 && !range.invalid
+                && dashboardDateInRange(item.date && !Number.isNaN(item.date.getTime()) ? item.date : null, range, true))
                 .sort((left, right) => (right.date?.getTime() || 0) - (left.date?.getTime() || 0))
                 .slice(0, 5);
             recentFees.innerHTML = payments.length
                 ? payments.map(({ fee, amount, date }) => `<tr><td>${dashboardEscape(fee.studentName || fee.name || 'Student')}</td><td>${dashboardEscape(fee.studentClass || fee.className || '—')}</td><td>UGX ${amount.toLocaleString('en-UG', { maximumFractionDigits: 0 })}</td><td><span class="badge ${String(fee.status || '').toLowerCase() === 'paid' ? 'paid' : 'pending'}">${dashboardEscape(fee.status || 'Received')}</span></td><td>${dashboardEscape(dashboardDateLabel(date))}</td></tr>`).join('')
-                : `<tr><td colspan="5" class="dashboard-empty">${dashboardData.fees.loaded ? 'No fee payments recorded.' : 'Fee data unavailable for this account.'}</td></tr>`;
+                : `<tr><td colspan="5" class="dashboard-empty">${!dashboardData.fees.loaded ? 'Fee data unavailable for this account.' : range.invalid ? 'Choose a valid date range.' : 'No fee payments recorded in this period.'}</td></tr>`;
+            const tableTitle = document.querySelector('.table-title');
+            if (tableTitle) tableTitle.textContent = `Recent Fee Payments · ${periodLabel}`;
         }
     }
+
+    const reportingPeriodSelect = document.getElementById('dashboardPeriod');
+    reportingPeriodSelect?.addEventListener('change', () => {
+        selectedDashboardPeriod = reportingPeriodSelect.value;
+        renderDashboardData();
+    });
+    ['dashboardStartDate', 'dashboardEndDate'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', renderDashboardData);
+    });
+
+    const findDashboardNavLink = section => Array.from(document.querySelectorAll('.nav-links a')).find(link => {
+        const label = link.querySelector('span')?.textContent.trim() || link.textContent.trim();
+        return label === section && !link.closest('.account-access-hidden');
+    });
+    const updateDashboardActionAccess = () => {
+        document.querySelectorAll('[data-dashboard-nav]').forEach(button => {
+            button.hidden = !findDashboardNavLink(button.dataset.dashboardNav);
+        });
+        document.querySelectorAll('[data-dashboard-open]').forEach(button => {
+            button.hidden = !findDashboardNavLink(button.dataset.dashboardOpen);
+        });
+    };
+    updateDashboardActionAccess();
+    document.addEventListener('click', event => {
+        const actionButton = event.target.closest('[data-dashboard-nav]');
+        if (!actionButton) return;
+        const section = actionButton.dataset.dashboardNav;
+        const link = findDashboardNavLink(section);
+        if (!link) return;
+        const addButton = document.getElementById('addStudentBtn');
+        if (addButton) {
+            addButton.dataset.section = section;
+            addButton.click();
+        } else {
+            link.click();
+        }
+    });
+    document.addEventListener('click', event => {
+        const openButton = event.target.closest('[data-dashboard-open]');
+        if (!openButton) return;
+        findDashboardNavLink(openButton.dataset.dashboardOpen)?.click();
+    });
+    document.getElementById('dashboardExport')?.addEventListener('click', () => {
+        const range = dashboardRange();
+        if (range.invalid) {
+            const status = document.getElementById('dashboardDataStatus');
+            if (status) status.textContent = 'Choose a valid date range before exporting.';
+            return;
+        }
+        if (!dashboardData.fees.loaded && !dashboardData.expenses.loaded) {
+            const status = document.getElementById('dashboardDataStatus');
+            if (status) status.textContent = 'No permitted fee or expense data is available to export.';
+            return;
+        }
+        const periodLabel = dashboardPeriodLabel(range);
+        const fees = dashboardData.fees.records;
+        const expenses = dashboardData.expenses.records;
+        const collectedInPeriod = fees.reduce((sum, fee) => {
+            const date = fee.paymentDate ? parseDashboardDate(fee.paymentDate) : null;
+            return dashboardDateInRange(date && !Number.isNaN(date.getTime()) ? date : null, range, true)
+                ? sum + feePaidAmount(fee)
+                : sum;
+        }, 0);
+        const outstanding = fees.reduce((sum, fee) => sum + feeOutstandingAmount(fee), 0);
+        const periodBilledFees = fees.filter(fee => {
+            const value = fee.dueDate || fee.paymentDate || fee.date;
+            const date = value ? parseDashboardDate(value) : null;
+            return dashboardDateInRange(date && !Number.isNaN(date.getTime()) ? date : null, range, true);
+        });
+        const billedInPeriod = periodBilledFees.reduce((sum, fee) => sum + feeBilledAmount(fee), 0);
+        const collectedAgainstBilled = periodBilledFees.reduce((sum, fee) => sum + Math.min(feePaidAmount(fee), feeBilledAmount(fee)), 0);
+        const expensesInPeriod = expenses.reduce((sum, expense) => {
+            const date = expense.expenseDate ? parseDashboardDate(expense.expenseDate) : null;
+            return dashboardDateInRange(date && !Number.isNaN(date.getTime()) ? date : null, range, true)
+                ? sum + dashboardNumber(expense.amount)
+                : sum;
+        }, 0);
+        const csvValue = value => {
+            const text = String(value ?? '');
+            const safeText = typeof value === 'string' && /^[\s]*[=+\-@]/.test(text) ? `'${text}` : text;
+            return `"${safeText.replace(/"/g, '""')}"`;
+        };
+        const rows = [
+            ['School dashboard report', currentSchool?.schoolName || 'School'],
+            ['Date range', periodLabel],
+            ['Generated', new Date().toLocaleString()],
+            [],
+            ['Summary', 'Metric', 'Value'],
+            ...(dashboardData.fees.loaded ? [['', 'Fees collected', collectedInPeriod], ['', 'Fee balance', outstanding], ['', 'Collection rate', billedInPeriod ? `${Math.round(collectedAgainstBilled / billedInPeriod * 100)}%` : 'Not available']] : []),
+            ...(dashboardData.expenses.loaded ? [['', 'Expenses', expensesInPeriod]] : []),
+            [],
+            ['Type', 'Date', 'Name / Description', 'Class / Category', 'Amount', 'Status']
+        ];
+        if (dashboardData.fees.loaded) {
+            fees.filter(fee => {
+                const date = fee.paymentDate ? parseDashboardDate(fee.paymentDate) : null;
+                return dashboardDateInRange(date && !Number.isNaN(date.getTime()) ? date : null, range, true);
+            }).forEach(fee => rows.push([
+                'Fee payment',
+                dashboardDateLabel(fee.paymentDate),
+                fee.studentName || fee.name || 'Student',
+                fee.studentClass || fee.className || '',
+                feePaidAmount(fee),
+                fee.status || 'Received'
+            ]));
+        }
+        if (dashboardData.expenses.loaded) {
+            expenses.filter(expense => {
+                const date = expense.expenseDate ? parseDashboardDate(expense.expenseDate) : null;
+                return dashboardDateInRange(date && !Number.isNaN(date.getTime()) ? date : null, range, true);
+            }).forEach(expense => rows.push([
+                'Expense',
+                dashboardDateLabel(expense.expenseDate),
+                expense.description || expense.name || 'Expense',
+                expense.category || '',
+                dashboardNumber(expense.amount),
+                expense.status || ''
+            ]));
+        }
+        const csv = rows.map(row => row.map(csvValue).join(',')).join('\r\n');
+        const downloadUrl = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+        const downloadLink = document.createElement('a');
+        downloadLink.href = downloadUrl;
+        downloadLink.download = `school-dashboard-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.append(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+    });
+    document.getElementById('dashboardPrint')?.addEventListener('click', () => window.print());
 
     document.getElementById('dashboardCalendarPrev')?.addEventListener('click', () => {
         calendarViewMonth = new Date(calendarViewMonth.getFullYear(), calendarViewMonth.getMonth() - 1, 1);
@@ -509,19 +823,22 @@ document.addEventListener('DOMContentLoaded', () => {
         dashboardSubscriptions.forEach(unsubscribe => unsubscribe());
         dashboardSubscriptions = [];
         dashboardIdentityKey = identityKey;
+        dashboardLastUpdated = null;
 
         const adminRole = ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(userData.role);
         const permissions = identity.permissions || userData.permissions || userData.perms || {};
         dashboardCollections.forEach(collection => {
-            dashboardData[collection] = { loaded: false, records: [] };
+            dashboardData[collection] = { loaded: false, records: [], error: false };
         });
-        renderDashboardData();
 
         const permittedCollections = dashboardCollections
             .filter(collection => adminRole || permissions[collection]?.view === true);
+        dashboardSubscribedCollections = new Set(permittedCollections);
+        renderDashboardData();
         const subscriptions = permittedCollections.map(async collection => {
-            const unsubscribe = await api.subscribe(collection, records => {
-                dashboardData[collection] = { loaded: true, records };
+            const unsubscribe = await api.subscribe(collection, (records, metadata) => {
+                dashboardData[collection] = { loaded: true, records, error: false };
+                if (metadata?.source === 'cloud') dashboardLastUpdated = new Date();
                 renderDashboardData();
             });
             if (dashboardIdentityKey === identityKey) {
@@ -533,7 +850,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const results = await Promise.allSettled(subscriptions);
         results.forEach((result, index) => {
             if (result.status === 'rejected') {
-                dashboardData[permittedCollections[index]] = { loaded: false, records: [] };
+                dashboardData[permittedCollections[index]] = { loaded: false, records: [], error: true };
                 console.error(`Unable to load dashboard ${permittedCollections[index]} data.`, result.reason);
             }
         });
@@ -543,16 +860,25 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('school-portal-sync-error', event => {
         const collection = event.detail?.collection;
         if (!navigator.onLine || !dashboardCollections.includes(collection)) return;
-        dashboardData[collection] = { loaded: false, records: [] };
+        dashboardData[collection] = { loaded: false, records: [], error: true };
         renderDashboardData();
     });
+    window.addEventListener('school-portal-sync-update', () => {
+        dashboardLastUpdated = new Date();
+        renderDashboardData();
+    });
+    window.addEventListener('online', renderDashboardData);
+    window.addEventListener('offline', renderDashboardData);
+    window.addEventListener('school-portal-sync-status', renderDashboardData);
 
     window.addEventListener('school-portal-identity-cleared', () => {
         dashboardSubscriptions.forEach(unsubscribe => unsubscribe());
         dashboardSubscriptions = [];
         dashboardIdentityKey = '';
+        dashboardSubscribedCollections = new Set();
+        dashboardLastUpdated = null;
         dashboardCollections.forEach(collection => {
-            dashboardData[collection] = { loaded: false, records: [] };
+            dashboardData[collection] = { loaded: false, records: [], error: false };
         });
         renderDashboardData();
     });
@@ -569,6 +895,7 @@ document.addEventListener('DOMContentLoaded', () => {
             title.classList.toggle('account-access-hidden', !canShow);
             group.classList.toggle('account-access-hidden', !canShow);
         });
+        updateDashboardActionAccess();
     }
 
     const unlockDashboard = (userData) => {
@@ -583,8 +910,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const schoolName = currentSchool?.schoolName || 'School';
         const welcomeHeading = document.querySelector('.welcome h1');
         const welcomeSubheading = document.querySelector('.welcome p');
+        const accountName = userData.fullName || userData.adminUser || userData.email || 'there';
         if (welcomeHeading) welcomeHeading.textContent = `${schoolName} Dashboard`;
-        if (welcomeSubheading) welcomeSubheading.textContent = 'Welcome back, School Admin.';
+        if (welcomeSubheading) welcomeSubheading.textContent = `Welcome back, ${accountName}.`;
 
         const profileNameEl = document.querySelector('.profile-meta strong') || document.querySelector('.profile h4');
         const profileRoleEl = document.querySelector('.profile-meta span') || document.querySelector('.profile-role');

@@ -643,6 +643,45 @@ if ('serviceWorker' in navigator) {
 
 <!-- DASHBOARD -->
 
+<section class="dashboard-toolbar panel" aria-label="Dashboard controls">
+    <div class="dashboard-context">
+        <span class="dashboard-eyebrow">School overview</span>
+        <strong id="dashboardSchoolContext">Dashboard overview</strong>
+        <span id="dashboardDataStatus" role="status" aria-live="polite">Waiting for school data…</span>
+    </div>
+    <div class="dashboard-tools">
+        <select id="dashboardPeriod" aria-label="Dashboard date range">
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="lastWeek">Last week</option>
+            <option value="month">Current month</option>
+            <option value="year">This year</option>
+            <option value="all">All time</option>
+            <option value="custom">Custom range</option>
+        </select>
+        <div class="dashboard-date-range hidden" id="dashboardDateRange">
+            <label><span class="sr-only">Start date</span><input type="date" id="dashboardStartDate"></label>
+            <span aria-hidden="true">to</span>
+            <label><span class="sr-only">End date</span><input type="date" id="dashboardEndDate"></label>
+        </div>
+        <button type="button" class="dashboard-tool-button" id="dashboardExport" aria-label="Export dashboard report as CSV"><i class="fas fa-download" aria-hidden="true"></i><span>Export</span></button>
+        <button type="button" class="dashboard-tool-button" id="dashboardPrint" aria-label="Print dashboard report"><i class="fas fa-print" aria-hidden="true"></i><span>Print</span></button>
+    </div>
+</section>
+
+<section class="dashboard-quick-actions panel" aria-label="Quick actions">
+    <div>
+        <strong>Quick actions</strong>
+        <span>Shortcuts follow your account access</span>
+    </div>
+    <div class="dashboard-action-buttons">
+        <button type="button" data-dashboard-nav="Students"><i class="fas fa-user-plus" aria-hidden="true"></i>Register student</button>
+        <button type="button" data-dashboard-nav="Fees"><i class="fas fa-money-bill-wave" aria-hidden="true"></i>Record fee</button>
+        <button type="button" data-dashboard-nav="Notice Board"><i class="fas fa-bullhorn" aria-hidden="true"></i>Post notice</button>
+        <button type="button" data-dashboard-nav="Attendance"><i class="fas fa-calendar-check" aria-hidden="true"></i>Take attendance</button>
+    </div>
+</section>
+
 <section class="dashboard-shell">
     <div class="dashboard-main">
         <div class="stats-strip">
@@ -695,10 +734,69 @@ if ('serviceWorker' in navigator) {
             </div>
         </div>
 
+        <div class="dashboard-finance-kpis" aria-label="Fee balance indicators">
+            <article class="stat-card dashboard-kpi">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Fee balance</span>
+                        <strong data-dashboard-stat="outstanding">—</strong>
+                    </div>
+                    <div class="stat-icon coral"><i class="fas fa-wallet" aria-hidden="true"></i></div>
+                </div>
+            </article>
+            <article class="stat-card dashboard-kpi">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Collection rate</span>
+                        <strong data-dashboard-stat="collectionRate">—</strong>
+                    </div>
+                    <div class="stat-icon blue"><i class="fas fa-chart-line" aria-hidden="true"></i></div>
+                </div>
+            </article>
+            <article class="stat-card dashboard-kpi">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Overdue fees</span>
+                        <strong data-dashboard-stat="overdueFees">—</strong>
+                    </div>
+                    <div class="stat-icon purple"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i></div>
+                </div>
+            </article>
+            <article class="stat-card dashboard-kpi">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Expenses</span>
+                        <strong data-dashboard-stat="expenses">—</strong>
+                    </div>
+                    <div class="stat-icon gold"><i class="fas fa-receipt" aria-hidden="true"></i></div>
+                </div>
+            </article>
+            <article class="stat-card dashboard-kpi">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Attendance</span>
+                        <strong data-dashboard-stat="attendanceRate">—</strong>
+                    </div>
+                    <div class="stat-icon blue"><i class="fas fa-calendar-check" aria-hidden="true"></i></div>
+                </div>
+            </article>
+        </div>
+
+        <section class="dashboard-queue panel" aria-labelledby="dashboardQueueTitle">
+            <div class="panel-header">
+                <div>
+                    <h3 id="dashboardQueueTitle">Needs attention</h3>
+                    <p>Items that may need follow-up</p>
+                </div>
+                <span id="dashboardQueueCount" class="dashboard-queue-count">—</span>
+            </div>
+            <div id="dashboardActionQueue" aria-live="polite"></div>
+        </section>
+
         <div class="analytics-row">
             <div class="panel earnings-panel">
                 <div class="panel-header">
-                    <h3>Fees &amp; Expenses</h3>
+                    <h3>Fees &amp; Expenses by month</h3>
                     <div class="chart-period-control">
                         <button type="button" id="dashboardChartPrevYear" aria-label="Previous year"><i class="fas fa-chevron-left"></i></button>
                         <span class="period-select" id="dashboardChartYear"></span>
@@ -714,10 +812,14 @@ if ('serviceWorker' in navigator) {
                 <div class="bar-chart" id="dashboardEarningsChart" aria-label="Monthly collected fees and expenses"></div>
                 <div class="chart-months" id="dashboardChartMonths"></div>
                 <div class="chart-month-detail" id="dashboardChartDetail" aria-live="polite"></div>
+                <div class="dashboard-drilldowns">
+                    <button type="button" data-dashboard-open="Fees">View fee records <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                    <button type="button" data-dashboard-open="Expenses">View expense records <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                </div>
             </div>
 
             <div class="panel students-panel">
-                <div class="panel-header"><h3>Students</h3></div>
+                <div class="panel-header"><h3>Student gender breakdown</h3></div>
                 <div class="donut-wrap">
                     <button class="donut-chart" id="dashboardGenderToggle" type="button" aria-label="Toggle gender breakdown">
                         <div class="donut-ring" id="dashboardGenderChart"></div>
@@ -730,6 +832,7 @@ if ('serviceWorker' in navigator) {
                     <button type="button" data-gender-select="male"><span class="dot dot-primary"></span> Male <strong data-dashboard-stat="maleShare">—</strong></button>
                     <button type="button" data-gender-select="female"><span class="dot dot-muted"></span> Female <strong data-dashboard-stat="femaleShare">—</strong></button>
                 </div>
+                <div class="dashboard-drilldowns"><button type="button" data-dashboard-open="Students">View student records <i class="fas fa-arrow-right" aria-hidden="true"></i></button></div>
             </div>
         </div>
 
