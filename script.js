@@ -1667,6 +1667,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
     rolesBackBtn?.addEventListener('click', () => showDashboard());
 
+    const frontOfficeStatIcons = {
+        'Total Enquiries': 'fa-inbox',
+        New: 'fa-circle-plus',
+        'In Progress': 'fa-bars-progress',
+        Waiting: 'fa-hourglass-half',
+        Resolved: 'fa-circle-check',
+        Closed: 'fa-circle-xmark',
+        Appointments: 'fa-calendar-check',
+        'Follow-up Due': 'fa-bell',
+        Open: 'fa-folder-open',
+        'Due Today': 'fa-calendar-day',
+        Overdue: 'fa-triangle-exclamation',
+        Completed: 'fa-check-double',
+        "Today's Mail": 'fa-envelope',
+        'Pending Delivery': 'fa-box',
+        Delivered: 'fa-box-open',
+        'Official / Important': 'fa-star',
+        Returned: 'fa-arrow-rotate-left',
+        "Today's Appointments": 'fa-calendar-day',
+        Requested: 'fa-clipboard-list',
+        Confirmed: 'fa-circle-check',
+        'Checked In': 'fa-right-to-bracket',
+        'Cancelled / No Show': 'fa-calendar-xmark',
+        "Today's Visitors": 'fa-users',
+        'Currently Inside': 'fa-person-circle-check',
+        'Expected Today': 'fa-user-clock',
+        'Checked Out': 'fa-right-from-bracket',
+        'Active Visits': 'fa-person-walking',
+        'Total Dispatches': 'fa-truck',
+        Pending: 'fa-hourglass-half',
+        'In Transit': 'fa-truck-fast',
+        Urgent: 'fa-triangle-exclamation',
+        'Total Calls': 'fa-phone-volume',
+        Incoming: 'fa-phone',
+        Outgoing: 'fa-phone-flip',
+        'Follow-ups': 'fa-calendar-check'
+    };
+
+    function addFrontOfficeStatIcons(section) {
+        section.querySelectorAll('.enquiry-stat').forEach(card => {
+            const label = card.querySelector('span')?.textContent.trim();
+            const iconName = frontOfficeStatIcons[label];
+            if (!iconName || card.querySelector(':scope > i')) return;
+            const icon = document.createElement('i');
+            icon.className = `fas ${iconName}`;
+            icon.setAttribute('aria-hidden', 'true');
+            card.append(icon);
+        });
+    }
+
     function createEnquiriesModule(category) {
         const sec = document.createElement('section');
         sec.className = 'module enquiries-module enquiry-workflow-module';
@@ -1968,6 +2018,7 @@ document.addEventListener('DOMContentLoaded', () => {
             openEnquiryDocument(entry, actionButton.dataset.enquiryAction === 'print');
         });
         render();
+        addFrontOfficeStatIcons(sec);
         return sec;
     }
 
@@ -2076,7 +2127,7 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('input', updateSummary); form.addEventListener('change', updateSummary); form.addEventListener('reset', () => setTimeout(updateSummary)); form.addEventListener('submit', event => { event.preventDefault(); if (!form.checkValidity()) { form.reportValidity(); return; } const data = Object.fromEntries(new FormData(form).entries()); data.id = data.id || Date.now().toString(); data.updatedAt = new Date().toISOString(); const entries = readEntries(); if (editingIndex === null) entries.unshift(data); else { data.id = entries[editingIndex].id || data.id; entries[editingIndex] = data; } localStorage.setItem(storageKey, JSON.stringify(entries)); closeForm(); render(); });
         sec.querySelector('[data-enquiry-new]').addEventListener('click', () => entryCard.classList.contains('hidden') ? openForm() : closeForm()); sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
         table.addEventListener('click', event => { const button = event.target.closest('[data-enquiry-action]'); if (!button) return; const entries = readEntries(); const index = Number(button.dataset.enquiryIndex); const entry = entries[index]; if (!entry) return; const action = button.dataset.enquiryAction; if (action === 'delete') { if (!confirm(`Delete ${entry.followUpId || 'this follow-up'}?`)) return; entries.splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'complete') { entry.status = 'Completed'; entry.resolution = entry.resolution || 'Follow-up completed.'; localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'edit') { Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; }); editingIndex = index; openForm(); return; } const printWindow = window.open('', '_blank', 'width=700,height=700'); if (!printWindow) return; printWindow.document.write(`<html><head><title>Follow-up Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:180px}</style></head><body><h1>Follow-up Record</h1>${Object.entries(entry).filter(([name]) => name !== 'id').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}</body></html>`); printWindow.document.close(); printWindow.focus(); printWindow.print(); });
-        render(); return sec;
+        render(); addFrontOfficeStatIcons(sec); return sec;
     }
 
     function createIncomingMailModule(category) {
@@ -2103,7 +2154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('input', updateSummary); form.addEventListener('change', updateSummary); form.addEventListener('reset', () => setTimeout(updateSummary)); form.addEventListener('submit', event => { event.preventDefault(); if (!form.checkValidity()) { form.reportValidity(); return; } const data = Object.fromEntries(new FormData(form).entries()); data.id = data.id || Date.now().toString(); data.createdAt = new Date().toISOString(); const entries = readEntries(); if (editingIndex === null) entries.unshift(data); else { data.id = entries[editingIndex].id || data.id; data.createdAt = entries[editingIndex].createdAt || data.createdAt; entries[editingIndex] = data; } localStorage.setItem(storageKey, JSON.stringify(entries)); closeForm(); render(); });
         sec.querySelector('[data-enquiry-new]').addEventListener('click', () => entryCard.classList.contains('hidden') ? openForm() : closeForm()); sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
         table.addEventListener('click', event => { const button = event.target.closest('[data-enquiry-action]'); if (!button) return; const entries = readEntries(); const index = Number(button.dataset.enquiryIndex); const entry = entries[index]; if (!entry) return; const action = button.dataset.enquiryAction; if (action === 'delete') { if (!confirm(`Delete ${entry.mailId || 'this mail record'}?`)) return; entries.splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'deliver') { entry.status = 'Delivered'; entry.deliveryDate = today(); entry.deliveryTime = new Date().toTimeString().slice(0, 5); entry.deliveredBy = entry.deliveredBy || 'Reception'; localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'return') { if (!confirm(`Mark ${entry.mailId || 'this mail'} as returned?`)) return; entry.status = 'Returned'; localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (action === 'edit') { Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; }); editingIndex = index; openForm(); return; } const printWindow = window.open('', '_blank', 'width=700,height=700'); if (!printWindow) return; printWindow.document.write(`<html><head><title>Incoming Mail Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:180px}</style></head><body><h1>Incoming Mail Record</h1>${Object.entries(entry).filter(([name]) => name !== 'id').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}</body></html>`); printWindow.document.close(); printWindow.focus(); printWindow.print(); });
-        render(); return sec;
+        render(); addFrontOfficeStatIcons(sec); return sec;
     }
 
     function createAppointmentsModule(category) {
@@ -2290,7 +2341,7 @@ document.addEventListener('DOMContentLoaded', () => {
             printWindow.focus();
             printWindow.print();
         });
-        render(); return sec;
+        render(); addFrontOfficeStatIcons(sec); return sec;
     }
 
     function createVisitorsModule(category) {
@@ -2354,7 +2405,7 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('input', updateSummary); form.addEventListener('change', updateSummary); form.addEventListener('reset', () => setTimeout(updateSummary)); form.addEventListener('submit', event => { event.preventDefault(); if (!form.checkValidity()) { form.reportValidity(); return; } const data = Object.fromEntries(new FormData(form).entries()); data.id = data.id || Date.now().toString(); data.createdAt = new Date().toISOString(); const entries = readEntries(); if (editingIndex === null) entries.unshift(data); else { data.id = entries[editingIndex].id || data.id; data.createdAt = entries[editingIndex].createdAt || data.createdAt; entries[editingIndex] = data; } localStorage.setItem(storageKey, JSON.stringify(entries)); closeForm(); render(); });
         sec.querySelector('[data-enquiry-new]').addEventListener('click', () => entryCard.classList.contains('hidden') ? openForm() : closeForm()); sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
         table.addEventListener('click', event => { const button = event.target.closest('[data-enquiry-action]'); if (!button) return; const entries = readEntries(); const index = Number(button.dataset.enquiryIndex); const entry = entries[index]; if (!entry) return; if (button.dataset.enquiryAction === 'delete') { if (!confirm(`Delete visitor ${entry.visitorName || ''}?`)) return; entries.splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (button.dataset.enquiryAction === 'checkout') { entry.status = 'Checked Out'; entry.checkOutTime = new Date().toTimeString().slice(0, 5); localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (button.dataset.enquiryAction === 'edit') { Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; }); editingIndex = index; openForm(); return; } const printWindow = window.open('', '_blank', 'width=700,height=700'); if (!printWindow) return; printWindow.document.write(`<html><head><title>Visitor Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:170px}</style></head><body><h1>Visitor Record</h1>${Object.entries(entry).filter(([name]) => name !== 'id').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}</body></html>`); printWindow.document.close(); printWindow.focus(); printWindow.print(); });
-        render(); return sec;
+        render(); addFrontOfficeStatIcons(sec); return sec;
     }
 
     function createDispatchModule(category) {
@@ -2456,6 +2507,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
         table.addEventListener('click', event => { const button = event.target.closest('[data-enquiry-action]'); if (!button) return; const entries = readEntries(); const index = Number(button.dataset.enquiryIndex); const entry = entries[index]; if (!entry) return; if (button.dataset.enquiryAction === 'delete') { if (!confirm(`Delete dispatch ${entry.dispatchNo || ''}?`)) return; entries.splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(entries)); render(); return; } if (button.dataset.enquiryAction === 'edit') { Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; }); editingIndex = index; openForm(); return; } const printWindow = window.open('', '_blank', 'width=700,height=700'); if (!printWindow) return; printWindow.document.write(`<html><head><title>Dispatch Record</title><style>body{font-family:Arial,sans-serif;padding:30px;color:#172033}h1{font-size:22px;border-bottom:2px solid #4f46e5;padding-bottom:10px}.row{padding:9px 0;border-bottom:1px solid #e2e8f0}.label{font-weight:bold;display:inline-block;width:180px}</style></head><body><h1>Dispatch Record</h1>${Object.entries(entry).filter(([name]) => name !== 'id').map(([name, value]) => `<div class="row"><span class="label">${escape(name)}</span>${escape(value || '-')}</div>`).join('')}</body></html>`); printWindow.document.close(); printWindow.focus(); printWindow.print(); });
         render();
+        addFrontOfficeStatIcons(sec);
         return sec;
     }
 
@@ -2587,6 +2639,7 @@ document.addEventListener('DOMContentLoaded', () => {
             printWindow.document.close(); printWindow.focus(); printWindow.print();
         });
         render();
+        addFrontOfficeStatIcons(sec);
         return sec;
     }
 
