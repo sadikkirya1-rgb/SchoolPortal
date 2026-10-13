@@ -2901,7 +2901,15 @@ Total Amount: $4,820.00
             link.id === 'dashboardBtn' || link.dataset.menuId === 'dashboard'
         );
         if (dashboardLink) {
-            navLinks.forEach(link => link.classList.toggle('active', link === dashboardLink));
+            navLinks.forEach(link => {
+                const isActive = link === dashboardLink;
+                link.classList.toggle('active', isActive);
+                if (isActive) {
+                    link.setAttribute('aria-current', 'page');
+                } else {
+                    link.removeAttribute('aria-current');
+                }
+            });
             saveActiveSection(sectionIdentity(dashboardLink));
         } else {
             saveActiveSection({ key: 'Main::Dashboard', group: 'main', label: 'dashboard', kind: 'dashboard' });
@@ -2944,10 +2952,30 @@ Total Amount: $4,820.00
     });
 
     navLinks.forEach(link => {
+        link.setAttribute('role', 'button');
+        link.setAttribute('tabindex', '0');
+        if (link.classList.contains('active')) {
+            link.setAttribute('aria-current', 'page');
+        }
+
+        link.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                link.click();
+            }
+        });
+
         link.addEventListener('click', (ev) => {
             ev.preventDefault();
-            navLinks.forEach(n => n.classList.remove('active'));
+            if (window.matchMedia('(max-width: 768px)').matches) {
+                setMobileSidebarOpen(false);
+            }
+            navLinks.forEach(n => {
+                n.classList.remove('active');
+                n.removeAttribute('aria-current');
+            });
             link.classList.add('active');
+            link.setAttribute('aria-current', 'page');
             saveActiveSection(sectionIdentity(link));
 
             const linkText = link.querySelector('span')?.innerText.trim() || link.innerText.trim();
@@ -4198,12 +4226,86 @@ Total Amount: $4,820.00
     const sidebarToggle = document.getElementById('sidebarToggle');
     const sidebar = document.querySelector('.sidebar');
     const main = document.querySelector('.main');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const mobileSidebarMedia = window.matchMedia('(max-width: 768px)');
+
+    const setMobileSidebarOpen = open => {
+        const isMobile = mobileSidebarMedia.matches;
+        const wasOpen = sidebar.classList.contains('mobile-open');
+        sidebar.classList.toggle('mobile-open', open);
+        sidebarOverlay?.classList.toggle('is-visible', open);
+        document.body.classList.toggle('sidebar-open', open);
+        sidebar.setAttribute('aria-hidden', String(isMobile && !open));
+        sidebar.inert = isMobile && !open;
+        sidebarToggle.setAttribute('aria-expanded', String(isMobile ? open : !sidebar.classList.contains('collapsed')));
+        sidebarToggle.setAttribute('aria-label', isMobile
+            ? (open ? 'Close navigation' : 'Open navigation')
+            : (sidebar.classList.contains('collapsed') ? 'Expand navigation' : 'Collapse navigation'));
+
+        if (isMobile && open) {
+            sidebar.querySelector('.nav-links a')?.focus({ preventScroll: true });
+        } else if (isMobile && wasOpen) {
+            sidebarToggle.focus();
+        }
+    };
 
     if (sidebarToggle && sidebar && main) {
+        const syncSidebarMode = () => {
+            sidebar.classList.remove('mobile-open');
+            sidebarOverlay?.classList.remove('is-visible');
+            document.body.classList.remove('sidebar-open');
+            if (mobileSidebarMedia.matches) {
+                sidebar.classList.remove('collapsed');
+                main.classList.remove('expanded');
+            }
+            sidebar.setAttribute('aria-hidden', String(mobileSidebarMedia.matches));
+            sidebar.inert = mobileSidebarMedia.matches;
+            sidebarToggle.setAttribute('aria-expanded', String(!mobileSidebarMedia.matches && !sidebar.classList.contains('collapsed')));
+            sidebarToggle.setAttribute('aria-label', mobileSidebarMedia.matches
+                ? 'Open navigation'
+                : (sidebar.classList.contains('collapsed') ? 'Expand navigation' : 'Collapse navigation'));
+        };
+
+        syncSidebarMode();
         sidebarToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            main.classList.toggle('expanded');
+            if (mobileSidebarMedia.matches) {
+                setMobileSidebarOpen(!sidebar.classList.contains('mobile-open'));
+                return;
+            }
+
+            const isCollapsed = sidebar.classList.toggle('collapsed');
+            main.classList.toggle('expanded', isCollapsed);
+            sidebarToggle.setAttribute('aria-expanded', String(!isCollapsed));
+            sidebarToggle.setAttribute('aria-label', isCollapsed ? 'Expand navigation' : 'Collapse navigation');
         });
+
+        sidebarOverlay?.addEventListener('click', () => {
+            setMobileSidebarOpen(false);
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && sidebar.classList.contains('mobile-open')) {
+                setMobileSidebarOpen(false);
+                return;
+            }
+
+            if (event.key === 'Tab' && sidebar.classList.contains('mobile-open')) {
+                const focusableItems = Array.from(sidebar.querySelectorAll('a, button, [tabindex="0"]'))
+                    .filter(item => item.getClientRects().length > 0);
+                const firstItem = focusableItems[0];
+                const lastItem = focusableItems[focusableItems.length - 1];
+
+                if (event.shiftKey && (document.activeElement === firstItem || !sidebar.contains(document.activeElement))) {
+                    event.preventDefault();
+                    lastItem?.focus();
+                } else if (!event.shiftKey && (document.activeElement === lastItem || !sidebar.contains(document.activeElement))) {
+                    event.preventDefault();
+                    firstItem?.focus();
+                }
+            }
+        });
+
+        mobileSidebarMedia.addEventListener('change', syncSidebarMode);
     }
 
     function applyPermissions(role) {
