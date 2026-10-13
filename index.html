@@ -512,17 +512,11 @@ if ('serviceWorker' in navigator) {
 
 <div class="top-actions">
 
-<button class="btn-primary" id="addStudentBtn"><i class="fas fa-plus"></i> Add Student</button>
-
 <!-- search removed to keep header compact -->
 
 <div class="profile" id="headerProfile">
-    <img src="https://i.pravatar.cc/100?img=12">
-    <div>
-        <h4>Administrator</h4>
-        <p class="profile-role">Head Teacher</p>
-    </div>
-    <button class="btn-secondary logout-inline" id="logoutBtn"><i class="fas fa-right-from-bracket"></i> Logout</button>
+    <img src="https://i.pravatar.cc/100?img=12" alt="User profile">
+    <button class="btn-secondary logout-inline" id="logoutBtn" type="button" aria-label="Logout" title="Logout"><i class="fas fa-right-from-bracket" aria-hidden="true"></i></button>
 </div>
 
 </div>
@@ -687,6 +681,16 @@ if ('serviceWorker' in navigator) {
 
 <section class="charts">
 
+<div class="chart-card pie-chart-card">
+<h3>School Fees Analytics</h3>
+<canvas id="pieChart"></canvas>
+</div>
+
+<div class="chart-card pie-chart-card">
+<h3>Performance Overview</h3>
+<canvas id="radarChart"></canvas>
+</div>
+
 <div class="chart-card">
     <div class="chart-header">
         <h3>Student Enrollment</h3>
@@ -699,19 +703,9 @@ if ('serviceWorker' in navigator) {
 <canvas id="lineChart"></canvas>
 </div>
 
-<div class="chart-card pie-chart-card">
-<h3>School Fees Analytics</h3>
-<canvas id="pieChart"></canvas>
-</div>
-
 <div class="chart-card">
 <h3>Attendance by Stream</h3>
 <canvas id="barChart"></canvas>
-</div>
-
-<div class="chart-card pie-chart-card">
-<h3>Performance Overview</h3>
-<canvas id="radarChart"></canvas>
 </div>
 
 </section>

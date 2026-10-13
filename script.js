@@ -1,6 +1,73 @@
 document.addEventListener('DOMContentLoaded', () => {
     let restoreSavedSection = () => {};
 
+    const removeDashboardHeaderAddButtons = () => {
+        const selectors = [
+            '.dashboard-header button',
+            '.dashboard-header a',
+            '.module-header button',
+            '.module-header a',
+            '.section-header button',
+            '.section-header a',
+            '.panel-header button',
+            '.panel-header a',
+            '.table-header button',
+            '.table-header a',
+            '.header-actions button',
+            '.header-actions a',
+            '.toolbar button',
+            '.toolbar a'
+        ];
+
+        const isAddAction = (element) => {
+            if (!element) return false;
+
+            const getTextValue = (value) => (value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+            const rawText = getTextValue(
+                element.textContent ||
+                element.getAttribute('aria-label') ||
+                element.getAttribute('title') ||
+                element.dataset.action ||
+                ''
+            );
+
+            const className = getTextValue(element.className || '');
+            const parentClasses = getTextValue(element.closest('[class]')?.className || '');
+
+            if (!rawText && !className && !parentClasses) return false;
+
+            const addPatterns = [
+                /^add(?:\s|$)/,
+                /(^|\s)add(?:\s|$)/,
+                /\badd\s+new\b/,
+                /\bnew\s+(?:entry|record|student|teacher|user|class|subject|invoice|payment|expense|request|announcement|notice|event)\b/,
+                /\b(?:new|create)\b.*\b(?:entry|record|student|teacher|user|class|subject|invoice|payment|expense|request|announcement|notice|event)\b/
+            ];
+
+            if (addPatterns.some((pattern) => pattern.test(rawText))) return true;
+            if (className.includes('add') || parentClasses.includes('add')) return true;
+            if ((element.getAttribute('data-action') || '').toLowerCase().includes('add')) return true;
+            return false;
+        };
+
+        selectors.forEach((selector) => {
+            document.querySelectorAll(selector).forEach((element) => {
+                if (isAddAction(element)) {
+                    element.remove();
+                }
+            });
+        });
+    };
+
+    const dashboardHeaderAddObserver = new MutationObserver(() => {
+        removeDashboardHeaderAddButtons();
+    });
+    dashboardHeaderAddObserver.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    removeDashboardHeaderAddButtons();
+
     // Get colors from CSS variables for consistency
     const style = getComputedStyle(document.documentElement);
     const colors = {
@@ -152,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
         container.classList.remove('hidden');
         const schoolName = currentSchool?.schoolName || 'School';
         document.querySelector('.welcome h1').textContent = `${schoolName} Dashboard`;
-        document.querySelector('.welcome p').textContent = 'Welcome back, School Admin. Your dashboard is ready.';
+        document.querySelector('.welcome p').textContent = 'Welcome back, School Admin.';
         
         document.querySelector('.profile h4').textContent = userData.fullName || userData.adminUser || 'Administrator';
         document.querySelector('.profile-role').textContent = userData.role;
