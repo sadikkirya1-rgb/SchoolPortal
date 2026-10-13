@@ -6,8 +6,6 @@
     --app-surface: #ffffff;
     --app-surface-muted: #f8fafc;
     --app-focus: #2563eb;
-    --app-button-bg: #2563eb;
-    --app-button-hover-bg: #1d4ed8;
     --app-radius: 14px;
     --app-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
@@ -266,34 +264,6 @@
 
 .topbar-search input[type="search"]::-webkit-search-cancel-button {
     cursor: pointer;
-}
-
-:root body :is(button, input[type="button"], input[type="submit"], input[type="reset"]) {
-    background: var(--app-button-bg) !important;
-    border-color: var(--app-button-bg) !important;
-    color: #ffffff !important;
-}
-
-:root body :is(button, input[type="button"], input[type="submit"], input[type="reset"]):is(:hover, :focus-visible, :active):not(:disabled) {
-    background: var(--app-button-hover-bg) !important;
-    border-color: var(--app-button-hover-bg) !important;
-    color: #ffffff !important;
-}
-
-:root body :is(button, input[type="button"], input[type="submit"], input[type="reset"]) :is(i, svg) {
-    color: inherit !important;
-}
-
-:root body .report-card-dialog-footer :is(button.btn-primary, button.btn-secondary) {
-    background: var(--app-button-bg) !important;
-    border-color: var(--app-button-bg) !important;
-    color: #ffffff !important;
-}
-
-:root body .report-card-dialog-footer :is(button.btn-primary, button.btn-secondary):is(:hover, :focus-visible, :active):not(:disabled) {
-    background: var(--app-button-hover-bg) !important;
-    border-color: var(--app-button-hover-bg) !important;
-    color: #ffffff !important;
 }
 
 @media (max-width: 768px) {
