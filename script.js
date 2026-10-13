@@ -1549,7 +1549,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const userRolesBtn = document.getElementById('userRolesBtn');
     const dashboardBtn = document.getElementById('dashboardBtn');
     const userRolesSection = document.getElementById('userRolesSection');
-    const rolesBackBtn = document.getElementById('rolesBackBtn');
 
     const roleSelectEl = document.getElementById('roleSelect');
     const sectionsContainerEl = document.getElementById('sectionsContainer');
@@ -1558,6 +1557,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleAddUserFormBtn = document.getElementById('toggleAddUserFormBtn');
     const generatePassBtn = document.getElementById('generatePassBtn');
     const cancelUserFormBtn = document.getElementById('cancelUserFormBtn');
+
+    const showUserRolesAddButton = () => {
+        userRolesSection?.querySelectorAll('button').forEach(button => {
+            if (/back to dashboard/i.test(button.textContent)) button.remove();
+        });
+        if (toggleAddUserFormBtn) {
+            toggleAddUserFormBtn.hidden = false;
+            toggleAddUserFormBtn.disabled = false;
+            toggleAddUserFormBtn.style.pointerEvents = 'auto';
+        }
+    };
 
     toggleAddUserFormBtn?.addEventListener('click', () => {
         const isHidden = addUserForm.classList.contains('hidden');
@@ -1664,8 +1674,6 @@ document.addEventListener('DOMContentLoaded', () => {
             window.addEventListener('front-office-data-changed', refresh); refresh();
         return sec;
     }
-
-    rolesBackBtn?.addEventListener('click', () => showDashboard());
 
     const frontOfficeStatIcons = {
         'Total Enquiries': 'fa-inbox',
@@ -1782,10 +1790,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </aside>
             </div>
+            <div class="enquiry-date-filter">
+                <label for="enquiryDatePeriod">Filter enquiries by date</label>
+                <select id="enquiryDatePeriod" data-enquiry-date-period>
+                    <option value="all">All</option>
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="lastWeek">Last week</option>
+                    <option value="lastMonth">Last Month</option>
+                    <option value="custom">Custom</option>
+                </select>
+                <div class="enquiry-custom-date-range hidden" data-enquiry-custom-range>
+                    <label>From <input type="date" data-enquiry-date-start></label>
+                    <label>To <input type="date" data-enquiry-date-end></label>
+                </div>
+                <span class="enquiry-date-filter-message" data-enquiry-date-message aria-live="polite"></span>
+            </div>
             <div class="enquiries-table"><div class="table-card"><h3 class="table-title">Saved Enquiry Records</h3><table><thead><tr><th>Name</th><th>Contact</th><th>Address</th><th>Type</th><th>Purpose</th><th>Student ID</th><th>Department</th><th>Assigned To</th><th>Follow-up</th><th>Appointment</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
 
         const form = sec.querySelector('[data-enquiry-form]');
         const table = sec.querySelector('[data-enquiry-table]');
+        const datePeriod = sec.querySelector('[data-enquiry-date-period]');
+        const customDateRange = sec.querySelector('[data-enquiry-custom-range]');
+        const dateStart = sec.querySelector('[data-enquiry-date-start]');
+        const dateEnd = sec.querySelector('[data-enquiry-date-end]');
+        const dateMessage = sec.querySelector('[data-enquiry-date-message]');
         const storageKey = 'edumasterEnquiries';
         let editingIndex = null;
         const readEntries = () => {
@@ -1827,6 +1856,37 @@ document.addEventListener('DOMContentLoaded', () => {
             entry.statusHistory = Array.isArray(entry.statusHistory) ? entry.statusHistory : [];
             entry.statusHistory.push({ status, by, at });
         };
+        const localDateKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        const selectedEnquiryDateRange = () => {
+            const today = new Date();
+            const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            if (datePeriod.value === 'today') return { start: localDateKey(todayStart), end: localDateKey(todayStart) };
+            if (datePeriod.value === 'yesterday') {
+                const yesterday = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() - 1);
+                return { start: localDateKey(yesterday), end: localDateKey(yesterday) };
+            }
+            if (datePeriod.value === 'lastWeek') {
+                const thisWeekStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() - ((todayStart.getDay() + 6) % 7));
+                const lastWeekStart = new Date(thisWeekStart.getFullYear(), thisWeekStart.getMonth(), thisWeekStart.getDate() - 7);
+                const lastWeekEnd = new Date(thisWeekStart.getFullYear(), thisWeekStart.getMonth(), thisWeekStart.getDate() - 1);
+                return { start: localDateKey(lastWeekStart), end: localDateKey(lastWeekEnd) };
+            }
+            if (datePeriod.value === 'lastMonth') {
+                const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+                return { start: localDateKey(lastMonth), end: localDateKey(lastMonthEnd) };
+            }
+            if (datePeriod.value === 'custom') {
+                const startDate = dateStart.value ? new Date(`${dateStart.value}T00:00:00`) : null;
+                const endDate = dateEnd.value ? new Date(`${dateEnd.value}T00:00:00`) : null;
+                if (!startDate || !endDate || Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+                    return { start: null, end: null, invalid: true, message: 'Choose both a start and end date.' };
+                }
+                if (startDate > endDate) return { start: null, end: null, invalid: true, message: 'The end date must be on or after the start date.' };
+                return { start: dateStart.value, end: dateEnd.value };
+            }
+            return { start: null, end: null };
+        };
         const render = () => {
             const entries = readEntries();
             sec.querySelector('[data-enquiry-total]').textContent = entries.length;
@@ -1836,8 +1896,23 @@ document.addEventListener('DOMContentLoaded', () => {
             sec.querySelector('[data-enquiry-appointments]').textContent = entries.filter(entry => entry.appointmentDate).length;
             const today = new Date().toISOString().slice(0, 10);
             sec.querySelector('[data-enquiry-followups-due]').textContent = entries.filter(entry => entry.followUpDate && entry.followUpDate <= today && !['Resolved', 'Closed'].includes(normalizeEnquiryStatus(entry.status))).length;
+            const dateRange = selectedEnquiryDateRange();
+            customDateRange.classList.toggle('hidden', datePeriod.value !== 'custom');
+            dateStart.required = datePeriod.value === 'custom';
+            dateEnd.required = datePeriod.value === 'custom';
+            dateStart.setAttribute('aria-invalid', String(Boolean(dateRange.invalid && datePeriod.value === 'custom')));
+            dateEnd.setAttribute('aria-invalid', String(Boolean(dateRange.invalid && datePeriod.value === 'custom')));
+            dateMessage.textContent = dateRange.message || '';
+            const visibleEntries = entries.map((entry, index) => ({ entry, index })).filter(({ entry }) => {
+                if (datePeriod.value === 'all') return true;
+                if (dateRange.invalid || !entry.createdAt) return false;
+                const createdAt = new Date(entry.createdAt);
+                if (Number.isNaN(createdAt.getTime())) return false;
+                const createdDate = localDateKey(createdAt);
+                return createdDate >= dateRange.start && createdDate <= dateRange.end;
+            });
             const actionButton = (index, action, icon, label) => `<button class="enquiry-action workflow-action" type="button" data-enquiry-transition="${action}" data-enquiry-index="${index}" title="${label}" aria-label="${label} enquiry"><i class="fas ${icon}"></i></button>`;
-            table.innerHTML = entries.length ? entries.map((entry, index) => {
+            table.innerHTML = visibleEntries.length ? visibleEntries.map(({ entry, index }) => {
                 const status = normalizeEnquiryStatus(entry.status);
                 const statusClass = status.toLowerCase().replace(/[^a-z]+/g, '-');
                 const history = Array.isArray(entry.statusHistory) ? entry.statusHistory : [];
@@ -1852,8 +1927,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const appointmentAction = entry.appointmentDate && !entry.appointmentId ? `<button class="enquiry-action" type="button" data-enquiry-action="appointment" data-enquiry-index="${index}" title="Create linked appointment" aria-label="Create appointment from enquiry"><i class="fas fa-calendar-plus"></i></button>` : '';
                 const appointmentLabel = entry.appointmentId ? `${escape(entry.appointmentId)}<br><small>${escape(entry.appointmentStatus || 'Requested')} · ${escape(entry.appointmentDate || '')}</small>` : escape(entry.appointmentDate || '-');
                 return `<tr><td>${escape(entry.name)}</td><td>${escape(entry.mobile || '-')}</td><td>${escape(entry.address || '-')}</td><td>${escape(entry.visitorType)}</td><td>${escape(entry.purpose)}</td><td>${escape(entry.studentId || '-')}</td><td>${escape(entry.department || '-')}</td><td>${escape(entry.assignedTo || 'Unassigned')}</td><td>${escape(entry.followUpDate || '-')}</td><td>${appointmentLabel}</td><td>${escape(entry.priority || 'Normal')}</td><td><span class="enquiry-status-badge status-${statusClass}">${escape(status)}</span><small class="enquiry-status-meta">${historyLabel}</small></td><td><div class="enquiry-actions">${workflowActions}${appointmentAction}<button class="enquiry-action" type="button" data-enquiry-action="preview" data-enquiry-index="${index}" title="Preview" aria-label="Preview enquiry"><i class="fas fa-eye"></i></button><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit" aria-label="Edit enquiry"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print" aria-label="Print enquiry"><i class="fas fa-print"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete" aria-label="Delete enquiry"><i class="fas fa-trash"></i></button></div></td></tr>`;
-            }).join('') : '<tr><td colspan="13" style="text-align:center;padding:25px;color:#94a3b8;">No saved enquiries yet. Complete the form above to create a record.</td></tr>';
+            }).join('') : `<tr><td colspan="13" style="text-align:center;padding:25px;color:#94a3b8;">${dateRange.message ? escape(dateRange.message) : datePeriod.value === 'all' ? 'No saved enquiries yet. Complete the form above to create a record.' : 'No enquiries found for this date range.'}</td></tr>`;
         };
+        datePeriod.addEventListener('change', render);
+        dateStart.addEventListener('change', render);
+        dateEnd.addEventListener('change', render);
         window.addEventListener('school:enquiry-updated', render);
         window.addEventListener('storage', event => { if (event.key === storageKey) render(); });
         const openEnquiryDocument = (entry, autoPrint = false) => {
@@ -3932,6 +4010,7 @@ Total Amount: $4,820.00
 
             if (link.id === 'userRolesBtn') {
                 showSection('userRolesSection');
+                showUserRolesAddButton();
                 renderUsersTable();
                 updateBreadcrumb(['System', 'User Roles']);
                 return;
@@ -4695,6 +4774,7 @@ Total Amount: $4,820.00
             const category = parentUl?.previousElementSibling?.innerText.trim() || 'General';
             const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
             const moduleId = 'module_' + slugify(linkText);
+            const isUserRolesModule = link.id === 'userRolesBtn' || /user roles/i.test(linkText);
 
             if (!document.getElementById(moduleId)) {
                 const sec = document.createElement('section');
@@ -4742,9 +4822,16 @@ Total Amount: $4,820.00
                             </table>
                         </div>
                         <div style="margin-top: 25px; display: flex; justify-content: flex-end;">
-                            <button class="btn-primary" onclick="document.getElementById('dashboardBtn').click()">Back to Dashboard</button>
+                            ${isUserRolesModule
+                                ? '<button class="btn-primary" type="button" data-open-user-form><i class="fas fa-plus"></i> Add User</button>'
+                                : '<button class="btn-primary" type="button" data-back-dashboard>Back to Dashboard</button>'}
                         </div>
                     </div>`;
+                sec.querySelector('[data-back-dashboard]')?.addEventListener('click', () => dashboardBtn?.click());
+                sec.querySelector('[data-open-user-form]')?.addEventListener('click', () => {
+                    userRolesBtn?.click();
+                    setTimeout(() => toggleAddUserFormBtn?.click(), 0);
+                });
                 const dashboardEl = document.querySelector('.main > .dashboard-shell');
                 if (dashboardEl) dashboardEl.parentNode.insertBefore(sec, dashboardEl);
             }

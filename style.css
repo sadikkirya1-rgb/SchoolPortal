@@ -3347,6 +3347,43 @@ color:#64748b;
     color:#64748b;
     font-size:12px;
 }
+#userRolesSection .module-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+}
+#userRolesSection .module-actions{
+    display:flex;
+    flex:0 0 auto;
+    align-items:center;
+    justify-content:flex-end;
+    margin-left:auto;
+}
+#userRolesSection{
+    position:relative;
+    z-index:2;
+    isolation:isolate;
+    cursor:default;
+}
+#userRolesSection:hover{
+    transform:none;
+}
+#userRolesSection :is(button, input, select, textarea, label, a){
+    pointer-events:auto;
+}
+#userRolesSection #toggleAddUserFormBtn{
+    display:inline-flex !important;
+    width:auto;
+    min-width:132px;
+    max-width:none;
+    margin:0;
+    visibility:visible;
+    opacity:1;
+    min-height:40px;
+    cursor:pointer;
+}
 .user-roles-content{display:block}
 .account-access-hidden{display:none!important}
 .user-form .form-row{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap}
@@ -3410,6 +3447,8 @@ color:#64748b;
     border: 1px solid #e2e8f0;
 }
 .users-table .action-btn {
+    position:relative;
+    z-index:1;
     width: 32px;
     height: 32px;
     display: inline-flex;
@@ -3420,7 +3459,9 @@ color:#64748b;
     cursor: pointer;
     transition: all 0.2s ease;
     font-size: 14px;
+    pointer-events:auto;
 }
+.users-table .action-btn:disabled{cursor:not-allowed;opacity:.55}
 .users-table .action-btn[data-action="edit"] {
     background: rgba(79, 70, 229, 0.1);
     color: var(--primary);
@@ -3477,6 +3518,33 @@ color:#64748b;
     color:#fff;
     transform:translateY(-1px);
 }
+.enquiry-date-filter{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:16px;
+    padding:12px 14px;
+    background:#f8fafc;
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+}
+.enquiry-date-filter>label,
+.enquiry-custom-date-range label{color:#334155;font-size:12px;font-weight:600}
+.enquiry-date-filter select,
+.enquiry-custom-date-range input{
+    min-height:36px;
+    padding:7px 10px;
+    background:#fff;
+    border:1px solid #cbd5e1;
+    border-radius:7px;
+    color:#172033;
+    font:inherit;
+    font-size:12px;
+}
+.enquiry-custom-date-range{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.enquiry-custom-date-range label{display:flex;align-items:center;gap:6px}
+.enquiry-date-filter-message{color:#b42318;font-size:11px}
 .utility-module .utility-entry-card{margin-bottom:16px}
 .utility-module .table-card{box-shadow:none;border:1px solid #e2e8f0}
 .utility-module .table-card table{width:100%;min-width:650px}
