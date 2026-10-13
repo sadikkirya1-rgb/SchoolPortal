@@ -4418,6 +4418,7 @@ input:checked + .slider:before {
         overflow:hidden;
     }
 
+    #breadcrumb{display:none!important}
     .main,
     .main.expanded{
         width:100%;
@@ -4482,6 +4483,7 @@ input:checked + .slider:before {
     flex-wrap:nowrap;
     justify-content:flex-start;
     gap:14px;
+    padding-top:10px;
 }
 
 .topbar-heading{
@@ -4697,6 +4699,8 @@ input:checked + .slider:before {
     outline:1px solid rgba(255,255,255,0.55);
     outline-offset:-2px;
 }
+
+#breadcrumb{display:none!important}
 
 .dashboard-toolbar,
 .dashboard-quick-actions{
