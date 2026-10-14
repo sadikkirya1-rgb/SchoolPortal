@@ -645,13 +645,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const childSelectorWrap = document.getElementById('parentChildSelectorWrap');
         const children = parentPortalData.students.records;
         const previousChild = childSelect?.value || 'all';
+        const parentIdentity = window.schoolPortalData?.getIdentity?.() || activeAccountPermissions || {};
+        const firstName = String(parentIdentity.fullName || parentIdentity.adminUser || '').trim().split(/\s+/)[0];
+        const welcomeTitle = container.querySelector('[data-parent-welcome-title]');
+        if (welcomeTitle) welcomeTitle.textContent = firstName ? `Welcome back, ${firstName}.` : 'Welcome back.';
         const permissions = window.schoolPortalData?.getIdentity()?.permissions
             || activeAccountPermissions?.permissions
             || {};
         const adminPreview = isPrivilegedRole(activeAccountPermissions?.role);
         const canViewChildren = adminPreview || canViewParentPortalCollection('students');
         if (childSelect) {
-            childSelect.replaceChildren(new Option('All children', 'all'));
+            childSelect.replaceChildren();
+            if (children.length > 1) childSelect.add(new Option('All children', 'all'));
             children.forEach(child => {
                 const name = child.fullName || child.name || child.studentName || child.displayName || child.id;
                 const detail = [child.className || child.class, child.section].filter(Boolean).join(' · ');
@@ -662,7 +667,8 @@ document.addEventListener('DOMContentLoaded', () => {
             childSelect.value = children.some(child => parentStudentRecordId(child) === preferredChild) || preferredChild === 'all'
                 ? preferredChild
                 : 'all';
-            if (childSelectorWrap) childSelectorWrap.classList.toggle('hidden', children.length < 2);
+            if (childSelectorWrap) childSelectorWrap.classList.toggle('hidden',
+                !canViewChildren || !parentPortalData.students.loaded || children.length === 0);
         }
         const selectedChild = childSelect?.value || 'all';
         const noChildren = document.getElementById('parentPortalNoChildren');
@@ -678,103 +684,203 @@ document.addEventListener('DOMContentLoaded', () => {
                 : parentPortalData.students.error
                 ? 'Linked child information could not be loaded. Contact your school administrator if this continues.'
                 : !canViewChildren
-                    ? 'Your school administrator has not enabled linked child profile viewing for this account.'
+                    ? ''
                 : activeCollectionErrors
                     ? 'Some linked records could not be loaded. Please try again later.'
                     : !parentPortalData.students.loaded
                         ? 'Loading secure linked-child overview…'
                         : children.length
-                            ? `${children.length} linked ${children.length === 1 ? 'child' : 'children'} · Showing ${selectedChild === 'all' ? 'family overview' : 'selected child'}`
+                            ? `${children.length} linked ${children.length === 1 ? 'child' : 'children'} · Showing ${selectedChild === 'all' ? 'all linked children' : 'selected child'}`
                             : 'No linked child records are available yet.';
+            dataStatus.classList.toggle('hidden', !dataStatus.textContent);
+            container.querySelector('.parent-portal-overview-heading')?.classList.toggle('hidden',
+                !dataStatus.textContent && childSelectorWrap?.classList.contains('hidden'));
         }
-        const recordSets = {
-            attendance: parentPortalData.attendance,
-            reportCards: parentPortalData.reportCards,
-            assessments: parentPortalData.assessments,
-            fees: parentPortalData.fees
-        };
-        const childrenCard = container.querySelector('[data-parent-stat-card="children"]');
-        childrenCard?.classList.toggle('hidden', !canViewChildren);
-        [
-            ['attendance', 'attendance'],
-            ['reportCards', 'reportCards'],
-            ['assignments', 'assessments'],
-            ['fees', 'fees']
-        ].forEach(([key, collection]) => {
-            const dataset = recordSets[collection];
+        const selectedChildren = selectedChild === 'all'
+            ? children
+            : children.filter(child => parentStudentRecordId(child) === selectedChild);
+        const familyRecordsFor = collection => parentPortalData[collection].records
+            .filter(record => parentPortalRecordIsVisible(record, collection))
+            .filter(record => selectedChildren.some(child => collection === 'notices'
+                ? parentPortalMatchesStudentContext(record, collection, child)
+                : parentPortalMatchesChild(record, collection, parentStudentRecordId(child))));
+        const setParentMetric = (key, collection, metric, detail) => {
             const card = container.querySelector(`[data-parent-stat-card="${key}"]`);
             const value = container.querySelector(`[data-parent-stat="${key}"]`);
-            if (!card || !value) return;
+            const description = container.querySelector(`[data-parent-stat-detail="${key}"]`);
+            const dataset = parentPortalData[collection];
+            if (!card || !value || !dataset) return;
             const allowed = adminPreview || canViewParentPortalCollection(collection);
             card.classList.toggle('hidden', !allowed);
             if (!allowed) return;
             if (dataset.error && !dataset.loaded) {
                 value.textContent = 'Unavailable';
-                return;
-            }
-            if (!dataset.loaded) {
+                if (description) description.textContent = 'Data could not be loaded';
+            } else if (!dataset.loaded) {
                 value.textContent = '…';
-                return;
+                if (description) description.textContent = 'Loading linked records';
+            } else {
+                value.textContent = metric;
+                if (description) description.textContent = detail;
             }
-            const records = dataset.records.filter(record => selectedChild === 'all'
-                || parentPortalMatchesChild(record, collection, selectedChild));
-            value.textContent = key === 'fees'
-                ? dashboardMoney(records.reduce((sum, fee) => sum + feeOutstandingAmount(fee), 0))
-                : String(records.length);
+        };
+        const attendanceRecords = familyRecordsFor('attendance');
+        const canViewAttendance = adminPreview || canViewParentPortalCollection('attendance');
+        const canViewFees = adminPreview || canViewParentPortalCollection('fees');
+        container.querySelector('[data-parent-attendance-section]')?.classList.toggle('hidden', !canViewAttendance);
+        const attendanceCounts = { present: 0, late: 0, absent: 0, excused: 0 };
+        const attendanceStatusFor = record => String(record.status || record.attendanceStatus || '').trim().toLowerCase();
+        attendanceRecords.forEach(record => {
+            const status = attendanceStatusFor(record);
+            if (Object.hasOwn(attendanceCounts, status)) attendanceCounts[status] += 1;
         });
-        const childrenStat = container.querySelector('[data-parent-stat="children"]');
-        if (childrenStat) {
-            childrenStat.textContent = canViewChildren && parentPortalData.students.loaded ? String(children.length) : '…';
+        const attendanceTotal = attendanceCounts.present + attendanceCounts.late + attendanceCounts.absent;
+        const attendanceRate = attendanceTotal
+            ? `${Math.round((attendanceCounts.present + attendanceCounts.late) / attendanceTotal * 100)}%`
+            : '—';
+        const attendanceDetail = attendanceTotal
+            ? `Across ${attendanceTotal} recorded days · excused and other statuses excluded`
+            : 'No classified attendance records';
+        setParentMetric('attendance', 'attendance', attendanceRate, attendanceDetail);
+
+        const reportRecords = familyRecordsFor('reportCards');
+        const childScope = selectedChild === 'all' ? 'Across linked children' : 'For the selected child';
+        setParentMetric('results', 'reportCards', String(reportRecords.length), childScope);
+        const feeRecords = familyRecordsFor('fees');
+        const unpaidFeeRecords = feeRecords.filter(fee => feeOutstandingAmount(fee) > 0);
+        setParentMetric('fees', 'fees', dashboardMoney(unpaidFeeRecords.reduce((sum, fee) => sum + feeOutstandingAmount(fee), 0)), `${unpaidFeeRecords.length} outstanding ${unpaidFeeRecords.length === 1 ? 'balance' : 'balances'}`);
+        const noticeRecords = familyRecordsFor('notices');
+        setParentMetric('notices', 'notices', String(noticeRecords.length), 'School updates for linked children');
+
+        const attention = container.querySelector('[data-parent-attention]');
+        const attentionItems = container.querySelector('[data-parent-attention-items]');
+        const today = new Date();
+        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const dateFromRecord = (record, fields) => {
+            for (const field of fields) {
+                if (!record[field]) continue;
+                const date = parseDashboardDate(record[field]);
+                if (!Number.isNaN(date.getTime())) return date;
+            }
+            return null;
+        };
+        const todayKey = dashboardDateKey(todayStart);
+        const absencesToday = parentPortalData.attendance.loaded
+            && canViewAttendance
+            ? attendanceRecords.filter(record => attendanceStatusFor(record) === 'absent'
+                && dashboardDateKey(dateFromRecord(record, ['attendanceDate', 'date', 'day']) || new Date(Number.NaN)) === todayKey)
+            : [];
+        const dueFeeRecords = parentPortalData.fees.loaded
+            && canViewFees
+            ? feeRecords.map(fee => ({
+                fee,
+                dueDate: dateFromRecord(fee, ['dueDate', 'paymentDueDate', 'deadline'])
+            })).filter(({ fee, dueDate }) => {
+                if (!dueDate || feeOutstandingAmount(fee) <= 0) return false;
+                const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+                return Math.floor((dueDay - todayStart) / 86400000) <= 7;
+            })
+            : [];
+        const attentionMessages = [];
+        if (absencesToday.length) {
+            attentionMessages.push(`<li><i class="fas fa-user-clock" aria-hidden="true"></i><span><strong>${absencesToday.length} ${absencesToday.length === 1 ? 'absence' : 'absences'} recorded today</strong><small>Review the attendance details for the selected child${selectedChild === 'all' ? 'ren' : ''}.</small></span></li>`);
+        }
+        const overdueFees = dueFeeRecords.filter(({ dueDate }) => dueDate < todayStart);
+        const upcomingFees = dueFeeRecords.filter(({ dueDate }) => dueDate >= todayStart);
+        if (overdueFees.length) {
+            const amount = overdueFees.reduce((sum, { fee }) => sum + feeOutstandingAmount(fee), 0);
+            attentionMessages.push(`<li><i class="fas fa-receipt" aria-hidden="true"></i><span><strong>${overdueFees.length} fee ${overdueFees.length === 1 ? 'balance is' : 'balances are'} overdue</strong><small>${dashboardMoney(amount)} outstanding ${selectedChild === 'all' ? 'across linked children' : 'for the selected child'}.</small></span></li>`);
+        }
+        if (upcomingFees.length) {
+            const amount = upcomingFees.reduce((sum, { fee }) => sum + feeOutstandingAmount(fee), 0);
+            attentionMessages.push(`<li><i class="fas fa-receipt" aria-hidden="true"></i><span><strong>${upcomingFees.length} fee ${upcomingFees.length === 1 ? 'balance is' : 'balances are'} due within seven days</strong><small>${dashboardMoney(amount)} due ${selectedChild === 'all' ? 'across linked children' : 'for the selected child'}.</small></span></li>`);
+        }
+        if (attentionItems) attentionItems.innerHTML = attentionMessages.join('');
+        attention?.classList.toggle('hidden', !attentionMessages.length);
+
+        const activityCandidates = [
+            ...attendanceRecords.map(record => ({
+                date: dateFromRecord(record, ['attendanceDate', 'date']),
+                label: `Attendance marked · ${record.status || record.attendanceStatus || 'Recorded'}`,
+                icon: 'fa-calendar-check'
+            })),
+            ...reportRecords.map(record => ({
+                date: dateFromRecord(record, ['publishedAt', 'publicationDate', 'updatedAt', 'date', 'createdAt']),
+                label: `Result published · ${parentPortalRecordValue(record, ['title', 'term', 'period', 'academicPeriod']) || 'Report card'}`,
+                icon: 'fa-square-poll-vertical'
+            })),
+            ...feeRecords.map(record => ({
+                date: dateFromRecord(record, ['paymentDate', 'updatedAt', 'createdAt']),
+                label: `Fee updated · ${parentPortalRecordValue(record, ['feeName', 'feeType', 'name']) || 'School fee'}`,
+                icon: 'fa-receipt'
+            })),
+            ...noticeRecords.map(record => ({
+                date: dateFromRecord(record, ['publishedAt', 'publishDate', 'date', 'createdAt']),
+                label: `School notice · ${parentPortalRecordValue(record, ['title', 'subject', 'name']) || 'New notice'}`,
+                icon: 'fa-bullhorn'
+            }))
+        ].filter(item => item.date);
+        const recentActivity = activityCandidates.sort((left, right) => right.date - left.date).slice(0, 6);
+        const activityList = container.querySelector('[data-parent-recent-activity]');
+        const activityEmpty = container.querySelector('[data-parent-activity-empty]');
+        if (activityList) activityList.innerHTML = recentActivity.map(item => `<li><i class="fas ${item.icon}" aria-hidden="true"></i><span>${dashboardEscape(item.label)}</span><time datetime="${item.date.toISOString()}">${dashboardEscape(dashboardDateLabel(item.date))}</time></li>`).join('');
+        activityEmpty?.classList.toggle('hidden', recentActivity.length > 0);
+
+        const attendanceChart = container.querySelector('[data-parent-attendance-chart]');
+        if (attendanceChart) {
+            const now = new Date();
+            const months = Array.from({ length: 6 }, (_, index) => {
+                const date = new Date(now.getFullYear(), now.getMonth() - 5 + index, 1);
+                return {
+                    date,
+                    label: date.toLocaleDateString(undefined, { month: 'short' }),
+                    counts: { present: 0, late: 0, absent: 0, excused: 0 }
+                };
+            });
+            attendanceRecords.forEach(record => {
+                const date = dateFromRecord(record, ['attendanceDate', 'date', 'day']);
+                const status = attendanceStatusFor(record);
+                if (!date || !Object.hasOwn(attendanceCounts, status)) return;
+                const month = months.find(item => item.date.getFullYear() === date.getFullYear()
+                    && item.date.getMonth() === date.getMonth());
+                if (month) month.counts[status] += 1;
+            });
+            const chartHasData = months.some(month => Object.values(month.counts).some(count => count));
+            if (!parentPortalData.attendance.loaded) {
+                attendanceChart.setAttribute('aria-label', 'Attendance chart loading');
+                attendanceChart.innerHTML = '<p class="parent-chart-empty">Loading linked attendance records…</p>';
+            } else if (!chartHasData) {
+                attendanceChart.setAttribute('aria-label', 'No attendance records in the last six months');
+                attendanceChart.innerHTML = '<p class="parent-chart-empty">Attendance history will appear here when records are available.</p>';
+            } else {
+                const summary = months.filter(month => Object.values(month.counts).some(count => count))
+                    .map(month => `${month.label}: ${month.counts.present} present, ${month.counts.late} late, ${month.counts.absent} absent, ${month.counts.excused} excused`)
+                    .join('; ');
+                attendanceChart.setAttribute('aria-label', `Attendance records over the last six months. ${summary}`);
+                attendanceChart.innerHTML = months.map(month => {
+                    const total = Object.values(month.counts).reduce((sum, count) => sum + count, 0);
+                    const segments = Object.entries(month.counts).filter(([, count]) => count > 0).map(([status, count]) =>
+                        `<span class="parent-attendance-segment ${status}" style="width:${(count / total * 100).toFixed(2)}%" title="${status}: ${count}"></span>`
+                    ).join('');
+                    return `<div class="parent-attendance-month"><span>${month.label}</span><div class="parent-attendance-track" aria-hidden="true">${segments || '<span class="parent-attendance-empty-track"></span>'}</div><strong>${total || '—'}</strong></div>`;
+                }).join('');
+            }
         }
         updateDashboardActionAccess();
-        const visibleFeatureCards = [...container.querySelectorAll('[data-parent-nav]')].some(button => {
+        const visibleFeatureCards = [...document.querySelectorAll('.parent-sidebar-navigation [data-parent-nav]')].some(button => {
             const collection = button.dataset.parentCollection;
             return adminPreview || canViewParentPortalCollection(collection);
         });
         document.getElementById('parentPortalNoFeatures')?.classList.toggle('hidden', visibleFeatureCards);
 
-        const studentSection = container.querySelector('[data-parent-student-section]');
         const resultsSection = container.querySelector('[data-parent-results-section]');
-        const studentList = container.querySelector('[data-parent-students]');
-        const studentProfile = container.querySelector('[data-parent-student-profile]');
-        const studentCount = container.querySelector('[data-parent-student-count]');
         const canViewResults = adminPreview || canViewParentPortalSection('reportCards')
             && (permissions.reportCards?.view === true
                 || permissions.assessments?.view === true
                 || activeAccountPermissions?.permissions?.reportCards?.view === true
                 || activeAccountPermissions?.permissions?.assessments?.view === true);
-        studentSection?.classList.toggle('hidden', !canViewChildren || !parentPortalData.students.loaded || !children.length);
         resultsSection?.classList.toggle('hidden', !canViewChildren || !canViewResults || !parentPortalData.students.loaded || !children.length);
-        if (studentCount) studentCount.textContent = `${children.length} linked ${children.length === 1 ? 'student' : 'students'}`;
-        if (studentList) {
-            studentList.innerHTML = selectedChild === 'all' && children.length > 1
-                ? children.map(child => {
-                    const id = parentStudentRecordId(child);
-                    const name = child.fullName || child.name || child.studentName || child.displayName || 'Student';
-                    const className = [child.className || child.class, child.section].filter(Boolean).join(' · ');
-                    const initials = String(name).split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase();
-                    return `<button type="button" class="parent-student-card" data-parent-select-child="${dashboardEscape(id)}"><span class="parent-student-avatar" aria-hidden="true">${dashboardEscape(initials || 'S')}</span><span class="parent-student-card-copy"><strong>${dashboardEscape(name)}</strong><small>${dashboardEscape(className || 'Class not provided')}</small><small>Student ID · ${dashboardEscape(child.admissionNumber || child.studentCode || id || '—')}</small></span><i class="fas fa-arrow-right" aria-hidden="true"></i></button>`;
-                }).join('')
-                : '';
-        }
         const selectedStudent = children.find(child => parentStudentRecordId(child) === selectedChild);
-        if (studentProfile) {
-            if (selectedStudent) {
-                const name = selectedStudent.fullName || selectedStudent.name || selectedStudent.studentName || selectedStudent.displayName || 'Student';
-                const initials = String(name).split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase();
-                const studentDetails = [
-                    ['Student ID', selectedStudent.admissionNumber || selectedStudent.studentCode || parentStudentRecordId(selectedStudent)],
-                    ['Class', [selectedStudent.className || selectedStudent.class, selectedStudent.section].filter(Boolean).join(' · ')],
-                    ['Academic year', selectedStudent.academicYear || selectedStudent.year],
-                    ['Status', selectedStudent.status]
-                ].filter(([, value]) => value);
-                studentProfile.innerHTML = `<div class="parent-profile-identity"><span class="parent-student-avatar parent-student-avatar-large" aria-hidden="true">${dashboardEscape(initials || 'S')}</span><div><span class="parent-profile-label">Linked student</span><h4>${dashboardEscape(name)}</h4><p>${dashboardEscape(selectedStudent.className || selectedStudent.class || 'Class not provided')}${selectedStudent.section ? ` · ${dashboardEscape(selectedStudent.section)}` : ''}</p></div></div><dl class="parent-profile-details">${studentDetails.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl>`;
-                studentProfile.classList.remove('hidden');
-            } else {
-                studentProfile.classList.add('hidden');
-                studentProfile.replaceChildren();
-            }
-        }
         if (resultsSection && canViewChildren && canViewResults && parentPortalData.students.loaded && children.length) {
             const childById = new Map(children.map(child => [parentStudentRecordId(child), child]));
             const allowedCollections = ['reportCards', 'assessments'].filter(collection =>
@@ -1254,6 +1360,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const updateDashboardActionAccess = () => {
         const identity = window.schoolPortalData?.getIdentity?.();
+        const role = String(identity?.role || activeAccountPermissions?.role || '').toLowerCase();
+        const isParentPreview = document.documentElement.classList.contains('parent-portal-preview-active');
+        const sidebarAccountControls = document.getElementById('parentSidebarAccountControls');
+        const headerActions = document.querySelector('.top-actions');
+        const actionTarget = role === 'parent' || isParentPreview
+            ? sidebarAccountControls
+            : document.querySelector('.topbar');
+        if (sidebarAccountControls) sidebarAccountControls.hidden = !(role === 'parent' || isParentPreview);
+        if (headerActions && actionTarget && headerActions.parentElement !== actionTarget) actionTarget.append(headerActions);
         document.querySelectorAll('[data-dashboard-nav]').forEach(button => {
             button.hidden = !findDashboardNavLink(button.dataset.dashboardNav);
         });
@@ -1262,31 +1377,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         document.querySelectorAll('[data-parent-nav]').forEach(button => {
             const canView = canViewParentPortalCollection(button.dataset.parentCollection, identity);
-            const isHeaderTab = Boolean(button.closest('.parent-portal-nav'));
             const isParentSidebarItem = Boolean(button.closest('.parent-sidebar-navigation'));
             const isParentAccount = String(identity?.role || activeAccountPermissions?.role || '').toLowerCase() === 'parent';
+            const isParentPreview = document.documentElement.classList.contains('parent-portal-preview-active');
             button.hidden = isParentSidebarItem
-                ? !isParentAccount || !canView
-                : !canView && !isHeaderTab;
-            if (isHeaderTab) {
-                button.disabled = !canView;
+                ? (!isParentAccount && !isParentPreview) || (!canView && !isParentPreview)
+                : !canView;
+            if (isParentSidebarItem && isParentPreview) {
                 button.setAttribute('aria-disabled', String(!canView));
                 button.classList.toggle('access-restricted', !canView);
                 button.title = canView ? '' : 'Access not enabled by your school administrator';
-                let lockIcon = button.querySelector('.parent-nav-lock');
-                if (!canView && !lockIcon) {
-                    lockIcon = document.createElement('i');
-                    lockIcon.className = 'fas fa-lock parent-nav-lock';
-                    lockIcon.setAttribute('aria-hidden', 'true');
-                    button.append(lockIcon);
-                } else if (canView && lockIcon) {
-                    lockIcon.remove();
-                }
             }
         });
         const parentSidebarNavigation = document.querySelector('.parent-sidebar-navigation');
         if (parentSidebarNavigation) {
-            const hasVisibleParentSections = [...parentSidebarNavigation.querySelectorAll('[data-parent-nav]')]
+            const hasVisibleParentSections = [...parentSidebarNavigation.querySelectorAll('[data-parent-home], [data-parent-nav]')]
                 .some(button => !button.hidden);
             parentSidebarNavigation.hidden = !hasVisibleParentSections;
         }
@@ -1304,12 +1409,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const detailBackButton = event.target.closest('[data-parent-detail-back]');
         if (detailBackButton) {
             activeParentPortalView = '';
-            updateParentPortalNavActive(document.querySelector('.parent-portal-nav [data-parent-home]'));
+            updateParentPortalNavActive(document.querySelector('.parent-sidebar-navigation [data-parent-home]'));
             renderParentPortalDashboard();
             return;
         }
         const homeButton = event.target.closest('[data-parent-home]');
         if (homeButton) {
+            if (homeButton.closest('.parent-sidebar-navigation')) {
+                event.preventDefault();
+                if (window.matchMedia('(max-width: 768px)').matches) setMobileSidebarOpen(false);
+            }
             activeParentPortalView = '';
             updateParentPortalNavActive(homeButton);
             const role = window.schoolPortalData?.getIdentity()?.role || activeAccountPermissions?.role;
@@ -1325,11 +1434,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (parentSidebarAction) {
                 event.preventDefault();
                 if (window.matchMedia('(max-width: 768px)').matches) setMobileSidebarOpen(false);
+                const parentPortalHome = document.getElementById('parentPortalHome');
+                const isParentPreview = parentPortalHome?.classList.contains('parent-portal-preview');
                 hideAllContentAreas();
-                document.getElementById('parentPortalHome')?.classList.remove('hidden');
+                parentPortalHome?.classList.remove('hidden');
+                if (isParentPreview) document.documentElement.classList.add('parent-portal-preview-active');
             }
             activeParentPortalView = actionButton.dataset.parentNav;
-            const activeButton = [...document.querySelectorAll('.parent-portal-nav [data-parent-nav]')]
+            const activeButton = [...document.querySelectorAll('.parent-sidebar-navigation [data-parent-nav]')]
                 .find(button => button.dataset.parentNav === activeParentPortalView);
             updateParentPortalNavActive(activeButton || actionButton);
             renderParentPortalDashboard();
@@ -1870,8 +1982,8 @@ document.addEventListener('DOMContentLoaded', () => {
             && String(activeAccountPermissions?.role || '').toLowerCase() === 'parent'
             || activeLink?.id === 'parentPortalPreviewBtn';
         const activeParentNav = parentHomeActive
-            ? document.querySelector('.parent-portal-nav [data-parent-home]')
-            : [...document.querySelectorAll('.parent-portal-nav [data-parent-nav]')].find(button =>
+            ? document.querySelector('.parent-sidebar-navigation [data-parent-home]')
+            : [...document.querySelectorAll('.parent-sidebar-navigation [data-parent-nav]')].find(button =>
                 activeLink && button.dataset.parentNav.toLowerCase()
                     === (activeLink.querySelector('span')?.textContent.trim() || activeLink.textContent.trim()).toLowerCase()
             );
@@ -1879,7 +1991,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateParentPortalNavActive(activeButton) {
-        document.querySelectorAll('.parent-portal-nav button, .parent-sidebar-navigation [data-parent-nav]').forEach(button => {
+        document.querySelectorAll('.parent-sidebar-navigation [data-parent-home], .parent-sidebar-navigation [data-parent-nav]').forEach(button => {
             const active = button === activeButton;
             button.classList.toggle('active', active);
             if (active) button.setAttribute('aria-current', 'page');
@@ -1908,7 +2020,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!nav) return;
         const role = String(userData.role || '').toLowerCase().replace(/[\s_-]+/g, '');
         if (role.includes('parent')) {
-                const parentNavButtons = [...document.querySelectorAll('.parent-portal-nav button')];
+                const parentNavButtons = [...document.querySelectorAll('.parent-sidebar-navigation [data-parent-home], .parent-sidebar-navigation [data-parent-nav]')]
+                    .filter(button => !button.hidden);
                 nav.replaceChildren();
                 nav.classList.add('mobile-role-nav-parent');
                 parentNavButtons.forEach(parentNavButton => {
@@ -1918,7 +2031,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     button.type = 'button';
                     button.className = 'mobile-role-nav-item';
                     button.dataset.mobileParentNav = parentNavButton.dataset.parentNav || 'Home';
-                    button.disabled = parentNavButton.disabled;
+                    button.disabled = parentNavButton.disabled || parentNavButton.getAttribute('aria-disabled') === 'true';
                     button.title = parentNavButton.title;
                     button.setAttribute('aria-label', label);
                     button.setAttribute('aria-disabled', String(button.disabled));
@@ -3090,6 +3203,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.main > section, .main > .modules, .main > .charts').forEach(section => {
             section.classList.add('hidden');
         });
+        document.documentElement.classList.remove('parent-portal-preview-active');
+        updateDashboardActionAccess();
     }
 
     function showSection(sectionId){
@@ -3102,8 +3217,10 @@ document.addEventListener('DOMContentLoaded', () => {
         activeParentPortalView = '';
         hideAllContentAreas();
         document.getElementById('parentPortalHome')?.classList.remove('hidden');
-        updateParentPortalNavActive(document.querySelector('.parent-portal-nav [data-parent-home]'));
+        updateParentPortalNavActive(document.querySelector('.parent-sidebar-navigation [data-parent-home]'));
         document.getElementById('parentPortalHome')?.classList.toggle('parent-portal-preview', preview);
+        document.documentElement.classList.toggle('parent-portal-preview-active', preview);
+        updateDashboardActionAccess();
         renderParentPortalDashboard();
         if (preview) setApplicationPage('Parent Portal Preview');
         setApplicationPage(preview ? 'Parent Portal Preview' : 'Parent Home');

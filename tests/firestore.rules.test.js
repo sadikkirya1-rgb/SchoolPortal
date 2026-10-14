@@ -44,7 +44,14 @@ before(async () => {
         await setDoc(doc(firestore, 'schools/SCH-TEST/members/parent-1'), {
             role: 'parent',
             status: 'active',
-            permissions: { students: { view: true } }
+            permissions: {
+                students: { view: true },
+                attendance: { view: true },
+                assessments: { view: true },
+                reportCards: { view: true },
+                fees: { view: true },
+                notices: { view: true }
+            }
         });
         await setDoc(doc(firestore, 'schools/SCH-TEST/members/temporary-password-user'), {
             role: 'student',
@@ -78,6 +85,36 @@ before(async () => {
             version: 1,
             updatedBy: 'admin-1',
             updatedAt: '2026-01-01T00:00:00.000Z'
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/attendance/ATTENDANCE-A'), {
+            data: { studentId: 'STUDENT-A', date: '2026-01-02', status: 'Present' },
+            version: 1,
+            updatedBy: 'admin-1',
+            updatedAt: '2026-01-02T00:00:00.000Z'
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/attendance/ATTENDANCE-B'), {
+            data: { studentId: 'STUDENT-B', date: '2026-01-02', status: 'Absent' },
+            version: 1,
+            updatedBy: 'admin-1',
+            updatedAt: '2026-01-02T00:00:00.000Z'
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/fees/FEE-A'), {
+            data: { studentId: 'STUDENT-A', balance: 100 },
+            version: 1,
+            updatedBy: 'admin-1',
+            updatedAt: '2026-01-02T00:00:00.000Z'
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/fees/FEE-B'), {
+            data: { studentId: 'STUDENT-B', balance: 100 },
+            version: 1,
+            updatedBy: 'admin-1',
+            updatedAt: '2026-01-02T00:00:00.000Z'
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/studyMaterials/MATERIAL-A'), {
+            data: { studentId: 'STUDENT-A', title: 'Class material' },
+            version: 1,
+            updatedBy: 'admin-1',
+            updatedAt: '2026-01-02T00:00:00.000Z'
         });
         await setDoc(doc(firestore, 'schools/SCH-TEST/students/STUDENT-A'), {
             data: { studentId: 'STUDENT-A', classId: 'CLASS-A', fullName: 'Test Student' },
@@ -148,7 +185,7 @@ test('teachers can read assigned-class students but not other classes', async ()
     }));
 });
 
-test('parent queries are limited to linked students', async () => {
+test('parent data access is read-only and limited to recommended linked-child collections', async () => {
     const firestore = testEnvironment.authenticatedContext('parent-1').firestore();
     const linkedStudentQuery = query(
         collection(firestore, 'schools/SCH-TEST/students'),
@@ -162,6 +199,15 @@ test('parent queries are limited to linked students', async () => {
     await assertFails(getDoc(doc(firestore, 'schools/SCH-TEST/students/STUDENT-B')));
     await assertSucceeds(getDocs(linkedStudentQuery));
     await assertFails(getDocs(otherStudentQuery));
+    await assertSucceeds(getDoc(doc(firestore, 'schools/SCH-TEST/attendance/ATTENDANCE-A')));
+    await assertFails(getDoc(doc(firestore, 'schools/SCH-TEST/attendance/ATTENDANCE-B')));
+    await assertSucceeds(getDoc(doc(firestore, 'schools/SCH-TEST/fees/FEE-A')));
+    await assertFails(getDoc(doc(firestore, 'schools/SCH-TEST/fees/FEE-B')));
+    await assertSucceeds(getDoc(doc(firestore, 'schools/SCH-TEST/notices/NOTICE-A')));
+    await assertFails(getDoc(doc(firestore, 'schools/SCH-TEST/studyMaterials/MATERIAL-A')));
+    await assertFails(updateDoc(doc(firestore, 'schools/SCH-TEST/attendance/ATTENDANCE-A'), {
+        'data.status': 'Absent'
+    }));
 });
 
 test('school administrator access works with ordinary email and password authentication', async () => {

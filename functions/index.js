@@ -43,7 +43,7 @@ const rolePermissions = {
     librarian: ['students', 'classes', 'libraryBooks', 'libraryLoans', 'notices'],
     hrOfficer: ['staff', 'staffDirectory', 'teachers', 'staffAttendance', 'leaveRequests', 'recruitment', 'notices'],
     storeManager: ['inventory', 'assets', 'suppliers', 'purchaseOrders', 'purchaseRequests', 'purchaseComparisons', 'quotations', 'goodsReceipts', 'supplierInvoices', 'maintenanceWorkOrders', 'notices'],
-    parent: ['students', 'attendance', 'assessments', 'reportCards', 'timetables', 'notices', 'studyMaterials', 'quizzes', 'fees', 'libraryLoans', 'transportRoutes'],
+    parent: ['students', 'attendance', 'assessments', 'reportCards', 'fees', 'notices'],
     student: ['students', 'attendance', 'assessments', 'reportCards', 'timetables', 'notices', 'studyMaterials', 'quizzes', 'libraryLoans']
 };
 const editableCollections = {
