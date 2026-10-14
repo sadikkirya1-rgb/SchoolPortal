@@ -484,6 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isOpen = Boolean(config);
         [
             container.querySelector('.parent-portal-overview'),
+            container.querySelector('.parent-portal-attendance-summary'),
             container.querySelector('[data-parent-student-section]'),
             container.querySelector('[data-parent-results-section]'),
             ...container.querySelectorAll(':scope > .parent-portal-section')
@@ -3103,16 +3104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('parentPortalHome')?.classList.remove('hidden');
         updateParentPortalNavActive(document.querySelector('.parent-portal-nav [data-parent-home]'));
         document.getElementById('parentPortalHome')?.classList.toggle('parent-portal-preview', preview);
-        const accountName = activeAccountPermissions?.fullName || activeAccountPermissions?.adminUser || 'there';
-        const welcome = document.getElementById('parentPortalWelcome');
-        if (welcome) welcome.textContent = preview
-            ? `Previewing the Parent Portal as ${accountName}.`
-            : `Welcome, ${accountName}.`;
         renderParentPortalDashboard();
-        const privacyNotice = document.getElementById('parentPortalPrivacyText');
-        if (privacyNotice) privacyNotice.textContent = preview
-            ? 'Preview mode shows the parent-facing layout. Real child records are available only to a parent account linked to those students.'
-            : 'This portal shows child-related records linked to your account. School-wide totals and staff dashboards are not shown here.';
         if (preview) setApplicationPage('Parent Portal Preview');
         setApplicationPage(preview ? 'Parent Portal Preview' : 'Parent Home');
         updateBreadcrumb(preview ? ['Portals', 'Parent Portal Preview'] : ['Parent Portal', 'Home']);
