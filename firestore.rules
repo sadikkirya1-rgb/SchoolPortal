@@ -164,6 +164,10 @@ service cloud.firestore {
           allow write: if false;
         }
 
+        match /pushTokens/{tokenId} {
+          allow read, write: if false;
+        }
+
         match /syncConflicts/{conflictId} {
           allow get, list: if isMember(schoolId) && request.auth.uid == uid;
           allow create: if isMember(schoolId)

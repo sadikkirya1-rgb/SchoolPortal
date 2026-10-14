@@ -179,6 +179,20 @@ test('school admins can read server-generated audit events', async () => {
     await assertSucceeds(getDoc(doc(firestore, 'schools/SCH-TEST/auditEvents/EVENT-1')));
 });
 
+test('push notification tokens are inaccessible to school clients', async () => {
+    await testEnvironment.withSecurityRulesDisabled(async context => {
+        await setDoc(doc(context.firestore(), 'schools/SCH-TEST/members/parent-1/pushTokens/DEVICE-1'), {
+            schoolId: 'SCH-TEST',
+            uid: 'parent-1',
+            token: 'sample-notification-token'
+        });
+    });
+    const firestore = testEnvironment.authenticatedContext('parent-1').firestore();
+    const tokenRef = doc(firestore, 'schools/SCH-TEST/members/parent-1/pushTokens/DEVICE-1');
+    await assertFails(getDoc(tokenRef));
+    await assertFails(setDoc(tokenRef, { token: 'changed-token' }));
+});
+
 test('school admins can sync representative academic, admissions, payroll, and front-office collections', async () => {
     const firestore = administratorContext().firestore();
     for (const collectionName of ['curriculum', 'applications', 'payrollReports', 'smsMessages']) {

@@ -1,0 +1,26 @@
+{
+  "name": "Smart School Portal",
+  "short_name": "Smart School",
+  "description": "School information and services for families, students, and teachers.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#f4f7fb",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "./school-portal-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./school-portal-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

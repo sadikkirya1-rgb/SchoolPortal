@@ -3,6 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#2563eb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="./site.webmanifest">
+<link rel="icon" href="./school-portal-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./school-portal-icon-192.png">
 <title>EduMaster Uganda - Advanced School Management Portal</title>
 <script>
 document.documentElement.classList.add('session-restoring');
@@ -510,6 +517,7 @@ if ('serviceWorker' in navigator) {
 
 </aside>
 <button class="sidebar-overlay" id="sidebarOverlay" type="button" aria-label="Close navigation"></button>
+<nav id="mobileRoleNav" class="mobile-role-nav" aria-label="Quick navigation" hidden></nav>
 
 <!-- MAIN -->
 
@@ -541,6 +549,12 @@ if ('serviceWorker' in navigator) {
         </div>
 
         <button class="icon-button" type="button" aria-label="Messages"><i class="fas fa-envelope"></i><span class="dot-indicator">8</span></button>
+        <button class="icon-button" id="enablePushNotifications" type="button" aria-label="Enable push notifications" title="Enable push notifications">
+            <i class="fas fa-bell" aria-hidden="true"></i>
+        </button>
+        <button class="icon-button hidden" id="installPortalButton" type="button" aria-label="Install Smart School" title="Install Smart School">
+            <i class="fas fa-download" aria-hidden="true"></i>
+        </button>
 
         <div class="profile" id="headerProfile">
             <img src="https://i.pravatar.cc/100?img=12" alt="User profile">

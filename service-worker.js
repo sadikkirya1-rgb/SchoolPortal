@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'school-portal-shell-v3';
-const RUNTIME_CACHE = 'school-portal-runtime-v3';
+const SHELL_CACHE = 'school-portal-shell-v4';
+const RUNTIME_CACHE = 'school-portal-runtime-v4';
 const BASE_URL = new URL('./', self.location.href);
 
 self.addEventListener('message', event => {
@@ -46,6 +46,49 @@ self.addEventListener('activate', event => {
             .filter(name => name.startsWith('school-portal-') && !keep.has(name))
             .map(name => caches.delete(name)));
         await self.clients.claim();
+    })());
+});
+
+self.addEventListener('push', event => {
+    if (!event.data) return;
+    let payload;
+    try {
+        payload = event.data.json();
+    } catch (error) {
+        console.warn('A push message could not be parsed.', error);
+        return;
+    }
+    const notification = payload.notification || payload.data || {};
+    if (!notification.title) return;
+    let destination = BASE_URL.href;
+    try {
+        const requestedUrl = new URL(notification.url || BASE_URL.href, self.location.href);
+        if (requestedUrl.origin === self.location.origin && requestedUrl.pathname.startsWith(BASE_URL.pathname)) {
+            destination = requestedUrl.href;
+        }
+    } catch (error) {
+        console.warn('A push notification contained an invalid destination.', error);
+    }
+    event.waitUntil(self.registration.showNotification(notification.title, {
+        body: notification.body || '',
+        icon: new URL('./school-portal-icon.svg', self.location.href).href,
+        badge: new URL('./school-portal-icon.svg', self.location.href).href,
+        data: { url: destination }
+    }));
+});
+
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+    event.waitUntil((async () => {
+        const requestedUrl = new URL(event.notification.data?.url || BASE_URL.href, self.location.href);
+        const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        for (const client of clients) {
+            if (client.url.startsWith(BASE_URL.href) && 'navigate' in client) {
+                await client.navigate(requestedUrl.href);
+                return client.focus();
+            }
+        }
+        return self.clients.openWindow(requestedUrl.href);
     })());
 });
 

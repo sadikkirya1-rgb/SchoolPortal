@@ -44,6 +44,31 @@ The Firebase client is configured for the `delivery-app-6a47f` project and the `
    The App Admin creates the first School Admin. An active School Admin may invite additional School Admin accounts from User Roles; these accounts receive full school access and their management remains restricted to the App Admin. Store the school ID in `schools/{schoolId}` and membership data in `schools/{schoolId}/members/{authUid}`; the school ID is the visible tenant identifier, while the Auth UID remains the secure account document key.
 7. Sign in using the generated School ID, the administrator's email, and password. Use the User Roles screen to provision staff, parent, student, or additional School Admin accounts. Admin accounts are full-access and are not scoped by section, class, or individual data permissions.
 
+## Mobile app installation and push notifications
+
+The portal is a responsive installable web app (PWA); the same school account works in a mobile browser or from the installed app. Hosting must use HTTPS, and the deployed site includes the web manifest, app icon, and offline application shell.
+
+To enable Firebase Cloud Messaging (FCM) web push:
+
+1. In Firebase Console, open **Project settings → Cloud Messaging → Web configuration → Web Push certificates** and generate or copy the public VAPID key. Set `webPushVapidKey` in `firebase-config.js` to that public key. The key is safe to include in the web app; do not put a service-account credential or private key there.
+2. Deploy Firestore Rules, Cloud Functions, and Hosting after setting the key:
+
+   ```sh
+   npx firebase-tools deploy --only firestore:rules,firestore:indexes,functions,hosting
+   ```
+
+3. Users sign in and tap the bell button on each device, then allow notifications in the browser. Each device registers its own FCM token; tokens are stored in a server-only member subcollection and can be removed from that device with the same button.
+
+Push delivery is deliberately limited to generic, non-sensitive messages:
+
+- A notice sends a push only when it is published with its **Browser Push** channel enabled; its audience selects parents, students, staff, or all users.
+- Attendance notifications are sent to the linked student and parent accounts when an attendance entry is changed to absent, late, or tardy.
+- Published assignments/assessments and report cards are sent to linked students and parents for the matching class or student. Stable class IDs and student links provide the most reliable targeting.
+
+Push support requires a compatible browser and notification permission. On iPhone/iPad, install the portal from Safari using **Share → Add to Home Screen** first; web push requires iOS/iPadOS 16.4 or later. On Android and desktop browsers, use the browser's **Install app** or **Add to Home Screen** option. Users can also turn off the portal's push token on a device or revoke permission in browser settings.
+
+Firebase Cloud Messaging has no separate per-message charge. Cloud Functions deployment and execution require a billing-enabled Firebase project; normal usage is subject to the project's current Functions, Firestore, and network quotas/pricing. Push is not sent by SMS, email, or to users who have not opted in on a device.
+
 ## Current implementation boundary
 
 - School lookup, email/password sign-in, school membership checks, account provisioning/status/deletion callables, profile updates, and profile-photo uploads use Firebase.

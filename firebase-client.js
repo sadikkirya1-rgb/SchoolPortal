@@ -21,6 +21,8 @@ import {
 } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-functions.js';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js';
+import { deleteToken, getMessaging, getToken, isSupported, onMessage } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-messaging.js';
+import { webPushVapidKey } from './firebase-config.js';
 
 const firebaseConfig = {
     apiKey: 'AIzaSyBZ_7aveKKu7UsIi03wSzjptuZ38XqfJvc',
@@ -150,8 +152,28 @@ async function signIn(schoolCode, email, password) {
     return { school, user: credential.user, membership };
 }
 
-async function signOutCurrentUser() {
+async function signOutCurrentUser(schoolId) {
+    let pushCleanupWarning = '';
+    if (schoolId && auth.currentUser && 'Notification' in window
+        && Notification.permission === 'granted' && webPushVapidKey) {
+        try {
+            if (await isSupported()) {
+                const serviceWorkerRegistration = await navigator.serviceWorker.ready;
+                const messagingClient = getMessaging(app);
+                const token = await getToken(messagingClient, {
+                    vapidKey: webPushVapidKey,
+                    serviceWorkerRegistration
+                });
+                if (token) await removePushToken({ schoolId, token });
+                await deleteToken(messagingClient);
+            }
+        } catch (error) {
+            console.warn('This device push token could not be removed before sign-out.', error);
+            pushCleanupWarning = 'This device could not be removed from push notifications. If notifications continue, revoke permission in browser settings.';
+        }
+    }
     await signOut(auth);
+    return { pushCleanupWarning };
 }
 
 const createSchoolUser = httpsCallable(functions, 'createSchoolUser');
@@ -162,6 +184,55 @@ const setSchoolUserStatus = httpsCallable(functions, 'setSchoolUserStatus');
 const deleteSchoolUser = httpsCallable(functions, 'deleteSchoolUser');
 const getPublicPlatformStats = httpsCallable(functions, 'getPublicPlatformStats');
 const getAssignableSchoolClasses = httpsCallable(functions, 'getAssignableSchoolClasses');
+const savePushToken = httpsCallable(functions, 'savePushToken');
+const removePushToken = httpsCallable(functions, 'removePushToken');
+let foregroundMessagingListenerRegistered = false;
+
+async function enablePushNotifications(schoolId) {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+        throw new Error('Push notifications are not supported by this browser.');
+    }
+    if (!webPushVapidKey) {
+        throw new Error('Push notifications are not configured yet. Ask your administrator to add the Firebase Web Push key.');
+    }
+    if (!await isSupported()) throw new Error('Firebase push notifications are not supported by this browser.');
+
+    const permission = Notification.permission === 'granted'
+        ? 'granted'
+        : await Notification.requestPermission();
+    if (permission !== 'granted') throw new Error('Allow notifications in your browser settings to receive school updates.');
+
+    const serviceWorkerRegistration = await navigator.serviceWorker.ready;
+    const messagingClient = getMessaging(app);
+    const token = await getToken(messagingClient, {
+        vapidKey: webPushVapidKey,
+        serviceWorkerRegistration
+    });
+    if (!token) throw new Error('Firebase did not return a device notification token.');
+    await savePushToken({ schoolId, token });
+
+    if (!foregroundMessagingListenerRegistered) {
+        foregroundMessagingListenerRegistered = true;
+        onMessage(messagingClient, payload => {
+            window.dispatchEvent(new CustomEvent('school-portal-push-message', {
+                detail: payload.data || {}
+            }));
+        });
+    }
+    return token;
+}
+
+async function disablePushNotifications(schoolId) {
+    if (!('Notification' in window) || Notification.permission !== 'granted' || !await isSupported()) return;
+    const serviceWorkerRegistration = await navigator.serviceWorker.ready;
+    const messagingClient = getMessaging(app);
+    const token = await getToken(messagingClient, {
+        vapidKey: webPushVapidKey,
+        serviceWorkerRegistration
+    });
+    if (token) await removePushToken({ schoolId, token });
+    await deleteToken(messagingClient);
+}
 
 window.schoolPortalFirebase = {
     app,
@@ -179,6 +250,8 @@ window.schoolPortalFirebase = {
     uploadSchoolAsset,
     signIn,
     signOut: signOutCurrentUser,
+    enablePushNotifications,
+    disablePushNotifications,
     getAssignableSchoolClasses: async schoolId => (await getAssignableSchoolClasses({ schoolId })).data,
     createSchoolUser,
     getAssignableSchoolPermissions: async schoolId => (await getAssignableSchoolPermissions({ schoolId })).data,

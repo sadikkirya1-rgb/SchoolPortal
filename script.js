@@ -1,5 +1,32 @@
 document.addEventListener('DOMContentLoaded', () => {
     let restoreSavedSection = () => {};
+    let deferredInstallPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', event => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        const installButton = document.getElementById('installPortalButton');
+        installButton?.classList.remove('hidden');
+    });
+    const installButton = document.getElementById('installPortalButton');
+    const alreadyInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (installButton && !alreadyInstalled && window.matchMedia('(max-width: 768px)').matches) {
+        installButton.classList.remove('hidden');
+    }
+    window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        document.getElementById('installPortalButton')?.classList.add('hidden');
+    });
+    document.getElementById('installPortalButton')?.addEventListener('click', async () => {
+        if (!deferredInstallPrompt) {
+            alert('To install on iPhone or iPad, open this portal in Safari, tap Share, then choose Add to Home Screen. On other devices, use your browser menu and choose Install app or Add to Home Screen.');
+            return;
+        }
+        await deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        document.getElementById('installPortalButton')?.classList.add('hidden');
+    });
 
     const removeDashboardHeaderAddButtons = () => {
         const selectors = [
@@ -1021,8 +1048,154 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDashboardActionAccess();
     }
 
+    const mobileNavPresets = {
+        parent: [
+            ['Dashboard', 'Home', 'fa-house'],
+            ['Students', 'Children', 'fa-child'],
+            ['Attendance', 'Attendance', 'fa-calendar-check'],
+            ['Report Cards', 'Results', 'fa-square-poll-vertical']
+        ],
+        student: [
+            ['Dashboard', 'Home', 'fa-house'],
+            ['Timetables', 'Timetable', 'fa-calendar-days'],
+            ['Assignments', 'Assignments', 'fa-book-open'],
+            ['Report Cards', 'Results', 'fa-square-poll-vertical'],
+        ],
+        teacher: [
+            ['Dashboard', 'Home', 'fa-house'],
+            ['Students', 'Students', 'fa-user-graduate'],
+            ['Attendance', 'Attendance', 'fa-calendar-check'],
+            ['Assignments', 'Assignments', 'fa-book-open']
+        ],
+        default: [
+            ['Dashboard', 'Home', 'fa-house'],
+            ['Students', 'Students', 'fa-user-graduate'],
+            ['Attendance', 'Attendance', 'fa-calendar-check'],
+            ['Report Cards', 'Results', 'fa-square-poll-vertical']
+        ]
+    };
+
+    function updateMobileRoleNavActive(activeLink) {
+        const nav = document.getElementById('mobileRoleNav');
+        if (!nav) return;
+        const activeKey = activeLink
+            ? `${activeLink.id || activeLink.dataset.menuId || ''}::${activeLink.innerText.trim().toLowerCase()}`
+            : '';
+        nav.querySelectorAll('[data-mobile-nav-key]').forEach(button => {
+            const active = button.dataset.mobileNavKey === activeKey;
+            button.classList.toggle('active', active);
+            if (active) button.setAttribute('aria-current', 'page');
+            else button.removeAttribute('aria-current');
+        });
+    }
+
+    function renderMobileRoleNav(userData) {
+        const nav = document.getElementById('mobileRoleNav');
+        if (!nav) return;
+        const role = String(userData.role || '').toLowerCase().replace(/[\s_-]+/g, '');
+        const preset = role.includes('parent') ? mobileNavPresets.parent
+            : role.includes('student') ? mobileNavPresets.student
+                : role.includes('teacher') ? mobileNavPresets.teacher
+                    : mobileNavPresets.default;
+        const sidebarLinks = [...document.querySelectorAll('.nav-links a')];
+        const visibleLinkFor = label => sidebarLinks.find(link => {
+            const linkLabel = (link.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.textContent || link.textContent).trim();
+            return linkLabel.toLowerCase() === label.toLowerCase()
+                && !link.closest('.account-access-hidden')
+                && !link.closest('[hidden]')
+                && !link.closest('.nav-links')?.classList.contains('account-access-hidden');
+        });
+        const items = preset.map(([target, label, icon]) => {
+            const link = target === 'Dashboard'
+                ? sidebarLinks.find(item => item.id === 'dashboardBtn' || item.dataset.menuId === 'dashboard')
+                : visibleLinkFor(target);
+            return link ? { link, label, icon } : null;
+        }).filter(Boolean);
+        if (!items.length) return;
+
+        nav.replaceChildren();
+        items.forEach(({ link, label, icon }) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'mobile-role-nav-item';
+            button.dataset.mobileNavKey = `${link.id || link.dataset.menuId || ''}::${link.innerText.trim().toLowerCase()}`;
+            button.setAttribute('aria-label', label);
+            button.innerHTML = `<i class="fas ${icon}" aria-hidden="true"></i><span>${label}</span>`;
+            button.addEventListener('click', () => {
+                link.click();
+                updateMobileRoleNavActive(link);
+            });
+            nav.append(button);
+        });
+
+        const more = document.createElement('button');
+        more.type = 'button';
+        more.className = 'mobile-role-nav-item';
+        more.innerHTML = '<i class="fas fa-ellipsis" aria-hidden="true"></i><span>More</span>';
+        more.setAttribute('aria-label', 'Open all sections');
+        more.addEventListener('click', () => setMobileSidebarOpen(true));
+        nav.append(more);
+        nav.hidden = false;
+        updateMobileRoleNavActive(sidebarLinks.find(link => link.classList.contains('active')));
+    }
+
+    function handleNotificationRoute() {
+        const url = new URL(window.location.href);
+        const destination = url.searchParams.get('openSection');
+        if (!destination) return;
+        window.setTimeout(() => {
+            const link = [...document.querySelectorAll('.nav-links a')].find(item => {
+                const label = (item.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.textContent || item.textContent).trim();
+                return label === destination && !item.closest('.account-access-hidden') && !item.closest('[hidden]');
+            });
+            if (link) link.click();
+            url.searchParams.delete('openSection');
+            window.history.replaceState({}, '', url);
+        }, 0);
+    }
+
+    const pushNotificationsButton = document.getElementById('enablePushNotifications');
+    pushNotificationsButton?.addEventListener('click', async () => {
+        const session = loadSession();
+        if (!session?.schoolId || !session?.userId) return;
+        const preferenceKey = `schoolPushEnabled:${encodeURIComponent(session.schoolId)}:${encodeURIComponent(session.userId)}`;
+        const enabled = localStorage.getItem(preferenceKey) === 'true';
+        pushNotificationsButton.disabled = true;
+        try {
+            const firebase = await waitForFirebase();
+            if (enabled) {
+                await firebase.disablePushNotifications(session.schoolId);
+                localStorage.removeItem(preferenceKey);
+                pushNotificationsButton.setAttribute('aria-label', 'Enable push notifications');
+                pushNotificationsButton.title = 'Enable push notifications';
+                alert('Push notifications are disabled on this device.');
+            } else {
+                await firebase.enablePushNotifications(session.schoolId);
+                localStorage.setItem(preferenceKey, 'true');
+                pushNotificationsButton.setAttribute('aria-label', 'Disable push notifications');
+                pushNotificationsButton.title = 'Disable push notifications';
+                alert('Push notifications are enabled on this device.');
+            }
+        } catch (error) {
+            alert(error.message || 'Unable to update push notification settings.');
+        } finally {
+            pushNotificationsButton.disabled = false;
+        }
+    });
+
+    window.addEventListener('school-portal-push-message', event => {
+        const detail = event.detail || {};
+        const toast = document.createElement('div');
+        toast.className = 'push-message-toast';
+        toast.setAttribute('role', 'status');
+        toast.textContent = [detail.title, detail.body].filter(Boolean).join(': ');
+        document.body.append(toast);
+        window.setTimeout(() => toast.remove(), 7000);
+    });
+
     const unlockDashboard = (userData) => {
         applyAccountSectionAccess(userData);
+        renderMobileRoleNav(userData);
         referenceLoginPage?.classList.add('hidden');
         if (loginScreen) {
             loginScreen.classList.remove('active');
@@ -1044,6 +1217,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showDashboard({ persist: false });
         restoreSavedSection();
+        handleNotificationRoute();
         void startDashboardData(userData);
     };
 
@@ -1064,7 +1238,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const membership = await firebase.getMembership(currentSchool.id, authUser.uid);
             if (!membership || (membership.perms?.view === false && !isPrivilegedRole(membership.role))) {
                 clearSession();
-                await firebase.signOut();
+                await firebase.signOut(session.schoolId);
                 resetLoginScreen();
                 window.location.reload();
                 return;
@@ -1163,7 +1337,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             try {
-                if (window.schoolPortalFirebase) await window.schoolPortalFirebase.signOut();
+                const session = loadSession();
+                if (window.schoolPortalFirebase) {
+                    const result = await window.schoolPortalFirebase.signOut(session?.schoolId);
+                    if (result?.pushCleanupWarning) alert(result.pushCleanupWarning);
+                }
+                if (session?.schoolId && session?.userId) {
+                    localStorage.removeItem(`schoolPushEnabled:${encodeURIComponent(session.schoolId)}:${encodeURIComponent(session.userId)}`);
+                }
             } catch (error) {
                 console.error('Firebase sign-out failed.', error);
                 showError(adminError, 'Could not sign out. Please try again.');
@@ -4239,6 +4420,7 @@ Total Amount: $4,820.00
             });
             link.classList.add('active');
             link.setAttribute('aria-current', 'page');
+            updateMobileRoleNavActive(link);
             saveActiveSection(sectionIdentity(link));
 
             const linkText = link.querySelector('span')?.innerText.trim() || link.innerText.trim();

@@ -8,3 +8,5 @@ export const firebaseConfig = {
     appId: '1:525706344286:web:fe40713a989479569d81cf',
     measurementId: 'G-JWV2EWL0XL'
 };
+
+export const webPushVapidKey = '';

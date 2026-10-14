@@ -1,7 +1,8 @@
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { FieldPath, FieldValue, getFirestore } = require('firebase-admin/firestore');
-const { randomBytes } = require('node:crypto');
+const { getMessaging } = require('firebase-admin/messaging');
+const { createHash, randomBytes } = require('node:crypto');
 const { HttpsError, onCall } = require('firebase-functions/v2/https');
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
@@ -11,6 +12,7 @@ initializeApp();
 
 const db = getFirestore();
 const auth = getAuth();
+const messaging = getMessaging();
 const backupAuth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
 const privilegedRoles = new Set(['schoolAdmin', 'superAdmin', 'director', 'headTeacher']);
 let publicStatsCache = null;
@@ -696,9 +698,13 @@ exports.deleteSchoolUser = onCall(async request => {
             throw new HttpsError('failed-precondition', 'A school must retain at least one active administrator.');
         }
     }
-    const linkedStudents = await memberRef.collection('linkedStudents').get();
+    const [linkedStudents, pushTokens] = await Promise.all([
+        memberRef.collection('linkedStudents').get(),
+        memberRef.collection('pushTokens').get()
+    ]);
     const batch = db.batch();
     linkedStudents.docs.forEach(link => batch.delete(link.ref));
+    pushTokens.docs.forEach(token => batch.delete(token.ref));
     batch.delete(memberRef);
     batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
         request,
@@ -716,6 +722,326 @@ exports.deleteSchoolUser = onCall(async request => {
     }
     return { uid };
 });
+
+function pushTokenId(token) {
+    return createHash('sha256').update(token).digest('hex');
+}
+
+async function requireActiveSchoolMember(schoolId, uid) {
+    const [schoolSnapshot, memberSnapshot] = await Promise.all([
+        db.doc(`schools/${schoolId}`).get(),
+        db.doc(`schools/${schoolId}/members/${uid}`).get()
+    ]);
+    if (!schoolSnapshot.exists || schoolSnapshot.data()?.status !== 'active'
+        || !memberSnapshot.exists || memberSnapshot.data()?.status !== 'active') {
+        throw new HttpsError('permission-denied', 'An active school account is required.');
+    }
+}
+
+function validatePushToken(value) {
+    const token = typeof value === 'string' ? value.trim() : '';
+    if (token.length < 30 || token.length > 4096 || /[\u0000-\u001f\u007f]/.test(token)) {
+        throw new HttpsError('invalid-argument', 'A valid browser notification token is required.');
+    }
+    return token;
+}
+
+exports.savePushToken = onCall(async request => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to enable notifications.');
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    const token = validatePushToken(request.data?.token);
+    const uid = request.auth.uid;
+    await requireActiveSchoolMember(schoolId, uid);
+    const tokenRef = db.doc(`schools/${schoolId}/members/${uid}/pushTokens/${pushTokenId(token)}`);
+    const existingTokens = await db.collection(`schools/${schoolId}/members/${uid}/pushTokens`).get();
+    if (!existingTokens.docs.some(snapshot => snapshot.id === tokenRef.id) && existingTokens.size >= 10) {
+        throw new HttpsError('resource-exhausted', 'This account has reached the limit of 10 registered devices.');
+    }
+    await tokenRef.set({
+        schoolId,
+        uid,
+        token,
+        enabled: true,
+        updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    return { success: true };
+});
+
+exports.removePushToken = onCall(async request => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to manage notifications.');
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    const token = validatePushToken(request.data?.token);
+    const uid = request.auth.uid;
+    await requireActiveSchoolMember(schoolId, uid);
+    await db.doc(`schools/${schoolId}/members/${uid}/pushTokens/${pushTokenId(token)}`).delete();
+    return { success: true };
+});
+
+const allSchoolRoles = [
+    'schoolAdmin', 'superAdmin', 'director', 'headTeacher', 'deputyHeadTeacher',
+    'teacher', 'bursar', 'librarian', 'hrOfficer', 'storeManager', 'parent', 'student'
+];
+
+async function activeMembersForRoles(schoolId, roles) {
+    const uniqueRoles = [...new Set(roles)];
+    if (!uniqueRoles.length) return [];
+    const snapshots = await Promise.all(
+        Array.from({ length: Math.ceil(uniqueRoles.length / 30) }, (_, index) =>
+            db.collection(`schools/${schoolId}/members`)
+                .where('role', 'in', uniqueRoles.slice(index * 30, index * 30 + 30))
+                .get()
+        )
+    );
+    return snapshots.flatMap(snapshot => snapshot.docs)
+        .filter(member => member.data().status === 'active')
+        .map(member => ({ uid: member.id, ...member.data() }));
+}
+
+async function membersLinkedToStudents(schoolId, studentIds) {
+    const ids = [...new Set(studentIds.filter(Boolean).map(String))];
+    if (!ids.length) return [];
+    const linkedStudentSet = new Set(ids);
+    const [studentMemberSnapshots, linkedParents] = await Promise.all([
+        Promise.all(Array.from({ length: Math.ceil(ids.length / 30) }, (_, index) =>
+            db.collection(`schools/${schoolId}/members`)
+                .where('linkedRecordId', 'in', ids.slice(index * 30, index * 30 + 30))
+                .get()
+        )),
+        Promise.all(Array.from({ length: Math.ceil(ids.length / 30) }, (_, index) =>
+            db.collectionGroup('linkedStudents')
+                .where('studentId', 'in', ids.slice(index * 30, index * 30 + 30))
+                .get()
+        ))
+    ]);
+    const recipients = studentMemberSnapshots.flatMap(snapshot => snapshot.docs)
+        .filter(member => member.data().status === 'active'
+            && member.data().role === 'student'
+            && member.data().linkedRecordType === 'student'
+            && linkedStudentSet.has(String(member.data().linkedRecordId)))
+        .map(member => member.uid);
+    const parentUids = new Set();
+    linkedParents.flatMap(snapshot => snapshot.docs).forEach(link => {
+        const path = link.ref.path.split('/');
+        if (path.length === 6 && path[0] === 'schools' && path[1] === schoolId
+            && path[2] === 'members' && path[4] === 'linkedStudents'
+            && linkedStudentSet.has(String(link.data().studentId || link.id))) {
+            parentUids.add(path[3]);
+        }
+    });
+    const parentSnapshots = await Promise.all(Array.from(
+        { length: Math.ceil(parentUids.size / 30) },
+        (_, index) => db.collection(`schools/${schoolId}/members`)
+            .where(FieldPath.documentId(), 'in', [...parentUids].slice(index * 30, index * 30 + 30))
+            .get()
+    ));
+    parentSnapshots.flatMap(snapshot => snapshot.docs)
+        .filter(member => member.data().status === 'active' && member.data().role === 'parent')
+        .forEach(member => recipients.push(member.id));
+    return [...new Set(recipients)];
+}
+
+async function studentIdsInClasses(schoolId, classIds, section) {
+    const records = await Promise.all([...new Set(classIds.filter(Boolean).map(String))].map(classId =>
+        db.collection(`schools/${schoolId}/students`).where('data.classId', '==', classId).get()
+    ));
+    return records.flatMap(snapshot => snapshot.docs
+        .filter(record => !section || !record.data().data?.section || String(record.data().data.section) === section)
+        .map(record => record.id));
+}
+
+async function resolveClassNames(schoolId, classNames) {
+    const names = [...new Set(classNames.filter(Boolean).map(value => String(value).trim()).filter(Boolean))];
+    if (!names.length) return [];
+    const snapshots = await Promise.all(names.flatMap(name => [
+        db.collection(`schools/${schoolId}/classes`).where('data.name', '==', name).get(),
+        db.collection(`schools/${schoolId}/classes`).where('data.className', '==', name).get()
+    ]));
+    return [...new Set(snapshots.flatMap(snapshot => snapshot.docs.map(record => record.id)))];
+}
+
+async function studentIdsInClassNames(schoolId, classNames, section) {
+    const names = [...new Set(classNames.filter(Boolean).map(value => String(value).trim()).filter(Boolean))];
+    const snapshots = await Promise.all(names.flatMap(name => [
+        db.collection(`schools/${schoolId}/students`).where('data.className', '==', name).get(),
+        db.collection(`schools/${schoolId}/students`).where('data.class', '==', name).get()
+    ]));
+    return snapshots.flatMap(snapshot => snapshot.docs
+        .filter(record => !section || !record.data().data?.section || String(record.data().data.section) === section)
+        .map(record => record.id));
+}
+
+async function resolvePushRecipients(schoolId, {
+    roles = [],
+    classIds = [],
+    classNames = [],
+    section = '',
+    studentIds = []
+} = {}) {
+    const resolvedClassIds = [...new Set([
+        ...classIds,
+        ...(classNames.length ? await resolveClassNames(schoolId, classNames) : [])
+    ])];
+    const classMembers = resolvedClassIds.length
+        ? (await Promise.all(resolvedClassIds.map(classId =>
+            db.collection(`schools/${schoolId}/members`)
+                .where('assignedClassIds', 'array-contains', classId)
+                .get()
+        ))).flatMap(snapshot => snapshot.docs)
+            .filter(member => member.data().status === 'active'
+                && ['teacher', 'deputyHeadTeacher'].includes(member.data().role))
+            .map(member => ({ uid: member.id, ...member.data() }))
+        : [];
+    const students = [...new Set([
+        ...studentIds,
+        ...(resolvedClassIds.length ? await studentIdsInClasses(schoolId, resolvedClassIds, section) : []),
+        ...(classNames.length ? await studentIdsInClassNames(schoolId, classNames, section) : [])
+    ])];
+    const [roleMembers, linkedMemberIds] = await Promise.all([
+        activeMembersForRoles(schoolId, roles),
+        students.length ? membersLinkedToStudents(schoolId, students) : Promise.resolve([])
+    ]);
+    const teachingMemberIds = classMembers
+        .filter(member => (member.assignedClassIds || []).some(classId => resolvedClassIds.includes(classId)))
+        .map(member => member.uid);
+    return [...new Set([
+        ...roleMembers.map(member => member.uid),
+        ...linkedMemberIds,
+        ...teachingMemberIds
+    ])];
+}
+
+async function sendSchoolPush(schoolId, recipientUids, notification, route, excludedUid) {
+    const uids = new Set(recipientUids.filter(uid => uid && uid !== excludedUid));
+    if (!uids.size) return;
+    const uidList = [...uids];
+    const tokenSnapshots = await Promise.all(Array.from({ length: Math.ceil(uidList.length / 30) }, (_, index) =>
+        db.collectionGroup('pushTokens')
+            .where('schoolId', '==', schoolId)
+            .where('uid', 'in', uidList.slice(index * 30, index * 30 + 30))
+            .get()
+    ));
+    const targets = tokenSnapshots.flatMap(snapshot => snapshot.docs)
+        .filter(snapshot => snapshot.data().enabled !== false)
+        .map(snapshot => ({ ref: snapshot.ref, token: snapshot.data().token }))
+        .filter(target => typeof target.token === 'string' && target.token.length >= 30);
+
+    for (let index = 0; index < targets.length; index += 500) {
+        const batch = targets.slice(index, index + 500);
+        const result = await messaging.sendEachForMulticast({
+            tokens: batch.map(target => target.token),
+            data: {
+                title: notification.title,
+                body: notification.body,
+                url: `/?schoolId=${encodeURIComponent(schoolId)}&openSection=${encodeURIComponent(route)}`
+            },
+            webpush: { headers: { TTL: '86400' } }
+        });
+        const invalidTokens = [];
+        result.responses.forEach((response, responseIndex) => {
+            if (response.success) return;
+            const code = response.error?.code || 'unknown';
+            if (code === 'messaging/invalid-registration-token'
+                || code === 'messaging/registration-token-not-registered') {
+                invalidTokens.push(batch[responseIndex].ref.delete());
+            } else {
+                console.error('Unable to deliver a school push notification.', {
+                    schoolId,
+                    code
+                });
+            }
+        });
+        await Promise.all(invalidTokens);
+    }
+}
+
+function recordBusinessData(snapshot) {
+    const wrapper = snapshot?.data() || {};
+    return wrapper.data && typeof wrapper.data === 'object' ? wrapper.data : wrapper;
+}
+
+function isPublishedRecord(data) {
+    const status = String(data.status || data.publicationStatus || data.resultStatus || '').trim().toLowerCase();
+    return data.isPublished === true || ['published', 'released'].includes(status);
+}
+
+async function dispatchSchoolNotification(event, collectionName) {
+    if (!event.data?.after.exists) return;
+    const { schoolId } = event.params;
+    const current = recordBusinessData(event.data.after);
+    const previous = event.data.before.exists ? recordBusinessData(event.data.before) : {};
+    if (current.deleted === true || current.archived === true) return;
+    const classIds = [current.classId || current.classID].filter(Boolean).map(String);
+    const studentIds = [current.studentId || current.studentRecordId].filter(Boolean).map(String);
+    let recipients;
+    let notification;
+    let route;
+
+    if (collectionName === 'notices') {
+        if (!isPublishedRecord(current) || isPublishedRecord(previous)
+            || !['yes', 'true', '1'].includes(String(current.sendPush || '').trim().toLowerCase())) return;
+        const rawAudience = current.audience || current.targetAudience || 'all';
+        const audience = (Array.isArray(rawAudience) ? rawAudience : String(rawAudience).split(/[,&/]+/))
+            .map(value => String(value).trim().toLowerCase());
+        const audienceText = audience.join(' ');
+        const roles = audienceText.includes('all') || !audienceText
+            ? allSchoolRoles
+            : [
+                ...(audienceText.includes('parent') ? ['parent'] : []),
+                ...(audienceText.includes('student') ? ['student'] : []),
+                ...(audienceText.includes('staff') || audienceText.includes('teacher')
+                    ? allSchoolRoles.filter(role => !['parent', 'student'].includes(role))
+                    : [])
+            ];
+        recipients = await resolvePushRecipients(schoolId, { roles });
+        notification = { title: 'New school notice', body: 'A new school notice is available.' };
+        route = 'Notice Board';
+    } else if (collectionName === 'attendance') {
+        const status = String(current.status || current.attendanceStatus || '').trim().toLowerCase();
+        const previousStatus = String(previous.status || previous.attendanceStatus || '').trim().toLowerCase();
+        if (!studentIds.length || !['absent', 'late', 'tardy'].includes(status) || status === previousStatus) return;
+        recipients = await resolvePushRecipients(schoolId, { studentIds });
+        notification = { title: 'Attendance update', body: 'An attendance update is ready to review.' };
+        route = 'Attendance';
+    } else if (collectionName === 'assessments' || collectionName === 'reportCards') {
+        const classNames = [current.className || current.class || current.studentClass].filter(Boolean).map(String);
+        if (!isPublishedRecord(current) || isPublishedRecord(previous)
+            || (!classIds.length && !classNames.length && !studentIds.length)) return;
+        recipients = await resolvePushRecipients(schoolId, {
+            classIds,
+            classNames,
+            section: String(current.section || '').trim(),
+            studentIds
+        });
+        notification = collectionName === 'assessments'
+            ? { title: 'New assignment or assessment', body: 'A new school assignment or assessment is available.' }
+            : { title: 'Results published', body: 'New school results are available.' };
+        route = collectionName === 'assessments' ? 'Assignments' : 'Report Cards';
+    } else {
+        return;
+    }
+
+    await sendSchoolPush(schoolId, recipients, notification, route, event.data.after.data()?.updatedBy);
+}
+
+exports.notifyPublishedSchoolNotices = onDocumentWritten(
+    'schools/{schoolId}/notices/{recordId}',
+    event => dispatchSchoolNotification(event, 'notices')
+);
+
+exports.notifyAttendanceUpdates = onDocumentWritten(
+    'schools/{schoolId}/attendance/{recordId}',
+    event => dispatchSchoolNotification(event, 'attendance')
+);
+
+exports.notifyPublishedAssessments = onDocumentWritten(
+    'schools/{schoolId}/assessments/{recordId}',
+    event => dispatchSchoolNotification(event, 'assessments')
+);
+
+exports.notifyPublishedResults = onDocumentWritten(
+    'schools/{schoolId}/reportCards/{recordId}',
+    event => dispatchSchoolNotification(event, 'reportCards')
+);
 
 const auditedCollections = new Set([
     'students', 'parents', 'staff', 'classes', 'subjects', 'attendance',
