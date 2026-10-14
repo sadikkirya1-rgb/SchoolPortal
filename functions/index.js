@@ -543,10 +543,16 @@ exports.getLinkedSchoolRecords = onCall(async request => {
         ));
         documents.push(...snapshots.filter(snapshot => snapshot.exists));
     } else {
-        const snapshot = await db.collection(`schools/${schoolId}/${collectionName}`)
-            .where('data.studentId', 'in', studentIds)
-            .get();
-        documents.push(...snapshot.docs);
+        const recordsRef = schoolRef.collection(collectionName);
+        const [byStudentId, byDocumentId] = await Promise.all([
+            recordsRef.where('data.studentId', 'in', studentIds).get(),
+            recordsRef.where(FieldPath.documentId(), 'in', studentIds).get()
+        ]);
+        const uniqueRecords = new Map([
+            ...byStudentId.docs,
+            ...byDocumentId.docs
+        ].map(snapshot => [snapshot.id, snapshot]));
+        documents.push(...uniqueRecords.values());
     }
     return {
         records: documents

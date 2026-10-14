@@ -7,7 +7,14 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="manifest" href="./site.webmanifest">
+<script>
+if (!location.hostname.endsWith('.app.github.dev')) {
+    const manifestLink = document.createElement('link');
+    manifestLink.rel = 'manifest';
+    manifestLink.href = './site.webmanifest';
+    document.head.append(manifestLink);
+}
+</script>
 <link rel="icon" href="./school-portal-icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="./school-portal-icon-192.png">
 <title>EduMaster Uganda - Advanced School Management Portal</title>
@@ -414,6 +421,17 @@ if ('serviceWorker' in navigator) {
 <li><a class="active" id="dashboardBtn"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a></li>
 </ul>
 
+<nav class="parent-sidebar-navigation" aria-label="Parent portal sections">
+    <p class="menu-title"><i class="fas fa-shield-heart" aria-hidden="true"></i>Parent Portal</p>
+    <ul class="nav-links">
+        <li><a class="parent-sidebar-link" href="#parentPortalHome" data-parent-nav="Students" data-parent-collection="students"><i class="fas fa-child" aria-hidden="true"></i><span>My Children</span></a></li>
+        <li><a class="parent-sidebar-link" href="#parentPortalHome" data-parent-nav="Attendance" data-parent-collection="attendance"><i class="fas fa-calendar-check" aria-hidden="true"></i><span>Attendance</span></a></li>
+        <li><a class="parent-sidebar-link" href="#parentPortalHome" data-parent-nav="Report Cards" data-parent-collection="reportCards"><i class="fas fa-square-poll-vertical" aria-hidden="true"></i><span>Results</span></a></li>
+        <li><a class="parent-sidebar-link" href="#parentPortalHome" data-parent-nav="Fees" data-parent-collection="fees"><i class="fas fa-receipt" aria-hidden="true"></i><span>Fees</span></a></li>
+        <li><a class="parent-sidebar-link" href="#parentPortalHome" data-parent-nav="Notice Board" data-parent-collection="notices"><i class="fas fa-bullhorn" aria-hidden="true"></i><span>Notices</span></a></li>
+    </ul>
+</nav>
+
 <p class="menu-title" data-access-section="Front Office Department"><i class="fas fa-building"></i>Front Desk</p>
 <ul class="nav-links">
     <li hidden><a data-menu-id="front_office_dashboard"><i class="fas fa-house"></i><span>Dashboard</span></a></li>
@@ -530,6 +548,11 @@ if ('serviceWorker' in navigator) {
     <li><a><i class="fas fa-bullhorn"></i><span>Notice Board</span></a></li>
 </ul>
 
+<p class="menu-title"><i class="fas fa-window-restore"></i>Portals</p>
+<ul class="nav-links">
+    <li><a id="parentPortalPreviewBtn" data-portal-admin-only="true"><i class="fas fa-people-roof"></i><span>Parent Portal</span></a></li>
+</ul>
+
 <p class="menu-title"><i class="fas fa-sliders"></i>System</p>
 <ul class="nav-links">
     <li><a><i class="fas fa-chart-line"></i><span>Analytics</span></a></li>
@@ -549,6 +572,14 @@ if ('serviceWorker' in navigator) {
 <main class="main">
 
 <div id="breadcrumb" class="breadcrumb"></div>
+
+<section id="accountNoSectionAccess" class="module account-no-section-access hidden" role="status">
+    <div class="account-no-section-access-icon"><i class="fas fa-lock" aria-hidden="true"></i></div>
+    <div>
+        <h2>Access not assigned</h2>
+        <p>Your account is active, but no portal sections are currently assigned. Please contact your school administrator to request access.</p>
+    </div>
+</section>
 
 <!-- TOPBAR -->
 
@@ -685,7 +716,7 @@ if ('serviceWorker' in navigator) {
 
             <div class="form-row">
                 <div class="form-group sections-group">
-                    <label>Sections / Groups</label>
+                    <label>Portal section access</label>
                     <div id="sectionsContainer" class="sections-list"></div>
                 </div>
                 <div class="form-group assigned-classes-group" id="assignedClassesGroup">
@@ -694,8 +725,8 @@ if ('serviceWorker' in navigator) {
                     <div id="assignedClassesContainer" class="sections-list" aria-live="polite"></div>
                 </div>
                 <div class="form-group perms-group">
-                    <label>Data permissions</label>
-                    <p>Choose what this account can view, edit, and delete. Available permissions are limited by the selected role and enforced by Firebase.</p>
+                    <label>Record-level data permissions</label>
+                    <p>Control whether the account may view, edit, or delete records. These permissions are separate from portal section access.</p>
                     <div id="dataPermissionsContainer" class="data-permissions-list" aria-live="polite"></div>
                 </div>
             </div>
@@ -715,6 +746,90 @@ if ('serviceWorker' in navigator) {
             </table>
         </div>
     </div>
+</section>
+
+<section id="parentPortalHome" class="parent-portal-home module hidden" aria-labelledby="parentPortalTitle">
+    <header class="parent-portal-header">
+        <span class="parent-portal-eyebrow"><i class="fas fa-shield-heart" aria-hidden="true"></i> Parent portal</span>
+        <h2 id="parentPortalTitle">Your child's school information</h2>
+        <p id="parentPortalWelcome">Welcome.</p>
+        <div class="parent-portal-privacy"><i class="fas fa-lock" aria-hidden="true"></i><span id="parentPortalPrivacyText">This portal shows child-related records linked to your account. School-wide totals and staff dashboards are not shown here.</span></div>
+        <nav class="parent-portal-nav" aria-label="Parent portal sections">
+            <button type="button" class="active" data-parent-home aria-current="page"><i class="fas fa-house" aria-hidden="true"></i><span>Home</span></button>
+            <button type="button" data-parent-nav="Students" data-parent-collection="students"><i class="fas fa-child" aria-hidden="true"></i><span>My Children</span></button>
+            <button type="button" data-parent-nav="Attendance" data-parent-collection="attendance"><i class="fas fa-calendar-check" aria-hidden="true"></i><span>Attendance</span></button>
+            <button type="button" data-parent-nav="Report Cards" data-parent-collection="reportCards"><i class="fas fa-square-poll-vertical" aria-hidden="true"></i><span>Results</span></button>
+            <button type="button" data-parent-nav="Fees" data-parent-collection="fees"><i class="fas fa-receipt" aria-hidden="true"></i><span>Fees</span></button>
+            <button type="button" data-parent-nav="Notice Board" data-parent-collection="notices"><i class="fas fa-bullhorn" aria-hidden="true"></i><span>Notices</span></button>
+        </nav>
+    </header>
+    <section class="parent-portal-overview" aria-labelledby="parentOverviewTitle">
+        <div class="parent-portal-overview-heading">
+            <div><h3 id="parentOverviewTitle">Family overview</h3><p id="parentPortalDataStatus" role="status" aria-live="polite">Loading linked child records…</p></div>
+            <label id="parentChildSelectorWrap" class="parent-child-selector" for="parentChildSelector">
+                <span>Viewing</span>
+                <select id="parentChildSelector" aria-label="Choose child for family overview">
+                    <option value="all">All children</option>
+                </select>
+            </label>
+        </div>
+        <div id="parentPortalNoChildren" class="parent-portal-empty hidden" role="status">
+            <i class="fas fa-link" aria-hidden="true"></i>
+            <div><strong>No linked children found</strong><p>Ask your school administrator to link your parent account to your child's student record.</p></div>
+        </div>
+        <div id="parentPortalNoFeatures" class="parent-portal-empty hidden" role="status">
+            <i class="fas fa-lock" aria-hidden="true"></i>
+            <div><strong>Parent access is not configured</strong><p>Ask your school administrator to enable the parent sections and view permissions you need.</p></div>
+        </div>
+        <div class="parent-portal-stats">
+            <article class="parent-portal-stat" data-parent-stat-card="children">
+                <span>Linked children</span><strong data-parent-stat="children">—</strong><small>Connected to this account</small>
+            </article>
+            <article class="parent-portal-stat" data-parent-stat-card="attendance" data-parent-collection="attendance">
+                <span>Attendance records</span><strong data-parent-stat="attendance">—</strong><small>For linked children</small>
+            </article>
+            <article class="parent-portal-stat" data-parent-stat-card="reportCards" data-parent-collection="reportCards">
+                <span>Report cards</span><strong data-parent-stat="reportCards">—</strong><small>Published results available</small>
+            </article>
+            <article class="parent-portal-stat" data-parent-stat-card="assignments" data-parent-collection="assessments">
+                <span>Assignments</span><strong data-parent-stat="assignments">—</strong><small>Learning tasks</small>
+            </article>
+            <article class="parent-portal-stat" data-parent-stat-card="fees" data-parent-collection="fees">
+                <span>Outstanding fees</span><strong data-parent-stat="fees">—</strong><small>Based on linked student records</small>
+            </article>
+        </div>
+    </section>
+    <section class="parent-student-section hidden" data-parent-student-section aria-labelledby="parentStudentInfoTitle">
+        <div class="parent-section-heading">
+            <div><span class="parent-section-kicker">Family</span><h3 id="parentStudentInfoTitle">Student information</h3><p>Linked profiles and learning progress</p></div>
+            <span class="parent-section-status" data-parent-student-count></span>
+        </div>
+        <div class="parent-student-list" data-parent-students></div>
+        <article class="parent-student-profile hidden" data-parent-student-profile aria-live="polite"></article>
+    </section>
+    <section class="parent-results-section hidden" data-parent-results-section aria-label="Results">
+        <div class="parent-section-heading parent-results-heading">
+            <div><span class="parent-section-kicker">Academic progress</span><p data-parent-results-caption>Scores from linked student records</p></div>
+            <label class="parent-results-filter"><span>Assessment</span><select data-parent-results-filter aria-label="Filter results by assessment type"><option value="all">All types</option><option value="test">Tests</option><option value="term">Term exams</option></select></label>
+        </div>
+        <div class="parent-results-summary" data-parent-results-summary></div>
+        <section class="parent-results-chart-panel" aria-labelledby="parentResultsChartTitle">
+            <div class="parent-results-panel-heading"><div><h4 id="parentResultsChartTitle">Subject performance</h4><p>Average percentage by subject</p></div><span class="parent-chart-legend"><i aria-hidden="true"></i> Score</span></div>
+            <div class="parent-results-chart" data-parent-results-chart role="img" aria-label="Subject performance chart"></div>
+        </section>
+        <section class="parent-results-table-panel" aria-label="Results table">
+            <div class="parent-results-panel-heading"><div><p data-parent-results-count>0 assessments</p></div></div>
+            <div class="parent-results-table-wrap"><table class="parent-results-table"><thead><tr><th>Student</th><th>Subject</th><th>Type</th><th>Maximum</th><th>Score</th><th>Percentage</th></tr></thead><tbody data-parent-results-rows></tbody></table></div>
+        </section>
+        <p class="parent-results-empty hidden" data-parent-results-empty role="status">No published subject-level scores are available for this selection.</p>
+    </section>
+    <section class="parent-portal-detail hidden" data-parent-detail-view aria-live="polite">
+        <header class="parent-detail-header">
+            <div class="parent-detail-title-row"><button class="parent-detail-back" type="button" data-parent-detail-back><i class="fas fa-arrow-left" aria-hidden="true"></i><span>Family overview</span></button><span class="parent-detail-icon" data-parent-detail-icon aria-hidden="true"><i class="fas fa-folder-open"></i></span><div><h3 data-parent-detail-title></h3><p data-parent-detail-description></p></div></div>
+            <label class="parent-detail-child-wrap" data-parent-detail-child-wrap><span>Student</span><select data-parent-detail-child aria-label="Choose linked student"></select></label>
+        </header>
+        <div class="parent-detail-content" data-parent-detail-content></div>
+    </section>
 </section>
 
 <!-- DASHBOARD -->

@@ -72,6 +72,7 @@ const legacyDataCollections = new Map([
 const databaseName = 'school-portal-local-first';
 const databaseVersion = 1;
 let identity = null;
+let selectedParentStudentId = '';
 let databasePromise;
 let syncRunning = false;
 let syncRetryAttempt = 0;
@@ -120,6 +121,12 @@ function isTeachingRole(role) {
     return ['teacher', 'deputyHeadTeacher'].includes(role);
 }
 
+function canEditCollection(owner, collectionName) {
+    if (!owner || ['parent', 'student'].includes(String(owner.role).toLowerCase())) return false;
+    return ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(owner.role)
+        || owner.permissions?.[collectionName]?.edit === true;
+}
+
 async function linkedStudentIds(owner) {
     if (owner.role === 'student') return owner.linkedRecordId ? [String(owner.linkedRecordId)] : [];
     if (owner.role !== 'parent') return [];
@@ -145,6 +152,26 @@ function deleteOutbox(mutationId) {
 
 function listOutbox() {
     return runStoreTransaction('outbox', 'readonly', store => store.getAll());
+}
+
+async function quarantineReadOnlyMutations(owner) {
+    const mutations = (await listOutbox()).filter(mutation =>
+        mutation.schoolId === owner.schoolId
+        && mutation.uid === owner.uid
+        && !canEditCollection(owner, mutation.collection)
+    );
+    for (const mutation of mutations) {
+        const key = makeKey(owner.schoolId, owner.uid, mutation.collection, mutation.recordId);
+        const localRecord = await readLocal(key);
+        if (localRecord?.syncState === 'pending') {
+            await writeLocal({
+                ...localRecord,
+                syncState: 'rejected',
+                syncError: 'This account is read-only for school records.'
+            });
+        }
+        await deleteOutbox(mutation.mutationId);
+    }
 }
 
 function cloudRecordRef(owner, collectionName, recordId) {
@@ -245,9 +272,12 @@ async function syncOutbox() {
     syncRunning = true;
     let failed = false;
     try {
+        await quarantineReadOnlyMutations(owner);
         while (navigator.onLine) {
             const mutations = (await listOutbox()).filter(mutation =>
-                mutation.schoolId === owner.schoolId && mutation.uid === owner.uid
+                mutation.schoolId === owner.schoolId
+                && mutation.uid === owner.uid
+                && canEditCollection(owner, mutation.collection)
             );
             if (!mutations.length) break;
             mutations.sort((left, right) => left.createdAt - right.createdAt);
@@ -349,18 +379,27 @@ async function listLocal(collectionName) {
         : null;
     return all
         .filter(record => record.schoolId === owner.schoolId && record.uid === owner.uid && record.collection === collectionName)
+        .filter(record => record.syncState !== 'rejected')
         .filter(record => record.data?.deleted !== true)
         .filter(record => !isTeachingRole(owner.role) || !isClassScopedCollection(collectionName)
             || owner.assignedClassIds.includes(String(record.data?.classId || '')))
         .filter(record => !linkedIds || linkedIds.has(String(
             record.data?.studentId || (collectionName === 'students' ? record.recordId : '')
         )))
+        .filter(record => owner.role !== 'parent' || !selectedParentStudentId
+            || !isClassScopedCollection(collectionName)
+            || String(collectionName === 'students'
+                ? record.recordId
+                : record.data?.studentId || record.data?.studentID || record.recordId) === selectedParentStudentId)
         .map(record => ({ id: record.recordId, ...record.data, _syncState: record.syncState }));
 }
 
 async function saveRecord(collectionName, recordId, data) {
     const owner = assertIdentity();
     assertCollection(collectionName);
+    if (!canEditCollection(owner, collectionName)) {
+        throw new Error('This account has read-only access to school records.');
+    }
     if (!recordId || !data || typeof data !== 'object' || Array.isArray(data)) {
         throw new Error('A record ID and a record object are required.');
     }
@@ -431,7 +470,7 @@ function parseLegacyRecords(serialized) {
 async function syncLegacyDataset(key, previousSerialized, nextSerialized) {
     const owner = assertIdentity();
     const collectionName = legacyDataCollections.get(key);
-    if (!collectionName) return;
+    if (!collectionName || !canEditCollection(owner, collectionName)) return;
     const previousRecords = parseLegacyRecords(previousSerialized);
     const nextRecords = parseLegacyRecords(nextSerialized);
     const previousById = new Map(previousRecords.map((record, index) => [legacyRecordId(record, index, key), record]));
@@ -460,7 +499,7 @@ function approvedLegacyStores(owner) {
 async function queueLegacyStorageChange(key, previousSerialized, nextSerialized) {
     const owner = assertIdentity();
     const collectionName = legacyDataCollections.get(key);
-    if (!collectionName) return;
+    if (!collectionName || !canEditCollection(owner, collectionName)) return;
     const approved = approvedLegacyStores(owner);
     if (!approved.has(key)) {
         const count = parseLegacyRecords(nextSerialized).length;
@@ -487,7 +526,7 @@ async function migrateLegacyLocalData() {
         serialized: localStorage.getItem(key),
         count: parseLegacyRecords(localStorage.getItem(key)).length
     })).filter(dataset => dataset.count > 0
-        && (isSchoolAdmin || owner.permissions[dataset.collectionName]?.edit === true));
+        && canEditCollection(owner, dataset.collectionName));
     const total = datasets.reduce((count, dataset) => count + dataset.count, 0);
     if (!total) return;
 
@@ -555,8 +594,9 @@ Storage.prototype.setItem = function (key, value) {
         : null;
     originalStorageSetItem.call(this, key, value);
     if (this === localStorage && identity && !suppressLegacyStorageBridge
-        && legacyDataCollections.has(String(key)) && previous !== String(value)) {
+        && legacyDataCollections.has(String(key))) {
         originalStorageSetItem.call(localStorage, scopedLegacyStorageKey(identity, String(key)), String(value));
+        if (!canEditCollection(identity, legacyDataCollections.get(String(key))) || previous === String(value)) return;
         void queueLegacyStorageChange(String(key), previous, String(value)).catch(error => {
             console.error(`Unable to queue local ${legacyDataCollections.get(String(key))} changes.`, error);
             window.dispatchEvent(new CustomEvent('school-portal-sync-error', {
@@ -573,6 +613,7 @@ Storage.prototype.removeItem = function (key) {
     if (previous !== null && this === localStorage && identity && !suppressLegacyStorageBridge
         && legacyDataCollections.has(String(key))) {
         originalStorageRemoveItem.call(localStorage, scopedLegacyStorageKey(identity, String(key)));
+        if (!canEditCollection(identity, legacyDataCollections.get(String(key)))) return;
         void syncLegacyDataset(String(key), previous, '[]').catch(error => {
             console.error(`Unable to queue local ${legacyDataCollections.get(String(key))} deletions.`, error);
         });
@@ -591,11 +632,20 @@ async function subscribe(collectionName, onRecords, filters = [], options = {}) 
     }
     if (['parent', 'student'].includes(owner.role) && isClassScopedCollection(collectionName)) {
         let refreshInProgress = false;
+        let refreshRequested = false;
         let cancelled = false;
         const refreshLinkedRecords = async () => {
-            if (cancelled || refreshInProgress || !navigator.onLine) return;
+            if (cancelled) return;
+            if (refreshInProgress) {
+                refreshRequested = true;
+                return;
+            }
             refreshInProgress = true;
             try {
+                if (!navigator.onLine) {
+                    onRecords(await listLocal(collectionName), { source: 'local' });
+                    return;
+                }
                 const firebase = window.schoolPortalFirebase;
                 if (!firebase?.getLinkedSchoolRecords) {
                     throw new Error('Secure linked-record access is unavailable. Reload the app and try again.');
@@ -626,9 +676,13 @@ async function subscribe(collectionName, onRecords, filters = [], options = {}) 
                     await writeLocal(record);
                     visibleRecords.push(record);
                 }
-                onRecords(visibleRecords
+                const linkedRecordsForView = visibleRecords
                     .filter(record => record.data?.deleted !== true)
-                    .map(record => ({ id: record.recordId, ...record.data, _syncState: record.syncState })), { source: 'cloud' });
+                    .map(record => ({ id: record.recordId, ...record.data, _syncState: record.syncState }));
+                onRecords(linkedRecordsForView.filter(record => !selectedParentStudentId
+                    || String(collectionName === 'students'
+                        ? record.id || ''
+                        : record.studentId || record.studentID || record.id || '') === selectedParentStudentId), { source: 'cloud' });
             } catch (error) {
                 console.error(`Unable to synchronize linked ${collectionName} records.`, error);
                 window.dispatchEvent(new CustomEvent('school-portal-sync-error', {
@@ -636,20 +690,27 @@ async function subscribe(collectionName, onRecords, filters = [], options = {}) 
                 }));
             } finally {
                 refreshInProgress = false;
+                if (refreshRequested && !cancelled) {
+                    refreshRequested = false;
+                    void refreshLinkedRecords();
+                }
             }
         };
         const refreshWhenVisible = () => {
             if (!document.hidden) void refreshLinkedRecords();
         };
+        const refreshOnParentChildChange = () => void refreshLinkedRecords();
         void refreshLinkedRecords();
         window.addEventListener('online', refreshLinkedRecords);
         window.addEventListener('focus', refreshLinkedRecords);
         document.addEventListener('visibilitychange', refreshWhenVisible);
+        if (owner.role === 'parent') window.addEventListener('school-portal-parent-child-changed', refreshOnParentChildChange);
         return () => {
             cancelled = true;
             window.removeEventListener('online', refreshLinkedRecords);
             window.removeEventListener('focus', refreshLinkedRecords);
             document.removeEventListener('visibilitychange', refreshWhenVisible);
+            if (owner.role === 'parent') window.removeEventListener('school-portal-parent-child-changed', refreshOnParentChildChange);
         };
     }
     if (options.orderByField) constraints.push(orderBy(options.orderByField, options.orderDirection || 'asc'));
@@ -795,6 +856,7 @@ window.schoolPortalData = {
             assignedClassIds: Array.isArray(membership?.assignedClassIds) ? membership.assignedClassIds : [],
             linkedRecordId: membership?.linkedRecordId || ''
         };
+        selectedParentStudentId = '';
         if (identity && (identity.schoolId !== schoolId || identity.uid !== uid)) {
             preserveLegacyStorage(identity);
             clearLegacyPublicStorage();
@@ -831,10 +893,16 @@ window.schoolPortalData = {
         legacySubscriptions = [];
         preserveLegacyStorage(identity);
         identity = null;
+        selectedParentStudentId = '';
         clearLegacyPublicStorage();
         window.dispatchEvent(new CustomEvent('school-portal-identity-cleared'));
     },
     getIdentity() { return identity; },
+    setParentChildFilter(studentId) {
+        if (identity?.role !== 'parent') return;
+        selectedParentStudentId = String(studentId || '');
+        window.dispatchEvent(new CustomEvent('school-portal-parent-child-changed'));
+    },
     migrateLegacyLocalData,
     listLocal,
     saveRecord,

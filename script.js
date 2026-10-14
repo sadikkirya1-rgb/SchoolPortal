@@ -294,7 +294,6 @@ document.addEventListener('DOMContentLoaded', () => {
         userId: membership.userId || authUser.email,
         email: membership.email || authUser.email,
         role: membership.role || 'student',
-        sections: Array.isArray(membership.sections) ? membership.sections : [],
         perms: membership.perms || { view: true },
         photo: membership.photoURL || membership.photo || membership.profile?.photoURL || authUser.photoURL || ''
     });
@@ -364,6 +363,510 @@ document.addEventListener('DOMContentLoaded', () => {
             ? Math.max(0, dashboardNumber(balance))
             : Math.max(0, feeBilledAmount(fee) - feePaidAmount(fee));
     };
+    const parentPortalCollections = ['students', 'attendance', 'assessments', 'reportCards', 'fees', 'timetables', 'studyMaterials', 'notices'];
+    const parentPortalPersonalCollections = new Set(['students', 'attendance', 'assessments', 'reportCards', 'fees']);
+    const parentPortalData = Object.fromEntries(parentPortalCollections.map(collection => [
+        collection,
+        { loaded: false, records: [], error: false }
+    ]));
+    let parentPortalIdentityKey = '';
+    let activeParentPortalView = '';
+    const parentStudentId = record => String(record.studentId || record.studentID || record.student_id
+        || record.linkedStudentId || record.linkedRecordId || record.linkedChildId
+        || record.childId || record.childID || record.learnerId
+        || (record.student && typeof record.student === 'object'
+            ? record.student.id || record.student.studentId || record.student.studentID || ''
+            : '') || '');
+    const parentStudentRecordId = record => String(record.id || record.studentId || record.studentID || record.student_id || '');
+    const parentPortalMatchesChild = (record, collection, childId) => collection === 'students'
+        ? parentStudentRecordId(record) === childId
+        : parentStudentId(record) === childId || (!parentStudentId(record) && String(record.id || '') === childId);
+    const parentPortalMatchesStudentContext = (record, collection, child) => {
+        const childId = parentStudentRecordId(child);
+        if (parentPortalPersonalCollections.has(collection)) return parentPortalMatchesChild(record, collection, childId);
+        const linkedStudentId = parentStudentId(record);
+        if (linkedStudentId) return linkedStudentId === childId;
+        const recordClassId = String(record.classId || record.classID || '');
+        const childClassId = String(child.classId || child.classID || '');
+        if (recordClassId) return Boolean(childClassId && recordClassId === childClassId);
+        const recordClass = record.className || record.class || record.grade || '';
+        const childClass = child.className || child.class || child.grade || '';
+        const recordSection = String(record.section || record.sectionName || '');
+        const childSection = String(child.section || child.sectionName || '');
+        if (recordClass) {
+            const normalize = value => String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+            const recordNames = [recordClass, `${recordClass} ${recordSection}`].map(normalize);
+            const childNames = [childClass, `${childClass} ${childSection}`].map(normalize);
+            return recordNames.some(name => childNames.includes(name));
+        }
+        if (recordSection && childSection && recordSection !== childSection) return false;
+        if (collection === 'notices') {
+            const audience = record.audienceRoles || record.targetRoles || record.targetAudience || record.audience;
+            if (audience) {
+                const text = (Array.isArray(audience) ? audience : [audience]).join(' ').toLowerCase();
+                const parentFacing = /\b(parent|parents|family|families|guardian|guardians)\b/.test(text);
+                const broadlyVisible = /^(all|everyone|whole school|schoolwide|all users)$/i.test(text.trim());
+                if (!parentFacing && !broadlyVisible) return false;
+            }
+        }
+        return true;
+    };
+    const parentNumber = value => {
+        const parsed = Number.parseFloat(String(value ?? '').replace(/,/g, '').replace('%', '').trim());
+        return Number.isFinite(parsed) ? parsed : null;
+    };
+    const parentFirstNumber = (record, fields) => {
+        for (const field of fields) {
+            const value = parentNumber(record?.[field]);
+            if (value !== null) return value;
+        }
+        return null;
+    };
+    const parentResultRows = (record, collection) => {
+        const nestedFields = ['subjectResults', 'subjectMarks', 'marksDetails', 'scores', 'results', 'marks'];
+        const nestedRows = nestedFields.map(field => record?.[field]).find(Array.isArray) || [];
+        const candidates = nestedRows.length ? nestedRows.map(row => ({ ...record, ...row })) : [record];
+        return candidates.flatMap(row => {
+            const subject = row.subjectName || row.subject || row.paperName || row.courseName || row.course;
+            if (!subject) return [];
+            const maximum = parentFirstNumber(row, ['maxMarks', 'maximumMarks', 'totalMarks', 'maxScore', 'outOf', 'fullMarks', 'max', 'marks']);
+            const score = parentFirstNumber(row, ['obtainedMarks', 'marksObtained', 'marksScored', 'score', 'obtained', 'achievedMarks', 'value']);
+            const explicitPercentage = parentFirstNumber(row, ['percentage', 'percent', 'scorePercent', 'marksPercentage', 'averagePercentage']);
+            const percentage = explicitPercentage ?? (maximum > 0 && score !== null ? score / maximum * 100 : null);
+            if (percentage === null) return [];
+            const status = String(row.status || row.publicationStatus || row.publication || '').trim().toLowerCase();
+            if (status && !['published', 'released', 'completed', 'graded', 'closed', 'final'].includes(status)) return [];
+            if (row.isPublished === false || row.published === false || String(row.visibility || '').toLowerCase() === 'private') return [];
+            const typeLabel = [row.assessmentType, row.examType, row.type, row.period, row.academicPeriod, row.term]
+                .filter(Boolean).join(' ').toLowerCase();
+            return [{
+                subject: String(subject),
+                maximum,
+                score,
+                percentage: Math.min(100, Math.max(0, percentage)),
+                type: /term|exam|semester|final|report/.test(typeLabel) || collection === 'reportCards' ? 'Term exam' : 'Test',
+                date: row.assessmentDate || row.examDate || row.date || row.publishedAt || row.createdAt || '',
+                period: row.period || row.academicPeriod || row.term || '',
+                studentId: parentStudentId(record)
+            }];
+        });
+    };
+    const parentPortalViewConfig = {
+        Students: { collection: 'students', title: 'My Children', description: 'Profiles linked to your parent account.', icon: 'fa-child' },
+        'Report Cards': { collection: 'reportCards', title: 'Report Cards', description: 'Published academic results for linked students.', icon: 'fa-square-poll-vertical' },
+        Assignments: { collection: 'assessments', title: 'Assignments', description: 'Learning tasks and assessment details for the selected student.', icon: 'fa-book-open' },
+        Timetables: { collection: 'timetables', title: 'Timetable', description: 'Class schedule associated with the selected student.', icon: 'fa-calendar-days' },
+        'Study Materials': { collection: 'studyMaterials', title: 'Study Materials', description: 'Learning resources shared with the selected student or class.', icon: 'fa-folder-open' },
+        Attendance: { collection: 'attendance', title: 'Attendance', description: 'Attendance records for the selected student.', icon: 'fa-calendar-check' },
+        Fees: { collection: 'fees', title: 'Fees', description: 'Fee balances and payment records for the selected student.', icon: 'fa-receipt' },
+        'Notice Board': { collection: 'notices', title: 'School Notices', description: 'Notices available to parents and linked classes.', icon: 'fa-bullhorn' }
+    };
+    const parentPortalRecordValue = (record, fields) => {
+        for (const field of fields) {
+            const value = record?.[field];
+            if (value !== undefined && value !== null && value !== '') {
+                return Array.isArray(value) ? value.join(', ') : typeof value === 'object' ? value.name || value.title || '' : value;
+            }
+        }
+        return '';
+    };
+    const parentPortalRecordIsVisible = (record, collection) => {
+        if (record.deleted === true || record.isPublished === false || record.published === false
+            || String(record.visibility || '').toLowerCase() === 'private') return false;
+        const status = String(record.status || record.publicationStatus || '').trim().toLowerCase();
+        if (collection === 'reportCards' && status && !['published', 'released'].includes(status)) return false;
+        return !['draft', 'archived', 'deleted', 'private'].includes(status);
+    };
+    function renderParentPortalDetailView(container, children, selectedChild, permissions, adminPreview) {
+        const detail = container.querySelector('[data-parent-detail-view]');
+        const content = container.querySelector('[data-parent-detail-content]');
+        const config = parentPortalViewConfig[activeParentPortalView];
+        const isOpen = Boolean(config);
+        [
+            container.querySelector('.parent-portal-overview'),
+            container.querySelector('[data-parent-student-section]'),
+            container.querySelector('[data-parent-results-section]'),
+            ...container.querySelectorAll(':scope > .parent-portal-section')
+        ].filter(Boolean).forEach(section => section.classList.toggle('hidden', isOpen));
+        detail?.classList.toggle('hidden', !isOpen);
+        if (!isOpen || !detail || !content) return;
+
+        const title = detail.querySelector('[data-parent-detail-title]');
+        const description = detail.querySelector('[data-parent-detail-description]');
+        const icon = detail.querySelector('[data-parent-detail-icon]');
+        if (title) title.textContent = config.title;
+        if (description) description.textContent = config.description;
+        if (icon) icon.innerHTML = `<i class="fas ${config.icon}" aria-hidden="true"></i>`;
+        const childWrap = detail.querySelector('[data-parent-detail-child-wrap]');
+        const childSelect = detail.querySelector('[data-parent-detail-child]');
+        if (childSelect) {
+            childSelect.replaceChildren();
+            if (children.length > 1) childSelect.add(new Option('All linked students', 'all'));
+            children.forEach(child => {
+                const id = parentStudentRecordId(child);
+                const name = child.fullName || child.name || child.studentName || child.displayName || 'Student';
+                const className = [child.className || child.class, child.section].filter(Boolean).join(' · ');
+                childSelect.add(new Option(`${name}${className ? ` · ${className}` : ''}`, id));
+            });
+            childSelect.value = selectedChild;
+            if (childWrap) childWrap.classList.toggle('hidden', children.length < 2);
+        }
+
+        const canView = adminPreview || canViewParentPortalCollection(config.collection);
+        if (!canView) {
+            content.innerHTML = '<p class="parent-detail-message" role="status"><i class="fas fa-lock" aria-hidden="true"></i><span>This section has not been enabled for your account. Contact your school administrator for access.</span></p>';
+            return;
+        }
+        if (config.collection === 'students') {
+            const studentData = parentPortalData.students;
+            if (studentData.error && !studentData.loaded) {
+                content.innerHTML = '<p class="parent-detail-message" role="status"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i><span>Linked student profiles could not be loaded. Please try again later.</span></p>';
+                return;
+            }
+            if (!studentData.loaded) {
+                content.innerHTML = '<p class="parent-detail-message" role="status"><i class="fas fa-spinner" aria-hidden="true"></i><span>Loading linked student profiles…</span></p>';
+                return;
+            }
+            const visibleChildren = selectedChild === 'all' ? children
+                : children.filter(child => parentStudentRecordId(child) === selectedChild);
+            content.innerHTML = visibleChildren.length ? `<div class="parent-detail-student-grid">${visibleChildren.map(child => {
+                const id = parentStudentRecordId(child);
+                const name = child.fullName || child.name || child.studentName || child.displayName || 'Student';
+                const initials = String(name).split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase();
+                const fields = [
+                    ['Student ID', child.admissionNumber || child.studentCode || id],
+                    ['Class', [child.className || child.class, child.section].filter(Boolean).join(' · ')],
+                    ['Academic year', child.academicYear || child.year],
+                    ['Status', child.status]
+                ].filter(([, value]) => value);
+                return `<article class="parent-detail-student-card"><span class="parent-student-avatar parent-student-avatar-large" aria-hidden="true">${dashboardEscape(initials || 'S')}</span><div class="parent-detail-student-copy"><h4>${dashboardEscape(name)}</h4><dl>${fields.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl></div><button type="button" class="parent-detail-action" data-parent-select-child="${dashboardEscape(id)}"><span>View this student</span><i class="fas fa-arrow-right" aria-hidden="true"></i></button></article>`;
+            }).join('')}</div>` : '<p class="parent-detail-message" role="status">No linked student profiles are available.</p>';
+            return;
+        }
+
+        const dataset = parentPortalData[config.collection];
+        if (dataset.error && !dataset.loaded) {
+            content.innerHTML = '<p class="parent-detail-message" role="status"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i><span>This information could not be loaded. Please try again later.</span></p>';
+            return;
+        }
+        if (!dataset.loaded) {
+            content.innerHTML = '<p class="parent-detail-message" role="status"><i class="fas fa-spinner" aria-hidden="true"></i><span>Loading information for linked students…</span></p>';
+            return;
+        }
+        const matchedChildren = children.filter(child => selectedChild === 'all' || parentStudentRecordId(child) === selectedChild);
+        const records = dataset.records.filter(record => parentPortalRecordIsVisible(record, config.collection)
+            && matchedChildren.some(child => parentPortalMatchesStudentContext(record, config.collection, child)));
+        const columnsByCollection = {
+            reportCards: [
+                ['Report', record => parentPortalRecordValue(record, ['reportName', 'title', 'name', 'no', 'reportNo']) || 'Report card'],
+                ['Student', record => parentPortalRecordValue(record, ['studentName', 'student', 'fullName']) || matchedChildren.find(child => parentPortalMatchesStudentContext(record, config.collection, child))?.fullName || matchedChildren[0]?.fullName || matchedChildren[0]?.name || 'Student'],
+                ['Period', record => parentPortalRecordValue(record, ['period', 'academicPeriod', 'term', 'year']) || '—'],
+                ['Average', record => parentPortalRecordValue(record, ['average', 'percentage', 'averagePercentage']) || '—'],
+                ['Grade', record => parentPortalRecordValue(record, ['grade', 'overallGrade']) || '—'],
+                ['Status', record => parentPortalRecordValue(record, ['status', 'publicationStatus']) || 'Published']
+            ],
+            assessments: [
+                ['Assignment', record => parentPortalRecordValue(record, ['title', 'name', 'assessmentName']) || 'Assessment'],
+                ['Subject', record => parentPortalRecordValue(record, ['subjectName', 'subject']) || '—'],
+                ['Type', record => parentPortalRecordValue(record, ['type', 'assessmentType', 'category']) || 'Assessment'],
+                ['Due date', record => parentPortalRecordValue(record, ['dueDate', 'deadline', 'date']) || '—'],
+                ['Maximum', record => parentPortalRecordValue(record, ['maxMarks', 'maximumMarks', 'marks', 'totalMarks']) || '—'],
+                ['Status', record => parentPortalRecordValue(record, ['status']) || '—']
+            ],
+            timetables: [
+                ['Day / date', record => parentPortalRecordValue(record, ['day', 'date', 'dayOfWeek']) || '—'],
+                ['Time', record => [parentPortalRecordValue(record, ['startTime', 'from']), parentPortalRecordValue(record, ['endTime', 'to'])].filter(Boolean).join(' – ') || parentPortalRecordValue(record, ['time', 'period']) || '—'],
+                ['Subject', record => parentPortalRecordValue(record, ['subjectName', 'subject']) || '—'],
+                ['Teacher', record => parentPortalRecordValue(record, ['teacherName', 'teacher']) || '—'],
+                ['Room', record => parentPortalRecordValue(record, ['room', 'classroom', 'venue']) || '—']
+            ],
+            studyMaterials: [
+                ['Resource', record => parentPortalRecordValue(record, ['title', 'name', 'fileName']) || 'Study material'],
+                ['Subject', record => parentPortalRecordValue(record, ['subjectName', 'subject']) || '—'],
+                ['Type', record => parentPortalRecordValue(record, ['type', 'fileType', 'category']) || '—'],
+                ['Updated', record => parentPortalRecordValue(record, ['updatedAt', 'uploadedAt', 'date', 'createdAt']) || '—'],
+                ['Description', record => parentPortalRecordValue(record, ['description', 'notes']) || '—'],
+                ['Open', record => {
+                    const url = parentPortalRecordValue(record, ['url', 'resourceUrl', 'fileUrl', 'downloadUrl']);
+                    if (!url) return '—';
+                    try {
+                        const safeUrl = new URL(url, window.location.href);
+                        return ['http:', 'https:'].includes(safeUrl.protocol) ? `<a class="parent-resource-link" href="${dashboardEscape(safeUrl.href)}" target="_blank" rel="noopener noreferrer">Open resource <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></a>` : '—';
+                    } catch (error) {
+                        return '—';
+                    }
+                }, true]
+            ],
+            attendance: [
+                ['Date', record => parentPortalRecordValue(record, ['date', 'attendanceDate', 'day']) || '—'],
+                ['Status', record => parentPortalRecordValue(record, ['status', 'attendanceStatus']) || '—'],
+                ['Check in', record => parentPortalRecordValue(record, ['checkIn', 'arrivalTime', 'timeIn']) || '—'],
+                ['Check out', record => parentPortalRecordValue(record, ['checkOut', 'departureTime', 'timeOut']) || '—'],
+                ['Notes', record => parentPortalRecordValue(record, ['remarks', 'notes', 'comment']) || '—']
+            ],
+            fees: [
+                ['Fee item', record => parentPortalRecordValue(record, ['feeName', 'feeType', 'description', 'name']) || 'School fee'],
+                ['Total', record => dashboardMoney(feeBilledAmount(record))],
+                ['Paid', record => dashboardMoney(feePaidAmount(record))],
+                ['Balance', record => dashboardMoney(feeOutstandingAmount(record))],
+                ['Due date', record => parentPortalRecordValue(record, ['dueDate', 'date']) || '—'],
+                ['Status', record => parentPortalRecordValue(record, ['status']) || '—']
+            ],
+            notices: [
+                ['Notice', record => parentPortalRecordValue(record, ['title', 'subject', 'name']) || 'School notice'],
+                ['Category', record => parentPortalRecordValue(record, ['category', 'type']) || 'General'],
+                ['Published', record => parentPortalRecordValue(record, ['publishedAt', 'date', 'createdAt']) || '—'],
+                ['Message', record => parentPortalRecordValue(record, ['summary', 'message', 'description', 'body']) || '—']
+            ]
+        };
+        const columns = columnsByCollection[config.collection] || [];
+        if (!records.length) {
+            content.innerHTML = '<p class="parent-detail-message" role="status">No records are available for the selected student.</p>';
+            return;
+        }
+        const showStudent = matchedChildren.length > 1;
+        const tableColumns = showStudent
+            ? [['Student', record => {
+                const studentId = parentStudentId(record);
+                const student = matchedChildren.find(child => parentStudentRecordId(child) === studentId) || matchedChildren[0];
+                return student?.fullName || student?.name || student?.studentName || 'Linked student';
+            }], ...columns]
+            : columns;
+        content.innerHTML = `<div class="parent-detail-table-wrap"><table class="parent-detail-table"><thead><tr>${tableColumns.map(([label]) => `<th>${dashboardEscape(label)}</th>`).join('')}</tr></thead><tbody>${records.map(record => `<tr>${tableColumns.map(([label, getter, isHtml]) => {
+            const value = getter(record);
+            return `<td data-label="${dashboardEscape(label)}">${isHtml ? value : dashboardEscape(value || '—')}</td>`;
+        }).join('')}</tr>`).join('')}</tbody></table></div>`;
+    }
+    function renderParentPortalDashboard() {
+        const container = document.getElementById('parentPortalHome');
+        if (!container) return;
+        const childSelect = document.getElementById('parentChildSelector');
+        const childSelectorWrap = document.getElementById('parentChildSelectorWrap');
+        const children = parentPortalData.students.records;
+        const previousChild = childSelect?.value || 'all';
+        const permissions = window.schoolPortalData?.getIdentity()?.permissions
+            || activeAccountPermissions?.permissions
+            || {};
+        const adminPreview = isPrivilegedRole(activeAccountPermissions?.role);
+        const canViewChildren = adminPreview || canViewParentPortalCollection('students');
+        if (childSelect) {
+            childSelect.replaceChildren(new Option('All children', 'all'));
+            children.forEach(child => {
+                const name = child.fullName || child.name || child.studentName || child.displayName || child.id;
+                const detail = [child.className || child.class, child.section].filter(Boolean).join(' · ');
+                childSelect.add(new Option(`${name}${detail ? ` — ${detail}` : ''}`, parentStudentRecordId(child)));
+            });
+            const onlyChildId = children.length === 1 ? parentStudentRecordId(children[0]) : '';
+            const preferredChild = previousChild === 'all' && onlyChildId ? onlyChildId : previousChild;
+            childSelect.value = children.some(child => parentStudentRecordId(child) === preferredChild) || preferredChild === 'all'
+                ? preferredChild
+                : 'all';
+            if (childSelectorWrap) childSelectorWrap.classList.toggle('hidden', children.length < 2);
+        }
+        const selectedChild = childSelect?.value || 'all';
+        const noChildren = document.getElementById('parentPortalNoChildren');
+        noChildren?.classList.toggle('hidden',
+            !canViewChildren || !parentPortalData.students.loaded || children.length > 0 || parentPortalData.students.error);
+        const dataStatus = document.getElementById('parentPortalDataStatus');
+        if (dataStatus) {
+            const activeCollectionErrors = parentPortalCollections.some(collection =>
+                parentPortalData[collection].error && parentPortalData[collection].loaded === false
+            );
+            dataStatus.textContent = adminPreview
+                ? 'Admin preview · Sign in as a parent linked to students to view family data.'
+                : parentPortalData.students.error
+                ? 'Linked child information could not be loaded. Contact your school administrator if this continues.'
+                : !canViewChildren
+                    ? 'Your school administrator has not enabled linked child profile viewing for this account.'
+                : activeCollectionErrors
+                    ? 'Some linked records could not be loaded. Please try again later.'
+                    : !parentPortalData.students.loaded
+                        ? 'Loading secure linked-child overview…'
+                        : children.length
+                            ? `${children.length} linked ${children.length === 1 ? 'child' : 'children'} · Showing ${selectedChild === 'all' ? 'family overview' : 'selected child'}`
+                            : 'No linked child records are available yet.';
+        }
+        const recordSets = {
+            attendance: parentPortalData.attendance,
+            reportCards: parentPortalData.reportCards,
+            assessments: parentPortalData.assessments,
+            fees: parentPortalData.fees
+        };
+        const childrenCard = container.querySelector('[data-parent-stat-card="children"]');
+        childrenCard?.classList.toggle('hidden', !canViewChildren);
+        [
+            ['attendance', 'attendance'],
+            ['reportCards', 'reportCards'],
+            ['assignments', 'assessments'],
+            ['fees', 'fees']
+        ].forEach(([key, collection]) => {
+            const dataset = recordSets[collection];
+            const card = container.querySelector(`[data-parent-stat-card="${key}"]`);
+            const value = container.querySelector(`[data-parent-stat="${key}"]`);
+            if (!card || !value) return;
+            const allowed = adminPreview || canViewParentPortalCollection(collection);
+            card.classList.toggle('hidden', !allowed);
+            if (!allowed) return;
+            if (dataset.error && !dataset.loaded) {
+                value.textContent = 'Unavailable';
+                return;
+            }
+            if (!dataset.loaded) {
+                value.textContent = '…';
+                return;
+            }
+            const records = dataset.records.filter(record => selectedChild === 'all'
+                || parentPortalMatchesChild(record, collection, selectedChild));
+            value.textContent = key === 'fees'
+                ? dashboardMoney(records.reduce((sum, fee) => sum + feeOutstandingAmount(fee), 0))
+                : String(records.length);
+        });
+        const childrenStat = container.querySelector('[data-parent-stat="children"]');
+        if (childrenStat) {
+            childrenStat.textContent = canViewChildren && parentPortalData.students.loaded ? String(children.length) : '…';
+        }
+        updateDashboardActionAccess();
+        const visibleFeatureCards = [...container.querySelectorAll('[data-parent-nav]')].some(button => {
+            const collection = button.dataset.parentCollection;
+            return adminPreview || canViewParentPortalCollection(collection);
+        });
+        document.getElementById('parentPortalNoFeatures')?.classList.toggle('hidden', visibleFeatureCards);
+
+        const studentSection = container.querySelector('[data-parent-student-section]');
+        const resultsSection = container.querySelector('[data-parent-results-section]');
+        const studentList = container.querySelector('[data-parent-students]');
+        const studentProfile = container.querySelector('[data-parent-student-profile]');
+        const studentCount = container.querySelector('[data-parent-student-count]');
+        const canViewResults = adminPreview || canViewParentPortalSection('reportCards')
+            && (permissions.reportCards?.view === true
+                || permissions.assessments?.view === true
+                || activeAccountPermissions?.permissions?.reportCards?.view === true
+                || activeAccountPermissions?.permissions?.assessments?.view === true);
+        studentSection?.classList.toggle('hidden', !canViewChildren || !parentPortalData.students.loaded || !children.length);
+        resultsSection?.classList.toggle('hidden', !canViewChildren || !canViewResults || !parentPortalData.students.loaded || !children.length);
+        if (studentCount) studentCount.textContent = `${children.length} linked ${children.length === 1 ? 'student' : 'students'}`;
+        if (studentList) {
+            studentList.innerHTML = selectedChild === 'all' && children.length > 1
+                ? children.map(child => {
+                    const id = parentStudentRecordId(child);
+                    const name = child.fullName || child.name || child.studentName || child.displayName || 'Student';
+                    const className = [child.className || child.class, child.section].filter(Boolean).join(' · ');
+                    const initials = String(name).split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase();
+                    return `<button type="button" class="parent-student-card" data-parent-select-child="${dashboardEscape(id)}"><span class="parent-student-avatar" aria-hidden="true">${dashboardEscape(initials || 'S')}</span><span class="parent-student-card-copy"><strong>${dashboardEscape(name)}</strong><small>${dashboardEscape(className || 'Class not provided')}</small><small>Student ID · ${dashboardEscape(child.admissionNumber || child.studentCode || id || '—')}</small></span><i class="fas fa-arrow-right" aria-hidden="true"></i></button>`;
+                }).join('')
+                : '';
+        }
+        const selectedStudent = children.find(child => parentStudentRecordId(child) === selectedChild);
+        if (studentProfile) {
+            if (selectedStudent) {
+                const name = selectedStudent.fullName || selectedStudent.name || selectedStudent.studentName || selectedStudent.displayName || 'Student';
+                const initials = String(name).split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase();
+                const studentDetails = [
+                    ['Student ID', selectedStudent.admissionNumber || selectedStudent.studentCode || parentStudentRecordId(selectedStudent)],
+                    ['Class', [selectedStudent.className || selectedStudent.class, selectedStudent.section].filter(Boolean).join(' · ')],
+                    ['Academic year', selectedStudent.academicYear || selectedStudent.year],
+                    ['Status', selectedStudent.status]
+                ].filter(([, value]) => value);
+                studentProfile.innerHTML = `<div class="parent-profile-identity"><span class="parent-student-avatar parent-student-avatar-large" aria-hidden="true">${dashboardEscape(initials || 'S')}</span><div><span class="parent-profile-label">Linked student</span><h4>${dashboardEscape(name)}</h4><p>${dashboardEscape(selectedStudent.className || selectedStudent.class || 'Class not provided')}${selectedStudent.section ? ` · ${dashboardEscape(selectedStudent.section)}` : ''}</p></div></div><dl class="parent-profile-details">${studentDetails.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl>`;
+                studentProfile.classList.remove('hidden');
+            } else {
+                studentProfile.classList.add('hidden');
+                studentProfile.replaceChildren();
+            }
+        }
+        if (resultsSection && canViewChildren && canViewResults && parentPortalData.students.loaded && children.length) {
+            const childById = new Map(children.map(child => [parentStudentRecordId(child), child]));
+            const allowedCollections = ['reportCards', 'assessments'].filter(collection =>
+                adminPreview || canViewParentPortalSection('reportCards')
+                    && (permissions[collection]?.view === true
+                        || activeAccountPermissions?.permissions?.[collection]?.view === true)
+            );
+            const resultsPending = allowedCollections.some(collection =>
+                !parentPortalData[collection].loaded && !parentPortalData[collection].error
+            );
+            const resultsUnavailable = allowedCollections.some(collection => parentPortalData[collection].error);
+            const resultRows = allowedCollections.flatMap(collection => parentPortalData[collection].records.flatMap(record => {
+                const matchedId = parentStudentId(record);
+                const child = childById.get(matchedId);
+                if (!child || (selectedChild !== 'all' && matchedId !== selectedChild)) return [];
+                return parentResultRows(record, collection).map(result => ({
+                    ...result,
+                    student: child.fullName || child.name || child.studentName || child.displayName || 'Student'
+                }));
+            }));
+            const filter = container.querySelector('[data-parent-results-filter]');
+            const filteredRows = resultRows.filter(result => filter?.value === 'all' || result.type.toLowerCase().startsWith(filter?.value || ''));
+            const average = filteredRows.length
+                ? filteredRows.reduce((sum, result) => sum + result.percentage, 0) / filteredRows.length
+                : null;
+            const pendingLabel = resultsPending && !filteredRows.length ? '…' : null;
+            const summary = container.querySelector('[data-parent-results-summary]');
+            if (summary) summary.innerHTML = `<article class="parent-result-stat"><span>Published scores</span><strong>${pendingLabel || filteredRows.length}</strong></article><article class="parent-result-stat"><span>Average percentage</span><strong>${pendingLabel || (average === null ? '—' : `${average.toFixed(1)}%`)}</strong></article><article class="parent-result-stat"><span>Assessment types</span><strong>${pendingLabel || (new Set(filteredRows.map(result => result.type)).size || '—')}</strong></article>`;
+            const groupedSubjects = new Map();
+            filteredRows.forEach(result => {
+                const group = groupedSubjects.get(result.subject) || { total: 0, count: 0 };
+                group.total += result.percentage;
+                group.count += 1;
+                groupedSubjects.set(result.subject, group);
+            });
+            const chart = container.querySelector('[data-parent-results-chart]');
+            if (chart) {
+                const subjects = [...groupedSubjects.entries()].map(([subject, values]) => ({
+                    subject,
+                    percentage: values.total / values.count
+                })).sort((left, right) => right.percentage - left.percentage);
+                chart.setAttribute('aria-label', subjects.length
+                    ? `Average subject performance: ${subjects.map(item => `${item.subject} ${item.percentage.toFixed(1)} percent`).join(', ')}`
+                    : 'No subject scores available to chart');
+                chart.innerHTML = subjects.length ? subjects.map(item => `<div class="parent-chart-row"><span class="parent-chart-subject">${dashboardEscape(item.subject)}</span><div class="parent-chart-track"><span style="width:${item.percentage.toFixed(1)}%"></span></div><strong>${item.percentage.toFixed(1)}%</strong></div>`).join('')
+                    : '<p class="parent-chart-empty">Published subject scores will appear here when available.</p>';
+            }
+            const rows = container.querySelector('[data-parent-results-rows]');
+            if (rows) rows.innerHTML = filteredRows.length ? filteredRows.map(result => `<tr><td data-label="Student">${dashboardEscape(result.student)}</td><td data-label="Subject"><strong>${dashboardEscape(result.subject)}</strong></td><td data-label="Type"><span class="parent-assessment-type ${result.type === 'Term exam' ? 'term' : 'test'}">${dashboardEscape(result.type)}</span></td><td data-label="Maximum">${result.maximum === null ? '—' : dashboardEscape(result.maximum)}</td><td data-label="Score">${result.score === null ? '—' : dashboardEscape(result.score)}</td><td data-label="Percentage"><strong>${result.percentage.toFixed(1)}%</strong></td></tr>`).join('')
+                : '<tr><td colspan="6" class="parent-results-empty-cell">No published subject-level scores are available for this selection.</td></tr>';
+            const caption = container.querySelector('[data-parent-results-caption]');
+            if (caption) caption.textContent = selectedChild === 'all'
+                ? 'Published scores across linked students'
+                : `Published scores for ${selectedStudent?.fullName || selectedStudent?.name || selectedStudent?.studentName || 'this student'}`;
+            const count = container.querySelector('[data-parent-results-count]');
+            if (count) count.textContent = resultsPending && !filteredRows.length
+                ? 'Loading results…'
+                : `${filteredRows.length} ${filteredRows.length === 1 ? 'assessment' : 'assessments'}${resultsPending ? ' · loading more' : resultsUnavailable ? ' · some data unavailable' : ''}`;
+            const emptyState = container.querySelector('[data-parent-results-empty]');
+            if (emptyState) {
+                emptyState.textContent = resultsPending
+                    ? 'Loading linked assessment results…'
+                    : resultsUnavailable
+                        ? 'Some assessment results could not be loaded. Please try again later.'
+                        : 'No published subject-level scores are available for this selection.';
+                emptyState.classList.toggle('hidden', filteredRows.length > 0);
+            }
+        }
+        renderParentPortalDetailView(container, children, selectedChild, permissions, adminPreview);
+    }
+    document.getElementById('parentChildSelector')?.addEventListener('change', event => {
+        const selectedChild = event.target.value === 'all' ? '' : event.target.value;
+        window.schoolPortalData?.setParentChildFilter?.(selectedChild);
+        renderParentPortalDashboard();
+    });
+    document.getElementById('parentPortalHome')?.addEventListener('change', event => {
+        if (event.target.matches('[data-parent-results-filter]')) renderParentPortalDashboard();
+        if (event.target.matches('[data-parent-detail-child]')) {
+            const selector = document.getElementById('parentChildSelector');
+            if (!selector) return;
+            selector.value = event.target.value;
+            selector.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
+    document.getElementById('parentPortalHome')?.addEventListener('click', event => {
+        const button = event.target.closest('[data-parent-select-child]');
+        if (!button) return;
+        const selector = document.getElementById('parentChildSelector');
+        if (!selector) return;
+        selector.value = button.dataset.parentSelectChild;
+        selector.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
     const dashboardRange = () => {
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -705,19 +1208,135 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(id)?.addEventListener('change', renderDashboardData);
     });
 
+    let activeAccountPermissions = null;
     const findDashboardNavLink = section => Array.from(document.querySelectorAll('.nav-links a')).find(link => {
         const label = link.querySelector('span')?.textContent.trim() || link.textContent.trim();
         return label === section && !link.closest('.account-access-hidden');
     });
+    const parentPortalSectionByCollection = {
+        students: ['academic', 'module:academic:students'],
+        attendance: ['operations', 'module:operations:attendance'],
+        reportCards: ['academic', 'module:academic:reportcards'],
+        assessments: ['elearning', 'module:elearning:assignments'],
+        fees: ['finance', 'module:finance:fees'],
+        notices: ['communication', 'module:communication:noticeboard']
+    };
+    const parentPortalSectionIsGranted = (collection, identity) => {
+        const sectionAccess = parentPortalSectionByCollection[collection];
+        if (!sectionAccess) return true;
+        const sections = Array.isArray(identity?.sections)
+            ? identity.sections
+            : Array.isArray(activeAccountPermissions?.sections)
+                ? activeAccountPermissions.sections
+                : null;
+        if (!sections) return true;
+        const [department, module] = sectionAccess;
+        const normalizedDepartment = value => String(value || '')
+            .trim()
+            .toLowerCase()
+            .replace(/\s+department$/, '')
+            .replace(/[^a-z0-9]+/g, '');
+        return sections.some(grant => grant === module
+            || grant === `department:${department}`
+            || normalizedDepartment(grant) === department);
+    };
+    const canViewParentPortalSection = (collection, identity = window.schoolPortalData?.getIdentity?.()) => {
+        const role = identity?.role || activeAccountPermissions?.role;
+        return String(role || '').toLowerCase() !== 'parent'
+            || parentPortalSectionIsGranted(collection, identity);
+    };
+    const canViewParentPortalCollection = (collection, identity = window.schoolPortalData?.getIdentity?.()) => {
+        const role = identity?.role || activeAccountPermissions?.role;
+        if (isPrivilegedRole(role)) return true;
+        const permissions = identity?.permissions || activeAccountPermissions?.permissions || activeAccountPermissions?.perms || {};
+        return permissions[collection]?.view === true && canViewParentPortalSection(collection, identity);
+    };
     const updateDashboardActionAccess = () => {
+        const identity = window.schoolPortalData?.getIdentity?.();
         document.querySelectorAll('[data-dashboard-nav]').forEach(button => {
             button.hidden = !findDashboardNavLink(button.dataset.dashboardNav);
         });
         document.querySelectorAll('[data-dashboard-open]').forEach(button => {
             button.hidden = !findDashboardNavLink(button.dataset.dashboardOpen);
         });
+        document.querySelectorAll('[data-parent-nav]').forEach(button => {
+            const canView = canViewParentPortalCollection(button.dataset.parentCollection, identity);
+            const isHeaderTab = Boolean(button.closest('.parent-portal-nav'));
+            const isParentSidebarItem = Boolean(button.closest('.parent-sidebar-navigation'));
+            const isParentAccount = String(identity?.role || activeAccountPermissions?.role || '').toLowerCase() === 'parent';
+            button.hidden = isParentSidebarItem
+                ? !isParentAccount || !canView
+                : !canView && !isHeaderTab;
+            if (isHeaderTab) {
+                button.disabled = !canView;
+                button.setAttribute('aria-disabled', String(!canView));
+                button.classList.toggle('access-restricted', !canView);
+                button.title = canView ? '' : 'Access not enabled by your school administrator';
+                let lockIcon = button.querySelector('.parent-nav-lock');
+                if (!canView && !lockIcon) {
+                    lockIcon = document.createElement('i');
+                    lockIcon.className = 'fas fa-lock parent-nav-lock';
+                    lockIcon.setAttribute('aria-hidden', 'true');
+                    button.append(lockIcon);
+                } else if (canView && lockIcon) {
+                    lockIcon.remove();
+                }
+            }
+        });
+        const parentSidebarNavigation = document.querySelector('.parent-sidebar-navigation');
+        if (parentSidebarNavigation) {
+            const hasVisibleParentSections = [...parentSidebarNavigation.querySelectorAll('[data-parent-nav]')]
+                .some(button => !button.hidden);
+            parentSidebarNavigation.hidden = !hasVisibleParentSections;
+        }
+        document.querySelectorAll('#parentPortalHome > .parent-portal-section').forEach(section => {
+            const cards = [...section.querySelectorAll('.parent-portal-card[data-parent-collection]')];
+            section.hidden = !cards.some(card => canViewParentPortalCollection(card.dataset.parentCollection, identity));
+        });
+        document.querySelectorAll('[data-parent-home]').forEach(button => {
+            button.hidden = !['parent', 'schoolAdmin', 'superAdmin', 'director', 'headTeacher']
+                .includes(identity?.role || '');
+        });
     };
     updateDashboardActionAccess();
+    document.addEventListener('click', event => {
+        const detailBackButton = event.target.closest('[data-parent-detail-back]');
+        if (detailBackButton) {
+            activeParentPortalView = '';
+            updateParentPortalNavActive(document.querySelector('.parent-portal-nav [data-parent-home]'));
+            renderParentPortalDashboard();
+            return;
+        }
+        const homeButton = event.target.closest('[data-parent-home]');
+        if (homeButton) {
+            activeParentPortalView = '';
+            updateParentPortalNavActive(homeButton);
+            const role = window.schoolPortalData?.getIdentity()?.role || activeAccountPermissions?.role;
+            if (role === 'parent') document.getElementById('dashboardBtn')?.click();
+            else if (isPrivilegedRole(role)) showParentPortalHome({ preview: true });
+            return;
+        }
+        const actionButton = event.target.closest('[data-parent-nav]');
+        if (!actionButton) return;
+        if (actionButton.disabled || actionButton.getAttribute('aria-disabled') === 'true') return;
+        const parentSidebarAction = actionButton.closest('.parent-sidebar-navigation');
+        if (actionButton.closest('#parentPortalHome') || parentSidebarAction) {
+            if (parentSidebarAction) {
+                event.preventDefault();
+                if (window.matchMedia('(max-width: 768px)').matches) setMobileSidebarOpen(false);
+                hideAllContentAreas();
+                document.getElementById('parentPortalHome')?.classList.remove('hidden');
+            }
+            activeParentPortalView = actionButton.dataset.parentNav;
+            const activeButton = [...document.querySelectorAll('.parent-portal-nav [data-parent-nav]')]
+                .find(button => button.dataset.parentNav === activeParentPortalView);
+            updateParentPortalNavActive(activeButton || actionButton);
+            renderParentPortalDashboard();
+            return;
+        }
+        const link = findDashboardNavLink(actionButton.dataset.parentNav);
+        if (link) link.click();
+    });
     document.addEventListener('click', event => {
         const actionButton = event.target.closest('[data-dashboard-nav]');
         if (!actionButton) return;
@@ -923,6 +1542,46 @@ document.addEventListener('DOMContentLoaded', () => {
         const identity = api?.getIdentity();
         if (!api || !identity) return;
         const identityKey = `${identity.schoolId}:${identity.uid}`;
+        if (String(userData.role || '').toLowerCase() === 'parent') {
+            if (dashboardIdentityKey === `${identityKey}:parent-portal`) return;
+            dashboardSubscriptions.forEach(unsubscribe => unsubscribe());
+            dashboardSubscriptions = [];
+            dashboardIdentityKey = `${identityKey}:parent-portal`;
+            parentPortalIdentityKey = identityKey;
+            dashboardSubscribedCollections = new Set();
+            dashboardLastUpdated = null;
+            dashboardCollections.forEach(collection => {
+                dashboardData[collection] = { loaded: false, records: [], error: false };
+            });
+            parentPortalCollections.forEach(collection => {
+                parentPortalData[collection] = { loaded: false, records: [], error: false };
+            });
+            const permissions = identity.permissions || userData.permissions || {};
+            const permittedCollections = parentPortalCollections.filter(collection =>
+                permissions[collection]?.view === true
+            );
+            const subscriptions = permittedCollections.map(async collection => {
+                const unsubscribe = await api.subscribe(collection, records => {
+                    parentPortalData[collection] = { loaded: true, records, error: false };
+                    renderParentPortalDashboard();
+                });
+                if (dashboardIdentityKey === `${identityKey}:parent-portal`) {
+                    dashboardSubscriptions.push(unsubscribe);
+                } else {
+                    unsubscribe();
+                }
+            });
+            const results = await Promise.allSettled(subscriptions);
+            results.forEach((result, index) => {
+                if (result.status === 'rejected') {
+                    const collection = permittedCollections[index];
+                    parentPortalData[collection] = { loaded: false, records: [], error: true };
+                    console.error(`Unable to load parent portal ${collection} records.`, result.reason);
+                }
+            });
+            renderParentPortalDashboard();
+            return;
+        }
         if (dashboardIdentityKey === identityKey && dashboardSubscriptions.length) return;
         dashboardSubscriptions.forEach(unsubscribe => unsubscribe());
         dashboardSubscriptions = [];
@@ -963,6 +1622,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('school-portal-sync-error', event => {
         const collection = event.detail?.collection;
+        if (parentPortalIdentityKey && parentPortalCollections.includes(collection)) {
+            parentPortalData[collection] = { ...parentPortalData[collection], error: true };
+            renderParentPortalDashboard();
+        }
         if (!navigator.onLine || !dashboardCollections.includes(collection)) return;
         dashboardData[collection] = { loaded: false, records: [], error: true };
         renderDashboardData();
@@ -976,15 +1639,21 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('school-portal-sync-status', renderDashboardData);
 
     window.addEventListener('school-portal-identity-cleared', () => {
+        document.documentElement.classList.remove('parent-portal-active');
         dashboardSubscriptions.forEach(unsubscribe => unsubscribe());
         dashboardSubscriptions = [];
         dashboardIdentityKey = '';
+        parentPortalIdentityKey = '';
         dashboardSubscribedCollections = new Set();
         dashboardLastUpdated = null;
         dashboardCollections.forEach(collection => {
             dashboardData[collection] = { loaded: false, records: [], error: false };
         });
+        parentPortalCollections.forEach(collection => {
+            parentPortalData[collection] = { loaded: false, records: [], error: false };
+        });
         renderDashboardData();
+        renderParentPortalDashboard();
     });
 
     const sidebarSearchInput = document.querySelector('.topbar-search input');
@@ -1039,35 +1708,132 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function applyAccountSectionAccess(userData) {
-        const normalizeSectionKey = value => String(value || '')
+    const normalizeSectionKey = value => String(value || '')
             .trim()
             .toLowerCase()
             .replace(/\s+department$/, '')
             .replace(/[^a-z0-9]+/g, '');
-        const allowedSections = new Set((Array.isArray(userData.sections) ? userData.sections : [])
-            .map(normalizeSectionKey));
+    const sectionDepartmentKey = title =>
+        `department:${normalizeSectionKey(title.dataset.accessSection || title.innerText.trim())}`;
+    const sectionModuleKey = (title, link) => {
+        const label = link.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.textContent || link.textContent;
+        return `module:${normalizeSectionKey(title.dataset.accessSection || title.innerText.trim())}:${normalizeSectionKey(link.dataset.menuId || label)}`;
+    };
+    const parentRecommendedSectionGrants = [
+        'module:academic:students',
+        'module:academic:reportcards',
+        'module:operations:attendance',
+        'module:elearning:assignments',
+        'module:communication:noticeboard',
+        'module:finance:fees'
+    ];
+    const sectionGrantSet = userData => {
+        const sections = Array.isArray(userData.sections) ? userData.sections : [];
+        if (Array.isArray(userData.sections) || String(userData.role || '').toLowerCase() !== 'parent') return new Set(sections);
+        return new Set(parentRecommendedSectionGrants);
+    };
+    const isSectionGranted = (grants, title, link = null) => {
+        const departmentKey = sectionDepartmentKey(title);
+        const legacyDepartmentGrant = [...grants].some(grant => normalizeSectionKey(grant) === normalizeSectionKey(title.dataset.accessSection || title.innerText.trim()));
+        return grants.has(departmentKey)
+            || legacyDepartmentGrant
+            || Boolean(link && grants.has(sectionModuleKey(title, link)));
+    };
+
+    function applyAccountSectionAccess(userData) {
+        activeAccountPermissions = userData;
+        const grants = sectionGrantSet(userData);
         const unrestrictedRole = isPrivilegedRole(userData.role);
         const canView = unrestrictedRole || userData.perms?.view !== false;
+        const isParentAccount = String(userData.role || '').toLowerCase() === 'parent';
+        document.documentElement.classList.toggle('parent-portal-active', isParentAccount);
+        const dashboardLink = document.getElementById('dashboardBtn');
+        const dashboardHeading = dashboardLink?.closest('.nav-links')?.previousElementSibling;
+        if (dashboardLink && dashboardHeading) {
+            dashboardHeading.dataset.defaultLabel ||= Array.from(dashboardHeading.childNodes)
+                .find(node => node.nodeType === Node.TEXT_NODE)?.textContent.trim() || 'Main';
+            dashboardLink.dataset.defaultLabel ||= dashboardLink.querySelector('span')?.textContent.trim() || 'Dashboard';
+            const headingText = Array.from(dashboardHeading.childNodes).find(node => node.nodeType === Node.TEXT_NODE);
+            if (headingText) headingText.textContent = ` ${isParentAccount ? 'Parent Portal' : dashboardHeading.dataset.defaultLabel}`;
+            const dashboardLabel = dashboardLink.querySelector('span');
+            if (dashboardLabel) dashboardLabel.textContent = isParentAccount ? 'Home' : dashboardLink.dataset.defaultLabel;
+        }
         document.querySelectorAll('.sidebar > .menu-title').forEach(title => {
             const group = title.nextElementSibling;
             if (!group?.classList.contains('nav-links')) return;
-            const sectionName = title.dataset.accessSection || title.innerText.trim();
-            const canShow = canView && (unrestrictedRole || allowedSections.has(normalizeSectionKey(sectionName)));
-            title.classList.toggle('account-access-hidden', !canShow);
-            group.classList.toggle('account-access-hidden', !canShow);
+            const departmentAllowed = unrestrictedRole || grants.has(sectionDepartmentKey(title))
+                || [...grants].some(grant => normalizeSectionKey(grant) === normalizeSectionKey(title.dataset.accessSection || title.innerText.trim()));
+            let visibleLinks = 0;
+            group.querySelectorAll(':scope > li').forEach(item => {
+                const link = item.querySelector('a');
+                if (!link) return;
+                const isParentHomeLink = String(userData.role || '').toLowerCase() === 'parent'
+                    && link.id === 'dashboardBtn';
+                const adminOnlyPortalLink = link.dataset.portalAdminOnly === 'true' && unrestrictedRole;
+                const canShow = canView && (isParentHomeLink || adminOnlyPortalLink
+                    || (link.dataset.portalAdminOnly !== 'true'
+                        && (unrestrictedRole || departmentAllowed || isSectionGranted(grants, title, link))));
+                item.classList.toggle('account-access-hidden', !canShow);
+                if (canShow) visibleLinks += 1;
+            });
+            const canShowGroup = canView && (unrestrictedRole || visibleLinks > 0);
+            title.classList.toggle('account-access-hidden', !canShowGroup);
+            group.classList.toggle('account-access-hidden', !canShowGroup);
         });
         updateNavigationSearch();
         updateDashboardActionAccess();
     }
 
+    const collectionForNavigationLabel = new Map([
+        ['students', 'students'], ['children', 'students'], ['teachers', 'teachers'], ['staff directory', 'staffDirectory'],
+        ['curriculum', 'curriculum'], ['streams', 'streams'], ['subjects', 'subjects'], ['timetables', 'timetables'],
+        ['assignments', 'assessments'], ['study materials', 'studyMaterials'], ['online quizzes', 'quizzes'],
+        ['attendance', 'attendance'], ['health/infirmary', 'healthRecords'], ['boarding', 'boardingRecords'],
+        ['transport', 'transportRoutes'], ['inventory', 'inventory'], ['discipline case', 'disciplineCases'],
+        ['clubs & societies', 'clubs'], ['sports & activities', 'sportsActivities'], ['counseling', 'counseling'],
+        ['report cards', 'reportCards'], ['analytics', 'learningAnalytics'], ['certificates', 'certificates'],
+        ['staff attendance', 'staffAttendance'], ['leave management', 'leaveRequests'], ['recruitment', 'recruitment'],
+        ['run payroll', 'payroll'], ['pay slips', 'paySlips'], ['statutory returns', 'statutoryReturns'],
+        ['payroll reports', 'payrollReports'], ['fees', 'fees'], ['expenses', 'expenses'],
+        ['closed pos', 'purchaseOrders'], ['fee invoices', 'feeInvoices'], ['purchase request', 'purchaseRequests'],
+        ['quotations', 'quotations'], ['purchase comparisons', 'purchaseComparisons'], ['purchase orders', 'purchaseOrders'],
+        ['goods receipt', 'goodsReceipts'], ['supplier invoices', 'supplierInvoices'], ['suppliers', 'suppliers'],
+        ['fixed assets', 'assets'], ['maintenance', 'maintenanceWorkOrders'], ['visitor logs', 'visitorLogs'],
+        ['parents', 'parents'], ['sms alerts', 'smsAlerts'], ['notice board', 'notices'], ['notices', 'notices'],
+        ['enquiries', 'enquiries'], ['visitors', 'visitors'], ['appointments', 'appointments'],
+        ['call logs', 'callLogs'], ['documents', 'schoolDocuments'], ['user roles', 'members'],
+        ['audit logs', 'auditEvents'], ['library', 'libraryBooks'], ['library books', 'libraryBooks'],
+        ['library loans', 'libraryLoans']
+    ]);
+    const mutationActionPattern = /\b(add|new|create|edit|delete|remove|save|submit|update|send|issue|record|mark|approve|reject|pay|post|invite|upload|import)\b/i;
+    let activeNavigationCollection = '';
+    const updateVisibleModuleActions = () => {
+        const role = activeAccountPermissions?.role;
+        const unrestrictedRole = isPrivilegedRole(role);
+        const canEdit = unrestrictedRole || activeAccountPermissions?.permissions?.[activeNavigationCollection]?.edit === true
+            || activeAccountPermissions?.perms?.edit === true;
+        document.querySelectorAll('.main button, #addStudentBtn').forEach(button => {
+            const label = [
+                button.textContent,
+                button.getAttribute('aria-label'),
+                button.getAttribute('title'),
+                button.dataset.action
+            ].filter(Boolean).join(' ');
+            button.classList.toggle('account-action-hidden',
+                Boolean(role && !canEdit && mutationActionPattern.test(label)));
+        });
+    };
+    const navigationActionObserver = new MutationObserver(updateVisibleModuleActions);
+    navigationActionObserver.observe(document.querySelector('.main') || document.body, { childList: true, subtree: true });
+    document.addEventListener('click', event => {
+        const restrictedAction = event.target.closest('.account-action-hidden');
+        if (restrictedAction) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }
+    }, true);
+
     const mobileNavPresets = {
-        parent: [
-            ['Dashboard', 'Home', 'fa-house'],
-            ['Students', 'Children', 'fa-child'],
-            ['Attendance', 'Attendance', 'fa-calendar-check'],
-            ['Notice Board', 'Notices', 'fa-bullhorn']
-        ],
         student: [
             ['Dashboard', 'Home', 'fa-house'],
             ['Timetables', 'Timetable', 'fa-calendar-days'],
@@ -1090,15 +1856,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateMobileRoleNavActive(activeLink) {
         const nav = document.getElementById('mobileRoleNav');
-        if (!nav) return;
         const activeKey = activeLink
             ? `${activeLink.id || activeLink.dataset.menuId || ''}::${activeLink.innerText.trim().toLowerCase()}`
             : '';
-        nav.querySelectorAll('[data-mobile-nav-key]').forEach(button => {
+        nav?.querySelectorAll('[data-mobile-nav-key]').forEach(button => {
             const active = button.dataset.mobileNavKey === activeKey;
             button.classList.toggle('active', active);
             if (active) button.setAttribute('aria-current', 'page');
             else button.removeAttribute('aria-current');
+        });
+        const parentHomeActive = activeLink?.id === 'dashboardBtn'
+            && String(activeAccountPermissions?.role || '').toLowerCase() === 'parent'
+            || activeLink?.id === 'parentPortalPreviewBtn';
+        const activeParentNav = parentHomeActive
+            ? document.querySelector('.parent-portal-nav [data-parent-home]')
+            : [...document.querySelectorAll('.parent-portal-nav [data-parent-nav]')].find(button =>
+                activeLink && button.dataset.parentNav.toLowerCase()
+                    === (activeLink.querySelector('span')?.textContent.trim() || activeLink.textContent.trim()).toLowerCase()
+            );
+        updateParentPortalNavActive(activeParentNav);
+    }
+
+    function updateParentPortalNavActive(activeButton) {
+        document.querySelectorAll('.parent-portal-nav button, .parent-sidebar-navigation [data-parent-nav]').forEach(button => {
+            const active = button === activeButton;
+            button.classList.toggle('active', active);
+            if (active) button.setAttribute('aria-current', 'page');
+            else button.removeAttribute('aria-current');
+        });
+        if (activeButton?.hasAttribute('data-parent-home')) {
+            const dashboardLink = document.getElementById('dashboardBtn');
+            dashboardLink?.classList.add('active');
+            dashboardLink?.setAttribute('aria-current', 'page');
+        } else if (activeButton?.dataset.parentNav) {
+            const dashboardLink = document.getElementById('dashboardBtn');
+            dashboardLink?.classList.remove('active');
+            dashboardLink?.removeAttribute('aria-current');
+        }
+        const activeKey = activeButton?.dataset.parentNav || (activeButton?.hasAttribute('data-parent-home') ? 'Home' : '');
+        document.querySelectorAll('#mobileRoleNav [data-mobile-parent-nav]').forEach(button => {
+                const active = button.dataset.mobileParentNav === activeKey;
+                button.classList.toggle('active', active);
+                if (active) button.setAttribute('aria-current', 'page');
+                else button.removeAttribute('aria-current');
         });
     }
 
@@ -1106,20 +1906,54 @@ document.addEventListener('DOMContentLoaded', () => {
         const nav = document.getElementById('mobileRoleNav');
         if (!nav) return;
         const role = String(userData.role || '').toLowerCase().replace(/[\s_-]+/g, '');
-        const preset = role.includes('parent') ? mobileNavPresets.parent
-            : role.includes('student') ? mobileNavPresets.student
+        if (role.includes('parent')) {
+                const parentNavButtons = [...document.querySelectorAll('.parent-portal-nav button')];
+                nav.replaceChildren();
+                nav.classList.add('mobile-role-nav-parent');
+                parentNavButtons.forEach(parentNavButton => {
+                    const button = document.createElement('button');
+                    const label = parentNavButton.querySelector('span')?.textContent.trim() || parentNavButton.textContent.trim();
+                    const icon = parentNavButton.querySelector('i:not(.parent-nav-lock)')?.cloneNode(true);
+                    button.type = 'button';
+                    button.className = 'mobile-role-nav-item';
+                    button.dataset.mobileParentNav = parentNavButton.dataset.parentNav || 'Home';
+                    button.disabled = parentNavButton.disabled;
+                    button.title = parentNavButton.title;
+                    button.setAttribute('aria-label', label);
+                    button.setAttribute('aria-disabled', String(button.disabled));
+                    if (icon) button.append(icon);
+                    const text = document.createElement('span');
+                    text.textContent = label;
+                    button.append(text);
+                    button.addEventListener('click', () => parentNavButton.click());
+                    nav.append(button);
+                });
+                nav.hidden = parentNavButtons.length === 0;
+                updateParentPortalNavActive(
+                    parentNavButtons.find(button => button.classList.contains('active'))
+                        || parentNavButtons.find(button => button.hasAttribute('data-parent-home'))
+                );
+                return;
+        }
+        nav.classList.remove('mobile-role-nav-parent');
+        const preset = role.includes('student') ? mobileNavPresets.student
                 : role.includes('teacher') ? mobileNavPresets.teacher
                     : mobileNavPresets.default;
-        const sidebarLinks = [...document.querySelectorAll('.nav-links a')];
+        const sidebarLinks = [...document.querySelectorAll('.nav-links a:not(.parent-sidebar-link)')];
         const visibleLinkFor = label => sidebarLinks.find(link => {
-            const linkLabel = (link.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.textContent || link.textContent).trim();
-            return linkLabel.toLowerCase() === label.toLowerCase()
+                const linkLabel = (link.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.textContent || link.textContent).trim();
+                return linkLabel.toLowerCase() === label.toLowerCase()
                 && !link.closest('.account-access-hidden')
                 && !link.closest('[hidden]')
                 && !link.closest('.nav-links')?.classList.contains('account-access-hidden');
         });
         const items = preset.map(([target, label, icon]) => {
-            const link = visibleLinkFor(target);
+            const link = target === 'Dashboard'
+                ? sidebarLinks.find(item => (item.id === 'dashboardBtn' || item.dataset.menuId === 'dashboard')
+                    && !item.closest('.account-access-hidden')
+                    && !item.closest('[hidden]')
+                    && !item.closest('.nav-links')?.classList.contains('account-access-hidden'))
+                : visibleLinkFor(target);
             return link ? { link, label, icon } : null;
         }).filter(Boolean);
         if (!items.length) {
@@ -1143,13 +1977,15 @@ document.addEventListener('DOMContentLoaded', () => {
             nav.append(button);
         });
 
-        const more = document.createElement('button');
-        more.type = 'button';
-        more.className = 'mobile-role-nav-item';
-        more.innerHTML = '<i class="fas fa-ellipsis" aria-hidden="true"></i><span>More</span>';
-        more.setAttribute('aria-label', 'Open all sections');
-        more.addEventListener('click', () => setMobileSidebarOpen(true));
-        nav.append(more);
+        if (!role.includes('parent')) {
+            const more = document.createElement('button');
+            more.type = 'button';
+            more.className = 'mobile-role-nav-item';
+            more.innerHTML = '<i class="fas fa-ellipsis" aria-hidden="true"></i><span>More</span>';
+            more.setAttribute('aria-label', 'Open all sections');
+            more.addEventListener('click', () => setMobileSidebarOpen(true));
+            nav.append(more);
+        }
         nav.hidden = false;
         updateMobileRoleNavActive(sidebarLinks.find(link => link.classList.contains('active')));
     }
@@ -1341,8 +2177,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (profileRoleEl) profileRoleEl.textContent = userData.role || 'Administrator';
         if (profilePhotoEl) profilePhotoEl.src = userData.photo || userData.photoURL || 'https://i.pravatar.cc/100?img=12';
 
-        showDashboard({ persist: false });
-        restoreSavedSection();
+        const grants = sectionGrantSet(userData);
+        const dashboardLink = document.getElementById('dashboardBtn');
+        const dashboardTitle = dashboardLink?.closest('.nav-links')?.previousElementSibling;
+        const dashboardAllowed = isPrivilegedRole(userData.role)
+            || (dashboardTitle && dashboardLink && isSectionGranted(grants, dashboardTitle, dashboardLink));
+        if (String(userData.role || '').toLowerCase() === 'parent') {
+            showParentPortalHome({ persist: false });
+        } else if (dashboardAllowed) {
+            showDashboard({ persist: false });
+            restoreSavedSection();
+        } else {
+            const firstAllowedLink = Array.from(document.querySelectorAll('.nav-links a')).find(link =>
+                !link.closest('.account-access-hidden')
+                && !link.closest('[hidden]')
+                && !link.closest('.nav-links')?.classList.contains('account-access-hidden')
+            );
+            if (firstAllowedLink) firstAllowedLink.click();
+            else {
+                showSection('accountNoSectionAccess');
+                setApplicationPage('Access Not Assigned');
+                updateBreadcrumb(['Account', 'Access']);
+            }
+        }
         handleNotificationRoute();
         void startDashboardData(userData);
     };
@@ -2132,6 +2989,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const count = level => entries.filter(access => access?.[level] === true).length;
         return `${count('view')} view · ${count('edit')} edit · ${count('delete')} delete`;
     };
+    const formatSectionGrants = sections => (sections || []).map(grant => {
+        const parts = String(grant).split(':');
+        if (parts[0] === 'department') {
+            const title = Array.from(document.querySelectorAll('.sidebar > .menu-title'))
+                .find(item => sectionDepartmentKey(item) === grant);
+            return title?.innerText.trim() || parts[1];
+        }
+        if (parts[0] === 'module' && parts.length === 3) {
+            const title = Array.from(document.querySelectorAll('.sidebar > .menu-title'))
+                .find(item => normalizeSectionKey(item.dataset.accessSection || item.innerText.trim()) === parts[1]);
+            const link = title?.nextElementSibling?.querySelectorAll('a');
+            const module = Array.from(link || []).find(item => sectionModuleKey(title, item) === grant);
+            return module ? `${title.innerText.trim()} · ${(module.querySelector('span')?.textContent || module.textContent).trim()}` : `${parts[1]} · ${parts[2]}`;
+        }
+        return String(grant).replace(/\s+Department$/, '');
+    }).join(', ');
 
     const showUserRolesAddButton = () => {
         userRolesSection?.querySelectorAll('button').forEach(button => {
@@ -2222,6 +3095,28 @@ document.addEventListener('DOMContentLoaded', () => {
         hideAllContentAreas();
         const el = document.getElementById(sectionId);
         if (el) el.classList.remove('hidden');
+    }
+
+    function showParentPortalHome({ persist = true, preview = false } = {}) {
+        activeParentPortalView = '';
+        hideAllContentAreas();
+        document.getElementById('parentPortalHome')?.classList.remove('hidden');
+        updateParentPortalNavActive(document.querySelector('.parent-portal-nav [data-parent-home]'));
+        document.getElementById('parentPortalHome')?.classList.toggle('parent-portal-preview', preview);
+        const accountName = activeAccountPermissions?.fullName || activeAccountPermissions?.adminUser || 'there';
+        const welcome = document.getElementById('parentPortalWelcome');
+        if (welcome) welcome.textContent = preview
+            ? `Previewing the Parent Portal as ${accountName}.`
+            : `Welcome, ${accountName}.`;
+        renderParentPortalDashboard();
+        const privacyNotice = document.getElementById('parentPortalPrivacyText');
+        if (privacyNotice) privacyNotice.textContent = preview
+            ? 'Preview mode shows the parent-facing layout. Real child records are available only to a parent account linked to those students.'
+            : 'This portal shows child-related records linked to your account. School-wide totals and staff dashboards are not shown here.';
+        if (preview) setApplicationPage('Parent Portal Preview');
+        setApplicationPage(preview ? 'Parent Portal Preview' : 'Parent Home');
+        updateBreadcrumb(preview ? ['Portals', 'Parent Portal Preview'] : ['Parent Portal', 'Home']);
+        if (persist) persistDashboardSection();
     }
 
     function showDashboard({ persist = true } = {}){
@@ -3320,7 +4215,10 @@ document.addEventListener('DOMContentLoaded', () => {
         Librarian: { sections: ['Main', 'Academic Department', 'E-Learning Department', 'Student Life Department'], perms: { view: true, edit: true, delete: false } },
         'HR Officer': { sections: ['Main', 'Human Resources Department', 'Payroll Department'], perms: { view: true, edit: true, delete: false } },
         'Store Manager': { sections: ['Main', 'Operations Department', 'Procurement Department', 'Assets & Security Department'], perms: { view: true, edit: true, delete: false } },
-        Parent: { sections: ['Main', 'Student Life Department', 'Communication Department'], perms: { view: true, edit: false, delete: false } },
+        Parent: {
+            sections: parentRecommendedSectionGrants,
+            perms: { view: true, edit: false, delete: false }
+        },
         Student: { sections: ['Main', 'Academic Department', 'E-Learning Department', 'Student Life Department', 'Communication Department'], perms: { view: true, edit: false, delete: false } }
     };
 
@@ -3346,9 +4244,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const preset = rolePresets[role] || rolePresets.Teacher;
         const sectionCheckboxes = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]'));
+        const selectedSections = new Set(preset.sections || []);
         sectionCheckboxes.forEach(checkbox => {
-            checkbox.checked = preset.sections === null || preset.sections.includes(checkbox.value);
-            checkbox.dispatchEvent(new Event('change'));
+            const department = checkbox.dataset.sectionDepartment;
+            const legacyDepartmentMatch = department && preset.sections?.some(section =>
+                normalizeSectionKey(section) === normalizeSectionKey(checkbox.dataset.departmentLabel || '')
+            );
+            checkbox.checked = preset.sections === null
+                || selectedSections.has(checkbox.value)
+                || Boolean(legacyDepartmentMatch);
+            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
         });
         const selectAllSections = sectionsContainerEl.querySelector('#selectAllSections');
         if (selectAllSections) selectAllSections.checked = sectionCheckboxes.length > 0 && sectionCheckboxes.every(checkbox => checkbox.checked);
@@ -3367,91 +4272,124 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!sectionsContainerEl) return;
         sectionsContainerEl.innerHTML = '';
 
-        const syncCard = (cb, lbl) => {
-            lbl.style.borderColor = cb.checked ? 'var(--primary)' : '#e2e8f0';
-            lbl.style.backgroundColor = cb.checked ? 'rgba(79, 70, 229, 0.04)' : '#ffffff';
+        const grantsContainer = document.createElement('div');
+        grantsContainer.className = 'section-access-grants';
+        const groups = Array.from(document.querySelectorAll('.sidebar > .menu-title')).map(title => {
+            const nav = title.nextElementSibling;
+            if (!nav?.classList.contains('nav-links')) return null;
+            const name = title.dataset.accessSection || title.innerText.trim();
+            const links = Array.from(nav.querySelectorAll(':scope > li:not([hidden]) > a:not([data-portal-admin-only])')).map(link => ({
+                link,
+                label: (link.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.textContent || link.textContent).trim()
+            })).filter(item => item.label);
+            return links.length ? { title, name, links } : null;
+        }).filter(Boolean);
+
+        const selectAllLabel = document.createElement('label');
+        selectAllLabel.className = 'section-access-select-all';
+        const selectAll = document.createElement('input');
+        selectAll.type = 'checkbox';
+        selectAll.id = 'selectAllSections';
+        selectAllLabel.append(selectAll, document.createTextNode(' Select all departments and modules'));
+        const selectionSummary = document.createElement('span');
+        selectionSummary.id = 'sectionAccessSummary';
+        selectionSummary.className = 'section-access-summary';
+        selectionSummary.setAttribute('aria-live', 'polite');
+        const sectionToolbar = document.createElement('div');
+        sectionToolbar.className = 'section-access-toolbar';
+        sectionToolbar.append(selectAllLabel, selectionSummary);
+        const sectionHeading = document.createElement('div');
+        sectionHeading.className = 'section-access-heading';
+        sectionHeading.innerHTML = '<div><h4>Portal navigation access</h4><p>Choose which areas this account can open. These settings do not replace record-level data permissions.</p></div>';
+        sectionsContainerEl.append(sectionHeading, sectionToolbar);
+        const accessHelp = document.createElement('p');
+        accessHelp.className = 'section-access-help';
+        accessHelp.textContent = 'Select a department to grant all its modules, or expand your selection by choosing individual modules.';
+        accessHelp.dataset.defaultHelp = accessHelp.textContent;
+        sectionsContainerEl.appendChild(accessHelp);
+
+        groups.forEach(({ title, name, links }, groupIndex) => {
+            const departmentKey = sectionDepartmentKey(title);
+            const groupCard = document.createElement('fieldset');
+            groupCard.className = 'section-access-group';
+            const legend = document.createElement('legend');
+            const departmentLabel = document.createElement('label');
+            departmentLabel.className = 'section-access-department';
+            const departmentCheckbox = document.createElement('input');
+            departmentCheckbox.type = 'checkbox';
+            departmentCheckbox.value = departmentKey;
+            departmentCheckbox.dataset.sectionGrant = 'department';
+            departmentCheckbox.dataset.sectionDepartment = departmentKey;
+            departmentCheckbox.dataset.departmentLabel = name;
+            departmentCheckbox.id = `section_department_${groupIndex}`;
+            departmentLabel.append(departmentCheckbox, document.createTextNode(` ${name} (all modules)`));
+            legend.append(departmentLabel);
+            groupCard.append(legend);
+
+            const modules = document.createElement('div');
+            modules.className = 'section-access-modules';
+            links.forEach(({ link, label }, linkIndex) => {
+                const moduleLabel = document.createElement('label');
+                moduleLabel.className = 'section-access-module';
+                const moduleCheckbox = document.createElement('input');
+                moduleCheckbox.type = 'checkbox';
+                moduleCheckbox.value = sectionModuleKey(title, link);
+                moduleCheckbox.dataset.sectionGrant = 'module';
+                moduleCheckbox.dataset.sectionDepartment = departmentKey;
+                moduleCheckbox.dataset.departmentLabel = name;
+                moduleCheckbox.id = `section_module_${groupIndex}_${linkIndex}`;
+                const icon = link.querySelector('i')?.cloneNode(true);
+                moduleLabel.append(moduleCheckbox);
+                if (icon) moduleLabel.append(icon);
+                moduleLabel.append(document.createTextNode(` ${label}`));
+                modules.appendChild(moduleLabel);
+            });
+            const moduleCount = document.createElement('span');
+            moduleCount.className = 'section-access-module-count';
+            moduleCount.textContent = `${links.length} ${links.length === 1 ? 'module' : 'modules'}`;
+            legend.appendChild(moduleCount);
+            groupCard.appendChild(modules);
+
+            departmentCheckbox.addEventListener('change', () => {
+                modules.querySelectorAll('input[data-section-grant="module"]').forEach(checkbox => {
+                    checkbox.checked = departmentCheckbox.checked;
+                });
+                updateSelectAll();
+            });
+            modules.addEventListener('change', event => {
+                if (event.target.matches('input[data-section-grant="module"]')) {
+                    const moduleCheckboxes = Array.from(modules.querySelectorAll('input[data-section-grant="module"]'));
+                    departmentCheckbox.checked = moduleCheckboxes.every(checkbox => checkbox.checked);
+                    updateSelectAll();
+                }
+            });
+            grantsContainer.appendChild(groupCard);
+        });
+        sectionsContainerEl.appendChild(grantsContainer);
+
+        function updateSelectAll() {
+            const moduleCheckboxes = Array.from(grantsContainer.querySelectorAll('input[data-section-grant="module"]'));
+            const selectedCount = moduleCheckboxes.filter(checkbox => checkbox.checked).length;
+            selectAll.checked = moduleCheckboxes.length > 0 && selectedCount === moduleCheckboxes.length;
+            selectAll.indeterminate = selectedCount > 0 && !selectAll.checked;
+            selectionSummary.textContent = `${selectedCount} of ${moduleCheckboxes.length} modules selected`;
+        }
+
+        selectAll.addEventListener('change', () => {
+            grantsContainer.querySelectorAll('input[data-section-grant]').forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+            });
+            updateSelectAll();
+        });
+
+        const updateRoleHelp = () => {
+            accessHelp.textContent = roleSelectEl.value === 'Parent'
+                ? 'Selected sections control the parent portal navigation; each section also requires matching record-level view access. Recommended: linked children, attendance, report cards, assignments, fees, and school notices.'
+                : accessHelp.dataset.defaultHelp;
         };
-
-        // Extract unique section names and their corresponding icons from the sidebar
-        const menuTitles = Array.from(document.querySelectorAll('.menu-title'));
-        const uniqueSections = [];
-        const seenNames = new Set();
-
-        menuTitles.forEach(titleEl => {
-            const name = titleEl.dataset.accessSection || titleEl.innerText.trim();
-            const label = titleEl.innerText.trim();
-            if (name && !seenNames.has(name)) {
-                seenNames.add(name);
-                const iconHtml = titleEl.querySelector('i')?.outerHTML || '';
-                uniqueSections.push({ name, label, icon: iconHtml });
-            }
-        });
-
-        // Add "Select All" checkbox for sections
-        const selectAllDiv = document.createElement('div');
-        Object.assign(selectAllDiv.style, {
-            marginBottom: '12px',
-            padding: '6px 12px',
-            background: 'var(--pill-bg)',
-            borderRadius: '8px',
-            width: 'fit-content'
-        });
-        selectAllDiv.innerHTML = `
-            <label style="display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
-                <span class="switch">
-                    <input type="checkbox" id="selectAllSections">
-                    <span class="slider"></span>
-                </span>
-                <span>Select All Sections</span>
-            </label>`;
-        sectionsContainerEl.appendChild(selectAllDiv);
-
-        // Arrange Sections in a 6-column grid
-        const grid = document.createElement('div');
-        Object.assign(grid.style, {
-            display: 'grid',
-            gridTemplateColumns: 'repeat(6, 1fr)',
-            gap: '10px',
-            marginBottom: '25px'
-        });
-
-        selectAllDiv.querySelector('#selectAllSections').addEventListener('change', (e) => {
-            grid.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                cb.checked = e.target.checked;
-                syncCard(cb, cb.closest('label'));
-            });
-        });
-
-        uniqueSections.forEach(item => {
-            const id = 'sec_' + item.name.replace(/\s+/g, '_');
-            const label = document.createElement('label');
-            Object.assign(label.style, {
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontSize: '11px',
-                cursor: 'pointer',
-                background: '#ffffff',
-                padding: '8px 10px',
-                borderRadius: '8px',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                overflow: 'hidden',
-                transition: 'all 0.25s ease'
-            });
-            label.innerHTML = `
-                <span class="switch" style="flex-shrink: 0; transform: scale(0.85); transform-origin: left center;">
-                    <input type="checkbox" value="${item.name}" id="${id}">
-                    <span class="slider"></span>
-                </span>
-                <span style="color: var(--primary); font-size: 14px; width: 18px; text-align: center; flex-shrink: 0;">${item.icon}</span>
-                <span title="${item.label}" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.label}</span>`;
-            const cb = label.querySelector('input');
-            cb.addEventListener('change', () => syncCard(cb, label));
-            syncCard(cb, label);
-            grid.appendChild(label);
-        });
-        sectionsContainerEl.appendChild(grid);
+        roleSelectEl.addEventListener('change', updateRoleHelp);
+        updateRoleHelp();
+        updateSelectAll();
 
         // Ensure Sections and Permissions stack vertically
         const parentRow = sectionsContainerEl.closest('.form-row');
@@ -3517,7 +4455,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${escapeUserHTML(u.role)}</td>
                 <td>${escapeUserHTML(u.linkedRecordId || '—')}</td>
                 <td>${escapeUserHTML([u.email, u.phone].filter(Boolean).join(' · ') || '—')}<small class="user-notification-summary">Notices: ${escapeUserHTML(channels)}</small></td>
-                <td>${isAdministrator ? 'All sections' : escapeUserHTML((u.sections || []).join(', ') || 'None assigned')}</td>
+                <td>${isAdministrator ? 'All sections' : escapeUserHTML(formatSectionGrants(u.sections) || 'None assigned')}</td>
                 <td>${isAdministrator ? 'All classes' : escapeUserHTML((u.assignedClassIds || []).join(', ') || (['teacher', 'deputyHeadTeacher'].includes(u.role) ? 'None assigned' : 'Not applicable'))}</td>
                 <td class="small">${isAdministrator ? 'Full school access' : escapeUserHTML(permissionSummary(u.permissions))}</td>
                 <td>
@@ -3726,9 +4664,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // sections
             const sectionCheckboxes = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]'));
+            const savedSectionGrants = sectionGrantSet(u);
             sectionCheckboxes.forEach(ch => {
-                ch.checked = u.sections?.includes(ch.value) || false;
-                ch.dispatchEvent(new Event('change'));
+                const hasDepartmentGrant = savedSectionGrants.has(ch.dataset.sectionDepartment)
+                    || [...savedSectionGrants].some(grant => normalizeSectionKey(grant) === normalizeSectionKey(ch.dataset.departmentLabel || ''));
+                ch.checked = savedSectionGrants.has(ch.value) || Boolean(hasDepartmentGrant);
+                ch.dispatchEvent(new Event('change', { bubbles: true }));
             });
             const selectAllSections = sectionsContainerEl.querySelector('#selectAllSections');
             if (selectAllSections) selectAllSections.checked = sectionCheckboxes.length > 0 && sectionCheckboxes.every(section => section.checked);
@@ -4536,7 +5477,7 @@ Total Amount: $4,820.00
         return sec;
     }
 
-    const navLinks = document.querySelectorAll('.nav-links a');
+    const navLinks = document.querySelectorAll('.nav-links a:not(.parent-sidebar-link)');
     const activeSectionKey = 'edumasterActiveSection';
     const activeSectionStorageKey = () => {
         const session = loadSession();
@@ -4651,13 +5592,26 @@ Total Amount: $4,820.00
             saveActiveSection(sectionIdentity(link));
 
             const linkText = link.querySelector('span')?.innerText.trim() || link.innerText.trim();
+            activeNavigationCollection = collectionForNavigationLabel.get(linkText.toLowerCase()) || '';
+            updateVisibleModuleActions();
             if (typeof window.updateHeaderAddButton === 'function') {
                 window.updateHeaderAddButton(linkText);
             }
             setApplicationPage(linkText);
 
             if (link.id === 'dashboardBtn' || link.dataset.menuId === 'dashboard') {
-                showDashboard();
+                if (String(activeAccountPermissions?.role || '').toLowerCase() === 'parent') {
+                    showParentPortalHome();
+                } else {
+                    showDashboard();
+                }
+                return;
+            }
+
+            if (link.id === 'parentPortalPreviewBtn') {
+                if (!isPrivilegedRole(activeAccountPermissions?.role)) return;
+                showParentPortalHome({ preview: true });
+                updateBreadcrumb(['Portals', 'Parent Portal Preview']);
                 return;
             }
 
@@ -5521,7 +6475,11 @@ Total Amount: $4,820.00
             // The previous format stored the section key as plain text.
         }
 
-        const links = Array.from(navLinks).filter(link => !link.closest('.nav-links')?.classList.contains('account-access-hidden'));
+        const links = Array.from(navLinks).filter(link =>
+            !link.classList.contains('account-access-hidden')
+            && !link.closest('[hidden]')
+            && !link.closest('.nav-links')?.classList.contains('account-access-hidden')
+        );
         const savedKey = savedIdentity?.key || savedValue;
         const savedGroup = savedIdentity?.group || savedKey.split('::')[0]?.toLowerCase() || '';
         const savedLabel = savedIdentity?.label || savedKey.split('::').pop()?.toLowerCase() || '';
@@ -5535,7 +6493,10 @@ Total Amount: $4,820.00
             || (savedIdentity && savedIdentity.groupIndex >= 0
                 ? Array.from(document.querySelectorAll('.nav-links'))[savedIdentity.groupIndex]?.querySelectorAll('a')[savedIdentity.itemIndex]
                 : null);
-        if (!savedLink || savedLink.closest('.nav-links')?.classList.contains('account-access-hidden')) {
+        if (!savedLink
+            || savedLink.classList.contains('account-access-hidden')
+            || savedLink.closest('[hidden]')
+            || savedLink.closest('.nav-links')?.classList.contains('account-access-hidden')) {
             persistDashboardSection();
             return;
         }
