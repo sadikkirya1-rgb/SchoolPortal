@@ -46,6 +46,12 @@ before(async () => {
             status: 'active',
             permissions: { students: { view: true } }
         });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/temporary-password-user'), {
+            role: 'student',
+            status: 'active',
+            mustChangePassword: true,
+            permissions: { students: { view: true } }
+        });
         await setDoc(doc(firestore, 'schools/SCH-TEST/members/parent-1/linkedStudents/STUDENT-A'), {
             studentId: 'STUDENT-A'
         });
@@ -112,6 +118,12 @@ test('a user without school membership cannot read school records', async () => 
 test('school membership never grants access to records in another school', async () => {
     const firestore = testEnvironment.authenticatedContext('teacher-1').firestore();
     await assertFails(getDoc(doc(firestore, 'schools/OTHER-SCHOOL/students/PRIVATE')));
+});
+
+test('accounts with a temporary password can read their membership but not school data until changing it', async () => {
+    const firestore = testEnvironment.authenticatedContext('temporary-password-user').firestore();
+    await assertSucceeds(getDoc(doc(firestore, 'schools/SCH-TEST/members/temporary-password-user')));
+    await assertFails(getDoc(doc(firestore, 'schools/SCH-TEST/students/STUDENT-A')));
 });
 
 test('teachers can read assigned-class students but not other classes', async () => {

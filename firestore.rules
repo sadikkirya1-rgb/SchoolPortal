@@ -22,7 +22,8 @@ service cloud.firestore {
       return signedIn()
         && schoolIsActive(schoolId)
         && exists(memberPath(schoolId))
-        && get(memberPath(schoolId)).data.status == 'active';
+        && get(memberPath(schoolId)).data.status == 'active'
+        && get(memberPath(schoolId)).data.get('mustChangePassword', false) != true;
     }
 
     function member(schoolId) {
@@ -149,7 +150,11 @@ service cloud.firestore {
       allow list, create, update, delete: if false;
 
       match /members/{uid} {
-        allow get: if isMember(schoolId) && (request.auth.uid == uid || isSchoolAdmin(schoolId));
+        allow get: if signedIn()
+          && schoolIsActive(schoolId)
+          && exists(memberPath(schoolId))
+          && member(schoolId).status == 'active'
+          && (request.auth.uid == uid || isSchoolAdmin(schoolId));
         allow list: if isSchoolAdmin(schoolId);
         allow create, delete: if false;
         allow update: if isMember(schoolId)

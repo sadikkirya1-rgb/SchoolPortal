@@ -85,6 +85,10 @@
                         <label>Email<input name="email" type="email" autocomplete="email" required></label>
                         <label>Phone<input name="phone" type="tel"></label>
                     </div>
+                    <label class="account-temporary-password">Temporary password
+                        <input name="temporaryPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                        <small>Use 8–128 characters. Letters or numbers alone are accepted.</small>
+                    </label>
                     <div class="form-row">
                         <label>Role<select name="role" required>
                             <option value="schoolAdmin">School Admin</option>
@@ -97,7 +101,13 @@
                             <option value="parent">Parent</option>
                             <option value="student">Student</option>
                         </select></label>
-                        <label>Linked student/parent/staff record ID<input name="linkedRecordId" type="text"></label>
+                        <label class="account-linked-record">Linked system record
+                            <select name="linkedRecordId">
+                                <option value="">Select a role first</option>
+                            </select>
+                            <input name="manualLinkedRecordId" class="hidden" type="text" maxlength="120" autocomplete="off" placeholder="Enter staff record ID">
+                            <small id="adminLinkedRecordHelp">Choose a record from the school's existing records.</small>
+                        </label>
                     </div>
                     <fieldset class="admin-class-assignments hidden" id="adminClassAssignments">
                         <legend>Assigned classes</legend>
@@ -107,9 +117,24 @@
                     <div class="form-actions"><button class="primary-button" type="submit">Create account</button><button class="secondary-button" id="cancelAccountEditButton" type="button">Cancel</button></div>
                 </form>
                 <div class="status-message hidden" id="accountInvitationPanel">
-                    Account created. Copy the single-use password setup link and deliver it privately:
-                    <input id="accountInvitationLink" type="text" readonly aria-label="Password setup link">
-                    <button class="secondary-button" type="button" id="copyAccountInvitation">Copy setup link</button>
+                    Account created. Copy the temporary password and deliver it privately. The user must change it at first sign-in:
+                    <input id="accountInvitationLink" type="password" readonly aria-label="Temporary password">
+                    <button class="secondary-button" type="button" id="copyAccountInvitation">Copy temporary password</button>
+                </div>
+                <div class="password-reset-overlay hidden" id="passwordResetDialog">
+                    <form class="password-reset-dialog" id="passwordResetForm" aria-labelledby="passwordResetTitle">
+                        <h3 id="passwordResetTitle">Set a temporary password</h3>
+                        <p id="passwordResetDescription">The user must change it at their next sign-in.</p>
+                        <label>Temporary password
+                            <input id="passwordResetInput" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                            <small>Use 8–128 characters. Letters or numbers alone are accepted.</small>
+                        </label>
+                        <p id="passwordResetMessage" class="status-message" role="alert"></p>
+                        <div class="form-actions">
+                            <button class="secondary-button" id="cancelPasswordReset" type="button">Cancel</button>
+                            <button class="primary-button" type="submit">Set temporary password</button>
+                        </div>
+                    </form>
                 </div>
                 <div class="section-heading account-add-heading"><span>Suspending or removing affects only this school membership. Editing an email changes the shared Firebase sign-in identity; membership removal never deletes it.</span><button class="primary-button compact-button" id="showAccountFormButton" type="button">Add account</button></div>
                 <div class="table-wrap">

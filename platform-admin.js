@@ -21,8 +21,10 @@ const setPlatformSchoolStatus = call('setPlatformSchoolStatus');
 const createSchoolUser = call('createSchoolUser');
 const updateSchoolUser = call('updateSchoolUser');
 const setSchoolUserStatus = call('setSchoolUserStatus');
+const setSchoolUserTemporaryPassword = call('setSchoolUserTemporaryPassword');
 const deleteSchoolUser = call('deleteSchoolUser');
 const getAssignableSchoolClasses = call('getAssignableSchoolClasses');
+const getAssignableSchoolRecords = call('getAssignableSchoolRecords');
 const signInForm = document.getElementById('adminSignInForm');
 const signInCard = document.getElementById('signInCard');
 const schoolCreateCard = document.getElementById('schoolCreateCard');
@@ -43,6 +45,12 @@ const accountMessage = document.getElementById('accountMessage');
 const schoolAdminLoginLink = document.getElementById('schoolAdminLoginLink');
 const accountInvitationPanel = document.getElementById('accountInvitationPanel');
 const accountInvitationLink = document.getElementById('accountInvitationLink');
+const passwordResetDialog = document.getElementById('passwordResetDialog');
+const passwordResetForm = document.getElementById('passwordResetForm');
+const passwordResetInput = document.getElementById('passwordResetInput');
+const passwordResetTitle = document.getElementById('passwordResetTitle');
+const passwordResetDescription = document.getElementById('passwordResetDescription');
+const passwordResetMessage = document.getElementById('passwordResetMessage');
 
 let schools = [];
 let accounts = [];
@@ -57,6 +65,9 @@ let accountEditUid = null;
 let schoolCount = 0;
 let accountCount = 0;
 let selectedSchoolClasses = [];
+let passwordResetAccount = null;
+let linkedRecordRequest = 0;
+const selectedSchoolRecords = new Map();
 
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;',
@@ -104,6 +115,67 @@ function renderAssignedClassOptions(selectedClassIds = []) {
         label.append(checkbox, name);
         list.appendChild(label);
     });
+}
+
+async function renderLinkedRecordOptions(role, selectedId = '') {
+    const requestId = ++linkedRecordRequest;
+    const select = accountForm.elements.linkedRecordId;
+    const manualInput = accountForm.elements.manualLinkedRecordId;
+    const help = document.getElementById('adminLinkedRecordHelp');
+    const field = select.closest('.account-linked-record');
+    const recordType = ['student', 'parent'].includes(role) ? 'students' : role === 'schoolAdmin' ? '' : 'staff';
+    const required = ['student', 'parent'].includes(role);
+    field.classList.toggle('hidden', !recordType);
+    select.required = required;
+    select.disabled = !recordType || Boolean(accountEditUid);
+    if (!recordType) {
+        select.replaceChildren(new Option('Not applicable', ''));
+        manualInput.classList.add('hidden');
+        manualInput.required = false;
+        manualInput.value = '';
+        help.textContent = 'School administrators do not need a linked record.';
+        return;
+    }
+    select.replaceChildren(new Option('Loading records…', ''));
+    help.textContent = required
+        ? 'Select the student record this account belongs to.'
+        : 'Select the matching staff record, if one exists.';
+    const schoolId = selectedSchool.id;
+    const cacheKey = `${schoolId}:${recordType}`;
+    if (!selectedSchoolRecords.has(cacheKey)) {
+        const response = await getAssignableSchoolRecords({
+            schoolId,
+            recordType
+        });
+        selectedSchoolRecords.set(cacheKey, response.data);
+    }
+    if (requestId !== linkedRecordRequest || selectedSchool?.id !== schoolId) return;
+    const records = selectedSchoolRecords.get(cacheKey);
+    select.replaceChildren(new Option(required ? 'Select a record…' : 'No linked record', ''));
+    records.forEach(record => {
+        const details = [
+            record.department ? `Department: ${record.department}` : '',
+            record.group ? `Class/Section: ${record.group}` : ''
+        ].filter(Boolean);
+        select.add(new Option(
+            `${record.displayId || record.id}${record.displayId && record.displayId !== record.id ? ` (record key: ${record.id})` : ''} — ${record.name}${details.length ? ` — ${details.join(' — ')}` : ''}`,
+            record.id
+        ));
+    });
+    if (recordType === 'staff') {
+        select.add(new Option('Enter staff record ID manually…', '__manual__'));
+    }
+    if (selectedId && !records.some(record => record.id === selectedId)) {
+        select.add(new Option(`${selectedId} — linked record unavailable`, selectedId));
+    }
+    select.value = selectedId;
+    manualInput.classList.toggle('hidden', select.value !== '__manual__');
+    manualInput.required = select.value === '__manual__';
+    if (!records.length) {
+        help.textContent = required
+            ? 'No student records are available. Add a student record before creating this account.'
+            : 'No staff records are available. Choose manual entry to add a staff record ID, or leave it unlinked.';
+    }
 }
 
 function renderSchools() {
@@ -156,7 +228,8 @@ function renderAccounts() {
             <td><span class="status-pill ${escapeHTML(account.status)}">${escapeHTML(account.status)}</span></td>
             <td><div class="table-actions">
                 <button class="table-action" type="button" data-account-action="edit" data-uid="${escapeHTML(account.uid)}">Edit</button>
-                <button class="table-action ${account.status === 'active' ? 'danger' : ''}" type="button" data-account-action="status" data-uid="${escapeHTML(account.uid)}" data-status="${account.status === 'active' ? 'disabled' : 'active'}">${account.status === 'active' ? 'Suspend' : 'Activate'}</button>
+                   <button class="table-action" type="button" data-account-action="reset-password" data-uid="${escapeHTML(account.uid)}" ${account.status !== 'active' ? 'disabled' : ''}>Set temporary password</button>
+                   <button class="table-action ${account.status === 'active' ? 'danger' : ''}" type="button" data-account-action="status" data-uid="${escapeHTML(account.uid)}" data-status="${account.status === 'active' ? 'disabled' : 'active'}">${account.status === 'active' ? 'Suspend' : 'Activate'}</button>
                 <button class="table-action danger" type="button" data-account-action="delete" data-uid="${escapeHTML(account.uid)}">Delete</button>
             </div></td>
         </tr>`).join('') : '<tr><td colspan="6">No accounts match this search.</td></tr>';
@@ -182,6 +255,7 @@ async function loadAccounts(afterUid = accountPageCursor) {
 function openSchoolAccounts(school) {
     selectedSchool = school;
     selectedSchoolClasses = [];
+    selectedSchoolRecords.clear();
     accountCursorHistory = [];
     accountPageCursor = null;
     accountAfterUid = null;
@@ -209,14 +283,19 @@ function resetAccountForm() {
     accountEditUid = null;
     accountForm.elements.uid.value = '';
     accountForm.elements.role.disabled = false;
-    accountForm.elements.linkedRecordId.readOnly = false;
+    accountForm.elements.linkedRecordId.disabled = false;
+    accountForm.elements.manualLinkedRecordId.value = '';
+    accountForm.elements.manualLinkedRecordId.required = false;
+    accountForm.elements.manualLinkedRecordId.classList.add('hidden');
+    accountForm.elements.temporaryPassword.required = true;
+    accountForm.querySelector('.account-temporary-password').classList.remove('hidden');
     accountForm.querySelector('button[type="submit"]').textContent = 'Create account';
     accountForm.classList.add('hidden');
     accountInvitationPanel.classList.add('hidden');
     accountInvitationLink.value = '';
 }
 
-function editAccount(account) {
+async function editAccount(account) {
     accountEditUid = account.uid;
     accountForm.elements.uid.value = account.uid;
     accountForm.elements.fullName.value = account.fullName;
@@ -225,8 +304,9 @@ function editAccount(account) {
     accountForm.elements.phone.value = account.phone;
     accountForm.elements.role.value = account.role;
     accountForm.elements.role.disabled = true;
-    accountForm.elements.linkedRecordId.value = account.linkedRecordId;
-    accountForm.elements.linkedRecordId.readOnly = true;
+    await renderLinkedRecordOptions(account.role, account.linkedRecordId);
+    accountForm.elements.temporaryPassword.required = false;
+    accountForm.querySelector('.account-temporary-password').classList.add('hidden');
     renderAssignedClassOptions(account.assignedClassIds || []);
     accountForm.querySelector('button[type="submit"]').textContent = 'Save account changes';
     accountForm.classList.remove('hidden');
@@ -308,6 +388,7 @@ createForm.addEventListener('submit', async event => {
         openSchoolAccounts(school);
         resetAccountForm();
         accountForm.elements.role.value = 'schoolAdmin';
+        void renderLinkedRecordOptions('schoolAdmin');
         accountForm.classList.remove('hidden');
         accountForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
         accountForm.elements.fullName.focus();
@@ -379,20 +460,51 @@ document.getElementById('closeSchoolAccountsButton').addEventListener('click', (
 
 document.getElementById('showAccountFormButton').addEventListener('click', () => {
     resetAccountForm();
+    selectedSchoolRecords.clear();
     renderAssignedClassOptions();
+    void renderLinkedRecordOptions(accountForm.elements.role.value).catch(error => {
+        showError(accountMessage, error, 'Unable to load linked records.');
+    });
     accountForm.classList.remove('hidden');
     accountForm.elements.fullName.focus();
 });
 document.getElementById('cancelAccountEditButton').addEventListener('click', resetAccountForm);
-accountForm.elements.role.addEventListener('change', () => renderAssignedClassOptions());
+accountForm.elements.role.addEventListener('change', () => {
+    renderAssignedClassOptions();
+    void renderLinkedRecordOptions(accountForm.elements.role.value).catch(error => {
+        showError(accountMessage, error, 'Unable to load linked records.');
+    });
+});
+accountForm.elements.linkedRecordId.addEventListener('change', () => {
+    const manualMode = accountForm.elements.linkedRecordId.value === '__manual__';
+    const manualInput = accountForm.elements.manualLinkedRecordId;
+    manualInput.classList.toggle('hidden', !manualMode);
+    manualInput.required = manualMode;
+    if (!manualMode) manualInput.value = '';
+    document.getElementById('adminLinkedRecordHelp').textContent = manualMode
+        ? 'Enter the staff record ID. This does not create a staff profile; it only stores the ID on this account.'
+        : 'Choose an existing record or leave the staff account unlinked.';
+});
 document.getElementById('accountSearch').addEventListener('input', renderAccounts);
 
 accountForm.addEventListener('submit', async event => {
     event.preventDefault();
     if (!selectedSchool) return;
+    const data = new FormData(accountForm);
+    const temporaryPassword = accountEditUid ? '' : String(data.get('temporaryPassword') || '');
+    if (!accountEditUid && (temporaryPassword.length < 8 || temporaryPassword.length > 128)) {
+        accountMessage.textContent = 'Temporary passwords must be between 8 and 128 characters. Letters or numbers alone are accepted.';
+        return;
+    }
     setBusy(accountForm, true, accountEditUid ? 'Saving…' : 'Creating…');
     accountMessage.textContent = '';
-    const data = new FormData(accountForm);
+    const linkedRecordId = accountForm.elements.linkedRecordId.value === '__manual__'
+        ? accountForm.elements.manualLinkedRecordId.value.trim()
+        : accountForm.elements.linkedRecordId.value.trim();
+    if (accountForm.elements.linkedRecordId.value === '__manual__' && !linkedRecordId) {
+        accountMessage.textContent = 'Enter the staff record ID or choose an existing record.';
+        return;
+    }
     const account = {
         schoolId: selectedSchool.id,
         uid: accountEditUid,
@@ -401,28 +513,25 @@ accountForm.addEventListener('submit', async event => {
         email: data.get('email').trim().toLowerCase(),
         phone: data.get('phone').trim(),
         role: accountEditUid ? accountForm.elements.role.value : data.get('role'),
-        linkedRecordId: data.get('linkedRecordId').trim(),
+        linkedRecordId,
         assignedClassIds: ['teacher', 'deputyHeadTeacher'].includes(accountEditUid
             ? accountForm.elements.role.value
             : data.get('role'))
             ? data.getAll('assignedClassIds')
-            : []
+            : [],
+        ...(!accountEditUid ? { temporaryPassword } : {})
     };
     try {
-        let invitationUrl = '';
         if (accountEditUid) await updateSchoolUser(account);
-        else {
-            const response = await createSchoolUser(account);
-            invitationUrl = response.data.invitationUrl;
-        }
+        else await createSchoolUser(account);
         if (!accountEditUid && account.role === 'schoolAdmin') {
             schoolAdminLoginLink.href = `./index.html?schoolId=${encodeURIComponent(selectedSchool.id)}`;
             schoolAdminLoginLink.classList.remove('hidden');
-            accountMessage.textContent = 'School administrator account created. Share the password setup link below, then continue to school sign-in.';
+            accountMessage.textContent = 'School administrator account created. Share the temporary password privately, then continue to school sign-in.';
         }
         resetAccountForm();
-        if (invitationUrl) {
-            accountInvitationLink.value = invitationUrl;
+        if (!accountEditUid) {
+            accountInvitationLink.value = temporaryPassword;
             accountInvitationPanel.classList.remove('hidden');
         }
         await loadAccounts(accountPageCursor);
@@ -438,10 +547,45 @@ document.getElementById('copyAccountInvitation').addEventListener('click', async
         await navigator.clipboard.writeText(accountInvitationLink.value);
         document.getElementById('copyAccountInvitation').textContent = 'Copied';
     } catch (error) {
-        console.error('Unable to copy the account setup link.', error);
+        console.error('Unable to copy the temporary password.', error);
         accountInvitationLink.focus();
         accountInvitationLink.select();
-        showError(accountMessage, error, 'Select and copy the invitation link manually.');
+        showError(accountMessage, error, 'Select and copy the temporary password manually.');
+    }
+});
+
+function closePasswordResetDialog() {
+    passwordResetDialog.classList.add('hidden');
+    passwordResetForm.reset();
+    passwordResetMessage.textContent = '';
+    passwordResetAccount = null;
+}
+
+document.getElementById('cancelPasswordReset').addEventListener('click', closePasswordResetDialog);
+
+passwordResetForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (!selectedSchool || !passwordResetAccount) return;
+    const temporaryPassword = passwordResetInput.value;
+    if (temporaryPassword.length < 8 || temporaryPassword.length > 128) {
+        passwordResetMessage.textContent = 'Temporary passwords must be between 8 and 128 characters. Letters or numbers alone are accepted.';
+        return;
+    }
+    setBusy(passwordResetForm, true, 'Setting…');
+    passwordResetMessage.textContent = '';
+    try {
+        await setSchoolUserTemporaryPassword({
+            schoolId: selectedSchool.id,
+            uid: passwordResetAccount.uid,
+            temporaryPassword
+        });
+        const accountName = passwordResetAccount.fullName || passwordResetAccount.email;
+        closePasswordResetDialog();
+        accountMessage.textContent = `Temporary password set for ${accountName}. Share it privately; they must change it at their next sign-in.`;
+    } catch (error) {
+        showError(passwordResetMessage, error, 'Unable to set a temporary password.');
+    } finally {
+        setBusy(passwordResetForm, false);
     }
 });
 
@@ -451,7 +595,17 @@ accountTableBody.addEventListener('click', async event => {
     const account = accounts.find(item => item.uid === button.dataset.uid);
     if (!account) return;
     if (button.dataset.accountAction === 'edit') {
-        editAccount(account);
+        editAccount(account).catch(error => showError(accountMessage, error, 'Unable to load linked records.'));
+        return;
+    }
+    if (button.dataset.accountAction === 'reset-password') {
+        passwordResetAccount = account;
+        passwordResetTitle.textContent = `Set a temporary password for ${account.fullName || account.email}`;
+        passwordResetDescription.textContent = 'Share the temporary password privately. The user must change it at their next sign-in.';
+        passwordResetMessage.textContent = '';
+        passwordResetForm.reset();
+        passwordResetDialog.classList.remove('hidden');
+        passwordResetInput.focus();
         return;
     }
     button.disabled = true;

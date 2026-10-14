@@ -274,7 +274,8 @@ async function requireSchoolAdmin(request, schoolId) {
     const callerRef = db.doc(`schools/${schoolId}/members/${request.auth.uid}`);
     const callerSnapshot = await callerRef.get();
     const caller = callerSnapshot.data();
-    if (!callerSnapshot.exists || caller.status !== 'active' || !privilegedRoles.has(caller.role)) {
+    if (!callerSnapshot.exists || caller.status !== 'active' || caller.mustChangePassword === true
+        || !privilegedRoles.has(caller.role)) {
         throw new HttpsError('permission-denied', 'Only an active school administrator can manage accounts.');
     }
     return caller;
@@ -292,6 +293,9 @@ function sanitizeAccount(data, { allowSchoolAdmin = false } = {}) {
         throw new HttpsError('invalid-argument', 'Name, User ID, and email are required.');
     }
     const linkedRecordId = String(data.linkedRecordId || '').trim();
+    if (linkedRecordId.length > 120) {
+        throw new HttpsError('invalid-argument', 'Linked record IDs must be 120 characters or fewer.');
+    }
     const linkedRecordType = role === 'student' ? 'student' : role === 'parent' ? 'parent' : 'staff';
     if (['student', 'parent'].includes(role) && !linkedRecordId) {
         throw new HttpsError('invalid-argument', `A linked ${role} record ID is required.`);
@@ -352,6 +356,31 @@ function accountAuditData(request, action, uid, changes = []) {
         updatedBy: request.auth.uid,
         updatedAt: FieldValue.serverTimestamp()
     };
+}
+
+function validateAccountPassword(value) {
+    const password = typeof value === 'string' ? value : '';
+    if (password.length < 8 || password.length > 128) {
+        throw new HttpsError(
+            'invalid-argument',
+            'Temporary passwords must be between 8 and 128 characters.'
+        );
+    }
+    return password;
+}
+
+function validatePermanentPassword(value) {
+    const password = validateAccountPassword(value);
+    if (!/[a-z]/.test(password)
+        || !/[A-Z]/.test(password)
+        || !/[0-9]/.test(password)
+        || !/[^A-Za-z0-9]/.test(password)) {
+        throw new HttpsError(
+            'invalid-argument',
+            'Your new password must include uppercase, lowercase, a number, and a symbol.'
+        );
+    }
+    return password;
 }
 
 function rolePermissionOptions() {
@@ -421,8 +450,53 @@ exports.getAssignableSchoolClasses = onCall(async request => {
         .sort((left, right) => left.name.localeCompare(right.name));
 });
 
+exports.getAssignableSchoolRecords = onCall(async request => {
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    await requireSchoolAdmin(request, schoolId);
+    const recordType = request.data?.recordType;
+    if (!['students', 'staff'].includes(recordType)) {
+        throw new HttpsError('invalid-argument', 'Choose students or staff records.');
+    }
+    const snapshot = await db.collection(`schools/${schoolId}/${recordType}`).get();
+    return snapshot.docs
+        .map(item => {
+            const document = item.data();
+            const record = document.data || document;
+            if (document.deleted === true || record.deleted === true) return null;
+            const name = String(
+                record.fullName
+                || record.name
+                || record.studentName
+                || record.staffName
+                || [record.firstName, record.middleName, record.lastName].filter(Boolean).join(' ')
+                || item.id
+            ).trim();
+            return {
+                id: item.id,
+                displayId: String(
+                    record.admissionNo
+                    || record.studentId
+                    || record.staffId
+                    || record.employeeId
+                    || item.id
+                ),
+                name,
+                department: String(
+                    record.department
+                    || record.departmentName
+                    || record.staffDepartment
+                    || ''
+                ).trim(),
+                group: String(record.className || record.class || record.section || '').trim()
+            };
+        })
+        .filter(Boolean)
+        .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
+});
+
 exports.createSchoolUser = onCall(async request => {
     const schoolId = validateSchoolId(request.data?.schoolId);
+    const temporaryPassword = validateAccountPassword(request.data?.temporaryPassword);
     const caller = await requireSchoolAdmin(request, schoolId);
     if (!(await db.doc(`schools/${schoolId}`).get()).exists) {
         throw new HttpsError('not-found', 'The school has not been provisioned.');
@@ -446,11 +520,10 @@ exports.createSchoolUser = onCall(async request => {
     try {
         createdUser = await auth.createUser({
             email: account.email,
-            password: randomBytes(32).toString('base64url'),
+            password: temporaryPassword,
             displayName: account.fullName,
             disabled: false
         });
-        const invitationUrl = await auth.generatePasswordResetLink(account.email);
         const member = {
             role: account.role,
             status: 'active',
@@ -467,6 +540,7 @@ exports.createSchoolUser = onCall(async request => {
             notificationPreferences: account.notificationPreferences,
             profile: account.profile,
             photoURL: '',
+            mustChangePassword: true,
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp()
         };
@@ -476,7 +550,7 @@ exports.createSchoolUser = onCall(async request => {
             request,
             'account.invited',
             createdUser.uid,
-            ['role', 'sections', 'assignedClassIds', 'permissions', 'status']
+            ['role', 'sections', 'assignedClassIds', 'permissions', 'status', 'mustChangePassword']
         ));
         if (account.role === 'parent') {
             batch.set(db.doc(`schools/${schoolId}/members/${createdUser.uid}/linkedStudents/${account.linkedRecordId}`), {
@@ -500,10 +574,13 @@ exports.createSchoolUser = onCall(async request => {
         if (error.code === 'auth/email-already-exists') {
             throw new HttpsError('already-exists', 'That email is already used by a Firebase account.');
         }
+        if (['auth/invalid-password', 'auth/password-does-not-meet-requirements'].includes(error.code)) {
+            throw new HttpsError('invalid-argument', 'The temporary password does not meet Firebase Authentication requirements.');
+        }
         console.error('Unable to create school member account.', error);
         throw new HttpsError('internal', 'Unable to create the account. Check the function logs for details.');
     }
-    return { uid: createdUser.uid, email: account.email, role: account.role, invitationUrl };
+    return { uid: createdUser.uid, email: account.email, role: account.role, mustChangePassword: true };
 });
 
 exports.updateSchoolUser = onCall(async request => {
@@ -637,6 +714,91 @@ exports.generateSchoolUserPasswordResetLink = onCall(async request => {
         console.error('Unable to create a password reset link.', error);
         throw new HttpsError('internal', 'Unable to create a password reset link.');
     }
+});
+
+exports.setSchoolUserTemporaryPassword = onCall(async request => {
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    const caller = await requireSchoolAdmin(request, schoolId);
+    const uid = String(request.data?.uid || '');
+    const temporaryPassword = validateAccountPassword(request.data?.temporaryPassword);
+    if (!uid || uid === request.auth.uid) {
+        throw new HttpsError('failed-precondition', 'Choose another account to reset.');
+    }
+    const memberRef = db.doc(`schools/${schoolId}/members/${uid}`);
+    const memberSnapshot = await memberRef.get();
+    if (!memberSnapshot.exists) throw new HttpsError('not-found', 'The school account was not found.');
+    if (memberSnapshot.data().status !== 'active') {
+        throw new HttpsError('failed-precondition', 'Activate the account before setting a temporary password.');
+    }
+    if (privilegedRoles.has(memberSnapshot.data().role) && !caller.platformAdmin) {
+        throw new HttpsError('permission-denied', 'Administrator passwords can only be reset by the App Admin.');
+    }
+
+    try {
+        await auth.updateUser(uid, { password: temporaryPassword });
+        await auth.revokeRefreshTokens(uid);
+        const batch = db.batch();
+        batch.update(memberRef, {
+            mustChangePassword: true,
+            updatedAt: FieldValue.serverTimestamp()
+        });
+        batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
+            request,
+            'account.temporary_password_set',
+            uid,
+            ['mustChangePassword']
+        ));
+        await batch.commit();
+    } catch (error) {
+        if (error instanceof HttpsError) throw error;
+        if (['auth/invalid-password', 'auth/password-does-not-meet-requirements'].includes(error.code)) {
+            throw new HttpsError('invalid-argument', 'The temporary password does not meet Firebase Authentication requirements.');
+        }
+        if (error.code === 'auth/user-not-found') throw new HttpsError('not-found', 'The Firebase account was not found.');
+        console.error('Unable to set a temporary password for a school account.', error);
+        throw new HttpsError('internal', 'Unable to set the temporary password. Check the function logs for details.');
+    }
+    return { uid, mustChangePassword: true };
+});
+
+exports.completeOwnPasswordChange = onCall(async request => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in before changing your password.');
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    const password = validatePermanentPassword(request.data?.password);
+    const authTime = Number(request.auth.token.auth_time);
+    if (!Number.isFinite(authTime) || Date.now() / 1000 - authTime > 300) {
+        throw new HttpsError('failed-precondition', 'Your sign-in has expired. Sign in again before changing your password.');
+    }
+
+    const schoolSnapshot = await db.doc(`schools/${schoolId}`).get();
+    const memberRef = db.doc(`schools/${schoolId}/members/${request.auth.uid}`);
+    const memberSnapshot = await memberRef.get();
+    if (!schoolSnapshot.exists || schoolSnapshot.data()?.status !== 'active'
+        || !memberSnapshot.exists || memberSnapshot.data()?.status !== 'active') {
+        throw new HttpsError('permission-denied', 'An active school account is required.');
+    }
+
+    try {
+        await auth.updateUser(request.auth.uid, { password });
+        const batch = db.batch();
+        batch.update(memberRef, {
+            mustChangePassword: false,
+            passwordChangedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp()
+        });
+        batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
+            request,
+            'account.password_changed',
+            request.auth.uid,
+            ['mustChangePassword']
+        ));
+        await batch.commit();
+    } catch (error) {
+        if (error instanceof HttpsError) throw error;
+        console.error('Unable to complete a school account password change.', error);
+        throw new HttpsError('internal', 'The password could not be changed. Please try again.');
+    }
+    return { success: true };
 });
 
 exports.setSchoolUserStatus = onCall(async request => {

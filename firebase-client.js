@@ -1,8 +1,10 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
 import {
     browserLocalPersistence,
+    EmailAuthProvider,
     getAuth,
     onAuthStateChanged,
+    reauthenticateWithCredential,
     setPersistence,
     signInWithEmailAndPassword,
     signOut
@@ -49,6 +51,57 @@ try {
 
 const functions = getFunctions(app);
 const storage = getStorage(app);
+function schoolRecordOption(item) {
+    const document = item.data();
+    const record = document.data || document;
+    if (document.deleted === true || record.deleted === true) return null;
+    const name = String(
+        record.fullName
+        || record.name
+        || record.studentName
+        || record.staffName
+        || [record.firstName, record.middleName, record.lastName].filter(Boolean).join(' ')
+        || item.id
+    ).trim();
+    return {
+        id: item.id,
+        displayId: String(record.admissionNo || record.studentId || record.staffId || record.employeeId || item.id),
+        name,
+        department: String(record.department || record.departmentName || record.staffDepartment || '').trim(),
+        group: String(record.className || record.class || record.section || '').trim()
+    };
+}
+
+async function listAssignableSchoolClasses(schoolId) {
+    const normalizedSchoolId = normalizeSchoolId(schoolId);
+    if (!validSchoolId(normalizedSchoolId)) throw new Error('A valid School ID is required.');
+    if (!auth.currentUser) throw new Error('Sign in to view this school\'s classes.');
+
+    const snapshot = await getDocs(collection(db, 'schools', normalizedSchoolId, 'classes'));
+    return snapshot.docs
+        .filter(item => item.data().data?.deleted !== true)
+        .map(item => {
+            const record = item.data().data || item.data();
+            return {
+                id: item.id,
+                name: String(record.name || record.className || record.streamName || item.id)
+            };
+        })
+        .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+async function listAssignableSchoolRecords(schoolId, recordType) {
+    const normalizedSchoolId = normalizeSchoolId(schoolId);
+    if (!validSchoolId(normalizedSchoolId)) throw new Error('A valid School ID is required.');
+    if (!auth.currentUser) throw new Error('Sign in to view this school\'s records.');
+    if (!['students', 'staff'].includes(recordType)) throw new Error('Choose student or staff records.');
+    const snapshot = await getDocs(collection(db, 'schools', normalizedSchoolId, recordType));
+    return snapshot.docs
+        .map(schoolRecordOption)
+        .filter(Boolean)
+        .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
+}
+
 const authReady = new Promise(resolve => onAuthStateChanged(auth, resolve, error => {
     console.error('Unable to restore Firebase Authentication state.', error);
     resolve(null);
@@ -176,14 +229,24 @@ async function signOutCurrentUser(schoolId) {
     return { pushCleanupWarning };
 }
 
+async function changeOwnPassword(schoolId, currentPassword, newPassword) {
+    const user = auth.currentUser;
+    if (!user?.email) throw new Error('Sign in again before changing your password.');
+    const credential = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, credential);
+    await user.getIdToken(true);
+    await completeOwnPasswordChange({ schoolId, password: newPassword });
+}
+
 const createSchoolUser = httpsCallable(functions, 'createSchoolUser');
 const getAssignableSchoolPermissions = httpsCallable(functions, 'getAssignableSchoolPermissions');
 const updateSchoolUser = httpsCallable(functions, 'updateSchoolUser');
 const generateSchoolUserPasswordResetLink = httpsCallable(functions, 'generateSchoolUserPasswordResetLink');
 const setSchoolUserStatus = httpsCallable(functions, 'setSchoolUserStatus');
 const deleteSchoolUser = httpsCallable(functions, 'deleteSchoolUser');
+const setSchoolUserTemporaryPassword = httpsCallable(functions, 'setSchoolUserTemporaryPassword');
+const completeOwnPasswordChange = httpsCallable(functions, 'completeOwnPasswordChange');
 const getPublicPlatformStats = httpsCallable(functions, 'getPublicPlatformStats');
-const getAssignableSchoolClasses = httpsCallable(functions, 'getAssignableSchoolClasses');
 const savePushToken = httpsCallable(functions, 'savePushToken');
 const removePushToken = httpsCallable(functions, 'removePushToken');
 let foregroundMessagingListenerRegistered = false;
@@ -250,15 +313,18 @@ window.schoolPortalFirebase = {
     uploadSchoolAsset,
     signIn,
     signOut: signOutCurrentUser,
+    changeOwnPassword,
     enablePushNotifications,
     disablePushNotifications,
-    getAssignableSchoolClasses: async schoolId => (await getAssignableSchoolClasses({ schoolId })).data,
+    getAssignableSchoolClasses: listAssignableSchoolClasses,
+    getAssignableSchoolRecords: listAssignableSchoolRecords,
     createSchoolUser,
     getAssignableSchoolPermissions: async schoolId => (await getAssignableSchoolPermissions({ schoolId })).data,
     updateSchoolUser,
     generateSchoolUserPasswordResetLink,
     setSchoolUserStatus,
     deleteSchoolUser,
+    setSchoolUserTemporaryPassword,
     getPublicPlatformStats: async () => (await getPublicPlatformStats()).data
 };
 

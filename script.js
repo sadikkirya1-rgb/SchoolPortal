@@ -1053,7 +1053,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ['Dashboard', 'Home', 'fa-house'],
             ['Students', 'Children', 'fa-child'],
             ['Attendance', 'Attendance', 'fa-calendar-check'],
-            ['Report Cards', 'Results', 'fa-square-poll-vertical']
+            ['Notice Board', 'Notices', 'fa-bullhorn']
         ],
         student: [
             ['Dashboard', 'Home', 'fa-house'],
@@ -1193,6 +1193,117 @@ document.addEventListener('DOMContentLoaded', () => {
         window.setTimeout(() => toast.remove(), 7000);
     });
 
+    const passwordChangeModal = document.getElementById('passwordChangeModal');
+    const passwordChangeForm = document.getElementById('passwordChangeForm');
+    const passwordDialogTitle = document.getElementById('passwordDialogTitle');
+    const passwordDialogDescription = document.getElementById('passwordDialogDescription');
+    const passwordChangeError = document.getElementById('passwordChangeError');
+    const currentPasswordField = document.getElementById('currentPasswordField');
+    const currentAccountPassword = document.getElementById('currentAccountPassword');
+    const newAccountPassword = document.getElementById('newAccountPassword');
+    const confirmAccountPassword = document.getElementById('confirmAccountPassword');
+    const cancelPasswordChange = document.getElementById('cancelPasswordChange');
+    let pendingPasswordChange = null;
+
+    const openPasswordChangeDialog = (mode, userData = null, uid = '') => {
+        const requiresCurrentPassword = mode !== 'admin-reset';
+        const isRequiredChange = mode === 'first-login';
+        pendingPasswordChange = {
+            mode,
+            userData,
+            uid,
+            schoolId: loadSession()?.schoolId
+        };
+        passwordDialogTitle.textContent = mode === 'admin-reset'
+            ? 'Set a temporary password'
+            : isRequiredChange ? 'Change your temporary password' : 'Change password';
+        passwordDialogDescription.textContent = mode === 'admin-reset'
+            ? 'The user must change this password the next time they sign in.'
+            : isRequiredChange
+                ? 'Your administrator set a temporary password. Choose a new password to continue.'
+                : 'Enter your current password and choose a new one.';
+        currentPasswordField.hidden = !requiresCurrentPassword;
+        currentAccountPassword.required = requiresCurrentPassword;
+        cancelPasswordChange.hidden = isRequiredChange;
+        passwordChangeError.textContent = '';
+        passwordChangeForm.reset();
+        passwordChangeModal.classList.remove('hidden');
+        window.setTimeout(() => (requiresCurrentPassword ? currentAccountPassword : newAccountPassword).focus(), 0);
+    };
+
+    const closePasswordChangeDialog = () => {
+        if (pendingPasswordChange?.mode === 'first-login') return;
+        passwordChangeModal.classList.add('hidden');
+        passwordChangeForm.reset();
+        passwordChangeError.textContent = '';
+        pendingPasswordChange = null;
+    };
+
+    cancelPasswordChange?.addEventListener('click', closePasswordChangeDialog);
+    document.getElementById('changeMyPasswordButton')?.addEventListener('click', () => {
+        if (!loadSession()?.authenticated) return;
+        openPasswordChangeDialog('self');
+    });
+
+    passwordChangeForm?.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (!pendingPasswordChange) return;
+        const newPassword = newAccountPassword.value;
+        if (newPassword.length < 8
+            || !/[a-z]/.test(newPassword)
+            || !/[A-Z]/.test(newPassword)
+            || !/[0-9]/.test(newPassword)
+            || !/[^A-Za-z0-9]/.test(newPassword)) {
+            passwordChangeError.textContent = 'Use at least 8 characters, including uppercase, lowercase, a number, and a symbol.';
+            return;
+        }
+        if (newPassword !== confirmAccountPassword.value) {
+            passwordChangeError.textContent = 'The new passwords do not match.';
+            return;
+        }
+        if (pendingPasswordChange.mode !== 'admin-reset'
+            && newPassword === currentAccountPassword.value) {
+            passwordChangeError.textContent = 'Choose a password different from your current password.';
+            return;
+        }
+
+        const submitButton = passwordChangeForm.querySelector('[type="submit"]');
+        submitButton.disabled = true;
+        passwordChangeError.textContent = '';
+        try {
+            const firebase = getFirebase();
+            if (pendingPasswordChange.mode === 'admin-reset') {
+                await firebase.setSchoolUserTemporaryPassword({
+                    schoolId: pendingPasswordChange.schoolId,
+                    uid: pendingPasswordChange.uid,
+                    temporaryPassword: newPassword
+                });
+                closePasswordChangeDialog();
+                alert('Temporary password set. Share it privately; the user must change it at their next sign-in.');
+                return;
+            }
+
+            await firebase.changeOwnPassword(
+                pendingPasswordChange.schoolId,
+                currentAccountPassword.value,
+                newPassword
+            );
+            const wasRequired = pendingPasswordChange.mode === 'first-login';
+            const userData = pendingPasswordChange.userData;
+            passwordChangeModal.classList.add('hidden');
+            passwordChangeForm.reset();
+            passwordChangeError.textContent = '';
+            pendingPasswordChange = null;
+            if (wasRequired && userData) unlockDashboard(userData);
+            else alert('Your password has been changed.');
+        } catch (error) {
+            console.error('Unable to change the account password.', error);
+            passwordChangeError.textContent = error.message || 'Unable to change the password. Please try again.';
+        } finally {
+            submitButton.disabled = false;
+        }
+    });
+
     const unlockDashboard = (userData) => {
         applyAccountSectionAccess(userData);
         renderMobileRoleNav(userData);
@@ -1247,7 +1358,8 @@ document.addEventListener('DOMContentLoaded', () => {
             schoolIdInput.value = currentSchool.id;
             saveSession({ schoolId: currentSchool.id, userId: authUser.uid, authenticated: true, user });
             window.schoolPortalData?.setIdentity(currentSchool.id, authUser.uid, membership);
-            unlockDashboard(user);
+            if (membership.mustChangePassword) openPasswordChangeDialog('first-login', user);
+            else unlockDashboard(user);
         } catch (error) {
             const cachedUser = session?.user;
             const authenticatedUid = window.schoolPortalFirebase?.auth?.currentUser?.uid;
@@ -1255,7 +1367,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentSchool = { id: session.schoolId, schoolName: cachedUser.schoolName || 'School' };
                 schoolIdInput.value = currentSchool.id;
                 window.schoolPortalData?.setIdentity(session.schoolId, authenticatedUid, cachedUser);
-                unlockDashboard(cachedUser);
+                if (cachedUser.mustChangePassword) openPasswordChangeDialog('first-login', cachedUser);
+                else unlockDashboard(cachedUser);
                 return;
             }
             console.error('Unable to restore Firebase session.', error);
@@ -1313,7 +1426,8 @@ document.addEventListener('DOMContentLoaded', () => {
             saveSession({ schoolId: school.id, userId: authUser.uid, step: 2, authenticated: true, user });
             window.schoolPortalData?.setIdentity(school.id, authUser.uid, membership);
             showError(adminError, '');
-            unlockDashboard(user);
+            if (membership.mustChangePassword) openPasswordChangeDialog('first-login', user);
+            else unlockDashboard(user);
             return true;
         } catch (error) {
             console.error('Firebase sign-in failed.', error);
@@ -1771,6 +1885,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const permissionsGroupEl = document.querySelector('.perms-group');
     const adminAccountAccessNotice = document.getElementById('adminAccountAccessNotice');
     const dataPermissionsContainerEl = document.getElementById('dataPermissionsContainer');
+    const accountRecordSelect = document.getElementById('accountRecordId');
+    const manualAccountRecordId = document.getElementById('manualAccountRecordId');
+    const accountRecordHelp = document.getElementById('accountRecordHelp');
+    const accountRecordGroup = accountRecordSelect?.closest('.form-group');
     const addUserForm = document.getElementById('addUserForm');
     const usersTableBody = document.getElementById('usersTableBody');
     const toggleAddUserFormBtn = document.getElementById('toggleAddUserFormBtn');
@@ -1778,11 +1896,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const invitationPanel = document.getElementById('accountInvitationPanel');
     const invitationLinkInput = document.getElementById('accountInvitationLink');
     const invitationHeading = document.getElementById('accountInvitationHeading');
+    const invitationMessage = document.getElementById('accountInvitationMessage');
     const invitationScopeNotice = document.getElementById('accountInvitationScopeNotice');
+    const temporaryPasswordField = document.querySelector('.temporary-password-field');
+    const temporaryAccountPassword = document.getElementById('temporaryAccountPassword');
     let assignablePermissionOptions = null;
     let permissionOptionsSchoolId = '';
     let assignableClasses = null;
     let classOptionsSchoolId = '';
+    let linkedRecordRequest = 0;
+    const assignableRecords = new Map();
     const roleKeysByLabel = {
         'School Admin': 'schoolAdmin',
         'Deputy Head Teacher': 'deputyHeadTeacher',
@@ -1795,6 +1918,79 @@ document.addEventListener('DOMContentLoaded', () => {
         Student: 'student'
     };
     const roleKeyForSelection = role => roleKeysByLabel[role] || role;
+    const recordCollectionForRole = role => ['student', 'parent'].includes(roleKeyForSelection(role))
+        ? 'students'
+        : roleKeyForSelection(role) === 'schoolAdmin' ? '' : 'staff';
+    const updateLinkedRecordOptions = async (role, selectedId = accountRecordSelect?.value || '') => {
+        if (!accountRecordSelect) return;
+        const requestId = ++linkedRecordRequest;
+        const roleKey = roleKeyForSelection(role);
+        const recordType = recordCollectionForRole(role);
+        const isRequired = ['student', 'parent'].includes(roleKey);
+        accountRecordGroup?.classList.toggle('hidden', !recordType);
+        accountRecordSelect.required = isRequired;
+        accountRecordSelect.disabled = !recordType;
+        if (!recordType) {
+            accountRecordSelect.replaceChildren(new Option('Not applicable', ''));
+            manualAccountRecordId.classList.add('hidden');
+            manualAccountRecordId.required = false;
+            manualAccountRecordId.value = '';
+            accountRecordHelp.textContent = 'School administrators do not need a linked record.';
+            return;
+        }
+        accountRecordSelect.replaceChildren(new Option('Loading records…', ''));
+        accountRecordHelp.textContent = isRequired
+            ? 'Select the student record this account belongs to.'
+            : 'Select the matching staff record, if one exists.';
+        const schoolId = loadSession()?.schoolId;
+        if (!schoolId) {
+            accountRecordSelect.replaceChildren(new Option('Sign in to load records', ''));
+            return;
+        }
+        const cacheKey = `${schoolId}:${recordType}`;
+        if (!assignableRecords.has(cacheKey)) {
+            assignableRecords.set(cacheKey, await getFirebase().getAssignableSchoolRecords(schoolId, recordType));
+        }
+        if (requestId !== linkedRecordRequest) return;
+        const records = assignableRecords.get(cacheKey);
+        accountRecordSelect.replaceChildren(new Option(
+            isRequired ? 'Select a record…' : 'No linked record',
+            ''
+        ));
+        records.forEach(record => {
+            const details = [
+                record.department ? `Department: ${record.department}` : '',
+                record.group ? `Class/Section: ${record.group}` : ''
+            ].filter(Boolean);
+            accountRecordSelect.add(new Option(
+                `${record.displayId || record.id}${record.displayId && record.displayId !== record.id ? ` (record key: ${record.id})` : ''} — ${record.name}${details.length ? ` — ${details.join(' — ')}` : ''}`,
+                record.id
+            ));
+        });
+        if (recordType === 'staff') {
+            accountRecordSelect.add(new Option('Enter staff record ID manually…', '__manual__'));
+        }
+        if (selectedId && !records.some(record => record.id === selectedId)) {
+            accountRecordSelect.add(new Option(`${selectedId} — linked record unavailable`, selectedId));
+        }
+        accountRecordSelect.value = selectedId;
+        manualAccountRecordId.classList.toggle('hidden', accountRecordSelect.value !== '__manual__');
+        manualAccountRecordId.required = accountRecordSelect.value === '__manual__';
+        if (!records.length) {
+            accountRecordHelp.textContent = isRequired
+                ? 'No student records are available. Add a student record before creating this account.'
+                : 'No staff records are available. Choose manual entry to add a staff record ID, or leave it unlinked.';
+        }
+    };
+    accountRecordSelect?.addEventListener('change', () => {
+        const manualMode = accountRecordSelect.value === '__manual__';
+        manualAccountRecordId.classList.toggle('hidden', !manualMode);
+        manualAccountRecordId.required = manualMode;
+        if (!manualMode) manualAccountRecordId.value = '';
+        accountRecordHelp.textContent = manualMode
+            ? 'Enter the staff record ID. This does not create a staff profile; it only stores the ID on this account.'
+            : 'Choose an existing record or leave the staff account unlinked.';
+    });
     const updateAccountRoleFields = role => {
         const isAdministrator = roleKeyForSelection(role) === 'schoolAdmin';
         sectionsGroupEl?.classList.toggle('hidden', isAdministrator);
@@ -1804,10 +2000,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isAdministrator) {
             assignedClassesContainerEl?.replaceChildren();
             dataPermissionsContainerEl?.replaceChildren();
-            return;
+        } else {
+            renderDataPermissions(role);
+            renderAssignedClasses(role);
         }
-        renderDataPermissions(role);
-        renderAssignedClasses(role);
     };
     const loadAssignablePermissionOptions = async schoolId => {
         if (assignablePermissionOptions && permissionOptionsSchoolId === schoolId) return assignablePermissionOptions;
@@ -1936,6 +2132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleAddUserFormBtn?.addEventListener('click', async () => {
         const isHidden = addUserForm.classList.contains('hidden');
         if (isHidden) {
+            assignableRecords.clear();
             addUserForm.classList.remove('hidden');
             clearForm();
             const session = loadSession();
@@ -1945,8 +2142,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     loadAssignableClasses(session.schoolId)
                 ]);
                 updateAccountRoleFields(roleSelectEl.value);
+                await updateLinkedRecordOptions(roleSelectEl.value, '');
             } catch (error) {
-                console.error('Unable to load role permission options.', error);
+                console.error('Unable to load account form options.', error);
+                accountRecordHelp.textContent = error.message || 'Unable to load linked records.';
                 dataPermissionsContainerEl.innerHTML = `<p class="data-permissions-error">${escapeUserHTML(error.message || 'Unable to load role permissions.')}</p>`;
             }
         } else {
@@ -1959,10 +2158,10 @@ document.addEventListener('DOMContentLoaded', () => {
             await navigator.clipboard.writeText(invitationLinkInput.value);
             document.getElementById('copyAccountInvitation').textContent = 'Copied';
         } catch (error) {
-            console.error('Unable to copy the account setup link.', error);
+            console.error('Unable to copy the temporary password.', error);
             invitationLinkInput.focus();
             invitationLinkInput.select();
-            alert('The link could not be copied automatically. Select and copy it manually.');
+            alert('The password could not be copied automatically. Select and copy it manually.');
         }
     });
 
@@ -3310,7 +3509,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ? '<span class="account-protected-note" title="Only the App Admin can change administrator accounts">Managed by App Admin</span>'
                         : `<div style="display:flex; align-items:center; gap:10px;">
                             <button class="action-btn" data-action="edit" data-id="${escapeUserHTML(u.uid)}" title="Edit User"><i class="fas fa-edit"></i></button>
-                            <button class="action-btn" data-action="reset-password" data-id="${escapeUserHTML(u.uid)}" title="Generate password setup/reset link" ${isCurrentUser || !isActive ? 'disabled' : ''}><i class="fas fa-key"></i></button>
+                            <button class="action-btn" data-action="reset-password" data-id="${escapeUserHTML(u.uid)}" title="Set a temporary password" ${isCurrentUser || !isActive ? 'disabled' : ''}><i class="fas fa-key"></i></button>
                             <button class="action-btn" data-action="delete" data-id="${escapeUserHTML(u.uid)}" title="Delete User" ${isCurrentUser ? 'disabled' : ''}><i class="fas fa-trash"></i></button>
                             <label class="switch" style="transform: scale(0.75); transform-origin: left;" title="${isActive ? 'Deactivate' : 'Activate'}">
                                 <input type="checkbox" class="status-toggle" data-id="${escapeUserHTML(u.uid)}" ${isActive ? 'checked' : ''} ${isCurrentUser ? 'disabled' : ''}>
@@ -3324,6 +3523,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function clearForm(){
         addUserForm.reset(); editingUserId = null;
+        manualAccountRecordId.value = '';
+        manualAccountRecordId.classList.add('hidden');
+        manualAccountRecordId.required = false;
+        accountRecordSelect.disabled = false;
+        temporaryPasswordField.hidden = false;
+        temporaryAccountPassword.required = true;
         if (roleSelectEl) roleSelectEl.disabled = false;
         const submitBtn = document.getElementById('addUserBtn');
         if (submitBtn) submitBtn.textContent = 'Add User';
@@ -3348,8 +3553,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const sections = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]:checked')).map(i => i.value);
         const assignedClassIds = readAssignedClassIds(role);
         const email = document.getElementById('accountEmail').value.trim().toLowerCase();
+        const temporaryPassword = temporaryAccountPassword.value;
+        const linkedRecordId = accountRecordSelect.value === '__manual__'
+            ? manualAccountRecordId.value.trim()
+            : accountRecordSelect.value.trim();
         const isSchoolAdminRole = roleKeyForSelection(role) === 'schoolAdmin';
         if (!fullName || !userId || !email) return alert('Provide the full name, User ID, and email address.');
+        if (accountRecordSelect.value === '__manual__' && !linkedRecordId) {
+            return alert('Enter the staff record ID or choose an existing record.');
+        }
+        if (!editingUserId && (temporaryPassword.length < 8 || temporaryPassword.length > 128)) {
+            return alert('Temporary passwords must be between 8 and 128 characters. Letters or numbers alone are accepted.');
+        }
         if (['Teacher', 'Deputy Head Teacher'].includes(role) && !assignedClassIds.length) {
             return alert('Assign at least one class to a teaching account.');
         }
@@ -3372,28 +3587,26 @@ document.addEventListener('DOMContentLoaded', () => {
             sections: isSchoolAdminRole ? [] : sections,
             assignedClassIds: isSchoolAdminRole ? [] : assignedClassIds,
             permissions: isSchoolAdminRole ? {} : readDataPermissions(),
-            linkedRecordId: document.getElementById('accountRecordId').value.trim(),
+            linkedRecordId,
             phone: document.getElementById('accountPhone').value.trim(),
             notificationPreferences: readNotificationPreferences(addUserForm)
         };
         try {
             const firebase = getFirebase();
             let uid = editingUserId;
-            let invitationUrl = '';
             if (editingUserId) {
                 const result = await firebase.updateSchoolUser({ ...accountFields, uid: editingUserId });
                 uid = result.data.uid;
             } else {
-                const result = await firebase.createSchoolUser(accountFields);
+                const result = await firebase.createSchoolUser({ ...accountFields, temporaryPassword });
                 uid = result.data.uid;
-                invitationUrl = result.data.invitationUrl;
-                if (invitationUrl) {
-                    invitationHeading.textContent = 'Account created — share the password setup link with the user.';
-                    invitationScopeNotice.classList.add('hidden');
-                    invitationLinkInput.value = invitationUrl;
-                    invitationPanel.classList.remove('hidden');
-                    document.getElementById('copyAccountInvitation').textContent = 'Copy setup link';
-                }
+                invitationHeading.textContent = 'Account created — share the temporary password privately.';
+                invitationMessage.textContent = 'The user must change this password at first sign-in and can change it again anytime.';
+                invitationScopeNotice.classList.add('hidden');
+                invitationLinkInput.value = temporaryPassword;
+                invitationLinkInput.classList.remove('hidden');
+                document.getElementById('copyAccountInvitation').classList.remove('hidden');
+                invitationPanel.classList.remove('hidden');
             }
             if (photoInput.files?.[0]) {
                 try {
@@ -3433,21 +3646,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const action = btn.getAttribute('data-action');
         const id = btn.getAttribute('data-id');
         if (action === 'reset-password'){
-            try {
-                const result = await getFirebase().generateSchoolUserPasswordResetLink({
-                    schoolId: loadSession().schoolId,
-                    uid: id
-                });
-                invitationHeading.textContent = 'Password setup/reset link generated — share it privately with the user.';
-                invitationScopeNotice.classList.remove('hidden');
-                invitationLinkInput.value = result.data.invitationUrl;
-                invitationPanel.classList.remove('hidden');
-                document.getElementById('copyAccountInvitation').textContent = 'Copy reset link';
-                invitationPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            } catch (error) {
-                console.error('Unable to generate the Firebase account password reset link.', error);
-                alert(error.message || 'Unable to generate a password reset link.');
-            }
+            openPasswordChangeDialog('admin-reset', null, id);
             return;
         }
         if (action === 'delete'){
@@ -3473,10 +3672,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (!u) return alert('This account is no longer available.');
+            assignableRecords.clear();
+            addUserForm.classList.remove('hidden');
             try {
                 await Promise.all([
                     loadAssignablePermissionOptions(loadSession().schoolId),
-                    loadAssignableClasses(loadSession().schoolId)
+                    loadAssignableClasses(loadSession().schoolId),
+                    updateLinkedRecordOptions(u.role, u.linkedRecordId || '')
                 ]);
             } catch (error) {
                 console.error('Unable to load role permission options for editing.', error);
@@ -3484,6 +3686,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             addUserForm.classList.remove('hidden');
+            temporaryPasswordField.hidden = true;
+            temporaryAccountPassword.required = false;
             const submitBtn = document.getElementById('addUserBtn');
             if (submitBtn) submitBtn.textContent = 'Update User';
             document.getElementById('fullNameInput').value = u.fullName;
@@ -3492,7 +3696,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('roleSelect').value = roleLabel || u.role;
             renderDataPermissions(document.getElementById('roleSelect').value, u.permissions || undefined);
             renderAssignedClasses(document.getElementById('roleSelect').value, u.assignedClassIds || []);
-            document.getElementById('accountRecordId').value = u.linkedRecordId || '';
+            accountRecordSelect.disabled = true;
             document.getElementById('accountEmail').value = u.email || '';
             document.getElementById('accountPhone').value = u.phone || '';
             fillNotificationPreferences(addUserForm, u.notificationPreferences);
@@ -3540,6 +3744,13 @@ document.addEventListener('DOMContentLoaded', () => {
     roleSelectEl.addEventListener('change', () => {
         applyRoleDefaults(roleSelectEl.value);
         updateAccountRoleFields(roleSelectEl.value);
+        if (!addUserForm.classList.contains('hidden')) {
+            void updateLinkedRecordOptions(roleSelectEl.value, '').catch(error => {
+                console.error('Unable to load records for account linking.', error);
+                accountRecordSelect.replaceChildren(new Option('Unable to load records', ''));
+                accountRecordHelp.textContent = error.message || 'Unable to load records for account linking.';
+            });
+        }
     });
     clearForm();
 

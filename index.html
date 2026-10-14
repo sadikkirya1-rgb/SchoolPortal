@@ -370,6 +370,31 @@ if ('serviceWorker' in navigator) {
     </div>
 </div>
 
+<div id="passwordChangeModal" class="password-dialog-overlay hidden">
+    <form id="passwordChangeForm" class="password-dialog" aria-labelledby="passwordDialogTitle">
+        <h2 id="passwordDialogTitle">Change password</h2>
+        <p id="passwordDialogDescription">Choose a new password for your account.</p>
+        <div class="password-dialog-fields" id="currentPasswordField">
+            <label for="currentAccountPassword">Current password</label>
+            <input id="currentAccountPassword" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="password-dialog-fields">
+            <label for="newAccountPassword">New password</label>
+            <input id="newAccountPassword" type="password" autocomplete="new-password" minlength="8" required>
+            <small>Use at least 8 characters, including uppercase, lowercase, a number, and a symbol.</small>
+        </div>
+        <div class="password-dialog-fields">
+            <label for="confirmAccountPassword">Confirm new password</label>
+            <input id="confirmAccountPassword" type="password" autocomplete="new-password" minlength="8" required>
+        </div>
+        <p id="passwordChangeError" class="password-dialog-error" role="alert"></p>
+        <div class="password-dialog-actions">
+            <button id="cancelPasswordChange" class="btn-secondary" type="button">Cancel</button>
+            <button class="btn-primary" type="submit">Save password</button>
+        </div>
+    </form>
+</div>
+
 <div class="container hidden">
 
 <!-- SIDEBAR -->
@@ -552,6 +577,9 @@ if ('serviceWorker' in navigator) {
         <button class="icon-button" id="enablePushNotifications" type="button" aria-label="Enable push notifications" title="Enable push notifications">
             <i class="fas fa-bell" aria-hidden="true"></i>
         </button>
+        <button class="icon-button" id="changeMyPasswordButton" type="button" aria-label="Change password" title="Change password">
+            <i class="fas fa-key" aria-hidden="true"></i>
+        </button>
         <button class="icon-button hidden" id="installPortalButton" type="button" aria-label="Install Smart School" title="Install Smart School">
             <i class="fas fa-download" aria-hidden="true"></i>
         </button>
@@ -587,17 +615,22 @@ if ('serviceWorker' in navigator) {
 
     <div id="accountInvitationPanel" class="account-invitation-panel hidden" role="status" aria-live="polite">
         <div>
-            <strong id="accountInvitationHeading">Account created — share the password setup link with the user.</strong>
-            <p>This single-use link expires. Deliver it privately and do not post it in shared channels.</p>
+            <strong id="accountInvitationHeading">Account created — share the temporary password privately.</strong>
+            <p id="accountInvitationMessage">The user must change this password at first sign-in.</p>
             <p id="accountInvitationScopeNotice" class="hidden">The password belongs to this Firebase account and may be used to sign in to other schools linked to the same account.</p>
-            <input id="accountInvitationLink" type="text" readonly aria-label="Password setup link">
+            <input id="accountInvitationLink" class="hidden" type="password" readonly aria-label="Temporary password">
         </div>
-        <button type="button" class="btn-secondary" id="copyAccountInvitation">Copy setup link</button>
+        <button type="button" class="btn-secondary hidden" id="copyAccountInvitation">Copy temporary password</button>
     </div>
 
     <div class="user-roles-content">
         <form id="addUserForm" class="user-form hidden" style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
-            <p class="account-demo-notice"><i class="fas fa-circle-info" aria-hidden="true"></i> Accounts are created in Firebase Authentication. Users set their own password from a one-time setup link. Sections control navigation visibility; class assignments and data permissions are enforced by Firebase.</p>
+            <p class="account-demo-notice"><i class="fas fa-circle-info" aria-hidden="true"></i> Set a temporary password and share it privately. Users must change it at first sign-in and can change it again anytime. Sections, class assignments, and data permissions are enforced by Firebase.</p>
+            <div class="form-group temporary-password-field">
+                <label for="temporaryAccountPassword">Temporary password</label>
+                <input id="temporaryAccountPassword" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required>
+                <p>Use 8–128 characters; letters or numbers alone are accepted. Share it privately. The user must change it at first sign-in.</p>
+            </div>
             <div class="form-row">
                 <div class="form-group">
                     <label for="fullNameInput">Full Name</label>
@@ -622,8 +655,12 @@ if ('serviceWorker' in navigator) {
 
             <div class="account-link-fields">
                 <div class="form-group">
-                    <label for="accountRecordId">Linked Student / Parent / Staff Record ID</label>
-                    <input id="accountRecordId" type="text" placeholder="e.g. admission number or employee number">
+                    <label for="accountRecordId">Linked system record</label>
+                    <select id="accountRecordId">
+                        <option value="">Select a role first</option>
+                    </select>
+                    <input id="manualAccountRecordId" class="hidden" type="text" maxlength="120" autocomplete="off" placeholder="Enter staff record ID">
+                    <small id="accountRecordHelp">Choose a record from the school's existing records.</small>
                 </div>
                 <div class="form-group">
                     <label for="accountEmail">Email</label>

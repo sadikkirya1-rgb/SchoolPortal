@@ -654,7 +654,7 @@ async function subscribeLegacyCollections() {
     const collectionNames = new Set(legacyDataCollections.values());
     for (const collectionName of collectionNames) {
         const mayView = isSchoolAdmin || owner.permissions[collectionName]?.view === true;
-        if (!mayView || (!isSchoolAdmin && isPersonalCollection(collectionName))) continue;
+        if (!mayView || (!isSchoolAdmin && isClassScopedCollection(collectionName))) continue;
         const storageKeys = Array.from(legacyDataCollections)
             .filter(([, mappedCollection]) => mappedCollection === collectionName)
             .map(([key]) => key);
@@ -758,7 +758,9 @@ window.schoolPortalData = {
             window.location.reload();
             return identity;
         }
-        void subscribeLegacyCollections();
+        void subscribeLegacyCollections().catch(error => {
+            console.error('Unable to initialize legacy school data subscriptions.', error);
+        });
         void syncOutbox();
         window.dispatchEvent(new CustomEvent('school-portal-identity-ready', { detail: identity }));
         void migrateLegacyLocalData().catch(error => {

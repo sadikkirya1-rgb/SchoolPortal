@@ -5057,6 +5057,90 @@ input:checked + .slider:before {
     display:none;
 }
 
+#addUserForm .form-group label{
+    color:#334155;
+}
+
+#addUserForm .form-group input,
+#addUserForm .form-group select,
+#addUserForm .form-group textarea{
+    background:#fff;
+    border:1px solid #cbd5e1;
+    color:#1f2937;
+    color-scheme:light;
+}
+
+#addUserForm .form-group input::placeholder,
+#addUserForm .form-group textarea::placeholder{
+    color:#64748b;
+    opacity:1;
+}
+
+#addUserForm .form-group input:focus,
+#addUserForm .form-group select:focus,
+#addUserForm .form-group textarea:focus{
+    border-color:#2563eb;
+    outline:2px solid rgba(37,99,235,.2);
+    outline-offset:1px;
+}
+
+#addUserForm .account-notification-preferences{
+    color:#334155;
+}
+
+.temporary-password-field{
+    max-width:560px;
+}
+
+#addUserForm .temporary-password-field>p{
+    margin:0;
+    color:#475569;
+    font-size:12px;
+}
+
+.password-dialog-overlay{
+    position:fixed;
+    z-index:1500;
+    inset:0;
+    display:grid;
+    place-items:center;
+    padding:18px;
+    background:rgba(15,23,42,.66);
+}
+
+.password-dialog-overlay.hidden{display:none}
+
+.password-dialog{
+    width:min(460px,100%);
+    padding:24px;
+    border:1px solid #dbe3ed;
+    border-radius:16px;
+    background:#fff;
+    color:#1e293b;
+    box-shadow:0 24px 80px rgba(0,0,0,.25);
+}
+
+.password-dialog h2{margin:0 0 8px;font-size:20px}
+.password-dialog>p{margin:0 0 18px;color:#475569;font-size:13px;line-height:1.55}
+.password-dialog-fields{display:grid;gap:6px;margin:14px 0}
+.password-dialog-fields[hidden]{display:none}
+.password-dialog-fields label{font-size:13px;font-weight:650}
+.password-dialog-fields input{
+    width:100%;
+    min-height:42px;
+    padding:10px 12px;
+    border:1px solid #94a3b8;
+    border-radius:8px;
+    background:#fff;
+    color:#1e293b;
+    color-scheme:light;
+}
+.password-dialog-fields input:focus{outline:2px solid #2563eb;outline-offset:1px}
+.password-dialog-fields small{color:#475569;font-size:11px}
+.password-dialog .password-dialog-error{min-height:18px;margin:6px 0;color:#b42318;font-size:12px}
+.password-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.password-dialog-actions button{width:auto;min-height:42px;margin:0}
+
 .push-message-toast{
     position:fixed;
     z-index:1300;
@@ -5140,6 +5224,9 @@ input:checked + .slider:before {
     .top-actions{gap:5px}
     .top-actions>.icon-button{width:29px;height:29px;flex-basis:29px}
     .mobile-role-nav{border-radius:15px 15px 0 0}
+    .password-dialog{padding:18px}
+    .password-dialog-actions{flex-direction:column-reverse}
+    .password-dialog-actions button{width:100%;max-width:none}
 }
 
 @media(max-width:900px){
