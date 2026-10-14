@@ -258,7 +258,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return window.schoolPortalFirebase;
     };
     const waitForFirebase = () => {
-        if (window.schoolPortalFirebase) return Promise.resolve(window.schoolPortalFirebase);
+        const isReady = () => window.schoolPortalFirebase && window.schoolPortalData;
+        if (isReady()) return Promise.resolve(window.schoolPortalFirebase);
         return new Promise((resolve, reject) => {
             const cleanup = () => {
                 clearTimeout(timeoutId);
@@ -270,7 +271,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (error) reject(error);
                 else resolve(firebase);
             };
-            const onReady = () => finish(null, window.schoolPortalFirebase);
+            const onReady = () => {
+                if (!isReady()) {
+                    finish(new Error('Firebase finished loading without initializing school data.'));
+                    return;
+                }
+                finish(null, window.schoolPortalFirebase);
+            };
             const onError = event => finish(event.detail || new Error('Firebase failed to initialize.'));
             const timeoutId = setTimeout(
                 () => finish(new Error('Timed out while waiting for Firebase to initialize.')),
@@ -1033,14 +1040,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function applyAccountSectionAccess(userData) {
-        const allowedSections = new Set(Array.isArray(userData.sections) ? userData.sections : []);
+        const normalizeSectionKey = value => String(value || '')
+            .trim()
+            .toLowerCase()
+            .replace(/\s+department$/, '')
+            .replace(/[^a-z0-9]+/g, '');
+        const allowedSections = new Set((Array.isArray(userData.sections) ? userData.sections : [])
+            .map(normalizeSectionKey));
         const unrestrictedRole = isPrivilegedRole(userData.role);
         const canView = unrestrictedRole || userData.perms?.view !== false;
         document.querySelectorAll('.sidebar > .menu-title').forEach(title => {
             const group = title.nextElementSibling;
             if (!group?.classList.contains('nav-links')) return;
             const sectionName = title.dataset.accessSection || title.innerText.trim();
-            const canShow = canView && (unrestrictedRole || sectionName === 'Main' || allowedSections.has(sectionName));
+            const canShow = canView && (unrestrictedRole || allowedSections.has(normalizeSectionKey(sectionName)));
             title.classList.toggle('account-access-hidden', !canShow);
             group.classList.toggle('account-access-hidden', !canShow);
         });
@@ -1106,12 +1119,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 && !link.closest('.nav-links')?.classList.contains('account-access-hidden');
         });
         const items = preset.map(([target, label, icon]) => {
-            const link = target === 'Dashboard'
-                ? sidebarLinks.find(item => item.id === 'dashboardBtn' || item.dataset.menuId === 'dashboard')
-                : visibleLinkFor(target);
+            const link = visibleLinkFor(target);
             return link ? { link, label, icon } : null;
         }).filter(Boolean);
-        if (!items.length) return;
+        if (!items.length) {
+            nav.replaceChildren();
+            nav.hidden = true;
+            return;
+        }
 
         nav.replaceChildren();
         items.forEach(({ link, label, icon }) => {
@@ -3363,11 +3378,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const seenNames = new Set();
 
         menuTitles.forEach(titleEl => {
-            const name = titleEl.innerText.trim();
+            const name = titleEl.dataset.accessSection || titleEl.innerText.trim();
+            const label = titleEl.innerText.trim();
             if (name && !seenNames.has(name)) {
                 seenNames.add(name);
                 const iconHtml = titleEl.querySelector('i')?.outerHTML || '';
-                uniqueSections.push({ name, icon: iconHtml });
+                uniqueSections.push({ name, label, icon: iconHtml });
             }
         });
 
@@ -3429,7 +3445,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="slider"></span>
                 </span>
                 <span style="color: var(--primary); font-size: 14px; width: 18px; text-align: center; flex-shrink: 0;">${item.icon}</span>
-                <span title="${item.name}" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.name}</span>`;
+                <span title="${item.label}" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.label}</span>`;
             const cb = label.querySelector('input');
             cb.addEventListener('change', () => syncCard(cb, label));
             syncCard(cb, label);

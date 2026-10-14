@@ -590,10 +590,67 @@ async function subscribe(collectionName, onRecords, filters = [], options = {}) 
         constraints.push(where('data.classId', 'in', owner.assignedClassIds));
     }
     if (['parent', 'student'].includes(owner.role) && isClassScopedCollection(collectionName)) {
-        const studentIds = await linkedStudentIds(owner);
-        if (!studentIds.length) return () => {};
-        if (studentIds.length > 30) throw new Error('This account is linked to more students than one secure query can load.');
-        constraints.push(where(collectionName === 'students' ? documentId() : 'data.studentId', 'in', studentIds));
+        let refreshInProgress = false;
+        let cancelled = false;
+        const refreshLinkedRecords = async () => {
+            if (cancelled || refreshInProgress || !navigator.onLine) return;
+            refreshInProgress = true;
+            try {
+                const firebase = window.schoolPortalFirebase;
+                if (!firebase?.getLinkedSchoolRecords) {
+                    throw new Error('Secure linked-record access is unavailable. Reload the app and try again.');
+                }
+                const linkedRecords = await firebase.getLinkedSchoolRecords(owner.schoolId, collectionName);
+                if (cancelled) return;
+                const visibleRecords = [];
+                for (const linkedRecord of linkedRecords) {
+                    if (cancelled) return;
+                    const recordId = String(linkedRecord.id);
+                    const key = makeKey(owner.schoolId, owner.uid, collectionName, recordId);
+                    const cached = await readLocal(key);
+                    if (cached?.syncState === 'pending' || cached?.syncState === 'conflict') {
+                        visibleRecords.push(cached);
+                        continue;
+                    }
+                    const record = {
+                        key,
+                        schoolId: owner.schoolId,
+                        uid: owner.uid,
+                        collection: collectionName,
+                        recordId,
+                        data: linkedRecord.data,
+                        version: linkedRecord.version,
+                        syncState: 'synced',
+                        updatedAt: Date.now()
+                    };
+                    await writeLocal(record);
+                    visibleRecords.push(record);
+                }
+                onRecords(visibleRecords
+                    .filter(record => record.data?.deleted !== true)
+                    .map(record => ({ id: record.recordId, ...record.data, _syncState: record.syncState })), { source: 'cloud' });
+            } catch (error) {
+                console.error(`Unable to synchronize linked ${collectionName} records.`, error);
+                window.dispatchEvent(new CustomEvent('school-portal-sync-error', {
+                    detail: { collection: collectionName, error }
+                }));
+            } finally {
+                refreshInProgress = false;
+            }
+        };
+        const refreshWhenVisible = () => {
+            if (!document.hidden) void refreshLinkedRecords();
+        };
+        void refreshLinkedRecords();
+        window.addEventListener('online', refreshLinkedRecords);
+        window.addEventListener('focus', refreshLinkedRecords);
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+        return () => {
+            cancelled = true;
+            window.removeEventListener('online', refreshLinkedRecords);
+            window.removeEventListener('focus', refreshLinkedRecords);
+            document.removeEventListener('visibilitychange', refreshWhenVisible);
+        };
     }
     if (options.orderByField) constraints.push(orderBy(options.orderByField, options.orderDirection || 'asc'));
     if (Number.isInteger(options.limit) && options.limit > 0) constraints.push(limit(options.limit));

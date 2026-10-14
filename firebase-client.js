@@ -247,6 +247,7 @@ const deleteSchoolUser = httpsCallable(functions, 'deleteSchoolUser');
 const setSchoolUserTemporaryPassword = httpsCallable(functions, 'setSchoolUserTemporaryPassword');
 const completeOwnPasswordChange = httpsCallable(functions, 'completeOwnPasswordChange');
 const getPublicPlatformStats = httpsCallable(functions, 'getPublicPlatformStats');
+const getLinkedSchoolRecords = httpsCallable(functions, 'getLinkedSchoolRecords');
 const savePushToken = httpsCallable(functions, 'savePushToken');
 const removePushToken = httpsCallable(functions, 'removePushToken');
 let foregroundMessagingListenerRegistered = false;
@@ -318,6 +319,8 @@ window.schoolPortalFirebase = {
     disablePushNotifications,
     getAssignableSchoolClasses: listAssignableSchoolClasses,
     getAssignableSchoolRecords: listAssignableSchoolRecords,
+    getLinkedSchoolRecords: async (schoolId, collectionName) =>
+        (await getLinkedSchoolRecords({ schoolId, collectionName })).data.records,
     createSchoolUser,
     getAssignableSchoolPermissions: async schoolId => (await getAssignableSchoolPermissions({ schoolId })).data,
     updateSchoolUser,

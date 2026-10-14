@@ -15,6 +15,11 @@ const auth = getAuth();
 const messaging = getMessaging();
 const backupAuth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
 const privilegedRoles = new Set(['schoolAdmin', 'superAdmin', 'director', 'headTeacher']);
+const linkedRecordCollections = new Set([
+    'students', 'attendance', 'assessments', 'reportCards', 'fees',
+    'feeInvoices', 'healthRecords', 'libraryLoans', 'disciplineCases',
+    'certificates', 'idCards', 'transcripts', 'unebExams'
+]);
 let publicStatsCache = null;
 let publicStatsCacheTime = 0;
 const roleAliases = {
@@ -492,6 +497,66 @@ exports.getAssignableSchoolRecords = onCall(async request => {
         })
         .filter(Boolean)
         .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
+});
+
+exports.getLinkedSchoolRecords = onCall(async request => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to view linked student records.');
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    const collectionName = String(request.data?.collectionName || '');
+    if (!linkedRecordCollections.has(collectionName)) {
+        throw new HttpsError('invalid-argument', 'Choose a supported student record collection.');
+    }
+
+    const schoolRef = db.doc(`schools/${schoolId}`);
+    const memberRef = schoolRef.collection('members').doc(request.auth.uid);
+    const [schoolSnapshot, memberSnapshot] = await Promise.all([schoolRef.get(), memberRef.get()]);
+    if (!schoolSnapshot.exists || schoolSnapshot.data().status !== 'active'
+        || !memberSnapshot.exists || memberSnapshot.data().status !== 'active'
+        || memberSnapshot.data().mustChangePassword === true) {
+        throw new HttpsError('permission-denied', 'This account does not have active access to school records.');
+    }
+
+    const member = memberSnapshot.data();
+    if (!['parent', 'student'].includes(member.role)
+        || member.permissions?.[collectionName]?.view !== true) {
+        throw new HttpsError('permission-denied', 'This account does not have permission to view these records.');
+    }
+
+    let studentIds;
+    if (member.role === 'student') {
+        studentIds = member.linkedRecordType === 'student' && member.linkedRecordId
+            ? [String(member.linkedRecordId)]
+            : [];
+    } else {
+        const links = await memberRef.collection('linkedStudents').get();
+        studentIds = links.docs.map(link => link.id);
+    }
+    if (studentIds.length > 30) {
+        throw new HttpsError('failed-precondition', 'This account is linked to more than 30 students. Contact the school administrator.');
+    }
+    if (!studentIds.length) return { records: [] };
+
+    const documents = [];
+    if (collectionName === 'students') {
+        const snapshots = await Promise.all(studentIds.map(studentId =>
+            schoolRef.collection('students').doc(studentId).get()
+        ));
+        documents.push(...snapshots.filter(snapshot => snapshot.exists));
+    } else {
+        const snapshot = await db.collection(`schools/${schoolId}/${collectionName}`)
+            .where('data.studentId', 'in', studentIds)
+            .get();
+        documents.push(...snapshot.docs);
+    }
+    return {
+        records: documents
+            .filter(snapshot => snapshot.data().data?.deleted !== true)
+            .map(snapshot => ({
+                id: snapshot.id,
+                data: snapshot.data().data || {},
+                version: snapshot.data().version || 0
+            }))
+    };
 });
 
 exports.createSchoolUser = onCall(async request => {
