@@ -3420,6 +3420,9 @@ color:#64748b;
 }
 .user-roles-content{display:block}
 .account-access-hidden{display:none!important}
+.user-roles-guidance{margin:14px 0;padding:14px 16px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a}
+.user-roles-guidance p{margin:5px 0 0;font-size:13px;line-height:1.55}
+.account-protected-note{display:inline-block;color:#64748b;font-size:11px;line-height:1.4}
 .user-form .form-row{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .user-form .form-group{flex:1;min-width:160px}
 .account-invitation-panel{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:16px 0;padding:16px;border:1px solid #86efac;border-radius:10px;background:#f0fdf4;color:#14532d}
@@ -3427,6 +3430,7 @@ color:#64748b;
 .account-invitation-panel input{width:100%;min-width:0;padding:8px;border:1px solid #bbf7d0;border-radius:6px;background:#fff;color:#334155;font-size:12px}
 .assigned-classes-group .sections-list{max-height:240px;overflow:auto}
 .dark .account-invitation-panel{background:#052e16;border-color:#166534;color:#dcfce7}
+.dark .user-roles-guidance{background:#172554;border-color:#1e40af;color:#dbeafe}
 .data-permissions-list{margin-top:10px;max-height:360px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;background:#fff}
 .data-permissions-table{width:100%;border-collapse:collapse;font-size:11px}
 .data-permissions-table th,.data-permissions-table td{padding:8px 10px;border-bottom:1px solid #edf1f5;text-align:center}

@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const isAddAction = (element) => {
             if (!element) return false;
+            if (element.closest('#userRolesSection') || element.matches('[data-open-user-form]')) return false;
 
             const getTextValue = (value) => (value || '').replace(/\s+/g, ' ').trim().toLowerCase();
             const rawText = getTextValue(
@@ -252,6 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.addEventListener('school-portal-firebase-error', onError, { once: true });
         });
     };
+    const isPrivilegedRole = role => ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(role);
     const normalizeMember = (membership, authUser) => ({
         ...membership,
         fullName: membership.fullName || membership.profile?.name || authUser.displayName || authUser.email || 'User',
@@ -893,7 +895,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dashboardIdentityKey = identityKey;
         dashboardLastUpdated = null;
 
-        const adminRole = ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(userData.role);
+        const adminRole = isPrivilegedRole(userData.role);
         const permissions = identity.permissions || userData.permissions || userData.perms || {};
         dashboardCollections.forEach(collection => {
             dashboardData[collection] = { loaded: false, records: [], error: false };
@@ -1005,8 +1007,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function applyAccountSectionAccess(userData) {
         const allowedSections = new Set(Array.isArray(userData.sections) ? userData.sections : []);
-        const canView = userData.perms?.view !== false;
-        const unrestrictedRole = ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(userData.role);
+        const unrestrictedRole = isPrivilegedRole(userData.role);
+        const canView = unrestrictedRole || userData.perms?.view !== false;
         document.querySelectorAll('.sidebar > .menu-title').forEach(title => {
             const group = title.nextElementSibling;
             if (!group?.classList.contains('nav-links')) return;
@@ -1060,7 +1062,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             currentSchool = await firebase.getSchool(session.schoolId);
             const membership = await firebase.getMembership(currentSchool.id, authUser.uid);
-            if (!membership || membership.perms?.view === false) {
+            if (!membership || (membership.perms?.view === false && !isPrivilegedRole(membership.role))) {
                 clearSession();
                 await firebase.signOut();
                 resetLoginScreen();
@@ -1129,7 +1131,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         try {
             const { school, user: authUser, membership } = await getFirebase().signIn(schoolId, email, password);
-            if (membership.perms?.view === false) throw new Error('This account does not have dashboard access. Contact your school administrator.');
+            if (membership.perms?.view === false && !isPrivilegedRole(membership.role)) {
+                throw new Error('This account does not have dashboard access. Contact your school administrator.');
+            }
             currentSchool = school;
             const user = normalizeMember(membership, authUser);
             saveSession({ schoolId: school.id, userId: authUser.uid, step: 2, authenticated: true, user });
@@ -1582,6 +1586,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const sectionsContainerEl = document.getElementById('sectionsContainer');
     const assignedClassesContainerEl = document.getElementById('assignedClassesContainer');
     const assignedClassesGroupEl = document.getElementById('assignedClassesGroup');
+    const sectionsGroupEl = document.querySelector('.sections-group');
+    const permissionsGroupEl = document.querySelector('.perms-group');
+    const adminAccountAccessNotice = document.getElementById('adminAccountAccessNotice');
     const dataPermissionsContainerEl = document.getElementById('dataPermissionsContainer');
     const addUserForm = document.getElementById('addUserForm');
     const usersTableBody = document.getElementById('usersTableBody');
@@ -1596,6 +1603,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let assignableClasses = null;
     let classOptionsSchoolId = '';
     const roleKeysByLabel = {
+        'School Admin': 'schoolAdmin',
         'Deputy Head Teacher': 'deputyHeadTeacher',
         Bursar: 'bursar',
         Teacher: 'teacher',
@@ -1606,6 +1614,20 @@ document.addEventListener('DOMContentLoaded', () => {
         Student: 'student'
     };
     const roleKeyForSelection = role => roleKeysByLabel[role] || role;
+    const updateAccountRoleFields = role => {
+        const isAdministrator = roleKeyForSelection(role) === 'schoolAdmin';
+        sectionsGroupEl?.classList.toggle('hidden', isAdministrator);
+        permissionsGroupEl?.classList.toggle('hidden', isAdministrator);
+        assignedClassesGroupEl?.classList.toggle('hidden', isAdministrator);
+        adminAccountAccessNotice?.classList.toggle('hidden', !isAdministrator);
+        if (isAdministrator) {
+            assignedClassesContainerEl?.replaceChildren();
+            dataPermissionsContainerEl?.replaceChildren();
+            return;
+        }
+        renderDataPermissions(role);
+        renderAssignedClasses(role);
+    };
     const loadAssignablePermissionOptions = async schoolId => {
         if (assignablePermissionOptions && permissionOptionsSchoolId === schoolId) return assignablePermissionOptions;
         assignablePermissionOptions = null;
@@ -1741,8 +1763,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     loadAssignablePermissionOptions(session.schoolId),
                     loadAssignableClasses(session.schoolId)
                 ]);
-                renderDataPermissions(roleSelectEl.value);
-                renderAssignedClasses(roleSelectEl.value);
+                updateAccountRoleFields(roleSelectEl.value);
             } catch (error) {
                 console.error('Unable to load role permission options.', error);
                 dataPermissionsContainerEl.innerHTML = `<p class="data-permissions-error">${escapeUserHTML(error.message || 'Unable to load role permissions.')}</p>`;
@@ -2910,6 +2931,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function populateRoleOptions(){
         const roles = ['Deputy Head Teacher', 'Bursar', 'Teacher', 'Librarian', 'HR Officer', 'Store Manager', 'Parent', 'Student'];
+        if (loadSession()?.user?.role === 'schoolAdmin') roles.unshift('School Admin');
         roleSelectEl.innerHTML = '';
         roles.forEach(r => {
             const opt = document.createElement('option'); opt.value = r; opt.textContent = r; roleSelectEl.appendChild(opt);
@@ -2917,6 +2939,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function applyRoleDefaults(role){
+        if (role === 'School Admin') {
+            const sectionCheckboxes = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]'));
+            sectionCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+                checkbox.dispatchEvent(new Event('change'));
+            });
+            const selectAllSections = sectionsContainerEl.querySelector('#selectAllSections');
+            if (selectAllSections) selectAllSections.checked = false;
+            return;
+        }
         const preset = rolePresets[role] || rolePresets.Teacher;
         const sectionCheckboxes = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]'));
         sectionCheckboxes.forEach(checkbox => {
@@ -3056,12 +3088,18 @@ document.addEventListener('DOMContentLoaded', () => {
             users = await getFirebase().listMembers(session.schoolId);
         } catch (error) {
             console.error('Unable to load school accounts from Firestore.', error);
-            usersTableBody.innerHTML = '<tr><td colspan="10">Unable to load accounts. Check your administrator access and connection.</td></tr>';
+            usersTableBody.innerHTML = '<tr><td colspan="10">Unable to load accounts. Check your connection, then sign out and back in if administrator access was recently changed.</td></tr>';
+            return;
+        }
+        if (!users.length) {
+            usersTableBody.innerHTML = '<tr><td colspan="10">No accounts were found for this school. Use Add User to create the first account.</td></tr>';
             return;
         }
         users.forEach(u => {
             const tr = document.createElement('tr');
             const isActive = u.status === 'active';
+            const isAdministrator = isPrivilegedRole(u.role);
+            const isCurrentUser = u.uid === session.userId;
 
             if (u.uid === session.userId) {
                 tr.classList.add('current-user-row');
@@ -3083,19 +3121,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${escapeUserHTML(u.role)}</td>
                 <td>${escapeUserHTML(u.linkedRecordId || '—')}</td>
                 <td>${escapeUserHTML([u.email, u.phone].filter(Boolean).join(' · ') || '—')}<small class="user-notification-summary">Notices: ${escapeUserHTML(channels)}</small></td>
-                <td>${escapeUserHTML((u.sections || []).join(', '))}</td>
-                <td>${escapeUserHTML((u.assignedClassIds || []).join(', ') || '—')}</td>
-                <td class="small">${u.uid === session.userId || ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'Protected' : escapeUserHTML(permissionSummary(u.permissions))}</td>
+                <td>${isAdministrator ? 'All sections' : escapeUserHTML((u.sections || []).join(', ') || 'None assigned')}</td>
+                <td>${isAdministrator ? 'All classes' : escapeUserHTML((u.assignedClassIds || []).join(', ') || (['teacher', 'deputyHeadTeacher'].includes(u.role) ? 'None assigned' : 'Not applicable'))}</td>
+                <td class="small">${isAdministrator ? 'Full school access' : escapeUserHTML(permissionSummary(u.permissions))}</td>
                 <td>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <button class="action-btn" data-action="edit" data-id="${escapeUserHTML(u.uid)}" title="Edit User" ${['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'disabled' : ''}><i class="fas fa-edit"></i></button>
-                        <button class="action-btn" data-action="reset-password" data-id="${escapeUserHTML(u.uid)}" title="Generate password setup/reset link" ${u.uid === session.userId || ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) || !isActive ? 'disabled' : ''}><i class="fas fa-key"></i></button>
-                        <button class="action-btn" data-action="delete" data-id="${escapeUserHTML(u.uid)}" title="Delete User" ${u.uid === session.userId || ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'disabled' : ''}><i class="fas fa-trash"></i></button>
-                        <label class="switch" style="transform: scale(0.75); transform-origin: left;" title="${isActive ? 'Deactivate' : 'Activate'}">
-                            <input type="checkbox" class="status-toggle" data-id="${escapeUserHTML(u.uid)}" ${isActive ? 'checked' : ''} ${u.uid === session.userId || ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'disabled' : ''}>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
+                    ${isAdministrator
+                        ? '<span class="account-protected-note" title="Only the App Admin can change administrator accounts">Managed by App Admin</span>'
+                        : `<div style="display:flex; align-items:center; gap:10px;">
+                            <button class="action-btn" data-action="edit" data-id="${escapeUserHTML(u.uid)}" title="Edit User"><i class="fas fa-edit"></i></button>
+                            <button class="action-btn" data-action="reset-password" data-id="${escapeUserHTML(u.uid)}" title="Generate password setup/reset link" ${isCurrentUser || !isActive ? 'disabled' : ''}><i class="fas fa-key"></i></button>
+                            <button class="action-btn" data-action="delete" data-id="${escapeUserHTML(u.uid)}" title="Delete User" ${isCurrentUser ? 'disabled' : ''}><i class="fas fa-trash"></i></button>
+                            <label class="switch" style="transform: scale(0.75); transform-origin: left;" title="${isActive ? 'Deactivate' : 'Activate'}">
+                                <input type="checkbox" class="status-toggle" data-id="${escapeUserHTML(u.uid)}" ${isActive ? 'checked' : ''} ${isCurrentUser ? 'disabled' : ''}>
+                                <span class="slider"></span>
+                            </label>
+                        </div>`}
                 </td>`;
             usersTableBody.appendChild(tr);
         });
@@ -3113,8 +3153,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (roleSelectEl) {
             roleSelectEl.value = roleSelectEl.querySelector('option[value="Teacher"]') ? 'Teacher' : roleSelectEl.options[0]?.value;
             applyRoleDefaults(roleSelectEl.value);
-            renderDataPermissions(roleSelectEl.value);
-            renderAssignedClasses(roleSelectEl.value);
+            updateAccountRoleFields(roleSelectEl.value);
         }
     }
 
@@ -3128,11 +3167,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const sections = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]:checked')).map(i => i.value);
         const assignedClassIds = readAssignedClassIds(role);
         const email = document.getElementById('accountEmail').value.trim().toLowerCase();
+        const isSchoolAdminRole = roleKeyForSelection(role) === 'schoolAdmin';
         if (!fullName || !userId || !email) return alert('Provide the full name, User ID, and email address.');
         if (['Teacher', 'Deputy Head Teacher'].includes(role) && !assignedClassIds.length) {
             return alert('Assign at least one class to a teaching account.');
         }
-        if (!assignablePermissionOptions?.[roleKeyForSelection(role)] || !dataPermissionsContainerEl.querySelector('.data-permission-row')) {
+        if (!isSchoolAdminRole && (!assignablePermissionOptions?.[roleKeyForSelection(role)] || !dataPermissionsContainerEl.querySelector('.data-permission-row'))) {
             return alert('Role permissions are not available. Reopen the user form and try again.');
         }
         const photoInput = document.getElementById('profilePhotoInput');
@@ -3148,9 +3188,9 @@ document.addEventListener('DOMContentLoaded', () => {
             userId,
             email,
             role,
-            sections,
-            assignedClassIds,
-            permissions: readDataPermissions(),
+            sections: isSchoolAdminRole ? [] : sections,
+            assignedClassIds: isSchoolAdminRole ? [] : assignedClassIds,
+            permissions: isSchoolAdminRole ? {} : readDataPermissions(),
             linkedRecordId: document.getElementById('accountRecordId').value.trim(),
             phone: document.getElementById('accountPhone').value.trim(),
             notificationPreferences: readNotificationPreferences(addUserForm)
@@ -3318,8 +3358,7 @@ document.addEventListener('DOMContentLoaded', () => {
     populateSectionsList();
     roleSelectEl.addEventListener('change', () => {
         applyRoleDefaults(roleSelectEl.value);
-        renderDataPermissions(roleSelectEl.value);
-        renderAssignedClasses(roleSelectEl.value);
+        updateAccountRoleFields(roleSelectEl.value);
     });
     clearForm();
 

@@ -566,6 +566,11 @@ if ('serviceWorker' in navigator) {
         </div>
     </div>
 
+    <div class="user-roles-guidance" role="note">
+        <strong>Managing school accounts</strong>
+        <p>Your School Admin account has full access by default; sections, classes, and individual permissions do not limit administrator accounts. Use <strong>Add User</strong> to create staff, parent, student, or another School Admin account. Admins you create also have full access; only the App Admin can edit, suspend, or delete administrator accounts.</p>
+    </div>
+
     <div id="accountInvitationPanel" class="account-invitation-panel hidden" role="status" aria-live="polite">
         <div>
             <strong id="accountInvitationHeading">Account created — share the password setup link with the user.</strong>
@@ -643,6 +648,7 @@ if ('serviceWorker' in navigator) {
                     <div id="dataPermissionsContainer" class="data-permissions-list" aria-live="polite"></div>
                 </div>
             </div>
+            <p id="adminAccountAccessNotice" class="user-roles-guidance hidden">School Admin accounts have full access to every school section and data area. Section, class, and data permission settings do not apply to this role.</p>
 
             <div class="form-row actions-row" style="display: flex; gap: 12px;">
                 <button class="btn-primary" id="addUserBtn">Add User</button>

@@ -425,7 +425,9 @@ exports.createSchoolUser = onCall(async request => {
     if (!(await db.doc(`schools/${schoolId}`).get()).exists) {
         throw new HttpsError('not-found', 'The school has not been provisioned.');
     }
-    const account = sanitizeAccount(request.data, { allowSchoolAdmin: caller.platformAdmin === true });
+    const account = sanitizeAccount(request.data, {
+        allowSchoolAdmin: caller.platformAdmin === true || caller.role === 'schoolAdmin'
+    });
     account.assignedClassIds = await validateAssignedClassIds(schoolId, account.role, account.assignedClassIds);
     const matchingUserId = await db.collection(`schools/${schoolId}/members`).where('userId', '==', account.userId).limit(1).get();
     if (!matchingUserId.empty) throw new HttpsError('already-exists', 'That User ID is already used at this school.');

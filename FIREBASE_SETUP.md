@@ -41,8 +41,8 @@ The Firebase client is configured for the `delivery-app-6a47f` project and the `
      notificationPreferences: {}
    ```
 
-   School administrator role assignment is available only to the App Admin callable; client rules intentionally prohibit creating or elevating school administrator memberships. Store the school ID in `schools/{schoolId}` and membership data in `schools/{schoolId}/members/{authUid}`; the school ID is the visible tenant identifier, while the Auth UID remains the secure account document key.
-7. Sign in using the generated School ID, the administrator's email, and password. Use the User Roles screen to provision non-administrator school accounts.
+   The App Admin creates the first School Admin. An active School Admin may invite additional School Admin accounts from User Roles; these accounts receive full school access and their management remains restricted to the App Admin. Store the school ID in `schools/{schoolId}` and membership data in `schools/{schoolId}/members/{authUid}`; the school ID is the visible tenant identifier, while the Auth UID remains the secure account document key.
+7. Sign in using the generated School ID, the administrator's email, and password. Use the User Roles screen to provision staff, parent, student, or additional School Admin accounts. Admin accounts are full-access and are not scoped by section, class, or individual data permissions.
 
 ## Current implementation boundary
 
