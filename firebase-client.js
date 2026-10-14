@@ -157,9 +157,11 @@ async function signOutCurrentUser() {
 const createSchoolUser = httpsCallable(functions, 'createSchoolUser');
 const getAssignableSchoolPermissions = httpsCallable(functions, 'getAssignableSchoolPermissions');
 const updateSchoolUser = httpsCallable(functions, 'updateSchoolUser');
+const generateSchoolUserPasswordResetLink = httpsCallable(functions, 'generateSchoolUserPasswordResetLink');
 const setSchoolUserStatus = httpsCallable(functions, 'setSchoolUserStatus');
 const deleteSchoolUser = httpsCallable(functions, 'deleteSchoolUser');
 const getPublicPlatformStats = httpsCallable(functions, 'getPublicPlatformStats');
+const getAssignableSchoolClasses = httpsCallable(functions, 'getAssignableSchoolClasses');
 
 window.schoolPortalFirebase = {
     app,
@@ -177,9 +179,11 @@ window.schoolPortalFirebase = {
     uploadSchoolAsset,
     signIn,
     signOut: signOutCurrentUser,
+    getAssignableSchoolClasses: async schoolId => (await getAssignableSchoolClasses({ schoolId })).data,
     createSchoolUser,
     getAssignableSchoolPermissions: async schoolId => (await getAssignableSchoolPermissions({ schoolId })).data,
     updateSchoolUser,
+    generateSchoolUserPasswordResetLink,
     setSchoolUserStatus,
     deleteSchoolUser,
     getPublicPlatformStats: async () => (await getPublicPlatformStats()).data

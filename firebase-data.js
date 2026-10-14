@@ -1,5 +1,6 @@
 import {
     collection,
+    documentId,
     doc,
     getDoc,
     getDocs,
@@ -31,6 +32,11 @@ const allowedCollections = new Set([
     'transcripts', 'unebExams', 'schemesOfWork', 'streams', 'lessonPlans',
     'schoolDocuments', 'calendarEvents', 'announcements', 'smsMessages',
     'ministryReports', 'emisReports', 'teachers', 'staffDirectory', 'visitorLogs', 'notifications'
+]);
+const personalRecordCollections = new Set([
+    'students', 'attendance', 'assessments', 'reportCards', 'fees',
+    'feeInvoices', 'healthRecords', 'libraryLoans', 'disciplineCases',
+    'certificates', 'idCards', 'transcripts', 'unebExams'
 ]);
 const legacyDataCollections = new Map([
     ['school_teachers', 'teachers'], ['school_staff', 'staff'], ['school_staff_directory', 'staffDirectory'],
@@ -104,6 +110,21 @@ function assertIdentity() {
 
 function assertCollection(name) {
     if (!allowedCollections.has(name)) throw new Error(`The school data collection "${name}" is not enabled.`);
+}
+
+function isClassScopedCollection(collectionName) {
+    return personalRecordCollections.has(collectionName);
+}
+
+function isTeachingRole(role) {
+    return ['teacher', 'deputyHeadTeacher'].includes(role);
+}
+
+async function linkedStudentIds(owner) {
+    if (owner.role === 'student') return owner.linkedRecordId ? [String(owner.linkedRecordId)] : [];
+    if (owner.role !== 'parent') return [];
+    const snapshot = await getDocs(collection(db, 'schools', owner.schoolId, 'members', owner.uid, 'linkedStudents'));
+    return snapshot.docs.map(item => item.id);
 }
 
 function makeKey(schoolId, uid, collectionName, recordId) {
@@ -323,9 +344,17 @@ async function listLocal(collectionName) {
     const owner = assertIdentity();
     assertCollection(collectionName);
     const all = await runStoreTransaction('records', 'readonly', store => store.getAll());
+    const linkedIds = ['parent', 'student'].includes(owner.role) && isClassScopedCollection(collectionName)
+        ? new Set(await linkedStudentIds(owner))
+        : null;
     return all
         .filter(record => record.schoolId === owner.schoolId && record.uid === owner.uid && record.collection === collectionName)
         .filter(record => record.data?.deleted !== true)
+        .filter(record => !isTeachingRole(owner.role) || !isClassScopedCollection(collectionName)
+            || owner.assignedClassIds.includes(String(record.data?.classId || '')))
+        .filter(record => !linkedIds || linkedIds.has(String(
+            record.data?.studentId || (collectionName === 'students' ? record.recordId : '')
+        )))
         .map(record => ({ id: record.recordId, ...record.data, _syncState: record.syncState }));
 }
 
@@ -556,6 +585,16 @@ async function subscribe(collectionName, onRecords, filters = [], options = {}) 
     const local = await listLocal(collectionName);
     onRecords(local, { source: 'local' });
     const constraints = filters.map(filter => where(filter.field, filter.operator || '==', filter.value));
+    if (isTeachingRole(owner.role) && isClassScopedCollection(collectionName)) {
+        if (!owner.assignedClassIds.length) return () => {};
+        constraints.push(where('data.classId', 'in', owner.assignedClassIds));
+    }
+    if (['parent', 'student'].includes(owner.role) && isClassScopedCollection(collectionName)) {
+        const studentIds = await linkedStudentIds(owner);
+        if (!studentIds.length) return () => {};
+        if (studentIds.length > 30) throw new Error('This account is linked to more students than one secure query can load.');
+        constraints.push(where(collectionName === 'students' ? documentId() : 'data.studentId', 'in', studentIds));
+    }
     if (options.orderByField) constraints.push(orderBy(options.orderByField, options.orderDirection || 'asc'));
     if (Number.isInteger(options.limit) && options.limit > 0) constraints.push(limit(options.limit));
     const collectionQuery = query(collection(db, 'schools', owner.schoolId, collectionName), ...constraints);
@@ -695,7 +734,9 @@ window.schoolPortalData = {
             schoolId,
             uid,
             role: membership?.role || '',
-            permissions: membership?.permissions || membership?.perms || {}
+            permissions: membership?.permissions || membership?.perms || {},
+            assignedClassIds: Array.isArray(membership?.assignedClassIds) ? membership.assignedClassIds : [],
+            linkedRecordId: membership?.linkedRecordId || ''
         };
         if (identity && (identity.schoolId !== schoolId || identity.uid !== uid)) {
             preserveLegacyStorage(identity);

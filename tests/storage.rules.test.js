@@ -28,6 +28,10 @@ before(async () => {
             role: 'teacher',
             status: 'active'
         });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/admin-1'), {
+            role: 'schoolAdmin',
+            status: 'active'
+        });
     });
 });
 
@@ -52,4 +56,12 @@ test('profile uploads reject SVG content', async () => {
     const storage = testEnvironment.authenticatedContext('teacher-1').storage();
     const svgRef = ref(storage, 'schools/SCH-TEST/members/teacher-1/profile/avatar.svg');
     await assertFails(uploadBytes(svgRef, new Uint8Array([1, 2, 3]), { contentType: 'image/svg+xml' }));
+});
+
+test('school administrator storage access works with ordinary email and password authentication', async () => {
+    const storage = testEnvironment.authenticatedContext('admin-1', {
+        email: 'admin@example.com'
+    }).storage();
+    const allowedFile = ref(storage, 'schools/SCH-TEST/students/STUDENT-1/photo.png');
+    await assertSucceeds(uploadBytes(allowedFile, new Uint8Array([1, 2, 3]), { contentType: 'image/png' }));
 });

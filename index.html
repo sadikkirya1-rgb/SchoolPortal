@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EduMaster Uganda - Advanced School Management Portal</title>
+<script>
+document.documentElement.classList.add('session-restoring');
+</script>
 
 <script>
 if ('serviceWorker' in navigator) {
@@ -205,6 +208,11 @@ if ('serviceWorker' in navigator) {
 </head>
 
 <body>
+
+<div class="session-restore-screen" id="sessionRestore" role="status" aria-live="polite">
+    <span class="session-restore-spinner" aria-hidden="true"></span>
+    <span>Restoring your session…</span>
+</div>
 
 <section class="reference-login-page" aria-label="Smart School Management login design">
     <h2 class="visually-hidden">Smart School Management sign in</h2>
@@ -558,9 +566,19 @@ if ('serviceWorker' in navigator) {
         </div>
     </div>
 
+    <div id="accountInvitationPanel" class="account-invitation-panel hidden" role="status" aria-live="polite">
+        <div>
+            <strong id="accountInvitationHeading">Account created — share the password setup link with the user.</strong>
+            <p>This single-use link expires. Deliver it privately and do not post it in shared channels.</p>
+            <p id="accountInvitationScopeNotice" class="hidden">The password belongs to this Firebase account and may be used to sign in to other schools linked to the same account.</p>
+            <input id="accountInvitationLink" type="text" readonly aria-label="Password setup link">
+        </div>
+        <button type="button" class="btn-secondary" id="copyAccountInvitation">Copy setup link</button>
+    </div>
+
     <div class="user-roles-content">
         <form id="addUserForm" class="user-form hidden" style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
-            <p class="account-demo-notice"><i class="fas fa-circle-info" aria-hidden="true"></i> Accounts are created in Firebase Authentication. Roles determine server-enforced data permissions; selected sections control which navigation groups are shown.</p>
+            <p class="account-demo-notice"><i class="fas fa-circle-info" aria-hidden="true"></i> Accounts are created in Firebase Authentication. Users set their own password from a one-time setup link. Sections control navigation visibility; class assignments and data permissions are enforced by Firebase.</p>
             <div class="form-row">
                 <div class="form-group">
                     <label for="fullNameInput">Full Name</label>
@@ -575,13 +593,6 @@ if ('serviceWorker' in navigator) {
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <input id="profilePhotoInput" type="file" accept="image/*" style="padding: 8px; font-size: 12px;">
                         <img id="photoPreview" src="" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; display: none;">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="passwordInputNew">Password</label>
-                    <div style="display: flex; gap: 8px;">
-                        <input id="passwordInputNew" type="password" placeholder="Set a password" autocomplete="new-password" style="flex: 1;">
-                        <button type="button" class="btn-secondary" id="generatePassBtn" style="margin-top: 0; width: auto; padding: 0 15px;" title="Generate Password"><i class="fas fa-key"></i></button>
                     </div>
                 </div>
                 <div class="form-group">
@@ -621,6 +632,11 @@ if ('serviceWorker' in navigator) {
                     <label>Sections / Groups</label>
                     <div id="sectionsContainer" class="sections-list"></div>
                 </div>
+                <div class="form-group assigned-classes-group" id="assignedClassesGroup">
+                    <label>Assigned classes</label>
+                    <p>Teaching accounts can access student records only for assigned classes.</p>
+                    <div id="assignedClassesContainer" class="sections-list" aria-live="polite"></div>
+                </div>
                 <div class="form-group perms-group">
                     <label>Data permissions</label>
                     <p>Choose what this account can view, edit, and delete. Available permissions are limited by the selected role and enforced by Firebase.</p>
@@ -637,7 +653,7 @@ if ('serviceWorker' in navigator) {
         <div class="users-table-wrap">
             <h3>Existing Users</h3>
             <table class="users-table" id="usersTable">
-                <thead><tr><th>Photo</th><th>Name</th><th>User ID</th><th>Role</th><th>Linked Record</th><th>Contact</th><th>Sections</th><th>Perms</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Photo</th><th>Name</th><th>User ID</th><th>Role</th><th>Linked Record</th><th>Contact</th><th>Sections</th><th>Assigned Classes</th><th>Perms</th><th>Actions</th></tr></thead>
                 <tbody id="usersTableBody"></tbody>
             </table>
         </div>

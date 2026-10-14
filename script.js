@@ -229,6 +229,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.schoolPortalFirebase) throw new Error('Firebase is not ready yet. Check your connection and try again.');
         return window.schoolPortalFirebase;
     };
+    const waitForFirebase = () => {
+        if (window.schoolPortalFirebase) return Promise.resolve(window.schoolPortalFirebase);
+        return new Promise((resolve, reject) => {
+            const cleanup = () => {
+                clearTimeout(timeoutId);
+                window.removeEventListener('school-portal-firebase-ready', onReady);
+                window.removeEventListener('school-portal-firebase-error', onError);
+            };
+            const finish = (error, firebase) => {
+                cleanup();
+                if (error) reject(error);
+                else resolve(firebase);
+            };
+            const onReady = () => finish(null, window.schoolPortalFirebase);
+            const onError = event => finish(event.detail || new Error('Firebase failed to initialize.'));
+            const timeoutId = setTimeout(
+                () => finish(new Error('Timed out while waiting for Firebase to initialize.')),
+                15000
+            );
+            window.addEventListener('school-portal-firebase-ready', onReady, { once: true });
+            window.addEventListener('school-portal-firebase-error', onError, { once: true });
+        });
+    };
     const normalizeMember = (membership, authUser) => ({
         ...membership,
         fullName: membership.fullName || membership.profile?.name || authUser.displayName || authUser.email || 'User',
@@ -1024,9 +1047,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const restoreSession = async () => {
         const session = loadSession();
-        if (!session?.schoolId || !session.authenticated) return;
+        if (!session?.schoolId || !session.authenticated) {
+            document.documentElement.classList.remove('session-restoring');
+            return;
+        }
         try {
-            const firebase = getFirebase();
+            const firebase = await waitForFirebase();
             const authUser = await firebase.authReady;
             if (!authUser) {
                 clearSession();
@@ -1059,6 +1085,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Unable to restore Firebase session.', error);
             const message = document.getElementById('firebaseSetupMessage');
             if (message) message.textContent = 'Could not verify your saved school access. Check your connection and sign in again.';
+        } finally {
+            document.documentElement.classList.remove('session-restoring');
         }
     };
 
@@ -1552,14 +1580,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const roleSelectEl = document.getElementById('roleSelect');
     const sectionsContainerEl = document.getElementById('sectionsContainer');
+    const assignedClassesContainerEl = document.getElementById('assignedClassesContainer');
+    const assignedClassesGroupEl = document.getElementById('assignedClassesGroup');
     const dataPermissionsContainerEl = document.getElementById('dataPermissionsContainer');
     const addUserForm = document.getElementById('addUserForm');
     const usersTableBody = document.getElementById('usersTableBody');
     const toggleAddUserFormBtn = document.getElementById('toggleAddUserFormBtn');
-    const generatePassBtn = document.getElementById('generatePassBtn');
     const cancelUserFormBtn = document.getElementById('cancelUserFormBtn');
+    const invitationPanel = document.getElementById('accountInvitationPanel');
+    const invitationLinkInput = document.getElementById('accountInvitationLink');
+    const invitationHeading = document.getElementById('accountInvitationHeading');
+    const invitationScopeNotice = document.getElementById('accountInvitationScopeNotice');
     let assignablePermissionOptions = null;
     let permissionOptionsSchoolId = '';
+    let assignableClasses = null;
+    let classOptionsSchoolId = '';
     const roleKeysByLabel = {
         'Deputy Head Teacher': 'deputyHeadTeacher',
         Bursar: 'bursar',
@@ -1579,6 +1614,49 @@ document.addEventListener('DOMContentLoaded', () => {
         assignablePermissionOptions = options;
         permissionOptionsSchoolId = schoolId;
         return assignablePermissionOptions;
+    };
+    const loadAssignableClasses = async schoolId => {
+        if (assignableClasses && classOptionsSchoolId === schoolId) return assignableClasses;
+        assignableClasses = await getFirebase().getAssignableSchoolClasses(schoolId);
+        classOptionsSchoolId = schoolId;
+        return assignableClasses;
+    };
+    const renderAssignedClasses = (role, selectedClassIds = []) => {
+        const isTeachingRole = ['teacher', 'deputyHeadTeacher'].includes(roleKeyForSelection(role));
+        assignedClassesGroupEl?.classList.toggle('hidden', !isTeachingRole);
+        if (!isTeachingRole || !assignedClassesContainerEl) {
+            assignedClassesContainerEl?.replaceChildren();
+            return;
+        }
+        if (!assignableClasses) {
+            assignedClassesContainerEl.textContent = 'Loading available classes…';
+            return;
+        }
+        if (!assignableClasses.length) {
+            assignedClassesContainerEl.textContent = 'Create classes before assigning them to teaching accounts.';
+            return;
+        }
+        assignedClassesContainerEl.replaceChildren();
+        const selected = new Set(selectedClassIds);
+        assignableClasses.forEach(item => {
+            const label = document.createElement('label');
+            label.className = 'assigned-class-option';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = item.id;
+            checkbox.checked = selected.has(item.id);
+            const name = document.createElement('span');
+            name.textContent = item.name;
+            label.append(checkbox, name);
+            assignedClassesContainerEl.appendChild(label);
+        });
+    };
+    const readAssignedClassIds = role => {
+        if (!['teacher', 'deputyHeadTeacher'].includes(roleKeyForSelection(role))) return [];
+        return Array.from(
+        assignedClassesContainerEl?.querySelectorAll('input[type="checkbox"]:checked') || [],
+        checkbox => checkbox.value
+        );
     };
     const renderDataPermissions = (role, selectedPermissions) => {
         if (!dataPermissionsContainerEl) return;
@@ -1659,8 +1737,12 @@ document.addEventListener('DOMContentLoaded', () => {
             clearForm();
             const session = loadSession();
             try {
-                await loadAssignablePermissionOptions(session.schoolId);
+                await Promise.all([
+                    loadAssignablePermissionOptions(session.schoolId),
+                    loadAssignableClasses(session.schoolId)
+                ]);
                 renderDataPermissions(roleSelectEl.value);
+                renderAssignedClasses(roleSelectEl.value);
             } catch (error) {
                 console.error('Unable to load role permission options.', error);
                 dataPermissionsContainerEl.innerHTML = `<p class="data-permissions-error">${escapeUserHTML(error.message || 'Unable to load role permissions.')}</p>`;
@@ -1670,16 +1752,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    generatePassBtn?.addEventListener('click', () => {
-        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-        let password = "";
-        for (let i = 0; i < 12; i++) {
-            password += charset.charAt(Math.floor(Math.random() * charset.length));
-        }
-        const passInput = document.getElementById('passwordInputNew');
-        if (passInput) {
-            passInput.value = password;
-            passInput.type = 'text';
+    document.getElementById('copyAccountInvitation')?.addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText(invitationLinkInput.value);
+            document.getElementById('copyAccountInvitation').textContent = 'Copied';
+        } catch (error) {
+            console.error('Unable to copy the account setup link.', error);
+            invitationLinkInput.focus();
+            invitationLinkInput.select();
+            alert('The link could not be copied automatically. Select and copy it manually.');
         }
     });
 
@@ -2963,11 +3044,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const session = loadSession();
         usersTableBody.innerHTML = '';
         if (!session?.schoolId || !session.userId) {
-            usersTableBody.innerHTML = '<tr><td colspan="9">Sign in to view accounts for this school.</td></tr>';
+            usersTableBody.innerHTML = '<tr><td colspan="10">Sign in to view accounts for this school.</td></tr>';
             return;
         }
         if (!['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(session.user?.role)) {
-            usersTableBody.innerHTML = '<tr><td colspan="9">Only school administrators can view school accounts.</td></tr>';
+            usersTableBody.innerHTML = '<tr><td colspan="10">Only school administrators can view school accounts.</td></tr>';
             return;
         }
         let users;
@@ -2975,7 +3056,7 @@ document.addEventListener('DOMContentLoaded', () => {
             users = await getFirebase().listMembers(session.schoolId);
         } catch (error) {
             console.error('Unable to load school accounts from Firestore.', error);
-            usersTableBody.innerHTML = '<tr><td colspan="9">Unable to load accounts. Check your administrator access and connection.</td></tr>';
+            usersTableBody.innerHTML = '<tr><td colspan="10">Unable to load accounts. Check your administrator access and connection.</td></tr>';
             return;
         }
         users.forEach(u => {
@@ -3003,10 +3084,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${escapeUserHTML(u.linkedRecordId || '—')}</td>
                 <td>${escapeUserHTML([u.email, u.phone].filter(Boolean).join(' · ') || '—')}<small class="user-notification-summary">Notices: ${escapeUserHTML(channels)}</small></td>
                 <td>${escapeUserHTML((u.sections || []).join(', '))}</td>
+                <td>${escapeUserHTML((u.assignedClassIds || []).join(', ') || '—')}</td>
                 <td class="small">${u.uid === session.userId || ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'Protected' : escapeUserHTML(permissionSummary(u.permissions))}</td>
                 <td>
                     <div style="display:flex; align-items:center; gap:10px;">
                         <button class="action-btn" data-action="edit" data-id="${escapeUserHTML(u.uid)}" title="Edit User" ${['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'disabled' : ''}><i class="fas fa-edit"></i></button>
+                        <button class="action-btn" data-action="reset-password" data-id="${escapeUserHTML(u.uid)}" title="Generate password setup/reset link" ${u.uid === session.userId || ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) || !isActive ? 'disabled' : ''}><i class="fas fa-key"></i></button>
                         <button class="action-btn" data-action="delete" data-id="${escapeUserHTML(u.uid)}" title="Delete User" ${u.uid === session.userId || ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'disabled' : ''}><i class="fas fa-trash"></i></button>
                         <label class="switch" style="transform: scale(0.75); transform-origin: left;" title="${isActive ? 'Deactivate' : 'Activate'}">
                             <input type="checkbox" class="status-toggle" data-id="${escapeUserHTML(u.uid)}" ${isActive ? 'checked' : ''} ${u.uid === session.userId || ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(u.role) ? 'disabled' : ''}>
@@ -3020,12 +3103,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function clearForm(){
         addUserForm.reset(); editingUserId = null;
-        const passInput = document.getElementById('passwordInputNew');
-        if (passInput) {
-            passInput.type = 'password';
-            passInput.required = true;
-            passInput.placeholder = 'Set a password';
-        }
         if (roleSelectEl) roleSelectEl.disabled = false;
         const submitBtn = document.getElementById('addUserBtn');
         if (submitBtn) submitBtn.textContent = 'Add User';
@@ -3037,6 +3114,7 @@ document.addEventListener('DOMContentLoaded', () => {
             roleSelectEl.value = roleSelectEl.querySelector('option[value="Teacher"]') ? 'Teacher' : roleSelectEl.options[0]?.value;
             applyRoleDefaults(roleSelectEl.value);
             renderDataPermissions(roleSelectEl.value);
+            renderAssignedClasses(roleSelectEl.value);
         }
     }
 
@@ -3046,13 +3124,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!session?.schoolId || !session.userId) return alert('Sign in to a school before creating accounts.');
         const fullName = document.getElementById('fullNameInput').value.trim();
         const userId = document.getElementById('userIdInputNew').value.trim().toLowerCase();
-        const passwordInput = document.getElementById('passwordInputNew');
-        const password = passwordInput.value;
         const role = document.getElementById('roleSelect').value;
         const sections = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]:checked')).map(i => i.value);
+        const assignedClassIds = readAssignedClassIds(role);
         const email = document.getElementById('accountEmail').value.trim().toLowerCase();
         if (!fullName || !userId || !email) return alert('Provide the full name, User ID, and email address.');
-        if (!editingUserId && password.length < 8) return alert('Set a password with at least 8 characters.');
+        if (['Teacher', 'Deputy Head Teacher'].includes(role) && !assignedClassIds.length) {
+            return alert('Assign at least one class to a teaching account.');
+        }
         if (!assignablePermissionOptions?.[roleKeyForSelection(role)] || !dataPermissionsContainerEl.querySelector('.data-permission-row')) {
             return alert('Role permissions are not available. Reopen the user form and try again.');
         }
@@ -3068,9 +3147,9 @@ document.addEventListener('DOMContentLoaded', () => {
             fullName,
             userId,
             email,
-            password,
             role,
             sections,
+            assignedClassIds,
             permissions: readDataPermissions(),
             linkedRecordId: document.getElementById('accountRecordId').value.trim(),
             phone: document.getElementById('accountPhone').value.trim(),
@@ -3079,12 +3158,21 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const firebase = getFirebase();
             let uid = editingUserId;
+            let invitationUrl = '';
             if (editingUserId) {
                 const result = await firebase.updateSchoolUser({ ...accountFields, uid: editingUserId });
                 uid = result.data.uid;
             } else {
                 const result = await firebase.createSchoolUser(accountFields);
                 uid = result.data.uid;
+                invitationUrl = result.data.invitationUrl;
+                if (invitationUrl) {
+                    invitationHeading.textContent = 'Account created — share the password setup link with the user.';
+                    invitationScopeNotice.classList.add('hidden');
+                    invitationLinkInput.value = invitationUrl;
+                    invitationPanel.classList.remove('hidden');
+                    document.getElementById('copyAccountInvitation').textContent = 'Copy setup link';
+                }
             }
             if (photoInput.files?.[0]) {
                 try {
@@ -3099,6 +3187,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         linkedRecordId: accountFields.linkedRecordId,
                         role,
                         sections,
+                        assignedClassIds,
                         permissions: accountFields.permissions,
                         notificationPreferences: accountFields.notificationPreferences,
                         photoURL
@@ -3122,6 +3211,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!btn) return;
         const action = btn.getAttribute('data-action');
         const id = btn.getAttribute('data-id');
+        if (action === 'reset-password'){
+            try {
+                const result = await getFirebase().generateSchoolUserPasswordResetLink({
+                    schoolId: loadSession().schoolId,
+                    uid: id
+                });
+                invitationHeading.textContent = 'Password setup/reset link generated — share it privately with the user.';
+                invitationScopeNotice.classList.remove('hidden');
+                invitationLinkInput.value = result.data.invitationUrl;
+                invitationPanel.classList.remove('hidden');
+                document.getElementById('copyAccountInvitation').textContent = 'Copy reset link';
+                invitationPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } catch (error) {
+                console.error('Unable to generate the Firebase account password reset link.', error);
+                alert(error.message || 'Unable to generate a password reset link.');
+            }
+            return;
+        }
         if (action === 'delete'){
             if (!confirm('Permanently delete this school account? The account will no longer be able to sign in.')) return;
             try {
@@ -3146,10 +3253,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (!u) return alert('This account is no longer available.');
             try {
-                await loadAssignablePermissionOptions(loadSession().schoolId);
+                await Promise.all([
+                    loadAssignablePermissionOptions(loadSession().schoolId),
+                    loadAssignableClasses(loadSession().schoolId)
+                ]);
             } catch (error) {
                 console.error('Unable to load role permission options for editing.', error);
-                alert(error.message || 'Unable to load role permissions.');
+                alert(error.message || 'Unable to load role permissions or assigned classes.');
                 return;
             }
             addUserForm.classList.remove('hidden');
@@ -3157,12 +3267,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (submitBtn) submitBtn.textContent = 'Update User';
             document.getElementById('fullNameInput').value = u.fullName;
             document.getElementById('userIdInputNew').value = u.userId || '';
-            document.getElementById('passwordInputNew').value = '';
-            document.getElementById('passwordInputNew').required = false;
-            document.getElementById('passwordInputNew').placeholder = 'Leave blank to keep current password';
             const roleLabel = Object.entries(roleKeysByLabel).find(([, roleKey]) => roleKey === u.role)?.[0];
             document.getElementById('roleSelect').value = roleLabel || u.role;
             renderDataPermissions(document.getElementById('roleSelect').value, u.permissions || undefined);
+            renderAssignedClasses(document.getElementById('roleSelect').value, u.assignedClassIds || []);
             document.getElementById('accountRecordId').value = u.linkedRecordId || '';
             document.getElementById('accountEmail').value = u.email || '';
             document.getElementById('accountPhone').value = u.phone || '';
@@ -3211,6 +3319,7 @@ document.addEventListener('DOMContentLoaded', () => {
     roleSelectEl.addEventListener('change', () => {
         applyRoleDefaults(roleSelectEl.value);
         renderDataPermissions(roleSelectEl.value);
+        renderAssignedClasses(roleSelectEl.value);
     });
     clearForm();
 

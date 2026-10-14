@@ -1,6 +1,7 @@
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { FieldPath, FieldValue, getFirestore } = require('firebase-admin/firestore');
+const { randomBytes } = require('node:crypto');
 const { HttpsError, onCall } = require('firebase-functions/v2/https');
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
@@ -233,6 +234,7 @@ exports.listPlatformSchoolAccounts = onCall(async request => {
             role: member.role || '',
             status: member.status || 'unknown',
             linkedRecordId: member.linkedRecordId || '',
+            assignedClassIds: Array.isArray(member.assignedClassIds) ? member.assignedClassIds : [],
             createdAt: member.createdAt?.toDate?.().toISOString() || ''
         };
     });
@@ -264,7 +266,9 @@ exports.setPlatformSchoolStatus = onCall(async request => {
 
 async function requireSchoolAdmin(request, schoolId) {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to manage school accounts.');
-    if (isPlatformAdmin(request)) return { platformAdmin: true };
+    if (isPlatformAdmin(request)) {
+        return { platformAdmin: true };
+    }
     const callerRef = db.doc(`schools/${schoolId}/members/${request.auth.uid}`);
     const callerSnapshot = await callerRef.get();
     const caller = callerSnapshot.data();
@@ -282,9 +286,8 @@ function sanitizeAccount(data, { allowSchoolAdmin = false } = {}) {
     const email = String(data.email || '').trim().toLowerCase();
     const fullName = String(data.fullName || '').trim();
     const userId = String(data.userId || '').trim().toLowerCase();
-    const password = String(data.password || '');
-    if (!email || !fullName || !userId || password.length < 8) {
-        throw new HttpsError('invalid-argument', 'Name, User ID, email, and a password of at least 8 characters are required.');
+    if (!email || !fullName || !userId) {
+        throw new HttpsError('invalid-argument', 'Name, User ID, and email are required.');
     }
     const linkedRecordId = String(data.linkedRecordId || '').trim();
     const linkedRecordType = role === 'student' ? 'student' : role === 'parent' ? 'parent' : 'staff';
@@ -296,11 +299,13 @@ function sanitizeAccount(data, { allowSchoolAdmin = false } = {}) {
         email,
         fullName,
         userId,
-        password,
         linkedRecordId,
         linkedRecordType,
         phone: String(data.phone || '').trim(),
         sections: Array.isArray(data.sections) ? data.sections.filter(section => typeof section === 'string').slice(0, 32) : [],
+        assignedClassIds: Array.isArray(data.assignedClassIds)
+            ? [...new Set(data.assignedClassIds.filter(classId => typeof classId === 'string').map(classId => classId.trim()).filter(Boolean))]
+            : [],
         notificationPreferences: {
             WhatsApp: data.notificationPreferences?.WhatsApp === true,
             SMS: data.notificationPreferences?.SMS === true,
@@ -308,6 +313,42 @@ function sanitizeAccount(data, { allowSchoolAdmin = false } = {}) {
             Push: data.notificationPreferences?.Push === true
         },
         profile: { name: fullName }
+    };
+}
+
+async function validateAssignedClassIds(schoolId, role, classIds) {
+    if (!['teacher', 'deputyHeadTeacher'].includes(role)) {
+        if (classIds.length) throw new HttpsError('invalid-argument', 'Class assignments are only available for teaching roles.');
+        return [];
+    }
+    if (classIds.length > 30 || classIds.some(classId => classId.length > 128 || classId.includes('/'))) {
+        throw new HttpsError('invalid-argument', 'Choose up to 30 valid class assignments.');
+    }
+    if (role === 'teacher' && !classIds.length) {
+        throw new HttpsError('invalid-argument', 'Assign at least one class to a teacher account.');
+    }
+    const snapshots = await Promise.all(classIds.map(classId =>
+        db.doc(`schools/${schoolId}/classes/${classId}`).get()
+    ));
+    if (snapshots.some(snapshot => !snapshot.exists || snapshot.data()?.data?.deleted === true)) {
+        throw new HttpsError('invalid-argument', 'One or more selected classes do not exist or are inactive.');
+    }
+    return classIds;
+}
+
+function accountAuditData(request, action, uid, changes = []) {
+    return {
+        data: {
+            actorUid: request.auth.uid,
+            subjectUid: uid,
+            action,
+            changedFields: changes,
+            source: 'account-management',
+            occurredAt: FieldValue.serverTimestamp()
+        },
+        version: 1,
+        updatedBy: request.auth.uid,
+        updatedAt: FieldValue.serverTimestamp()
     };
 }
 
@@ -362,6 +403,22 @@ exports.getAssignableSchoolPermissions = onCall(async request => {
     return rolePermissionOptions();
 });
 
+exports.getAssignableSchoolClasses = onCall(async request => {
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    await requireSchoolAdmin(request, schoolId);
+    const snapshot = await db.collection(`schools/${schoolId}/classes`).limit(500).get();
+    return snapshot.docs
+        .filter(item => item.data().data?.deleted !== true)
+        .map(item => {
+            const record = item.data().data || item.data();
+            return {
+                id: item.id,
+                name: String(record.name || record.className || record.streamName || item.id)
+            };
+        })
+        .sort((left, right) => left.name.localeCompare(right.name));
+});
+
 exports.createSchoolUser = onCall(async request => {
     const schoolId = validateSchoolId(request.data?.schoolId);
     const caller = await requireSchoolAdmin(request, schoolId);
@@ -369,6 +426,7 @@ exports.createSchoolUser = onCall(async request => {
         throw new HttpsError('not-found', 'The school has not been provisioned.');
     }
     const account = sanitizeAccount(request.data, { allowSchoolAdmin: caller.platformAdmin === true });
+    account.assignedClassIds = await validateAssignedClassIds(schoolId, account.role, account.assignedClassIds);
     const matchingUserId = await db.collection(`schools/${schoolId}/members`).where('userId', '==', account.userId).limit(1).get();
     if (!matchingUserId.empty) throw new HttpsError('already-exists', 'That User ID is already used at this school.');
     if (account.role === 'parent') {
@@ -384,10 +442,11 @@ exports.createSchoolUser = onCall(async request => {
     try {
         createdUser = await auth.createUser({
             email: account.email,
-            password: account.password,
+            password: randomBytes(32).toString('base64url'),
             displayName: account.fullName,
             disabled: false
         });
+        const invitationUrl = await auth.generatePasswordResetLink(account.email);
         const member = {
             role: account.role,
             status: 'active',
@@ -398,6 +457,7 @@ exports.createSchoolUser = onCall(async request => {
             linkedRecordId: account.linkedRecordId || null,
             linkedRecordType: account.linkedRecordType,
             sections: account.sections,
+            assignedClassIds: account.assignedClassIds,
             permissions: sanitizePermissions(account.role, request.data?.permissions),
             perms: { view: true },
             notificationPreferences: account.notificationPreferences,
@@ -408,6 +468,12 @@ exports.createSchoolUser = onCall(async request => {
         };
         const batch = db.batch();
         batch.set(db.doc(`schools/${schoolId}/members/${createdUser.uid}`), member);
+        batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
+            request,
+            'account.invited',
+            createdUser.uid,
+            ['role', 'sections', 'assignedClassIds', 'permissions', 'status']
+        ));
         if (account.role === 'parent') {
             batch.set(db.doc(`schools/${schoolId}/members/${createdUser.uid}/linkedStudents/${account.linkedRecordId}`), {
                 studentId: account.linkedRecordId,
@@ -433,7 +499,7 @@ exports.createSchoolUser = onCall(async request => {
         console.error('Unable to create school member account.', error);
         throw new HttpsError('internal', 'Unable to create the account. Check the function logs for details.');
     }
-    return { uid: createdUser.uid, email: account.email, role: account.role };
+    return { uid: createdUser.uid, email: account.email, role: account.role, invitationUrl };
 });
 
 exports.updateSchoolUser = onCall(async request => {
@@ -468,19 +534,24 @@ exports.updateSchoolUser = onCall(async request => {
     const permissions = request.data?.permissions === undefined
         ? (role === normalizeRole(currentMember.role) ? currentMember.permissions || buildPermissions(role) : buildPermissions(role))
         : sanitizePermissions(role, request.data.permissions);
+    const requestedClassIds = request.data?.assignedClassIds === undefined && role === normalizeRole(currentMember.role)
+        ? currentMember.assignedClassIds || []
+        : Array.isArray(request.data?.assignedClassIds)
+            ? [...new Set(request.data.assignedClassIds.filter(value => typeof value === 'string').map(value => value.trim()).filter(Boolean))]
+            : [];
+    const assignedClassIds = await validateAssignedClassIds(schoolId, role, requestedClassIds);
     const duplicateUserId = await db.collection(`schools/${schoolId}/members`)
         .where('userId', '==', userId).limit(2).get();
     if (duplicateUserId.docs.some(snapshot => snapshot.id !== uid)) {
         throw new HttpsError('already-exists', 'That User ID is already used at this school.');
     }
-    const password = String(request.data?.password || '');
-    if (password && password.length < 8) throw new HttpsError('invalid-argument', 'Passwords must be at least 8 characters.');
     const profile = {
         fullName,
         userId,
         email,
         role,
         permissions,
+        assignedClassIds,
         phone: String(request.data?.phone || '').trim(),
         photoURL: String(request.data?.photoURL || ''),
         sections: Array.isArray(request.data?.sections) ? request.data.sections.filter(value => typeof value === 'string').slice(0, 32) : [],
@@ -492,9 +563,25 @@ exports.updateSchoolUser = onCall(async request => {
         },
         updatedAt: FieldValue.serverTimestamp()
     };
+    let authProfileUpdated = false;
+    let previousAuthProfile;
     try {
-        await auth.updateUser(uid, { email, displayName: fullName, ...(password ? { password } : {}) });
-        await memberRef.update(profile);
+        const authUser = await auth.getUser(uid);
+        previousAuthProfile = {
+            email: authUser.email,
+            displayName: authUser.displayName
+        };
+        await auth.updateUser(uid, { email, displayName: fullName });
+        authProfileUpdated = true;
+        const batch = db.batch();
+        batch.update(memberRef, profile);
+        batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
+            request,
+            'account.updated',
+            uid,
+            Object.keys(profile).filter(key => key !== 'updatedAt')
+        ));
+        await batch.commit();
         if (isPlatformAdmin(request)) {
             try {
                 await writePlatformAudit(request, 'account.updated', schoolId, uid);
@@ -504,9 +591,48 @@ exports.updateSchoolUser = onCall(async request => {
         }
     } catch (error) {
         console.error('Unable to update school member account.', error);
+        if (authProfileUpdated) {
+            try {
+                await auth.updateUser(uid, previousAuthProfile);
+            } catch (rollbackError) {
+                console.error('Unable to roll back the Firebase Authentication profile after a failed account update.', rollbackError);
+                throw new HttpsError('internal', 'The account update was only partially applied. Contact the App Admin to reconcile the account profile.');
+            }
+        }
         throw new HttpsError('internal', 'Unable to update the account.');
     }
     return { uid };
+});
+
+exports.generateSchoolUserPasswordResetLink = onCall(async request => {
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    const caller = await requireSchoolAdmin(request, schoolId);
+    const uid = String(request.data?.uid || '');
+    if (!uid) throw new HttpsError('invalid-argument', 'The account UID is required.');
+    const memberRef = db.doc(`schools/${schoolId}/members/${uid}`);
+    const memberSnapshot = await memberRef.get();
+    if (!memberSnapshot.exists) throw new HttpsError('not-found', 'The school account was not found.');
+    if (privilegedRoles.has(memberSnapshot.data().role) && !caller.platformAdmin) {
+        throw new HttpsError('permission-denied', 'Administrator reset links can only be issued by the App Admin.');
+    }
+    if (memberSnapshot.data().status !== 'active') {
+        throw new HttpsError('failed-precondition', 'Activate the account before issuing a password setup link.');
+    }
+    try {
+        const account = await auth.getUser(uid);
+        const invitationUrl = await auth.generatePasswordResetLink(account.email);
+        await db.collection(`schools/${schoolId}/auditEvents`).add(accountAuditData(
+            request,
+            'account.password_reset_link_issued',
+            uid,
+            ['password']
+        ));
+        return { invitationUrl };
+    } catch (error) {
+        if (error instanceof HttpsError) throw error;
+        console.error('Unable to create a password reset link.', error);
+        throw new HttpsError('internal', 'Unable to create a password reset link.');
+    }
 });
 
 exports.setSchoolUserStatus = onCall(async request => {
@@ -530,7 +656,15 @@ exports.setSchoolUserStatus = onCall(async request => {
             throw new HttpsError('failed-precondition', 'A school must retain at least one active administrator.');
         }
     }
-    await memberRef.update({ status: status ? 'active' : 'disabled', updatedAt: FieldValue.serverTimestamp() });
+    const batch = db.batch();
+    batch.update(memberRef, { status: status ? 'active' : 'disabled', updatedAt: FieldValue.serverTimestamp() });
+    batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
+        request,
+        status ? 'account.activated' : 'account.suspended',
+        uid,
+        ['status']
+    ));
+    await batch.commit();
     if (isPlatformAdmin(request)) {
         try {
             await writePlatformAudit(request, `account.${status ? 'activated' : 'suspended'}`, schoolId, uid);
@@ -564,6 +698,12 @@ exports.deleteSchoolUser = onCall(async request => {
     const batch = db.batch();
     linkedStudents.docs.forEach(link => batch.delete(link.ref));
     batch.delete(memberRef);
+    batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
+        request,
+        'account.deleted',
+        uid,
+        ['account']
+    ));
     await batch.commit();
     if (isPlatformAdmin(request)) {
         try {
@@ -576,7 +716,7 @@ exports.deleteSchoolUser = onCall(async request => {
 });
 
 const auditedCollections = new Set([
-    'members', 'students', 'parents', 'staff', 'classes', 'subjects', 'attendance',
+    'students', 'parents', 'staff', 'classes', 'subjects', 'attendance',
     'assessments', 'reportCards', 'fees', 'feeInvoices', 'expenses', 'timetables',
     'notices', 'smsAlerts', 'libraryBooks', 'libraryLoans', 'healthRecords',
     'transportRoutes', 'disciplineCases', 'clubs', 'studyMaterials', 'quizzes',

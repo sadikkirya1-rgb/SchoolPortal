@@ -99,9 +99,18 @@
                         </select></label>
                         <label>Linked student/parent/staff record ID<input name="linkedRecordId" type="text"></label>
                     </div>
-                    <label>Password <span class="optional" id="accountPasswordHint">Required for a new account; minimum 8 characters.</span><input name="password" type="password" autocomplete="new-password"></label>
+                    <fieldset class="admin-class-assignments hidden" id="adminClassAssignments">
+                        <legend>Assigned classes</legend>
+                        <p>Teacher access to personal student records is limited to these classes.</p>
+                        <div id="adminClassAssignmentsList"></div>
+                    </fieldset>
                     <div class="form-actions"><button class="primary-button" type="submit">Create account</button><button class="secondary-button" id="cancelAccountEditButton" type="button">Cancel</button></div>
                 </form>
+                <div class="status-message hidden" id="accountInvitationPanel">
+                    Account created. Copy the single-use password setup link and deliver it privately:
+                    <input id="accountInvitationLink" type="text" readonly aria-label="Password setup link">
+                    <button class="secondary-button" type="button" id="copyAccountInvitation">Copy setup link</button>
+                </div>
                 <div class="section-heading account-add-heading"><span>Suspending or removing affects only this school membership. Editing an email changes the shared Firebase sign-in identity; membership removal never deletes it.</span><button class="primary-button compact-button" id="showAccountFormButton" type="button">Add account</button></div>
                 <div class="table-wrap">
                     <table>

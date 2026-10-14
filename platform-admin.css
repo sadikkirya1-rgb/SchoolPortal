@@ -81,6 +81,13 @@ tbody tr:hover { background: #f8fbff; }
 .sub-cell { display: block; max-width: 170px; overflow: hidden; margin-top: 3px; color: #8a98aa; font-size: .68rem; text-overflow: ellipsis; }
 footer { padding: 14px 4px; color: #71819a; font-size: .8rem; line-height: 1.5; }
 .hidden { display: none !important; }
+#accountInvitationPanel { margin: 14px 0; padding: 14px; border: 1px solid #b8dfc9; border-radius: 10px; background: #f0fbf5; color: #174d2d; }
+#accountInvitationPanel input { margin: 10px 0; }
+.admin-class-assignments { margin: 0; padding: 13px; border: 1px solid #d4dfec; border-radius: 9px; }
+.admin-class-assignments p { margin: 0 0 10px; color: #71819a; font-size: .82rem; }
+#adminClassAssignmentsList { display: flex; flex-wrap: wrap; gap: 12px; }
+#adminClassAssignmentsList label { display: flex; align-items: center; gap: 6px; }
+#adminClassAssignmentsList input { width: auto; min-height: auto; }
 
 @media (max-width: 560px) {
     .admin-shell { padding-top: 22px; }

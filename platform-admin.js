@@ -22,6 +22,7 @@ const createSchoolUser = call('createSchoolUser');
 const updateSchoolUser = call('updateSchoolUser');
 const setSchoolUserStatus = call('setSchoolUserStatus');
 const deleteSchoolUser = call('deleteSchoolUser');
+const getAssignableSchoolClasses = call('getAssignableSchoolClasses');
 const signInForm = document.getElementById('adminSignInForm');
 const signInCard = document.getElementById('signInCard');
 const schoolCreateCard = document.getElementById('schoolCreateCard');
@@ -40,6 +41,8 @@ const schoolAccountsSection = document.getElementById('schoolAccountsSection');
 const accountForm = document.getElementById('schoolAccountForm');
 const accountMessage = document.getElementById('accountMessage');
 const schoolAdminLoginLink = document.getElementById('schoolAdminLoginLink');
+const accountInvitationPanel = document.getElementById('accountInvitationPanel');
+const accountInvitationLink = document.getElementById('accountInvitationLink');
 
 let schools = [];
 let accounts = [];
@@ -53,6 +56,7 @@ let accountCursorHistory = [];
 let accountEditUid = null;
 let schoolCount = 0;
 let accountCount = 0;
+let selectedSchoolClasses = [];
 
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;',
@@ -73,6 +77,33 @@ function setBusy(form, busy, buttonText) {
 function showError(target, error, fallback) {
     console.error(fallback, error);
     target.textContent = error.message || fallback;
+}
+
+function renderAssignedClassOptions(selectedClassIds = []) {
+    const role = accountForm.elements.role.value;
+    const assignments = document.getElementById('adminClassAssignments');
+    const list = document.getElementById('adminClassAssignmentsList');
+    const allowedRole = ['teacher', 'deputyHeadTeacher'].includes(role);
+    assignments.classList.toggle('hidden', !allowedRole);
+    if (!allowedRole) return;
+    list.replaceChildren();
+    if (!selectedSchoolClasses.length) {
+        list.textContent = 'No classes are available in this school yet.';
+        return;
+    }
+    const selected = new Set(selectedClassIds);
+    selectedSchoolClasses.forEach(item => {
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'assignedClassIds';
+        checkbox.value = item.id;
+        checkbox.checked = selected.has(item.id);
+        const name = document.createElement('span');
+        name.textContent = `${item.name} (${item.id})`;
+        label.append(checkbox, name);
+        list.appendChild(label);
+    });
 }
 
 function renderSchools() {
@@ -150,6 +181,7 @@ async function loadAccounts(afterUid = accountPageCursor) {
 
 function openSchoolAccounts(school) {
     selectedSchool = school;
+    selectedSchoolClasses = [];
     accountCursorHistory = [];
     accountPageCursor = null;
     accountAfterUid = null;
@@ -157,6 +189,8 @@ function openSchoolAccounts(school) {
     accountForm.classList.add('hidden');
     schoolAdminLoginLink.classList.add('hidden');
     schoolAdminLoginLink.removeAttribute('href');
+    accountInvitationPanel.classList.add('hidden');
+    accountInvitationLink.value = '';
     accountMessage.textContent = '';
     accountEditUid = null;
     schoolAccountsSection.classList.remove('hidden');
@@ -164,6 +198,10 @@ function openSchoolAccounts(school) {
     document.getElementById('selectedSchoolSummary').textContent = `School ID: ${school.id} · ${school.status}`;
     schoolAccountsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     loadAccounts().catch(error => showError(accountMessage, error, 'Unable to load school accounts.'));
+    getAssignableSchoolClasses({ schoolId: school.id }).then(response => {
+        selectedSchoolClasses = response.data;
+        renderAssignedClassOptions();
+    }).catch(error => showError(accountMessage, error, 'Unable to load assignable classes.'));
 }
 
 function resetAccountForm() {
@@ -172,10 +210,10 @@ function resetAccountForm() {
     accountForm.elements.uid.value = '';
     accountForm.elements.role.disabled = false;
     accountForm.elements.linkedRecordId.readOnly = false;
-    accountForm.elements.password.required = true;
-    document.getElementById('accountPasswordHint').textContent = 'Required for a new account; minimum 8 characters.';
     accountForm.querySelector('button[type="submit"]').textContent = 'Create account';
     accountForm.classList.add('hidden');
+    accountInvitationPanel.classList.add('hidden');
+    accountInvitationLink.value = '';
 }
 
 function editAccount(account) {
@@ -189,9 +227,7 @@ function editAccount(account) {
     accountForm.elements.role.disabled = true;
     accountForm.elements.linkedRecordId.value = account.linkedRecordId;
     accountForm.elements.linkedRecordId.readOnly = true;
-    accountForm.elements.password.value = '';
-    accountForm.elements.password.required = false;
-    document.getElementById('accountPasswordHint').textContent = 'Leave blank to keep the current password.';
+    renderAssignedClassOptions(account.assignedClassIds || []);
     accountForm.querySelector('button[type="submit"]').textContent = 'Save account changes';
     accountForm.classList.remove('hidden');
     accountForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -233,8 +269,7 @@ signInForm.addEventListener('submit', async event => {
     const data = new FormData(signInForm);
     try {
         await setPersistence(auth, browserSessionPersistence);
-        const credential = await signInWithEmailAndPassword(auth, data.get('email').trim(), data.get('password'));
-        await displayAdmin(credential.user);
+        await signInWithEmailAndPassword(auth, data.get('email').trim(), data.get('password'));
     } catch (error) {
         showError(signInMessage, error, 'Unable to sign in to App Admin.');
     } finally {
@@ -344,10 +379,12 @@ document.getElementById('closeSchoolAccountsButton').addEventListener('click', (
 
 document.getElementById('showAccountFormButton').addEventListener('click', () => {
     resetAccountForm();
+    renderAssignedClassOptions();
     accountForm.classList.remove('hidden');
     accountForm.elements.fullName.focus();
 });
 document.getElementById('cancelAccountEditButton').addEventListener('click', resetAccountForm);
+accountForm.elements.role.addEventListener('change', () => renderAssignedClassOptions());
 document.getElementById('accountSearch').addEventListener('input', renderAccounts);
 
 accountForm.addEventListener('submit', async event => {
@@ -363,24 +400,48 @@ accountForm.addEventListener('submit', async event => {
         userId: data.get('userId').trim().toLowerCase(),
         email: data.get('email').trim().toLowerCase(),
         phone: data.get('phone').trim(),
-        role: data.get('role'),
+        role: accountEditUid ? accountForm.elements.role.value : data.get('role'),
         linkedRecordId: data.get('linkedRecordId').trim(),
-        password: data.get('password')
+        assignedClassIds: ['teacher', 'deputyHeadTeacher'].includes(accountEditUid
+            ? accountForm.elements.role.value
+            : data.get('role'))
+            ? data.getAll('assignedClassIds')
+            : []
     };
     try {
+        let invitationUrl = '';
         if (accountEditUid) await updateSchoolUser(account);
-        else await createSchoolUser(account);
+        else {
+            const response = await createSchoolUser(account);
+            invitationUrl = response.data.invitationUrl;
+        }
         if (!accountEditUid && account.role === 'schoolAdmin') {
             schoolAdminLoginLink.href = `./index.html?schoolId=${encodeURIComponent(selectedSchool.id)}`;
             schoolAdminLoginLink.classList.remove('hidden');
-            accountMessage.textContent = 'School administrator account created. Continue to school sign-in to open the main dashboard.';
+            accountMessage.textContent = 'School administrator account created. Share the password setup link below, then continue to school sign-in.';
         }
         resetAccountForm();
+        if (invitationUrl) {
+            accountInvitationLink.value = invitationUrl;
+            accountInvitationPanel.classList.remove('hidden');
+        }
         await loadAccounts(accountPageCursor);
     } catch (error) {
         showError(accountMessage, error, 'Unable to save the school account.');
     } finally {
         setBusy(accountForm, false);
+    }
+});
+
+document.getElementById('copyAccountInvitation').addEventListener('click', async () => {
+    try {
+        await navigator.clipboard.writeText(accountInvitationLink.value);
+        document.getElementById('copyAccountInvitation').textContent = 'Copied';
+    } catch (error) {
+        console.error('Unable to copy the account setup link.', error);
+        accountInvitationLink.focus();
+        accountInvitationLink.select();
+        showError(accountMessage, error, 'Select and copy the invitation link manually.');
     }
 });
 
