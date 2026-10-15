@@ -30,6 +30,14 @@ service firebase.storage {
         && member(schoolId).role in ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'];
     }
 
+    function canEditCollection(schoolId, collectionName) {
+      return isSchoolAdmin(schoolId)
+        || (isMember(schoolId)
+          && member(schoolId).get('permissions', {}).keys().hasAny([collectionName])
+          && member(schoolId).permissions[collectionName] is map
+          && member(schoolId).permissions[collectionName].get('edit', false) == true);
+    }
+
     function isLinkedStudent(schoolId, studentId) {
       return isMember(schoolId)
         && member(schoolId).role == 'student'
@@ -65,12 +73,12 @@ service firebase.storage {
       allow delete: if isSchoolAdmin(schoolId);
     }
 
-    match /schools/{schoolId}/schoolAssets/{fileName=**} {
+    match /schools/{schoolId}/schoolAssets/{collectionName}/{recordId}/{fileName=**} {
       allow read: if isMember(schoolId);
-      allow create, update: if isSchoolAdmin(schoolId)
+      allow create, update: if canEditCollection(schoolId, collectionName)
         && request.resource.size <= 20 * 1024 * 1024
-        && request.resource.contentType != null;
-      allow delete: if isSchoolAdmin(schoolId);
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+      allow delete: if canEditCollection(schoolId, collectionName);
     }
 
     match /{allPaths=**} {

@@ -186,10 +186,20 @@ async function uploadSchoolAsset(schoolId, collectionName, recordId, fieldPath, 
     if (!blob.type || blob.size > 20 * 1024 * 1024) {
         throw new Error('Record attachments must have a content type and be smaller than 20 MB.');
     }
+    const contentType = blob.type.split(';', 1)[0].trim().toLowerCase();
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'].includes(contentType)) {
+        throw new Error('Record attachments must be JPEG, PNG, WebP, or SVG images.');
+    }
     const safe = value => encodeURIComponent(String(value)).replace(/%/g, '_');
-    const extension = blob.type.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'bin';
+    const extensionByType = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'image/svg+xml': 'svg'
+    };
+    const extension = extensionByType[contentType];
     const imageRef = ref(storage, `schools/${schoolId}/schoolAssets/${safe(collectionName)}/${safe(recordId)}/${safe(fieldPath)}.${extension}`);
-    await uploadBytes(imageRef, blob, { contentType: blob.type });
+    await uploadBytes(imageRef, new Blob([blob], { type: contentType }), { contentType });
     return getDownloadURL(imageRef);
 }
 

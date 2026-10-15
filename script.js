@@ -486,6 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
         [
             container.querySelector('.parent-portal-overview'),
             container.querySelector('.parent-records-section'),
+            container.querySelector('.parent-id-cards-section'),
             container.querySelector('.parent-portal-attendance-summary'),
             container.querySelector('[data-parent-student-section]'),
             container.querySelector('[data-parent-results-section]'),
@@ -840,8 +841,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const title = definition.title(record);
             const fields = definition.fields(record).filter(([, value]) =>
                 value !== undefined && value !== null && value !== '');
-            return `<article class="parent-record-card">
-                <div class="parent-record-card-heading"><span class="parent-record-card-icon"><i class="fas ${definition.icon}" aria-hidden="true"></i></span><small>${dashboardEscape(studentName)}</small></div>
+            return `<article class="parent-record-card parent-record-card-${collection}">
+                <div class="parent-record-card-heading"><span class="parent-record-card-icon parent-id-cards-trigger-icon" aria-hidden="true"><i class="fa-solid ${definition.icon}"></i></span><small>${dashboardEscape(studentName)}</small></div>
                 <h3>${dashboardEscape(title)}</h3>
                 ${fields.length ? `<dl>${fields.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl>` : ''}
             </article>`;
@@ -922,6 +923,110 @@ document.addEventListener('DOMContentLoaded', () => {
                 : '<p class="parent-record-empty" role="status">No linked records are available.</p>';
             if (count) count.textContent = `${records.length} ${records.length === 1 ? 'record' : 'records'}`;
         });
+        const recordGroups = container.querySelector('.parent-records-section');
+        if (recordGroups) {
+            recordGroups.onclick = event => {
+                const target = event.target;
+                if (!(target instanceof Element)) return;
+                const toggle = target.closest('[data-parent-record-group-toggle]');
+                if (!toggle) return;
+                const grid = toggle.closest('.parent-record-group')?.querySelector('.parent-record-grid');
+                if (!grid) return;
+                const expanded = grid.classList.toggle('hidden') === false;
+                toggle.setAttribute('aria-expanded', String(expanded));
+            };
+        }
+
+        const idCards = container.querySelector('[data-parent-id-cards]');
+        if (idCards) {
+            const idCardsSection = idCards.closest('.parent-id-cards-section');
+            const idCardsTrigger = idCardsSection?.querySelector('[data-parent-id-cards-toggle]');
+            const idCardCount = idCardsSection?.querySelector('[data-parent-id-card-count]');
+            const previewModal = idCardsSection?.querySelector('[data-parent-id-card-preview-modal]');
+            const previewContent = idCardsSection?.querySelector('[data-parent-id-card-preview-content]');
+            const linkedIdCards = (parentDashboardSummary.records?.idCards || [])
+                .filter(card => selectedChildren.some(child => parentStudentRecordId(child) === String(card.studentId || '')));
+            const closePreview = () => {
+                previewModal?.classList.add('hidden');
+                idCardsTrigger?.focus();
+            };
+            const safeIdCardImage = value => {
+                const image = String(value || '').trim();
+                if (!image || image.length > 4096) return '';
+                if (/^data:image\/(?:png|jpe?g|gif|webp);base64,/i.test(image)) return image;
+                try {
+                    const url = new URL(image, window.location.href);
+                    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+                } catch (error) {
+                    return '';
+                }
+            };
+            const idCardColor = (value, fallback) => /^#[\da-f]{6}$/i.test(String(value || ''))
+                ? String(value)
+                : fallback;
+            const renderIdCard = card => {
+                const name = card.memberName || 'Student';
+                const studentId = card.memberId;
+                const photo = safeIdCardImage(card.photo);
+                const logo = safeIdCardImage(card.logo);
+                const initials = String(name).split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase();
+                return `<article class="parent-student-id-card" style="--parent-id-primary:${idCardColor(card.primary, '#071b3a')};--parent-id-secondary:${idCardColor(card.secondary, '#1459d9')}">
+                    <div class="parent-student-id-card-top">${logo ? `<img src="${dashboardEscape(logo)}" alt="" class="parent-student-id-logo">` : '<span class="parent-student-id-card-mark" aria-hidden="true"><i class="fas fa-graduation-cap"></i></span>'}<span>${dashboardEscape(card.schoolName || 'STUDENT ID CARD')}</span></div>
+                    <div class="parent-student-id-card-body">${photo ? `<img class="parent-student-id-avatar" src="${dashboardEscape(photo)}" alt="">` : `<span class="parent-student-id-avatar" aria-hidden="true">${dashboardEscape(initials || 'S')}</span>`}<div class="parent-student-id-identity"><h3>${dashboardEscape(name)}</h3><span>${dashboardEscape(card.designation || card.memberType || 'Student')}</span></div></div>
+                    <dl><div><dt>Student ID</dt><dd>${dashboardEscape(studentId)}</dd></div><div><dt>Class</dt><dd>${dashboardEscape(card.department || '—')}</dd></div><div><dt>Division</dt><dd>${dashboardEscape(card.division || '—')}</dd></div><div><dt>Valid until</dt><dd>${dashboardEscape(card.validUntil || '—')}</dd></div><div><dt>Status</dt><dd>${dashboardEscape(card.status || '—')}</dd></div></dl>
+                    ${card.emergency || card.schoolAddress ? `<p class="parent-student-id-card-footer">${card.emergency ? `Emergency: ${dashboardEscape(card.emergency)}` : ''}${card.emergency && card.schoolAddress ? ' · ' : ''}${card.schoolAddress ? dashboardEscape(card.schoolAddress) : ''}</p>` : ''}
+                </article>`;
+            };
+            if (!parentDashboardSummary.loaded) {
+                idCards.innerHTML = `<p class="parent-id-cards-empty" role="status">${parentDashboardSummary.error
+                    ? 'Linked student ID cards could not be loaded.'
+                    : 'Loading linked student ID cards…'}</p>`;
+                if (idCardCount) idCardCount.textContent = parentDashboardSummary.error
+                    ? 'Linked student IDs could not be loaded'
+                    : 'Loading linked student IDs…';
+            } else if (!linkedIdCards.length) {
+                idCards.innerHTML = '<p class="parent-id-cards-empty" role="status">No student ID cards have been created for your linked children.</p>';
+                if (idCardCount) idCardCount.textContent = 'No issued ID cards available';
+            } else {
+                idCards.innerHTML = linkedIdCards.map((card, index) => {
+                    const name = card.memberName || 'Student';
+                    return `<button class="parent-id-card-option" type="button" data-parent-id-card-index="${index}">
+                        <span class="parent-id-card-option-icon" aria-hidden="true"><i class="fas fa-id-card"></i></span>
+                        <span class="parent-id-card-option-copy"><strong>${dashboardEscape(name)}</strong><small>${dashboardEscape(card.schoolName || 'Student ID card')}</small></span>
+                        <span class="parent-id-card-option-action">Preview <i class="fas fa-chevron-right" aria-hidden="true"></i></span>
+                    </button>`;
+                }).join('');
+                if (idCardCount) idCardCount.textContent = `${linkedIdCards.length} ${linkedIdCards.length === 1 ? 'issued ID card' : 'issued ID cards'}`;
+            }
+            if (idCardsSection) {
+                idCardsSection.onclick = event => {
+                    const target = event.target;
+                    if (!(target instanceof Element)) return;
+                    if (target.closest('[data-parent-id-cards-toggle]')) {
+                        const expanded = idCards.classList.toggle('hidden') === false;
+                        idCardsTrigger?.setAttribute('aria-expanded', String(expanded));
+                        return;
+                    }
+                    if (target.closest('[data-parent-id-card-close]') || target === previewModal) {
+                        closePreview();
+                        return;
+                    }
+                    const previewButton = target.closest('[data-parent-id-card-index]');
+                    if (previewButton && previewContent && previewModal) {
+                        const card = linkedIdCards[Number(previewButton.dataset.parentIdCardIndex)];
+                        if (!card) return;
+                        previewContent.innerHTML = renderIdCard(card);
+                        previewModal.classList.remove('hidden');
+                        idCardsSection.querySelector('[data-parent-id-card-close]')?.focus();
+                    }
+                };
+                idCardsSection.onkeydown = event => {
+                    if (event.key === 'Escape' && previewModal && !previewModal.classList.contains('hidden')) {
+                        closePreview();
+                    }
+                };
+            }
+        }
 
         const attention = container.querySelector('[data-parent-attention]');
         const attentionItems = container.querySelector('[data-parent-attention-items]');
@@ -1521,14 +1626,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const updateDashboardActionAccess = () => {
         const identity = window.schoolPortalData?.getIdentity?.();
-        const role = String(identity?.role || activeAccountPermissions?.role || '').toLowerCase();
-        const isParentPreview = document.documentElement.classList.contains('parent-portal-preview-active');
         const sidebarAccountControls = document.getElementById('parentSidebarAccountControls');
         const headerActions = document.querySelector('.top-actions');
-        const actionTarget = role === 'parent' || isParentPreview
-            ? sidebarAccountControls
-            : document.querySelector('.topbar');
-        if (sidebarAccountControls) sidebarAccountControls.hidden = !(role === 'parent' || isParentPreview);
+        const actionTarget = document.querySelector('.topbar');
+        if (sidebarAccountControls) sidebarAccountControls.hidden = true;
         if (headerActions && actionTarget && headerActions.parentElement !== actionTarget) actionTarget.append(headerActions);
         document.querySelectorAll('[data-dashboard-nav]').forEach(button => {
             button.hidden = !findDashboardNavLink(button.dataset.dashboardNav);
@@ -2199,36 +2300,31 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!nav) return;
         const role = String(userData.role || '').toLowerCase().replace(/[\s_-]+/g, '');
         if (role.includes('parent')) {
-                const parentNavButtons = [...document.querySelectorAll('.parent-sidebar-navigation [data-parent-home], .parent-sidebar-navigation [data-parent-nav]')]
-                    .filter(button => !button.hidden);
+                const parentActions = [
+                    { label: 'Messages', icon: 'fa-envelope', source: document.querySelector('.top-actions [aria-label="Messages"]') },
+                    { label: 'Notifications', icon: 'fa-bell', source: document.getElementById('enablePushNotifications') },
+                    { label: 'Profile', icon: 'fa-user-circle', source: document.getElementById('headerProfile') }
+                ];
                 nav.replaceChildren();
-                nav.classList.add('mobile-role-nav-parent');
-                parentNavButtons.forEach(parentNavButton => {
+                nav.classList.add('mobile-role-nav-parent', 'mobile-role-nav-actions');
+                parentActions.forEach(({ label, icon, source }) => {
+                    if (!source) return;
                     const button = document.createElement('button');
-                    const label = parentNavButton.querySelector('span')?.textContent.trim() || parentNavButton.textContent.trim();
-                    const icon = parentNavButton.querySelector('i:not(.parent-nav-lock)')?.cloneNode(true);
                     button.type = 'button';
                     button.className = 'mobile-role-nav-item';
-                    button.dataset.mobileParentNav = parentNavButton.dataset.parentNav || 'Home';
-                    button.disabled = parentNavButton.disabled || parentNavButton.getAttribute('aria-disabled') === 'true';
-                    button.title = parentNavButton.title;
                     button.setAttribute('aria-label', label);
-                    button.setAttribute('aria-disabled', String(button.disabled));
-                    if (icon) button.append(icon);
+                    button.innerHTML = `<i class="fas ${icon}" aria-hidden="true"></i>`;
                     const text = document.createElement('span');
                     text.textContent = label;
                     button.append(text);
-                    button.addEventListener('click', () => parentNavButton.click());
+                    button.addEventListener('click', () => source.click());
                     nav.append(button);
                 });
-                nav.hidden = parentNavButtons.length === 0;
-                updateParentPortalNavActive(
-                    parentNavButtons.find(button => button.classList.contains('active'))
-                        || parentNavButtons.find(button => button.hasAttribute('data-parent-home'))
-                );
+                nav.hidden = nav.childElementCount === 0;
                 return;
         }
         nav.classList.remove('mobile-role-nav-parent');
+        nav.classList.remove('mobile-role-nav-actions');
         const preset = role.includes('student') ? mobileNavPresets.student
                 : role.includes('teacher') ? mobileNavPresets.teacher
                     : mobileNavPresets.default;
@@ -2384,9 +2480,14 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     cancelPasswordChange?.addEventListener('click', closePasswordChangeDialog);
-    document.getElementById('changeMyPasswordButton')?.addEventListener('click', () => {
+    document.getElementById('profileChangePasswordButton')?.addEventListener('click', () => {
         if (!loadSession()?.authenticated) return;
+        document.getElementById('profileModal')?.classList.remove('active');
         openPasswordChangeDialog('self');
+    });
+    document.getElementById('profileLogoutButton')?.addEventListener('click', () => {
+        document.getElementById('profileModal')?.classList.remove('active');
+        document.getElementById('logoutBtn')?.click();
     });
 
     passwordChangeForm?.addEventListener('submit', async event => {

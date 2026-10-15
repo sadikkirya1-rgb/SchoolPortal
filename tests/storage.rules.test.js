@@ -32,6 +32,11 @@ before(async () => {
             role: 'schoolAdmin',
             status: 'active'
         });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/id-card-editor'), {
+            role: 'teacher',
+            status: 'active',
+            permissions: { idCards: { view: true, edit: true } }
+        });
     });
 });
 
@@ -64,4 +69,16 @@ test('school administrator storage access works with ordinary email and password
     }).storage();
     const allowedFile = ref(storage, 'schools/SCH-TEST/students/STUDENT-1/photo.png');
     await assertSucceeds(uploadBytes(allowedFile, new Uint8Array([1, 2, 3]), { contentType: 'image/png' }));
+});
+
+test('members with ID-card edit permission can upload ID-card images', async () => {
+    const storage = testEnvironment.authenticatedContext('id-card-editor').storage();
+    const logo = ref(storage, 'schools/SCH-TEST/schoolAssets/idCards/CARD-1/record.logo.svg');
+    await assertSucceeds(uploadBytes(logo, new Uint8Array([1, 2, 3]), { contentType: 'image/svg+xml' }));
+});
+
+test('members without ID-card edit permission cannot upload ID-card images', async () => {
+    const storage = testEnvironment.authenticatedContext('teacher-1').storage();
+    const logo = ref(storage, 'schools/SCH-TEST/schoolAssets/idCards/CARD-1/record.logo.svg');
+    await assertFails(uploadBytes(logo, new Uint8Array([1, 2, 3]), { contentType: 'image/svg+xml' }));
 });

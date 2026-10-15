@@ -565,7 +565,7 @@ exports.getLinkedSchoolRecords = onCall(async request => {
     };
 });
 
-exports.getParentPortalDashboardSummary = onCall(async request => {
+exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to view the parent dashboard.');
     const schoolId = validateSchoolId(request.data?.schoolId);
     const schoolRef = db.doc(`schools/${schoolId}`);
@@ -592,6 +592,7 @@ exports.getParentPortalDashboardSummary = onCall(async request => {
             reportCards: [],
             assessments: [],
             fees: [],
+            idCards: [],
             noticeCount: 0,
             noticeCards: []
         };
@@ -606,14 +607,53 @@ exports.getParentPortalDashboardSummary = onCall(async request => {
     ]));
     const children = studentIds.map(studentId => {
         const record = studentById.get(studentId) || {};
+        const admissionNumber = String(record.admissionNo || record.admissionNumber || '');
         return {
             id: studentId,
             fullName: String(record.fullName || record.name || record.studentName
                 || [record.firstName, record.lastName].filter(Boolean).join(' ') || 'Student'),
-            displayId: String(record.admissionNumber || record.admissionNo || record.studentCode || record.studentId || studentId),
+            admissionNo: admissionNumber,
+            displayId: admissionNumber,
             className: String(record.className || record.class || ''),
             section: String(record.section || record.sectionName || '')
         };
+    });
+    const admissionNumbers = [...new Set(children.map(child => child.admissionNo).filter(Boolean))];
+    const idCardsRef = schoolRef.collection('idCards');
+    const idCardQueries = [];
+    if (studentIds.length) {
+        idCardQueries.push(idCardsRef.where('data.studentId', 'in', studentIds).get());
+    }
+    if (admissionNumbers.length) {
+        idCardQueries.push(idCardsRef.where('data.memberId', 'in', admissionNumbers).get());
+    }
+    const idCardSnapshots = idCardQueries.length ? await Promise.all(idCardQueries) : [];
+    const linkedIdCards = new Map(idCardSnapshots.flatMap(snapshot => snapshot.docs)
+        .map(snapshot => [snapshot.id, snapshot]));
+    const idCards = [...linkedIdCards.values()].flatMap(snapshot => {
+        const data = snapshot.data().data || {};
+        if (snapshot.data().deleted === true || data.deleted === true
+            || String(data.memberType || '').trim().toLowerCase() !== 'student'
+            || !String(data.memberName || '').trim() || !String(data.memberId || '').trim()) {
+            return [];
+        }
+        const linkedChild = children.find(child =>
+            String(data.studentId || '') === child.id
+            || (child.admissionNo && String(data.memberId || '').trim() === child.admissionNo)
+        );
+        if (!linkedChild) return [];
+        const card = { id: snapshot.id, studentId: linkedChild.id };
+        [
+            'memberName', 'memberId', 'memberType', 'designation', 'department',
+            'division', 'validUntil', 'emergency', 'status', 'primary', 'secondary',
+            'schoolName', 'schoolAddress', 'photo', 'logo'
+        ].forEach(field => {
+            const value = data[field];
+            if (typeof value === 'string' || typeof value === 'number') {
+                card[field] = String(value).slice(0, field === 'photo' || field === 'logo' ? 4096 : 300);
+            }
+        });
+        return [card];
     });
     const summaryFields = {
         attendance: ['status', 'attendanceStatus', 'attendanceDate', 'date', 'day'],
@@ -700,6 +740,7 @@ exports.getParentPortalDashboardSummary = onCall(async request => {
 
     return {
         children,
+        idCards,
         ...Object.fromEntries(summaryRecords),
         noticeCount: noticeCards.length,
         noticeCards

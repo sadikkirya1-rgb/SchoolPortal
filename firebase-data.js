@@ -487,29 +487,10 @@ async function syncLegacyDataset(key, previousSerialized, nextSerialized) {
 }
 
 let legacyMigrationIdentity = '';
-const legacyApprovedKey = owner => `schoolPortalSyncApproved:${owner.schoolId}:${owner.uid}`;
-function approvedLegacyStores(owner) {
-    try {
-        const value = JSON.parse(localStorage.getItem(legacyApprovedKey(owner)) || '[]');
-        return new Set(Array.isArray(value) ? value : []);
-    } catch {
-        return new Set();
-    }
-}
 async function queueLegacyStorageChange(key, previousSerialized, nextSerialized) {
     const owner = assertIdentity();
     const collectionName = legacyDataCollections.get(key);
     if (!collectionName || !canEditCollection(owner, collectionName)) return;
-    const approved = approvedLegacyStores(owner);
-    if (!approved.has(key)) {
-        const count = parseLegacyRecords(nextSerialized).length;
-        const confirmed = window.confirm(
-            `Sync ${count} ${collectionName} record(s) from this device to ${owner.schoolId}? Review this module first; its stored data may include sample records.`
-        );
-        if (!confirmed) return;
-        approved.add(key);
-        originalStorageSetItem.call(localStorage, legacyApprovedKey(owner), JSON.stringify([...approved]));
-    }
     await syncLegacyDataset(key, previousSerialized || '[]', nextSerialized);
     preserveLegacyStorage(owner);
 }
@@ -519,7 +500,6 @@ async function migrateLegacyLocalData() {
     if (legacyMigrationIdentity === identityKey) return;
     if (localStorage.getItem(`schoolPortalMigrationDone:${identityKey}`) === 'true') return;
     legacyMigrationIdentity = identityKey;
-    const isSchoolAdmin = ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(owner.role);
     const datasets = Array.from(legacyDataCollections, ([key, collectionName]) => ({
         key,
         collectionName,
@@ -530,21 +510,9 @@ async function migrateLegacyLocalData() {
     const total = datasets.reduce((count, dataset) => count + dataset.count, 0);
     if (!total) return;
 
-    const summary = datasets.map(dataset => `${dataset.collectionName}: ${dataset.count}`).join('\n');
-    const approved = window.confirm(
-        `Upload ${total} locally stored school record(s) to ${owner.schoolId}?\n\n${summary}\n\nSome existing records may be sample data. Review your local data before confirming. This uploads school records to the cloud.`
-    );
-    if (!approved) {
-        legacyMigrationIdentity = '';
-        return;
-    }
-
-    const approvedStores = approvedLegacyStores(owner);
     for (const dataset of datasets) {
         await syncLegacyDataset(dataset.key, '[]', dataset.serialized);
-        approvedStores.add(dataset.key);
     }
-    originalStorageSetItem.call(localStorage, legacyApprovedKey(owner), JSON.stringify([...approvedStores]));
     originalStorageSetItem.call(localStorage, `schoolPortalMigrationDone:${identityKey}`, 'true');
     preserveLegacyStorage(owner);
     window.dispatchEvent(new CustomEvent('school-portal-legacy-migration-complete', {
