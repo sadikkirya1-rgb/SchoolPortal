@@ -3532,21 +3532,6 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .parent-id-card-preview-dialog>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 .parent-id-card-preview-dialog>header h2{margin:0;color:#172033;font-size:16px}
 .parent-id-card-preview-dialog>header p{margin:4px 0 0;color:#64748b;font-size:10px}
-.parent-id-card-preview-content .parent-student-id-card{width:100%;max-width:440px;margin:0 auto}
-.parent-student-id-card{overflow:hidden;min-width:0;padding:15px;border:1px solid #cbdaf2;border-radius:12px;background:linear-gradient(145deg,var(--parent-id-primary),var(--parent-id-secondary));background:radial-gradient(circle at 90% 0%,color-mix(in srgb,var(--parent-id-secondary) 35%,transparent),transparent 30%),linear-gradient(145deg,var(--parent-id-primary),var(--parent-id-secondary));box-shadow:0 5px 16px rgba(30,64,175,.08);color:#fff}
-.parent-student-id-card-top{display:flex;align-items:center;gap:8px;min-height:30px;padding-bottom:11px;border-bottom:1px solid #ffffff45;color:#fff;font-size:9px;font-weight:800;letter-spacing:.9px}
-.parent-student-id-logo{width:30px;height:30px;flex:none;border-radius:6px;background:#fff;object-fit:contain}
-.parent-student-id-card-mark{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:#dbeafe;color:#1d4ed8;font-size:12px}
-.parent-student-id-card-body{display:flex;align-items:center;gap:11px;padding:14px 0}
-.parent-student-id-avatar{display:grid;place-items:center;width:44px;height:44px;flex:none;border:2px solid #fff;border-radius:12px;background:linear-gradient(135deg,#2563eb,#4f46e5);box-shadow:0 2px 7px #1e40af30;color:#fff;font-size:13px;font-weight:800}
-.parent-student-id-identity{min-width:0}
-.parent-student-id-identity h3{overflow:hidden;margin:0;color:#fff;font-size:14px;text-overflow:ellipsis;white-space:nowrap}
-.parent-student-id-identity>span{display:block;margin-top:3px;color:#dbeafe;font-size:10px}
-.parent-student-id-card dl{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:8px;margin:0;padding-top:11px;border-top:1px solid #d5e2f5}
-.parent-student-id-card dl>div{min-width:0}
-.parent-student-id-card dt{color:#ffffffa8;font-size:9px}
-.parent-student-id-card dd{overflow:hidden;margin:3px 0 0;color:#fff;font-size:10px;font-weight:750;text-overflow:ellipsis;white-space:nowrap}
-.parent-student-id-card-footer{margin:12px 0 0;padding-top:9px;border-top:1px solid #ffffff45;color:#dbeafe;font-size:9px;overflow-wrap:anywhere}
 .parent-id-cards-empty{margin:0;padding:13px;border:1px dashed #cbd5e1;border-radius:8px;color:#64748b;font-size:11px}
 .parent-attention{margin:0 0 16px;padding:14px 16px;border:1px solid #f3cc75;border-radius:9px;background:#fffbeb;color:#78350f}
 .parent-attention h2{display:flex;align-items:center;gap:8px;margin:0 0 9px;font-size:13px}
@@ -3757,7 +3742,17 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .dark .parent-id-cards-trigger-copy small,.dark .parent-id-card-option-copy small,.dark .parent-id-cards-trigger-arrow,.dark .parent-id-card-preview-dialog>header p{color:#aebdd0}
 .dark .parent-id-card-option:hover{background:#1e293b}
 .dark .parent-id-card-preview-dialog{border-color:#334155;background:#111827}
-.dark .parent-student-id-card{border-color:#334e75}
+.parent-id-card-preview-dialog{width:min(420px,100%)}
+.parent-id-card-preview-content .id-card{margin:0 auto}
+.parent-id-card-preview-actions{display:flex;justify-content:center;gap:10px;margin-top:16px}
+.parent-id-card-flip-button,.parent-id-card-save-button{display:inline-flex!important;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 16px;border:0!important;border-radius:8px;color:#fff!important;font-family:inherit;font-size:12px;font-weight:750;line-height:1;cursor:pointer;box-shadow:0 4px 12px #0f172a24}
+.parent-id-card-flip-button{background:linear-gradient(135deg,#1d4ed8,#4338ca)!important}
+.parent-id-card-save-button{background:linear-gradient(135deg,#047857,#059669)!important}
+.parent-id-card-flip-button:hover,.parent-id-card-save-button:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.parent-id-card-flip-button:focus-visible,.parent-id-card-save-button:focus-visible{outline:3px solid #60a5fa;outline-offset:3px}
+.parent-id-card-save-button:disabled{cursor:wait;opacity:.7}
+.parent-id-card-download-status{min-height:16px;margin:8px 0 0;color:#475569;font-size:11px;text-align:center}
+.dark .parent-id-card-download-status{color:#cbd5e1}
 .dark .parent-id-cards-empty{border-color:#475569;color:#aebdd0}
 .dark .parent-metric-attendance .parent-metric-icon{background:#123626;color:#86efac}
 .dark .parent-metric-results .parent-metric-icon{background:#172d42;color:#7dd3fc}

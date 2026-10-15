@@ -944,6 +944,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const idCardCount = idCardsSection?.querySelector('[data-parent-id-card-count]');
             const previewModal = idCardsSection?.querySelector('[data-parent-id-card-preview-modal]');
             const previewContent = idCardsSection?.querySelector('[data-parent-id-card-preview-content]');
+            const flipButton = idCardsSection?.querySelector('[data-parent-id-card-flip]');
+            const saveJpgButton = idCardsSection?.querySelector('[data-parent-id-card-save]');
+            const downloadStatus = idCardsSection?.querySelector('[data-parent-id-card-download-status]');
+            let previewCard = null;
+            let previewSide = 'front';
             const linkedIdCards = (parentDashboardSummary.records?.idCards || [])
                 .filter(card => selectedChildren.some(child => parentStudentRecordId(child) === String(card.studentId || '')));
             const closePreview = () => {
@@ -964,18 +969,204 @@ document.addEventListener('DOMContentLoaded', () => {
             const idCardColor = (value, fallback) => /^#[\da-f]{6}$/i.test(String(value || ''))
                 ? String(value)
                 : fallback;
-            const renderIdCard = card => {
-                const name = card.memberName || 'Student';
-                const studentId = card.memberId;
+            const renderIdCard = (card, side) => {
+                const name = card.memberName || 'MEMBER NAME';
                 const photo = safeIdCardImage(card.photo);
                 const logo = safeIdCardImage(card.logo);
-                const initials = String(name).split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase();
-                return `<article class="parent-student-id-card" style="--parent-id-primary:${idCardColor(card.primary, '#071b3a')};--parent-id-secondary:${idCardColor(card.secondary, '#1459d9')}">
-                    <div class="parent-student-id-card-top">${logo ? `<img src="${dashboardEscape(logo)}" alt="" class="parent-student-id-logo">` : '<span class="parent-student-id-card-mark" aria-hidden="true"><i class="fas fa-graduation-cap"></i></span>'}<span>${dashboardEscape(card.schoolName || 'STUDENT ID CARD')}</span></div>
-                    <div class="parent-student-id-card-body">${photo ? `<img class="parent-student-id-avatar" src="${dashboardEscape(photo)}" alt="">` : `<span class="parent-student-id-avatar" aria-hidden="true">${dashboardEscape(initials || 'S')}</span>`}<div class="parent-student-id-identity"><h3>${dashboardEscape(name)}</h3><span>${dashboardEscape(card.designation || card.memberType || 'Student')}</span></div></div>
-                    <dl><div><dt>Student ID</dt><dd>${dashboardEscape(studentId)}</dd></div><div><dt>Class</dt><dd>${dashboardEscape(card.department || '—')}</dd></div><div><dt>Division</dt><dd>${dashboardEscape(card.division || '—')}</dd></div><div><dt>Valid until</dt><dd>${dashboardEscape(card.validUntil || '—')}</dd></div><div><dt>Status</dt><dd>${dashboardEscape(card.status || '—')}</dd></div></dl>
-                    ${card.emergency || card.schoolAddress ? `<p class="parent-student-id-card-footer">${card.emergency ? `Emergency: ${dashboardEscape(card.emergency)}` : ''}${card.emergency && card.schoolAddress ? ' · ' : ''}${card.schoolAddress ? dashboardEscape(card.schoolAddress) : ''}</p>` : ''}
-                </article>`;
+                const primary = idCardColor(card.primary, '#071b3a');
+                const secondary = idCardColor(card.secondary, '#1459d9');
+                const schoolName = dashboardEscape(card.schoolName || '');
+                const memberId = dashboardEscape(card.memberId || '');
+                const cardBackground = `radial-gradient(circle at 90% 0%,${secondary},transparent 30%),linear-gradient(145deg,${primary},${secondary})`;
+                if (side === 'back') {
+                    return `<div class="id-card" style="background:${cardBackground}">
+                        <div class="idc-card-content idc-back-content">
+                            <div class="idc-back-title">${schoolName}</div>
+                            <div class="idc-gold-line"></div>
+                            <div class="idc-return-title">If this card is found</div>
+                            <div class="idc-address">Please return this identification card to:<br><br><strong>${schoolName}<br>${dashboardEscape(card.schoolAddress || '')}</strong><br><br>Tel: +971 00 000 0000<br>Email: admin@school.edu</div>
+                            <div class="idc-emergency"><div class="idc-emergency-title">Emergency Contact</div><div class="idc-emergency-number">${dashboardEscape(card.emergency || '')}</div></div>
+                            <div class="idc-signature">Authorized Signature / Principal</div>
+                            <div class="idc-card-number">CARD NO: <strong>${memberId}</strong></div>
+                            <div class="idc-barcode"></div>
+                            <div class="idc-barcode-number">${memberId}</div>
+                        </div>
+                    </article>`;
+                }
+                const validUntil = card.validUntil
+                    ? new Date(`${card.validUntil}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : '—';
+                return `<div class="id-card" style="background:${cardBackground}">
+                    <div class="idc-card-content">
+                        <div class="idc-school-head">${logo ? `<img class="idc-logo" src="${dashboardEscape(logo)}" alt="">` : ''}<div><div class="idc-school-name">${schoolName}</div><div class="idc-school-sub">OFFICIAL SCHOOL IDENTIFICATION</div></div></div>
+                        <div class="idc-card-title">SCHOOL IDENTIFICATION CARD</div>
+                        <div class="idc-photo">${photo ? `<img src="${dashboardEscape(photo)}" alt="">` : '👤'}</div>
+                        <div class="idc-member-name">${dashboardEscape(name)}</div>
+                        <div class="idc-member-type">${dashboardEscape(card.memberType || 'Student').toUpperCase()}</div>
+                        <div class="idc-details">
+                            <div class="idc-detail"><span class="idc-detail-label">Admission No.</span><span class="idc-detail-value">${memberId}</span></div>
+                            <div class="idc-detail"><span class="idc-detail-label">Designation</span><span class="idc-detail-value">${dashboardEscape(card.designation || '')}</span></div>
+                            <div class="idc-detail"><span class="idc-detail-label">Department / Class</span><span class="idc-detail-value">${dashboardEscape(card.department || '')}</span></div>
+                            <div class="idc-detail"><span class="idc-detail-label">Division / House</span><span class="idc-detail-value">${dashboardEscape(card.division || '')}</span></div>
+                        </div>
+                        <div class="idc-card-bottom"><div class="idc-validity">VALID UNTIL<strong>${dashboardEscape(validUntil)}</strong></div><div class="idc-qr"></div></div>
+                    </div>
+                </div>`;
+            };
+            const renderPreviewCard = () => {
+                if (!previewCard || !previewContent) return;
+                previewContent.innerHTML = renderIdCard(previewCard, previewSide);
+                if (flipButton) {
+                    flipButton.querySelector('span').textContent = previewSide === 'front' ? 'Show back' : 'Show front';
+                    flipButton.setAttribute('aria-pressed', String(previewSide === 'back'));
+                }
+            };
+            const loadPreviewImage = source => new Promise(resolve => {
+                if (!source) return resolve(null);
+                const image = new Image();
+                image.crossOrigin = 'anonymous';
+                image.onload = () => resolve(image);
+                image.onerror = () => resolve(null);
+                image.src = source;
+            });
+            const savePreviewAsJpg = async () => {
+                if (!previewCard || !saveJpgButton) return;
+                saveJpgButton.disabled = true;
+                if (downloadStatus) downloadStatus.textContent = 'Preparing JPG…';
+                try {
+                    const width = 960;
+                    const height = 1500;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const context = canvas.getContext('2d');
+                    if (!context) throw new Error('Image export is unavailable in this browser.');
+                    const primary = idCardColor(previewCard.primary, '#071b3a');
+                    const secondary = idCardColor(previewCard.secondary, '#1459d9');
+                    const gradient = context.createLinearGradient(0, 0, width, height);
+                    gradient.addColorStop(0, primary);
+                    gradient.addColorStop(1, secondary);
+                    context.fillStyle = gradient;
+                    context.fillRect(0, 0, width, height);
+                    context.strokeStyle = 'rgba(255,255,255,.35)';
+                    context.lineWidth = 4;
+                    context.strokeRect(12, 12, width - 24, height - 24);
+                    context.fillStyle = 'rgba(255,255,255,.08)';
+                    context.beginPath();
+                    context.arc(width + 80, -40, 350, 0, Math.PI * 2);
+                    context.fill();
+
+                    const drawText = (text, x, y, size, color = '#ffffff', align = 'left', weight = '600') => {
+                        context.fillStyle = color;
+                        context.font = `${weight} ${size}px Arial, sans-serif`;
+                        context.textAlign = align;
+                        context.fillText(String(text || ''), x, y, width - 100);
+                    };
+                    const drawImageContained = (image, x, y, maxWidth, maxHeight) => {
+                        const scale = Math.min(maxWidth / image.width, maxHeight / image.height);
+                        const imageWidth = image.width * scale;
+                        const imageHeight = image.height * scale;
+                        context.drawImage(image, x + (maxWidth - imageWidth) / 2, y + (maxHeight - imageHeight) / 2, imageWidth, imageHeight);
+                    };
+                    const logo = await loadPreviewImage(safeIdCardImage(previewCard.logo));
+                    if (logo) {
+                        context.fillStyle = '#ffffff';
+                        context.beginPath();
+                        context.roundRect(58, 55, 112, 112, 16);
+                        context.fill();
+                        drawImageContained(logo, 68, 65, 92, 92);
+                    }
+                    drawText(previewCard.schoolName || 'STUDENT ID CARD', logo ? 195 : width / 2, 112, 34, '#ffffff', logo ? 'left' : 'center', '700');
+                    context.strokeStyle = 'rgba(255,255,255,.45)';
+                    context.lineWidth = 2;
+                    context.beginPath();
+                    context.moveTo(56, 195);
+                    context.lineTo(width - 56, 195);
+                    context.stroke();
+
+                    if (previewSide === 'front') {
+                        const photo = await loadPreviewImage(safeIdCardImage(previewCard.photo));
+                        const photoX = 336;
+                        const photoY = 240;
+                        const photoWidth = 288;
+                        const photoHeight = 350;
+                        context.fillStyle = 'rgba(255,255,255,.18)';
+                        context.beginPath();
+                        context.roundRect(photoX, photoY, photoWidth, photoHeight, 24);
+                        context.fill();
+                        if (photo) {
+                            context.save();
+                            context.beginPath();
+                            context.roundRect(photoX + 8, photoY + 8, photoWidth - 16, photoHeight - 16, 18);
+                            context.clip();
+                            const scale = Math.max((photoWidth - 16) / photo.width, (photoHeight - 16) / photo.height);
+                            const photoDrawWidth = photo.width * scale;
+                            const photoDrawHeight = photo.height * scale;
+                            context.drawImage(photo, photoX + (photoWidth - photoDrawWidth) / 2, photoY + (photoHeight - photoDrawHeight) / 2, photoDrawWidth, photoDrawHeight);
+                            context.restore();
+                        } else {
+                            drawText(String(previewCard.memberName || 'S').split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(), width / 2, photoY + 200, 76, '#ffffff', 'center', '700');
+                        }
+                        drawText(previewCard.memberName || 'Student', width / 2, 665, 43, '#ffffff', 'center', '700');
+                        drawText(previewCard.designation || previewCard.memberType || 'Student', width / 2, 715, 24, '#dbeafe', 'center');
+                        const details = [
+                            ['STUDENT ID', previewCard.memberId],
+                            ['CLASS', previewCard.department],
+                            ['DIVISION', previewCard.division],
+                            ['VALID UNTIL', previewCard.validUntil],
+                            ['STATUS', previewCard.status]
+                        ];
+                        details.forEach(([label, value], index) => {
+                            const row = Math.floor(index / 2);
+                            const column = index % 2;
+                            const x = 80 + column * 420;
+                            const y = 825 + row * 145;
+                            drawText(label, x, y, 17, '#bfdbfe');
+                            drawText(value || '—', x, y + 45, 26, '#ffffff', 'left', '700');
+                        });
+                    } else {
+                        drawText('IF THIS CARD IS FOUND', width / 2, 360, 32, '#dbeafe', 'center', '700');
+                        drawText('Please return this card to the school.', width / 2, 415, 22, '#ffffff', 'center');
+                        [
+                            ['SCHOOL', previewCard.schoolName],
+                            ['ADDRESS', previewCard.schoolAddress],
+                            ['EMERGENCY CONTACT', previewCard.emergency]
+                        ].forEach(([label, value], index) => {
+                            const y = 545 + index * 190;
+                            context.fillStyle = 'rgba(0,0,0,.12)';
+                            context.beginPath();
+                            context.roundRect(64, y - 45, width - 128, 140, 18);
+                            context.fill();
+                            drawText(label, 92, y, 18, '#bfdbfe');
+                            drawText(value || '—', 92, y + 48, 24, '#ffffff', 'left', '700');
+                        });
+                        context.strokeStyle = 'rgba(255,255,255,.45)';
+                        context.beginPath();
+                        context.moveTo(64, 1225);
+                        context.lineTo(width - 64, 1225);
+                        context.stroke();
+                        drawText(`CARD NO. ${previewCard.memberId || '—'}`, width / 2, 1280, 22, '#ffffff', 'center', '700');
+                    }
+
+                    const blob = await new Promise((resolve, reject) => canvas.toBlob(
+                        value => value ? resolve(value) : reject(new Error('The JPG image could not be created.')),
+                        'image/jpeg',
+                        0.92
+                    ));
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    const safeName = String(previewCard.memberName || 'student-id').trim().replace(/[^a-z0-9_-]+/gi, '-');
+                    link.href = url;
+                    link.download = `${safeName}-${previewSide}.jpg`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    if (downloadStatus) downloadStatus.textContent = 'JPG downloaded.';
+                } catch (error) {
+                    console.error('Unable to export the student ID card as JPG.', error);
+                    if (downloadStatus) downloadStatus.textContent = error.message || 'Unable to download the JPG.';
+                } finally {
+                    saveJpgButton.disabled = false;
+                }
             };
             if (!parentDashboardSummary.loaded) {
                 idCards.innerHTML = `<p class="parent-id-cards-empty" role="status">${parentDashboardSummary.error
@@ -1011,11 +1202,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         closePreview();
                         return;
                     }
+                    if (target.closest('[data-parent-id-card-flip]')) {
+                        previewSide = previewSide === 'front' ? 'back' : 'front';
+                        renderPreviewCard();
+                        return;
+                    }
+                    if (target.closest('[data-parent-id-card-save]')) {
+                        void savePreviewAsJpg();
+                        return;
+                    }
                     const previewButton = target.closest('[data-parent-id-card-index]');
                     if (previewButton && previewContent && previewModal) {
-                        const card = linkedIdCards[Number(previewButton.dataset.parentIdCardIndex)];
-                        if (!card) return;
-                        previewContent.innerHTML = renderIdCard(card);
+                        previewCard = linkedIdCards[Number(previewButton.dataset.parentIdCardIndex)] || null;
+                        if (!previewCard) return;
+                        previewSide = 'front';
+                        if (downloadStatus) downloadStatus.textContent = '';
+                        renderPreviewCard();
                         previewModal.classList.remove('hidden');
                         idCardsSection.querySelector('[data-parent-id-card-close]')?.focus();
                     }
