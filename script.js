@@ -381,7 +381,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const parentStudentRecordId = record => String(record.id || record.studentId || record.studentID || record.student_id || '');
     const parentPortalMatchesChild = (record, collection, childId) => collection === 'students'
         ? parentStudentRecordId(record) === childId
-        : parentStudentId(record) === childId || (!parentStudentId(record) && String(record.id || '') === childId);
+        : parentStudentId(record) === childId
+            || (collection === 'attendance' && String(record.memberId || '') === childId)
+            || (!parentStudentId(record) && String(record.id || '') === childId);
     const parentPortalMatchesStudentContext = (record, collection, child) => {
         const childId = parentStudentRecordId(child);
         if (parentPortalPersonalCollections.has(collection)) return parentPortalMatchesChild(record, collection, childId);
@@ -778,8 +780,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const attendanceRecords = familyRecordsFor('attendance');
         const attendanceCardRecords = cardRecordsFor('attendance');
         const canViewAttendance = adminPreview || canViewParentPortalCollection('attendance');
+        const attendanceDashboardRecords = canViewAttendance ? attendanceRecords : attendanceCardRecords;
         const canViewFees = adminPreview || canViewParentPortalCollection('fees');
-        container.querySelector('[data-parent-attendance-section]')?.classList.toggle('hidden', !canViewAttendance);
+        container.querySelector('[data-parent-attendance-section]')?.classList.remove('hidden');
         const attendanceCounts = { present: 0, late: 0, absent: 0, excused: 0 };
         const attendanceStatusFor = record => String(record.status || record.attendanceStatus || '').trim().toLowerCase();
         attendanceCardRecords.forEach(record => {
@@ -1302,8 +1305,8 @@ document.addEventListener('DOMContentLoaded', () => {
         attention?.classList.toggle('hidden', !attentionMessages.length);
 
         const activityCandidates = [
-            ...attendanceRecords.map(record => ({
-                date: dateFromRecord(record, ['attendanceDate', 'date']),
+            ...attendanceDashboardRecords.map(record => ({
+                date: dateFromRecord(record, ['attendanceDate', 'date', 'day']),
                 label: `Attendance marked · ${record.status || record.attendanceStatus || 'Recorded'}`,
                 icon: 'fa-calendar-check'
             })),
@@ -1340,7 +1343,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     counts: { present: 0, late: 0, absent: 0, excused: 0 }
                 };
             });
-            attendanceRecords.forEach(record => {
+            attendanceDashboardRecords.forEach(record => {
                 const date = dateFromRecord(record, ['attendanceDate', 'date', 'day']);
                 const status = attendanceStatusFor(record);
                 if (!date || !Object.hasOwn(attendanceCounts, status)) return;
@@ -1349,9 +1352,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (month) month.counts[status] += 1;
             });
             const chartHasData = months.some(month => Object.values(month.counts).some(count => count));
-            if (!parentPortalData.attendance.loaded) {
+            const attendanceChartLoaded = canViewAttendance
+                ? parentPortalData.attendance.loaded
+                : parentDashboardSummary.loaded;
+            const attendanceChartError = canViewAttendance
+                ? parentPortalData.attendance.error && !parentPortalData.attendance.loaded
+                : parentDashboardSummary.error;
+            if (!attendanceChartLoaded && !attendanceChartError) {
                 attendanceChart.setAttribute('aria-label', 'Attendance chart loading');
                 attendanceChart.innerHTML = '<p class="parent-chart-empty">Loading linked attendance records…</p>';
+            } else if (attendanceChartError) {
+                attendanceChart.setAttribute('aria-label', 'Attendance history unavailable');
+                attendanceChart.innerHTML = '<p class="parent-chart-empty">Attendance history could not be loaded. Please try again later.</p>';
             } else if (!chartHasData) {
                 attendanceChart.setAttribute('aria-label', 'No attendance records in the last six months');
                 attendanceChart.innerHTML = '<p class="parent-chart-empty">Attendance history will appear here when records are available.</p>';
