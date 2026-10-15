@@ -841,10 +841,45 @@ document.addEventListener('DOMContentLoaded', () => {
             const title = definition.title(record);
             const fields = definition.fields(record).filter(([, value]) =>
                 value !== undefined && value !== null && value !== '');
+            const fieldIcons = {
+                Date: 'fa-calendar-day',
+                Status: 'fa-circle-check',
+                Period: 'fa-calendar-week',
+                Average: 'fa-chart-line',
+                Grade: 'fa-award',
+                Published: 'fa-clock',
+                Subject: 'fa-book-open',
+                Due: 'fa-hourglass-half',
+                Outstanding: 'fa-wallet',
+                Category: 'fa-tag',
+                Details: 'fa-align-left'
+            };
+            const recordIconShapes = {
+                'fa-calendar-check': '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18l-3 3-2-2-4 4"/>',
+                'fa-square-poll-vertical': '<path d="M4 20V5M4 20h17M8 16v-3M12 16V8M16 16v-5M20 16V4"/>',
+                'fa-book-open': '<path d="M12 7v14M12 7C9 4 5 4 3 5v13c3-1 6-1 9 2M12 7c3-3 7-3 9-2v13c-3-1-6-1-9 2"/>',
+                'fa-receipt': '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3"/>',
+                'fa-bullhorn': '<path d="M3 11v4h4l11 5V5L7 10H3zM7 15l2 6h4l-3-7M18 9h3v8h-3"/>',
+                'fa-calendar-day': '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h3v3H8z"/>',
+                'fa-circle-check': '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+                'fa-calendar-week': '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h2M14 14h2M8 17h2M14 17h2"/>',
+                'fa-chart-line': '<path d="M3 3v18h18M6 15l5-5 4 3 6-7M17 6h4v4"/>',
+                'fa-award': '<circle cx="12" cy="9" r="6"/><path d="m8 14-1 8 5-3 5 3-1-8"/>',
+                'fa-clock': '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+                'fa-hourglass-half': '<path d="M6 3h12M6 21h12M7 3c0 5 2 7 5 9-3 2-5 4-5 9M17 3c0 5-2 7-5 9 3 2 5 4 5 9"/>',
+                'fa-wallet': '<rect x="3" y="6" width="18" height="15" rx="2"/><path d="M3 9h18M16 15h2"/><path d="M5 6V4h13"/>',
+                'fa-tag': '<path d="M3 12V4h8l10 10-7 7L3 12z"/><circle cx="8" cy="8" r="1"/>',
+                'fa-align-left': '<path d="M4 5h16M4 9h10M4 13h16M4 17h10"/>',
+                'fa-user': '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3-7 8-7s8 3 8 7"/>',
+                'fa-circle-info': '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>'
+            };
+            const recordIcon = name => `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${recordIconShapes[name] || recordIconShapes['fa-circle-info']}</g></svg>`;
+            const summary = fields[0];
             return `<article class="parent-record-card parent-record-card-${collection}">
-                <div class="parent-record-card-heading"><span class="parent-record-card-icon parent-id-cards-trigger-icon" aria-hidden="true"><i class="fa-solid ${definition.icon}"></i></span><small>${dashboardEscape(studentName)}</small></div>
-                <h3>${dashboardEscape(title)}</h3>
-                ${fields.length ? `<dl>${fields.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl>` : ''}
+                <div class="parent-record-card-heading"><small>${recordIcon('fa-user')} ${dashboardEscape(studentName)}</small></div>
+                <div class="parent-record-card-title-row"><span class="parent-record-card-icon">${recordIcon(definition.icon)}</span><h3>${dashboardEscape(title)}</h3></div>
+                ${summary ? `<div class="parent-record-card-summary"><span class="parent-record-card-summary-icon">${recordIcon(fieldIcons[summary[0]] || 'fa-circle-info')}</span><span><small>${dashboardEscape(summary[0])}</small><strong>${dashboardEscape(summary[1])}</strong></span></div>` : ''}
+                ${fields.length > 1 ? `<dl>${fields.slice(1).map(([label, value]) => `<div><dt>${recordIcon(fieldIcons[label] || 'fa-circle-info')}${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl>` : ''}
             </article>`;
         };
         const recordCardDefinitions = {
@@ -852,17 +887,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 icon: 'fa-calendar-check',
                 title: record => `${record.status || record.attendanceStatus || 'Attendance'} record`,
                 fields: record => [
-                    ['Date', parentRecordDate(record, ['attendanceDate', 'date', 'day'])],
-                    ['Status', record.status || record.attendanceStatus]
+                    ['Status', record.status || record.attendanceStatus],
+                    ['Date', parentRecordDate(record, ['attendanceDate', 'date', 'day'])]
                 ]
             },
             reportCards: {
                 icon: 'fa-square-poll-vertical',
                 title: record => parentPortalRecordValue(record, ['reportName', 'title', 'name']) || 'Report card',
                 fields: record => [
-                    ['Period', parentPortalRecordValue(record, ['period', 'academicPeriod', 'term', 'year'])],
                     ['Average', parentPortalRecordValue(record, ['average', 'percentage', 'averagePercentage'])],
                     ['Grade', parentPortalRecordValue(record, ['grade', 'overallGrade'])],
+                    ['Period', parentPortalRecordValue(record, ['period', 'academicPeriod', 'term', 'year'])],
                     ['Published', parentRecordDate(record, ['publishedAt', 'publicationDate', 'date'])]
                 ]
             },
@@ -870,8 +905,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 icon: 'fa-book-open',
                 title: record => parentPortalRecordValue(record, ['title', 'name', 'assessmentName']) || 'Assignment',
                 fields: record => [
-                    ['Subject', parentPortalRecordValue(record, ['subjectName', 'subject'])],
                     ['Due', parentRecordDate(record, ['dueDate', 'deadline', 'date'])],
+                    ['Subject', parentPortalRecordValue(record, ['subjectName', 'subject'])],
                     ['Status', parentPortalRecordValue(record, ['status', 'type', 'assessmentType'])]
                 ]
             },
@@ -879,8 +914,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 icon: 'fa-receipt',
                 title: record => parentPortalRecordValue(record, ['feeName', 'feeType', 'name']) || 'Fee record',
                 fields: record => [
-                    ['Due', parentRecordDate(record, ['dueDate', 'paymentDueDate', 'deadline'])],
                     ['Outstanding', dashboardMoney(feeOutstandingAmount(record))],
+                    ['Due', parentRecordDate(record, ['dueDate', 'paymentDueDate', 'deadline'])],
                     ['Status', parentPortalRecordValue(record, ['status'])]
                 ]
             },

@@ -3478,39 +3478,65 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .parent-child-selector select{width:100%;min-width:0;max-width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#1e293b;font:inherit}
 .parent-portal-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
 .parent-portal-stat{display:grid;grid-template-columns:40px minmax(0,1fr);align-items:center;gap:12px;min-width:0;min-height:108px;padding:15px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;box-shadow:0 4px 14px rgba(15,23,42,.035);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:border-color .15s,box-shadow .15s}
-.parent-portal-stat:hover{border-color:#93c5fd;box-shadow:0 5px 16px rgba(15,23,42,.07)}
+.parent-portal-stat{position:relative;overflow:hidden;border-radius:14px;box-shadow:0 6px 20px rgba(15,23,42,.045);transition:transform .18s,border-color .18s,box-shadow .18s}
+.parent-portal-stat:before{position:absolute;inset:0 auto 0 0;width:3px;border-radius:14px 0 0 14px;background:#38bdf8;content:""}
+.parent-metric-attendance:before{background:#22c55e}
+.parent-metric-results:before{background:#0ea5e9}
+.parent-metric-assignments:before{background:#8b5cf6}
+.parent-metric-fees:before{background:#f59e0b}
+.parent-metric-notices:before{background:#f43f5e}
+.parent-portal-stat:hover{transform:translateY(-2px);border-color:#93c5fd;box-shadow:0 10px 26px rgba(15,23,42,.09)}
 .parent-portal-stat:focus-visible{outline:3px solid #60a5fa;outline-offset:2px}
 .parent-portal-stat>div{display:grid;gap:4px;min-width:0}
 .parent-portal-stat>div>span{color:#475569;font-size:11px;font-weight:650}
 .parent-portal-stat strong{overflow-wrap:anywhere;color:#172033;font-size:21px;line-height:1.1}
 .parent-portal-stat small{color:#64748b;font-size:10px;line-height:1.4}
-.parent-metric-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:9px;background:#e0f2fe;color:#0369a1;font-size:15px}
+.parent-metric-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:13px;background:#e0f2fe;color:#0369a1;font-size:16px;box-shadow:inset 0 0 0 1px #ffffff80}
 .parent-metric-attendance .parent-metric-icon{background:#dcfce7;color:#15803d}
 .parent-metric-results .parent-metric-icon{background:#e0f2fe;color:#0369a1}
 .parent-metric-assignments .parent-metric-icon{background:#ede9fe;color:#6d28d9}
 .parent-metric-fees .parent-metric-icon{background:#fef3c7;color:#b45309}
 .parent-metric-notices .parent-metric-icon{background:#ffe4e6;color:#be123c}
 .parent-records-section{margin:0 0 22px}
-.parent-record-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
-.parent-record-group{min-width:0;padding:15px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;box-shadow:0 4px 14px rgba(15,23,42,.03)}
+.parent-record-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+.parent-record-group{min-width:0;padding:16px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-shadow:0 6px 20px rgba(15,23,42,.035)}
 .parent-record-group>header{margin-bottom:12px}
 .parent-record-group-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:0;border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .parent-record-group-toggle>span{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;flex:1}
-.parent-record-group-title{color:#172033;font-size:14px;font-weight:700}
-.parent-record-group-toggle>span>span{color:#64748b;font-size:10px;font-weight:650;white-space:nowrap}
+.parent-record-group-title{color:#172033;font-size:14px;font-weight:750}
+.parent-record-group-toggle>span>[data-parent-record-count]{padding:4px 8px;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:10px;font-weight:700;white-space:nowrap}
+.parent-record-group-label{display:flex;align-items:center;justify-content:flex-start!important;gap:9px;min-width:0}
+.parent-record-group-label svg{display:block;width:19px;height:19px;flex:none;color:#2563eb}
 .parent-record-group-toggle>i{color:#64748b;transition:transform .15s}
 .parent-record-group-toggle[aria-expanded="false"]>i{transform:rotate(-90deg)}
 .parent-record-group-toggle:focus-visible{outline:3px solid #60a5fa;outline-offset:3px;border-radius:3px}
-.parent-record-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:9px}
-.parent-record-card{min-width:0;padding:12px;border:1px solid #edf0f5;border-radius:8px;background:#f8fafc}
-.parent-record-card-heading{display:flex;align-items:center;gap:9px;margin-bottom:9px}
-.parent-record-card-icon{display:grid;place-items:center;width:40px;height:40px;flex:none;border-radius:9px;background:#e0f2fe;color:#0369a1;font-size:15px}
-.parent-record-card-heading small{overflow:hidden;color:#64748b;font-size:10px;font-weight:650;text-overflow:ellipsis;white-space:nowrap}
-.parent-record-card h3{margin:0 0 9px;color:#1e293b;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
-.parent-record-card dl{display:grid;gap:5px;margin:0}
-.parent-record-card dl>div{display:grid;grid-template-columns:minmax(58px,auto) minmax(0,1fr);gap:8px}
-.parent-record-card dt{color:#64748b;font-size:10px}
-.parent-record-card dd{margin:0;color:#334155;font-size:10px;font-weight:600;overflow-wrap:anywhere;white-space:pre-line}
+.parent-record-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,235px),1fr));gap:11px}
+.parent-record-card{min-width:0;padding:14px;border:1px solid #e8edf4;border-radius:12px;background:linear-gradient(160deg,#fff,#f8fafc);box-shadow:0 3px 10px rgba(15,23,42,.025);transition:transform .18s,border-color .18s,box-shadow .18s}
+.parent-record-card:hover{transform:translateY(-2px);border-color:#cbdaf0;box-shadow:0 9px 20px rgba(15,23,42,.07)}
+.parent-record-card-heading{display:flex;align-items:center;gap:9px;min-width:0;margin-bottom:11px}
+.parent-record-card-title-row{display:flex;align-items:center;gap:10px;min-width:0;margin-bottom:11px}
+.parent-record-card-icon{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:11px;background:#e0f2fe;color:#0369a1}
+.parent-record-card-icon svg{display:block;width:18px;height:18px}
+.parent-record-card-heading small{display:flex;align-items:center;gap:5px;min-width:0;overflow:hidden;color:#64748b;font-size:10px;font-weight:650;text-overflow:ellipsis;white-space:nowrap}
+.parent-record-card-heading small svg{display:block;width:11px;height:11px;flex:none;color:#94a3b8}
+.parent-record-card h3{min-width:0;margin:0;color:#1e293b;font-size:13px;font-weight:750;line-height:1.4;overflow-wrap:anywhere}
+.parent-record-card-summary{display:flex;align-items:center;gap:9px;min-width:0;margin-bottom:10px;padding:9px 10px;border:1px solid #e6eef8;border-radius:9px;background:#f1f7ff}
+.parent-record-card-summary-icon{display:grid;place-items:center;width:29px;height:29px;flex:none;border-radius:8px;background:#fff;color:#2563eb;box-shadow:0 1px 4px #1e3a8a12}
+.parent-record-card-summary-icon svg{display:block;width:15px;height:15px}
+.parent-record-card-summary>span:last-child{display:grid;gap:2px;min-width:0}
+.parent-record-card-summary small{color:#64748b;font-size:9px;font-weight:650}
+.parent-record-card-summary strong{overflow:hidden;color:#172033;font-size:12px;line-height:1.35;text-overflow:ellipsis;overflow-wrap:anywhere}
+.parent-record-card dl{display:grid;gap:7px;margin:0}
+.parent-record-card dl>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);align-items:start;gap:8px}
+.parent-record-card dt{display:flex;align-items:center;gap:6px;color:#64748b;font-size:10px}
+.parent-record-card dt svg{display:block;width:12px;height:12px;flex:none;color:#94a3b8}
+.parent-record-card dd{min-width:0;margin:0;color:#334155;font-size:10px;font-weight:650;text-align:right;overflow-wrap:anywhere;white-space:pre-line}
+.parent-record-card-notices .parent-record-card-summary{background:#fff7ed;border-color:#ffedd5}
+.parent-record-card-notices .parent-record-card-summary-icon{color:#c2410c}
+.parent-record-card-fees .parent-record-card-summary{background:#fffbeb;border-color:#fef3c7}
+.parent-record-card-fees .parent-record-card-summary-icon{color:#b45309}
+.parent-record-card-reportCards .parent-record-card-summary{background:#f0f9ff;border-color:#e0f2fe}
+.parent-record-card-assessments .parent-record-card-summary{background:#f5f3ff;border-color:#ede9fe}
 .parent-record-empty{grid-column:1/-1;margin:0;padding:12px;border:1px dashed #cbd5e1;border-radius:7px;color:#64748b;font-size:11px}
 .parent-id-cards-section{min-width:0;margin:0;padding:15px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;box-shadow:0 4px 14px rgba(15,23,42,.03)}
 .parent-id-cards-trigger{display:grid;grid-template-columns:40px minmax(0,1fr) 18px;align-items:center;gap:12px;width:100%;min-height:76px;padding:14px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;box-shadow:0 4px 14px rgba(15,23,42,.035);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:border-color .15s,box-shadow .15s}
@@ -3680,10 +3706,19 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
     .parent-welcome-card{grid-template-columns:minmax(0,1fr);gap:14px;padding:14px}
     .parent-child-selector{min-width:0;width:100%}
     .parent-portal-overview{padding:14px}
+    .parent-portal-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+    .parent-portal-stat{grid-template-columns:34px minmax(0,1fr);min-height:88px;gap:9px;padding:11px}
+    .parent-metric-icon{width:34px;height:34px;border-radius:10px;font-size:13px}
+    .parent-portal-stat>div>span{font-size:10px}
+    .parent-portal-stat strong{font-size:17px}
+    .parent-portal-stat small{font-size:9px}
     .parent-section-heading,.parent-student-profile{align-items:flex-start;flex-direction:column}
     .parent-results-heading{align-items:flex-start}
     .parent-detail-header{align-items:stretch;flex-direction:column}
     .parent-record-groups{grid-template-columns:minmax(0,1fr)}
+    .parent-record-group{padding:13px}
+    .parent-record-grid{grid-template-columns:minmax(0,1fr);gap:9px}
+    .parent-record-card{padding:12px}
     .parent-detail-title-row{flex-wrap:wrap}
     .parent-detail-title-row>div{flex:1 1 calc(100% - 112px);min-width:0}
     .parent-detail-child-wrap{min-width:0}
@@ -3705,6 +3740,10 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
     .parent-detail-table td{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border:0;white-space:normal;text-align:right}
     .parent-detail-table td::before{content:attr(data-label);flex:none;color:#64748b;font-size:10px;font-weight:650;text-align:left}
     .parent-chart-row{grid-template-columns:minmax(68px,100px) minmax(50px,1fr) 42px;gap:7px}
+}
+@media(max-width:380px){
+    .parent-portal-stats{grid-template-columns:minmax(0,1fr)}
+    .parent-portal-stat{min-height:76px}
 }
 .user-roles-guidance{margin:14px 0;padding:14px 16px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a}
 .user-roles-guidance p{margin:5px 0 0;font-size:13px;line-height:1.55}
@@ -3734,8 +3773,17 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .dark .parent-record-group,.dark .parent-id-cards-section{background:#111827;border-color:#334155}
 .dark .parent-record-group-title,.dark .parent-record-card h3{color:#e2e8f0}
 .dark .parent-record-group-toggle>span>span,.dark .parent-record-group-toggle>i,.dark .parent-record-card-heading small,.dark .parent-record-card dt{color:#aebdd0}
-.dark .parent-record-card{background:#1e293b;border-color:#334155}
-.dark .parent-record-card dd{color:#cbd5e1}
+.dark .parent-record-group-toggle>span>[data-parent-record-count]{background:#1e293b;color:#cbd5e1}
+.dark .parent-record-group-label svg{color:#93c5fd}
+.dark .parent-record-card{background:linear-gradient(160deg,#172033,#1e293b);border-color:#334155}
+.dark .parent-record-card dd,.dark .parent-record-card-summary strong{color:#e2e8f0}
+.dark .parent-record-card-summary{background:#172554;border-color:#1e3a8a}
+.dark .parent-record-card-summary-icon{background:#1e293b;color:#93c5fd}
+.dark .parent-record-card-notices .parent-record-card-summary{background:#431407;border-color:#7c2d12}
+.dark .parent-record-card-notices .parent-record-card-summary-icon{color:#fdba74}
+.dark .parent-record-card-fees .parent-record-card-summary{background:#422006;border-color:#78350f}
+.dark .parent-record-card-fees .parent-record-card-summary-icon{color:#fcd34d}
+.dark .parent-record-card-heading small i,.dark .parent-record-card dt i{color:#94a3b8}
 .dark .parent-record-empty{border-color:#475569;color:#aebdd0}
 .dark .parent-id-cards-trigger,.dark .parent-id-card-option{border-color:#334155;background:#111827}
 .dark .parent-id-cards-trigger-copy strong,.dark .parent-id-card-option-copy strong,.dark .parent-id-card-preview-dialog>header h2{color:#e2e8f0}
