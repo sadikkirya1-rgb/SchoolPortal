@@ -369,6 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
         collection,
         { loaded: false, records: [], error: false }
     ]));
+    let parentDashboardSummary = { loaded: false, records: null, error: false };
     let parentPortalIdentityKey = '';
     let activeParentPortalView = '';
     const parentStudentId = record => String(record.studentId || record.studentID || record.student_id
@@ -484,6 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isOpen = Boolean(config);
         [
             container.querySelector('.parent-portal-overview'),
+            container.querySelector('.parent-records-section'),
             container.querySelector('.parent-portal-attendance-summary'),
             container.querySelector('[data-parent-student-section]'),
             container.querySelector('[data-parent-results-section]'),
@@ -643,7 +645,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container) return;
         const childSelect = document.getElementById('parentChildSelector');
         const childSelectorWrap = document.getElementById('parentChildSelectorWrap');
-        const children = parentPortalData.students.records;
+        const studentRecords = parentPortalData.students.records;
+        const children = parentPortalData.students.loaded
+            ? studentRecords
+            : parentDashboardSummary.records?.children || studentRecords;
         const previousChild = childSelect?.value || 'all';
         const parentIdentity = window.schoolPortalData?.getIdentity?.() || activeAccountPermissions || {};
         const firstName = String(parentIdentity.fullName || parentIdentity.adminUser || '').trim().split(/\s+/)[0];
@@ -654,6 +659,8 @@ document.addEventListener('DOMContentLoaded', () => {
             || {};
         const adminPreview = isPrivilegedRole(activeAccountPermissions?.role);
         const canViewChildren = adminPreview || canViewParentPortalCollection('students');
+        const canSelectChildren = canViewChildren && parentPortalData.students.loaded
+            || parentDashboardSummary.loaded && children.length > 0;
         if (childSelect) {
             childSelect.replaceChildren();
             if (children.length > 1) childSelect.add(new Option('All children', 'all'));
@@ -668,9 +675,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? preferredChild
                 : 'all';
             if (childSelectorWrap) childSelectorWrap.classList.toggle('hidden',
-                !canViewChildren || !parentPortalData.students.loaded || children.length === 0);
+                !canSelectChildren);
         }
         const selectedChild = childSelect?.value || 'all';
+        const linkedStudentsSummary = container.querySelector('[data-parent-linked-students]');
+        if (linkedStudentsSummary) {
+            const displayedChildren = selectedChild === 'all'
+                ? children
+                : children.filter(child => parentStudentRecordId(child) === selectedChild);
+            linkedStudentsSummary.textContent = displayedChildren.map(child => {
+                const name = child.fullName || child.name || child.studentName || child.displayName || 'Student';
+                const id = child.displayId || child.admissionNumber || child.admissionNo
+                    || child.studentCode || child.studentId || parentStudentRecordId(child);
+                return id ? `${name} · ID: ${id}` : name;
+            }).join('  |  ');
+            linkedStudentsSummary.classList.toggle('hidden', displayedChildren.length === 0);
+        }
         const noChildren = document.getElementById('parentPortalNoChildren');
         noChildren?.classList.toggle('hidden',
             !canViewChildren || !parentPortalData.students.loaded || children.length > 0 || parentPortalData.students.error);
@@ -684,7 +704,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 : parentPortalData.students.error
                 ? 'Linked child information could not be loaded. Contact your school administrator if this continues.'
                 : !canViewChildren
-                    ? ''
+                    ? parentDashboardSummary.loaded && children.length
+                        ? `${children.length} linked ${children.length === 1 ? 'child' : 'children'} · Showing ${selectedChild === 'all' ? 'all linked children' : 'selected child'}`
+                        : ''
                 : activeCollectionErrors
                     ? 'Some linked records could not be loaded. Please try again later.'
                     : !parentPortalData.students.loaded
@@ -704,6 +726,12 @@ document.addEventListener('DOMContentLoaded', () => {
             .filter(record => selectedChildren.some(child => collection === 'notices'
                 ? parentPortalMatchesStudentContext(record, collection, child)
                 : parentPortalMatchesChild(record, collection, parentStudentRecordId(child))));
+        const summaryRecordsFor = collection => (parentDashboardSummary.records?.[collection] || [])
+            .filter(record => selectedChildren.some(child =>
+                parentPortalMatchesChild(record, collection, parentStudentRecordId(child))));
+        const cardRecordsFor = collection => adminPreview || canViewParentPortalCollection(collection)
+            ? familyRecordsFor(collection)
+            : summaryRecordsFor(collection);
         const setParentMetric = (key, collection, metric, detail) => {
             const card = container.querySelector(`[data-parent-stat-card="${key}"]`);
             const value = container.querySelector(`[data-parent-stat="${key}"]`);
@@ -711,8 +739,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const dataset = parentPortalData[collection];
             if (!card || !value || !dataset) return;
             const allowed = adminPreview || canViewParentPortalCollection(collection);
-            card.classList.toggle('hidden', !allowed);
-            if (!allowed) return;
+            card.classList.remove('hidden');
+            if (!allowed) {
+                if (parentDashboardSummary.error) {
+                    value.textContent = 'Unavailable';
+                    if (description) description.textContent = 'Summary data could not be loaded';
+                } else if (!parentDashboardSummary.loaded) {
+                    value.textContent = '…';
+                    if (description) description.textContent = 'Loading linked-student summary';
+                } else {
+                    value.textContent = metric;
+                    if (description) description.textContent = detail;
+                }
+                return;
+            }
             if (dataset.error && !dataset.loaded) {
                 value.textContent = 'Unavailable';
                 if (description) description.textContent = 'Data could not be loaded';
@@ -724,13 +764,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (description) description.textContent = detail;
             }
         };
+        const today = new Date();
+        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const dateFromRecord = (record, fields) => {
+            for (const field of fields) {
+                if (!record[field]) continue;
+                const date = parseDashboardDate(record[field]);
+                if (!Number.isNaN(date.getTime())) return date;
+            }
+            return null;
+        };
         const attendanceRecords = familyRecordsFor('attendance');
+        const attendanceCardRecords = cardRecordsFor('attendance');
         const canViewAttendance = adminPreview || canViewParentPortalCollection('attendance');
         const canViewFees = adminPreview || canViewParentPortalCollection('fees');
         container.querySelector('[data-parent-attendance-section]')?.classList.toggle('hidden', !canViewAttendance);
         const attendanceCounts = { present: 0, late: 0, absent: 0, excused: 0 };
         const attendanceStatusFor = record => String(record.status || record.attendanceStatus || '').trim().toLowerCase();
-        attendanceRecords.forEach(record => {
+        attendanceCardRecords.forEach(record => {
             const status = attendanceStatusFor(record);
             if (Object.hasOwn(attendanceCounts, status)) attendanceCounts[status] += 1;
         });
@@ -744,26 +795,136 @@ document.addEventListener('DOMContentLoaded', () => {
         setParentMetric('attendance', 'attendance', attendanceRate, attendanceDetail);
 
         const reportRecords = familyRecordsFor('reportCards');
+        const reportCardRecords = cardRecordsFor('reportCards').filter(record =>
+            parentPortalRecordIsVisible(record, 'reportCards'));
         const childScope = selectedChild === 'all' ? 'Across linked children' : 'For the selected child';
-        setParentMetric('results', 'reportCards', String(reportRecords.length), childScope);
+        setParentMetric('results', 'reportCards', String(reportCardRecords.length), childScope);
+        const assignments = cardRecordsFor('assessments');
+        const completedAssignmentStatuses = new Set(['completed', 'complete', 'submitted', 'graded', 'closed', 'done']);
+        const upcomingAssignments = assignments.map(assignment => ({
+            assignment,
+            dueDate: dateFromRecord(assignment, ['dueDate', 'deadline', 'date'])
+        })).filter(({ assignment, dueDate }) => {
+            const status = String(assignment.status || '').trim().toLowerCase();
+            return dueDate && dueDate >= todayStart && !completedAssignmentStatuses.has(status);
+        });
+        const nextAssignmentDue = upcomingAssignments
+            .map(({ dueDate }) => dueDate)
+            .sort((left, right) => left - right)[0];
+        setParentMetric('assignments', 'assessments', String(upcomingAssignments.length),
+            upcomingAssignments.length
+                ? `Next due ${dashboardDateLabel(nextAssignmentDue)}`
+                : 'No upcoming assignments');
         const feeRecords = familyRecordsFor('fees');
-        const unpaidFeeRecords = feeRecords.filter(fee => feeOutstandingAmount(fee) > 0);
+        const feeCardRecords = cardRecordsFor('fees');
+        const unpaidFeeRecords = feeCardRecords.filter(fee => feeOutstandingAmount(fee) > 0);
         setParentMetric('fees', 'fees', dashboardMoney(unpaidFeeRecords.reduce((sum, fee) => sum + feeOutstandingAmount(fee), 0)), `${unpaidFeeRecords.length} outstanding ${unpaidFeeRecords.length === 1 ? 'balance' : 'balances'}`);
         const noticeRecords = familyRecordsFor('notices');
-        setParentMetric('notices', 'notices', String(noticeRecords.length), 'School updates for linked children');
+        const noticeCount = !(adminPreview || canViewParentPortalCollection('notices'))
+            && parentDashboardSummary.loaded
+            ? parentDashboardSummary.records.noticeCount
+            : noticeRecords.length;
+        setParentMetric('notices', 'notices', String(noticeCount), 'School updates for linked children');
+
+        const parentRecordStudent = record => selectedChildren.find(child =>
+            parentStudentRecordId(child) === parentStudentId(record));
+        const parentRecordDate = (record, fields) => {
+            const date = dateFromRecord(record, fields);
+            return date ? dashboardDateLabel(date) : '';
+        };
+        const recordCard = (record, collection, definition) => {
+            const child = parentRecordStudent(record);
+            const studentName = collection === 'notices'
+                ? 'For parent community'
+                : child?.fullName || child?.name || child?.studentName || 'Linked student';
+            const title = definition.title(record);
+            const fields = definition.fields(record).filter(([, value]) =>
+                value !== undefined && value !== null && value !== '');
+            return `<article class="parent-record-card">
+                <div class="parent-record-card-heading"><span class="parent-record-card-icon"><i class="fas ${definition.icon}" aria-hidden="true"></i></span><small>${dashboardEscape(studentName)}</small></div>
+                <h3>${dashboardEscape(title)}</h3>
+                ${fields.length ? `<dl>${fields.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl>` : ''}
+            </article>`;
+        };
+        const recordCardDefinitions = {
+            attendance: {
+                icon: 'fa-calendar-check',
+                title: record => `${record.status || record.attendanceStatus || 'Attendance'} record`,
+                fields: record => [
+                    ['Date', parentRecordDate(record, ['attendanceDate', 'date', 'day'])],
+                    ['Status', record.status || record.attendanceStatus]
+                ]
+            },
+            reportCards: {
+                icon: 'fa-square-poll-vertical',
+                title: record => parentPortalRecordValue(record, ['reportName', 'title', 'name']) || 'Report card',
+                fields: record => [
+                    ['Period', parentPortalRecordValue(record, ['period', 'academicPeriod', 'term', 'year'])],
+                    ['Average', parentPortalRecordValue(record, ['average', 'percentage', 'averagePercentage'])],
+                    ['Grade', parentPortalRecordValue(record, ['grade', 'overallGrade'])],
+                    ['Published', parentRecordDate(record, ['publishedAt', 'publicationDate', 'date'])]
+                ]
+            },
+            assessments: {
+                icon: 'fa-book-open',
+                title: record => parentPortalRecordValue(record, ['title', 'name', 'assessmentName']) || 'Assignment',
+                fields: record => [
+                    ['Subject', parentPortalRecordValue(record, ['subjectName', 'subject'])],
+                    ['Due', parentRecordDate(record, ['dueDate', 'deadline', 'date'])],
+                    ['Status', parentPortalRecordValue(record, ['status', 'type', 'assessmentType'])]
+                ]
+            },
+            fees: {
+                icon: 'fa-receipt',
+                title: record => parentPortalRecordValue(record, ['feeName', 'feeType', 'name']) || 'Fee record',
+                fields: record => [
+                    ['Due', parentRecordDate(record, ['dueDate', 'paymentDueDate', 'deadline'])],
+                    ['Outstanding', dashboardMoney(feeOutstandingAmount(record))],
+                    ['Status', parentPortalRecordValue(record, ['status'])]
+                ]
+            },
+            notices: {
+                icon: 'fa-bullhorn',
+                title: record => parentPortalRecordValue(record, ['title', 'subject', 'name']) || 'School notice',
+                fields: record => [
+                    ['Category', parentPortalRecordValue(record, ['category', 'priority'])],
+                    ['Published', parentRecordDate(record, ['publishDate', 'publishedAt', 'date'])],
+                    ['Details', String(parentPortalRecordValue(record, ['contentText', 'content']) || '').slice(0, 240)]
+                ]
+            }
+        };
+        const recordSets = {
+            attendance: attendanceCardRecords,
+            reportCards: reportCardRecords,
+            assessments: assignments.filter(record => parentPortalRecordIsVisible(record, 'assessments')),
+            fees: feeCardRecords,
+            notices: parentDashboardSummary.records?.noticeCards
+                || (canViewParentPortalCollection('notices') ? noticeRecords : [])
+        };
+        Object.entries(recordCardDefinitions).forEach(([collection, definition]) => {
+            const target = container.querySelector(`[data-parent-record-cards="${collection}"]`);
+            const count = container.querySelector(`[data-parent-record-count="${collection}"]`);
+            const records = recordSets[collection] || [];
+            if (!target) return;
+            if (parentDashboardSummary.error && !parentDashboardSummary.loaded
+                && !parentPortalData[collection]?.loaded) {
+                target.innerHTML = '<p class="parent-record-empty" role="status">Records could not be loaded.</p>';
+                if (count) count.textContent = 'Unavailable';
+                return;
+            }
+            if (!parentDashboardSummary.loaded && !parentPortalData[collection]?.loaded) {
+                target.innerHTML = '<p class="parent-record-empty" role="status">Loading linked-student records…</p>';
+                if (count) count.textContent = 'Loading';
+                return;
+            }
+            target.innerHTML = records.length
+                ? records.map(record => recordCard(record, collection, definition)).join('')
+                : '<p class="parent-record-empty" role="status">No linked records are available.</p>';
+            if (count) count.textContent = `${records.length} ${records.length === 1 ? 'record' : 'records'}`;
+        });
 
         const attention = container.querySelector('[data-parent-attention]');
         const attentionItems = container.querySelector('[data-parent-attention-items]');
-        const today = new Date();
-        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        const dateFromRecord = (record, fields) => {
-            for (const field of fields) {
-                if (!record[field]) continue;
-                const date = parseDashboardDate(record[field]);
-                if (!Number.isNaN(date.getTime())) return date;
-            }
-            return null;
-        };
         const todayKey = dashboardDateKey(todayStart);
         const absencesToday = parentPortalData.attendance.loaded
             && canViewAttendance
@@ -1669,6 +1830,23 @@ document.addEventListener('DOMContentLoaded', () => {
             parentPortalCollections.forEach(collection => {
                 parentPortalData[collection] = { loaded: false, records: [], error: false };
             });
+            parentDashboardSummary = { loaded: false, records: null, error: false };
+            const loadParentDashboardSummary = async () => {
+                try {
+                    if (typeof window.schoolPortalFirebase?.getParentPortalDashboardSummary !== 'function') {
+                        throw new Error('Parent dashboard summary service is unavailable.');
+                    }
+                    const records = await window.schoolPortalFirebase.getParentPortalDashboardSummary(identity.schoolId);
+                    if (dashboardIdentityKey !== `${identityKey}:parent-portal`) return;
+                    parentDashboardSummary = { loaded: true, records, error: false };
+                } catch (error) {
+                    if (dashboardIdentityKey !== `${identityKey}:parent-portal`) return;
+                    parentDashboardSummary = { loaded: false, records: null, error: true };
+                    console.error('Unable to load linked-student parent dashboard summaries.', error);
+                }
+                renderParentPortalDashboard();
+            };
+            void loadParentDashboardSummary();
             const permissions = identity.permissions || userData.permissions || {};
             const permittedCollections = parentPortalCollections.filter(collection =>
                 permissions[collection]?.view === true
@@ -1765,6 +1943,7 @@ document.addEventListener('DOMContentLoaded', () => {
         parentPortalCollections.forEach(collection => {
             parentPortalData[collection] = { loaded: false, records: [], error: false };
         });
+        parentDashboardSummary = { loaded: false, records: null, error: false };
         renderDashboardData();
         renderParentPortalDashboard();
     });
@@ -6996,6 +7175,35 @@ Total Amount: $4,820.00
     const main = document.querySelector('.main');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
     const mobileSidebarMedia = window.matchMedia('(max-width: 768px)');
+    const parentPortalHeaderMedia = window.matchMedia('(max-width: 820px)');
+    const topbarHeading = document.querySelector('.topbar-heading');
+    const parentWelcomeCopy = document.querySelector('.parent-welcome-copy');
+    const parentPortalHome = document.getElementById('parentPortalHome');
+    const parentWelcomeCard = document.querySelector('.parent-welcome-card');
+
+    const syncSidebarTogglePlacement = () => {
+        if (!sidebarToggle || !topbarHeading) return;
+        const parentPortalActive = document.documentElement.classList.contains('parent-portal-active')
+            || document.documentElement.classList.contains('parent-portal-preview-active');
+        if (parentPortalHeaderMedia.matches && parentPortalActive && parentWelcomeCopy) {
+            parentWelcomeCopy.insertBefore(sidebarToggle, parentWelcomeCopy.firstChild);
+            if (parentPortalHome && parentWelcomeCard && !parentPortalHome.classList.contains('hidden')) {
+                parentPortalHome.style.setProperty('--parent-welcome-height', `${parentWelcomeCard.getBoundingClientRect().height}px`);
+            }
+        } else {
+            topbarHeading.insertBefore(sidebarToggle, topbarHeading.firstChild);
+            parentPortalHome?.style.removeProperty('--parent-welcome-height');
+        }
+    };
+    const parentPortalModeObserver = new MutationObserver(syncSidebarTogglePlacement);
+    parentPortalModeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    if (parentPortalHome) {
+        parentPortalModeObserver.observe(parentPortalHome, { attributes: true, attributeFilter: ['class'] });
+    }
+    if (parentWelcomeCard) {
+        new ResizeObserver(syncSidebarTogglePlacement).observe(parentWelcomeCard);
+    }
+    parentPortalHeaderMedia.addEventListener('change', syncSidebarTogglePlacement);
 
     const setMobileSidebarOpen = open => {
         const isMobile = mobileSidebarMedia.matches;
@@ -7019,6 +7227,7 @@ Total Amount: $4,820.00
 
     if (sidebarToggle && sidebar && main) {
         const syncSidebarMode = () => {
+            syncSidebarTogglePlacement();
             sidebar.classList.remove('mobile-open');
             sidebarOverlay?.classList.remove('is-visible');
             document.body.classList.remove('sidebar-open');

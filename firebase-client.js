@@ -248,6 +248,7 @@ const setSchoolUserTemporaryPassword = httpsCallable(functions, 'setSchoolUserTe
 const completeOwnPasswordChange = httpsCallable(functions, 'completeOwnPasswordChange');
 const getPublicPlatformStats = httpsCallable(functions, 'getPublicPlatformStats');
 const getLinkedSchoolRecords = httpsCallable(functions, 'getLinkedSchoolRecords');
+const getParentPortalDashboardSummary = httpsCallable(functions, 'getParentPortalDashboardSummary');
 const savePushToken = httpsCallable(functions, 'savePushToken');
 const removePushToken = httpsCallable(functions, 'removePushToken');
 let foregroundMessagingListenerRegistered = false;
@@ -321,6 +322,8 @@ window.schoolPortalFirebase = {
     getAssignableSchoolRecords: listAssignableSchoolRecords,
     getLinkedSchoolRecords: async (schoolId, collectionName) =>
         (await getLinkedSchoolRecords({ schoolId, collectionName })).data.records,
+    getParentPortalDashboardSummary: async schoolId =>
+        (await getParentPortalDashboardSummary({ schoolId })).data,
     createSchoolUser,
     getAssignableSchoolPermissions: async schoolId => (await getAssignableSchoolPermissions({ schoolId })).data,
     updateSchoolUser,

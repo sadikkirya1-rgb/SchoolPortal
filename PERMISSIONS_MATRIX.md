@@ -34,6 +34,9 @@ Super Admin (Level 10)
 | Parent | ✓ | - | - | - | - |
 | Student | ✓ | - | - | - | - |
 
+### PARENT PORTAL DASHBOARD SUMMARIES
+Parent accounts can view read-only summary and record cards for linked students without enabling each underlying section. The cards show attendance rates and records, published report-card counts and cards, upcoming assignment counts and cards, outstanding fee balances and records, and active parent-facing notice counts and cards. Student-linked data is scoped to the authenticated parent's linked students; full section detail views still require the corresponding administrator-granted view permission.
+
 ### FRONT OFFICE DEPARTMENT
 | Module | Super Admin | Director | Head Teacher | Deputy Head | Teacher | Student | Parent |
 |--------|-------------|----------|--------------|-------------|---------|---------|--------|

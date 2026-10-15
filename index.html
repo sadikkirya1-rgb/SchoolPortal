@@ -428,6 +428,7 @@ if ('serviceWorker' in navigator) {
         <li><a class="parent-sidebar-link" href="#parentPortalHome" data-parent-nav="Students" data-parent-collection="students"><i class="fas fa-child" aria-hidden="true"></i><span>My Children</span></a></li>
         <li><a class="parent-sidebar-link" href="#parentPortalHome" data-parent-nav="Attendance" data-parent-collection="attendance"><i class="fas fa-calendar-check" aria-hidden="true"></i><span>Attendance</span></a></li>
         <li><a class="parent-sidebar-link" href="#parentPortalHome" data-parent-nav="Report Cards" data-parent-collection="reportCards"><i class="fas fa-square-poll-vertical" aria-hidden="true"></i><span>Results</span></a></li>
+        <li><a class="parent-sidebar-link" href="#parentPortalHome" data-parent-nav="Assignments" data-parent-collection="assessments"><i class="fas fa-book-open" aria-hidden="true"></i><span>Assignments</span></a></li>
         <li><a class="parent-sidebar-link" href="#parentPortalHome" data-parent-nav="Fees" data-parent-collection="fees"><i class="fas fa-receipt" aria-hidden="true"></i><span>Fees</span></a></li>
         <li><a class="parent-sidebar-link" href="#parentPortalHome" data-parent-nav="Notice Board" data-parent-collection="notices"><i class="fas fa-bullhorn" aria-hidden="true"></i><span>Notices</span></a></li>
     </ul>
@@ -753,8 +754,7 @@ if ('serviceWorker' in navigator) {
 <section id="parentPortalHome" class="parent-portal-home module hidden" aria-label="Parent portal">
     <section class="parent-welcome-card" aria-labelledby="parentWelcomeTitle">
         <div class="parent-welcome-copy">
-            <span class="parent-welcome-mark" aria-hidden="true"><i class="fas fa-house-user"></i></span>
-            <div><span class="parent-welcome-label">Welcome</span><h1 id="parentWelcomeTitle" data-parent-welcome-title>Welcome back.</h1><p>Your family's school updates are ready.</p></div>
+            <div><span class="parent-welcome-label">Welcome</span><h1 id="parentWelcomeTitle" data-parent-welcome-title>Welcome back.</h1><p>Your family's school updates are ready.</p><p class="parent-linked-students" data-parent-linked-students></p></div>
         </div>
         <label id="parentChildSelectorWrap" class="parent-child-selector" for="parentChildSelector">
             <span>Viewing child</span>
@@ -780,22 +780,50 @@ if ('serviceWorker' in navigator) {
             <ul data-parent-attention-items></ul>
         </section>
         <div class="parent-portal-stats">
-            <article class="parent-portal-stat parent-metric-attendance" data-parent-stat-card="attendance" data-parent-collection="attendance">
+            <button class="parent-portal-stat parent-metric-attendance" type="button" data-parent-stat-card="attendance" data-parent-nav="Attendance" data-parent-collection="attendance">
                 <span class="parent-metric-icon" aria-hidden="true"><i class="fas fa-calendar-check"></i></span>
                 <div><span>Attendance rate</span><strong data-parent-stat="attendance">—</strong><small data-parent-stat-detail="attendance">Across available records</small></div>
-            </article>
-            <article class="parent-portal-stat parent-metric-results" data-parent-stat-card="results" data-parent-collection="reportCards">
+            </button>
+            <button class="parent-portal-stat parent-metric-results" type="button" data-parent-stat-card="results" data-parent-nav="Report Cards" data-parent-collection="reportCards">
                 <span class="parent-metric-icon" aria-hidden="true"><i class="fas fa-square-poll-vertical"></i></span>
                 <div><span>Published results</span><strong data-parent-stat="results">—</strong><small data-parent-stat-detail="results">For linked children</small></div>
-            </article>
-            <article class="parent-portal-stat parent-metric-fees" data-parent-stat-card="fees" data-parent-collection="fees">
+            </button>
+            <button class="parent-portal-stat parent-metric-assignments" type="button" data-parent-stat-card="assignments" data-parent-nav="Assignments" data-parent-collection="assessments">
+                <span class="parent-metric-icon" aria-hidden="true"><i class="fas fa-book-open"></i></span>
+                <div><span>Upcoming assignments</span><strong data-parent-stat="assignments">—</strong><small data-parent-stat-detail="assignments">For linked children</small></div>
+            </button>
+            <button class="parent-portal-stat parent-metric-fees" type="button" data-parent-stat-card="fees" data-parent-nav="Fees" data-parent-collection="fees">
                 <span class="parent-metric-icon" aria-hidden="true"><i class="fas fa-receipt"></i></span>
                 <div><span>Outstanding fees</span><strong data-parent-stat="fees">—</strong><small data-parent-stat-detail="fees">Across linked children</small></div>
-            </article>
-            <article class="parent-portal-stat parent-metric-notices" data-parent-stat-card="notices" data-parent-collection="notices">
+            </button>
+            <button class="parent-portal-stat parent-metric-notices" type="button" data-parent-stat-card="notices" data-parent-nav="Notice Board" data-parent-collection="notices">
                 <span class="parent-metric-icon" aria-hidden="true"><i class="fas fa-bullhorn"></i></span>
                 <div><span>School notices</span><strong data-parent-stat="notices">—</strong><small data-parent-stat-detail="notices">Available to your family</small></div>
-            </article>
+            </button>
+        </div>
+    </section>
+    <section class="parent-records-section" aria-label="Linked student data">
+        <div class="parent-record-groups">
+            <section class="parent-record-group" aria-labelledby="parentAttendanceRecordsTitle">
+                <header><h2 id="parentAttendanceRecordsTitle">Attendance records</h2><span data-parent-record-count="attendance"></span></header>
+                <div class="parent-record-grid" data-parent-record-cards="attendance" aria-live="polite"></div>
+            </section>
+            <section class="parent-record-group" aria-labelledby="parentResultsRecordsTitle">
+                <header><h2 id="parentResultsRecordsTitle">Report cards</h2><span data-parent-record-count="reportCards"></span></header>
+                <div class="parent-record-grid" data-parent-record-cards="reportCards" aria-live="polite"></div>
+            </section>
+            <section class="parent-record-group" aria-labelledby="parentAssignmentsRecordsTitle">
+                <header><h2 id="parentAssignmentsRecordsTitle">Assignments</h2><span data-parent-record-count="assessments"></span></header>
+                <div class="parent-record-grid" data-parent-record-cards="assessments" aria-live="polite"></div>
+            </section>
+            <section class="parent-record-group" aria-labelledby="parentFeesRecordsTitle">
+                <header><h2 id="parentFeesRecordsTitle">Fee records</h2><span data-parent-record-count="fees"></span></header>
+                <div class="parent-record-grid" data-parent-record-cards="fees" aria-live="polite"></div>
+            </section>
+            <section class="parent-record-group" aria-labelledby="parentNoticesRecordsTitle">
+                <header><h2 id="parentNoticesRecordsTitle">School notices</h2><span data-parent-record-count="notices"></span></header>
+                <div class="parent-record-grid" data-parent-record-cards="notices" aria-live="polite"></div>
+            </section>
         </div>
     </section>
     <section class="parent-attendance-panel" data-parent-attendance-section aria-labelledby="parentAttendanceTitle">

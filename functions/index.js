@@ -565,6 +565,147 @@ exports.getLinkedSchoolRecords = onCall(async request => {
     };
 });
 
+exports.getParentPortalDashboardSummary = onCall(async request => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to view the parent dashboard.');
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    const schoolRef = db.doc(`schools/${schoolId}`);
+    const memberRef = schoolRef.collection('members').doc(request.auth.uid);
+    const [schoolSnapshot, memberSnapshot] = await Promise.all([schoolRef.get(), memberRef.get()]);
+    if (!schoolSnapshot.exists || schoolSnapshot.data().status !== 'active'
+        || !memberSnapshot.exists || memberSnapshot.data().status !== 'active'
+        || memberSnapshot.data().mustChangePassword === true) {
+        throw new HttpsError('permission-denied', 'This account does not have active access to school records.');
+    }
+    if (memberSnapshot.data().role !== 'parent') {
+        throw new HttpsError('permission-denied', 'Only parent accounts can view the parent dashboard.');
+    }
+
+    const links = await memberRef.collection('linkedStudents').get();
+    const studentIds = links.docs.map(link => link.id);
+    if (studentIds.length > 30) {
+        throw new HttpsError('failed-precondition', 'This account is linked to more than 30 students. Contact the school administrator.');
+    }
+    if (!studentIds.length) {
+        return {
+            children: [],
+            attendance: [],
+            reportCards: [],
+            assessments: [],
+            fees: [],
+            noticeCount: 0,
+            noticeCards: []
+        };
+    }
+
+    const studentSnapshots = await Promise.all(studentIds.map(studentId =>
+        schoolRef.collection('students').doc(studentId).get()
+    ));
+    const studentById = new Map(studentSnapshots.map(snapshot => [
+        snapshot.id,
+        snapshot.exists ? snapshot.data().data || {} : {}
+    ]));
+    const children = studentIds.map(studentId => {
+        const record = studentById.get(studentId) || {};
+        return {
+            id: studentId,
+            fullName: String(record.fullName || record.name || record.studentName
+                || [record.firstName, record.lastName].filter(Boolean).join(' ') || 'Student'),
+            displayId: String(record.admissionNumber || record.admissionNo || record.studentCode || record.studentId || studentId),
+            className: String(record.className || record.class || ''),
+            section: String(record.section || record.sectionName || '')
+        };
+    });
+    const summaryFields = {
+        attendance: ['status', 'attendanceStatus', 'attendanceDate', 'date', 'day'],
+        reportCards: ['reportName', 'title', 'name', 'period', 'academicPeriod', 'term', 'year', 'average', 'percentage', 'averagePercentage', 'grade', 'overallGrade', 'status', 'publicationStatus', 'isPublished', 'published', 'visibility', 'publishedAt', 'publicationDate', 'date'],
+        assessments: ['title', 'name', 'assessmentName', 'subjectName', 'subject', 'type', 'assessmentType', 'category', 'dueDate', 'deadline', 'date', 'status', 'publicationStatus', 'isPublished', 'published', 'visibility'],
+        fees: ['feeName', 'feeType', 'name', 'dueDate', 'paymentDueDate', 'deadline', 'totalFee', 'totalAmount', 'amountDue', 'balance', 'balanceDue', 'amountPaid', 'paidAmount', 'amountCollected', 'status']
+    };
+    const summaryRecords = await Promise.all(Object.entries(summaryFields).map(async ([collectionName, fields]) => {
+        const recordsRef = schoolRef.collection(collectionName);
+        const [byStudentId, byDocumentId] = await Promise.all([
+            recordsRef.where('data.studentId', 'in', studentIds).get(),
+            recordsRef.where(FieldPath.documentId(), 'in', studentIds).get()
+        ]);
+        const uniqueRecords = new Map([...byStudentId.docs, ...byDocumentId.docs]
+            .map(snapshot => [snapshot.id, snapshot]));
+        return [collectionName, [...uniqueRecords.values()]
+            .filter(snapshot => {
+                const data = snapshot.data().data || {};
+                if (data.deleted === true || String(data.visibility || '').toLowerCase() === 'private') return false;
+                const status = String(data.status || data.publicationStatus || '').trim().toLowerCase();
+                if (collectionName === 'reportCards') {
+                    return (!status || ['published', 'released'].includes(status))
+                        && data.isPublished !== false
+                        && data.published !== false;
+                }
+                return !['draft', 'archived', 'deleted', 'private'].includes(status);
+            })
+            .map(snapshot => {
+                const data = snapshot.data().data || {};
+                const studentId = String(data.studentId || snapshot.id);
+                const summary = { studentId };
+                fields.forEach(field => {
+                    const value = data[field];
+                    if (value === undefined || value === null) return;
+                    if (typeof value?.toDate === 'function') {
+                        summary[field] = value.toDate().toISOString();
+                    } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+                        summary[field] = value;
+                    } else if (Array.isArray(value)) {
+                        summary[field] = value.filter(item => typeof item === 'string' || typeof item === 'number')
+                            .map(String).join(', ');
+                    }
+                });
+                return summary;
+            })
+            .filter(record => studentIds.includes(record.studentId))];
+    }));
+
+    const noticeSnapshot = await schoolRef.collection('notices')
+        .where('data.status', 'in', ['Published', 'published'])
+        .get();
+    const today = new Date();
+    const noticeCards = [];
+    noticeSnapshot.docs.forEach(snapshot => {
+        const record = snapshot.data().data || {};
+        const visibleOnPortal = [record.portal, record.displayBoard]
+            .filter(value => value !== undefined && value !== null)
+            .every(value => String(value).trim().toLowerCase() !== 'no');
+        if (snapshot.data().deleted === true || record.deleted === true
+            || String(record.status || '').trim().toLowerCase() !== 'published'
+            || !visibleOnPortal) return;
+        const audience = String(record.audienceRoles || record.targetRoles
+            || record.targetAudience || record.audience || '').toLowerCase();
+        if (!audience || !/\b(parent|parents|family|families|guardian|guardians|school community|public|all|everyone)\b/.test(audience)) return;
+        const publishDate = record.publishDate?.toDate?.() || record.publishDate;
+        if (publishDate && !Number.isNaN(Date.parse(publishDate)) && new Date(publishDate) > today) return;
+        const expiry = record.expiryDate || record.expiry || '';
+        const expiryDate = expiry?.toDate?.() || expiry;
+        if (expiryDate && !Number.isNaN(Date.parse(expiryDate)) && new Date(expiryDate) < today) return;
+        noticeCards.push({
+            title: String(record.title || record.subject || record.name || 'School notice'),
+            category: String(record.category || ''),
+            audience: String(record.audience || ''),
+            priority: String(record.priority || ''),
+            publishDate: publishDate && !Number.isNaN(Date.parse(publishDate))
+                ? new Date(publishDate).toISOString()
+                : '',
+            expiryDate: expiryDate && !Number.isNaN(Date.parse(expiryDate))
+                ? new Date(expiryDate).toISOString()
+                : '',
+            contentText: String(record.contentText || record.content || '').slice(0, 240)
+        });
+    });
+
+    return {
+        children,
+        ...Object.fromEntries(summaryRecords),
+        noticeCount: noticeCards.length,
+        noticeCards
+    };
+});
+
 exports.createSchoolUser = onCall(async request => {
     const schoolId = validateSchoolId(request.data?.schoolId);
     const temporaryPassword = validateAccountPassword(request.data?.temporaryPassword);
