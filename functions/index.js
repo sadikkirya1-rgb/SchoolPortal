@@ -717,7 +717,7 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
         attendance: ['studentId', 'memberId', 'status', 'attendanceStatus', 'attendanceDate', 'date', 'day'],
         reportCards: ['reportName', 'title', 'name', 'period', 'academicPeriod', 'term', 'year', 'average', 'percentage', 'averagePercentage', 'grade', 'overallGrade', 'status', 'publicationStatus', 'isPublished', 'published', 'visibility', 'publishedAt', 'publicationDate', 'date'],
         assessments: ['title', 'name', 'assessmentName', 'subjectName', 'subject', 'type', 'assessmentType', 'category', 'dueDate', 'deadline', 'date', 'status', 'publicationStatus', 'isPublished', 'published', 'visibility'],
-        fees: ['feeName', 'feeType', 'name', 'dueDate', 'paymentDueDate', 'deadline', 'totalFee', 'totalAmount', 'amountDue', 'balance', 'balanceDue', 'amountPaid', 'paidAmount', 'amountCollected', 'status']
+        fees: ['feeName', 'feeType', 'name', 'dueDate', 'paymentDueDate', 'deadline', 'totalFee', 'totalAmount', 'amountDue', 'balance', 'balanceDue', 'amountPaid', 'paidAmount', 'amountCollected', 'status', 'receiptNo', 'receiptNumber', 'receiptId', 'paymentDate', 'paidDate', 'paymentMethod', 'academicYear', 'schoolName']
     };
     const summaryRecords = await Promise.all(Object.entries(summaryFields).map(async ([collectionName, fields]) => {
         const recordsRef = schoolRef.collection(collectionName);

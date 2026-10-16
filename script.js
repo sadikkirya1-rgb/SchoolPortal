@@ -363,6 +363,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ? Math.max(0, dashboardNumber(balance))
             : Math.max(0, feeBilledAmount(fee) - feePaidAmount(fee));
     };
+    const feeIsFullyPaid = fee => {
+        const status = String(fee.status || '').trim().toLowerCase();
+        const billed = feeBilledAmount(fee);
+        return ['paid', 'complete', 'completed', 'fully paid'].includes(status)
+            && billed > 0
+            && feePaidAmount(fee) >= billed
+            && feeOutstandingAmount(fee) === 0;
+    };
     const parentPortalCollections = ['students', 'attendance', 'assessments', 'reportCards', 'fees', 'timetables', 'studyMaterials', 'notices'];
     const parentPortalPersonalCollections = new Set(['students', 'attendance', 'assessments', 'reportCards', 'fees']);
     const parentPortalData = Object.fromEntries(parentPortalCollections.map(collection => [
@@ -838,7 +846,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const date = dateFromRecord(record, fields);
             return date ? dashboardDateLabel(date) : '';
         };
-        const recordCard = (record, collection, definition) => {
+        const recordCard = (record, collection, definition, recordIndex) => {
             const child = parentRecordStudent(record);
             const studentName = collection === 'notices'
                 ? 'For parent community'
@@ -880,11 +888,17 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             const recordIcon = name => `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${recordIconShapes[name] || recordIconShapes['fa-circle-info']}</g></svg>`;
             const summary = fields[0];
+            const documentAction = collection === 'reportCards'
+                ? `<button class="parent-document-action" type="button" data-parent-document-preview="reportCard" data-parent-document-index="${recordIndex}"><i class="fas fa-file-lines" aria-hidden="true"></i> Preview report</button>`
+                : collection === 'fees' && feeIsFullyPaid(record)
+                    ? `<button class="parent-document-action" type="button" data-parent-document-preview="feeReceipt" data-parent-document-index="${recordIndex}"><i class="fas fa-receipt" aria-hidden="true"></i> View receipt</button>`
+                    : '';
             return `<article class="parent-record-card parent-record-card-${collection}">
                 <div class="parent-record-card-heading"><small>${recordIcon('fa-user')} ${dashboardEscape(studentName)}</small></div>
                 <div class="parent-record-card-title-row"><span class="parent-record-card-icon">${recordIcon(definition.icon)}</span><h3>${dashboardEscape(title)}</h3></div>
                 ${summary ? `<div class="parent-record-card-summary"><span class="parent-record-card-summary-icon">${recordIcon(fieldIcons[summary[0]] || 'fa-circle-info')}</span><span><small>${dashboardEscape(summary[0])}</small><strong>${dashboardEscape(summary[1])}</strong></span></div>` : ''}
                 ${fields.length > 1 ? `<dl>${fields.slice(1).map(([label, value]) => `<div><dt>${recordIcon(fieldIcons[label] || 'fa-circle-info')}${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl>` : ''}
+                ${documentAction ? `<div class="parent-record-card-actions">${documentAction}</div>` : ''}
             </article>`;
         };
         const recordCardDefinitions = {
@@ -942,6 +956,100 @@ document.addEventListener('DOMContentLoaded', () => {
             notices: parentDashboardSummary.records?.noticeCards
                 || (canViewParentPortalCollection('notices') ? noticeRecords : [])
         };
+        const documentPreviewModal = container.querySelector('[data-parent-document-preview-modal]');
+        const documentPreviewTitle = container.querySelector('[data-parent-document-title]');
+        const documentPreviewSubtitle = container.querySelector('[data-parent-document-subtitle]');
+        const documentPreviewPaper = container.querySelector('[data-parent-document-paper]');
+        let documentPreviewReturnFocus = null;
+        const openParentDocumentPreview = (title, subtitle, markup, trigger) => {
+            if (!documentPreviewModal || !documentPreviewTitle || !documentPreviewPaper) return;
+            documentPreviewReturnFocus = trigger;
+            documentPreviewTitle.textContent = title;
+            if (documentPreviewSubtitle) documentPreviewSubtitle.textContent = subtitle;
+            documentPreviewPaper.innerHTML = markup;
+            documentPreviewModal.classList.remove('hidden');
+            container.querySelector('[data-parent-document-close]')?.focus();
+        };
+        const reportCardPreviewMarkup = record => {
+            const child = parentRecordStudent(record);
+            const subjectRows = parentResultRows(record, 'reportCards');
+            const detail = [
+                ['Student', child?.fullName || child?.name || child?.studentName || 'Linked student'],
+                ['Period', parentPortalRecordValue(record, ['period', 'academicPeriod', 'term', 'year']) || '—'],
+                ['Average', parentPortalRecordValue(record, ['average', 'percentage', 'averagePercentage']) || '—'],
+                ['Grade', parentPortalRecordValue(record, ['grade', 'overallGrade']) || '—'],
+                ['Status', parentPortalRecordValue(record, ['status', 'publicationStatus']) || 'Published'],
+                ['Published', parentRecordDate(record, ['publishedAt', 'publicationDate', 'date']) || '—']
+            ];
+            const rows = subjectRows.map(row => {
+                const score = row.score === null ? '—' : `${row.score}${row.maximum ? ` / ${row.maximum}` : ''}`;
+                return `<article class="parent-document-line-item"><h5>${dashboardEscape(row.subject)}<span>${dashboardEscape(row.percentage.toFixed(1))}%</span></h5><dl class="parent-document-detail"><div><dt>Score</dt><dd>${dashboardEscape(score)}</dd></div></dl></article>`;
+            }).join('');
+            return `<div class="parent-document-sheet-heading"><h3>${dashboardEscape(parentPortalRecordValue(record, ['reportName', 'title', 'name']) || 'Report Card')}</h3><p>Published academic results</p></div><dl class="parent-document-summary-grid">${detail.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl><section class="parent-document-section"><h4>Subject results</h4>${rows || '<p class="parent-document-empty">Subject-level marks are not available in this published report record.</p>'}</section>`;
+        };
+        const feeStatementPreviewMarkup = fees => {
+            if (!fees.length) return '<div class="parent-document-sheet-heading"><h3>Fee Statement</h3></div><p class="parent-document-empty">No fee records are available for the selected child scope.</p>';
+            const billedTotal = fees.reduce((sum, fee) => sum + feeBilledAmount(fee), 0);
+            const paidTotal = fees.reduce((sum, fee) => sum + feePaidAmount(fee), 0);
+            const outstandingTotal = fees.reduce((sum, fee) => sum + feeOutstandingAmount(fee), 0);
+            const lines = fees.map(fee => {
+                const child = parentRecordStudent(fee);
+                const title = parentPortalRecordValue(fee, ['feeName', 'feeType', 'name']) || 'Fee item';
+                const details = [
+                    ['Student', child?.fullName || child?.name || child?.studentName || 'Linked student'],
+                    ['Billed', dashboardMoney(feeBilledAmount(fee))],
+                    ['Paid', dashboardMoney(feePaidAmount(fee))],
+                    ['Balance', dashboardMoney(feeOutstandingAmount(fee))],
+                    ['Due', parentRecordDate(fee, ['dueDate', 'paymentDueDate', 'deadline']) || '—'],
+                    ['Status', parentPortalRecordValue(fee, ['status']) || '—']
+                ];
+                return `<article class="parent-document-line-item"><h5>${dashboardEscape(title)}<span>${dashboardEscape(parentPortalRecordValue(fee, ['academicYear', 'year']))}</span></h5><dl class="parent-document-detail">${details.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl></article>`;
+            }).join('');
+            return `<div class="parent-document-sheet-heading"><h3>Fee Statement</h3><p>Prepared ${dashboardEscape(new Date().toLocaleDateString())}</p></div><dl class="parent-document-summary-grid"><div><dt>Total billed</dt><dd>${dashboardEscape(dashboardMoney(billedTotal))}</dd></div><div><dt>Total paid</dt><dd>${dashboardEscape(dashboardMoney(paidTotal))}</dd></div><div><dt>Outstanding</dt><dd>${dashboardEscape(dashboardMoney(outstandingTotal))}</dd></div></dl><section class="parent-document-section"><h4>Fee items</h4>${lines}</section>`;
+        };
+        const feeReceiptPreviewMarkup = fee => {
+            const child = parentRecordStudent(fee);
+            const receiptNumber = parentPortalRecordValue(fee, ['receiptNo', 'receiptNumber', 'receiptId']);
+            const details = [
+                ['Student', child?.fullName || child?.name || child?.studentName || 'Linked student'],
+                ['Fee', parentPortalRecordValue(fee, ['feeName', 'feeType', 'name']) || 'Fee payment'],
+                ['Receipt number', receiptNumber || 'Not provided'],
+                ['Payment date', parentRecordDate(fee, ['paymentDate', 'paidDate', 'updatedAt']) || '—'],
+                ['Amount received', dashboardMoney(feePaidAmount(fee))],
+                ['Payment status', 'Paid']
+            ];
+            return `<div class="parent-document-sheet-heading"><h3>Fee Payment Receipt</h3><p>${dashboardEscape(parentPortalRecordValue(fee, ['schoolName']) || 'School')}</p></div><dl class="parent-document-summary-grid">${details.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl><p class="parent-document-empty">Payment is shown as paid based on the school fee record.</p>`;
+        };
+        const attendanceSummaryPreviewMarkup = records => {
+            if (!selectedChildren.length || !records.length) return '<div class="parent-document-sheet-heading"><h3>Attendance Summary</h3></div><p class="parent-document-empty">No attendance records are available for the selected child scope.</p>';
+            const sections = selectedChildren.map(child => {
+                const childId = parentStudentRecordId(child);
+                const childRecords = records.filter(record => parentPortalMatchesChild(record, 'attendance', childId));
+                const months = new Map();
+                childRecords.forEach(record => {
+                    const date = dateFromRecord(record, ['attendanceDate', 'date', 'day']);
+                    const key = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}` : 'undated';
+                    if (!months.has(key)) months.set(key, { date, present: 0, late: 0, absent: 0, excused: 0, other: 0 });
+                    const bucket = months.get(key);
+                    const status = String(record.status || record.attendanceStatus || '').trim().toLowerCase();
+                    if (status.includes('excused')) bucket.excused += 1;
+                    else if (status.includes('late')) bucket.late += 1;
+                    else if (status.includes('absent')) bucket.absent += 1;
+                    else if (status.includes('present')) bucket.present += 1;
+                    else bucket.other += 1;
+                });
+                const monthRows = [...months.entries()].sort(([left], [right]) => right.localeCompare(left)).map(([key, bucket]) => {
+                    const total = bucket.present + bucket.late + bucket.absent;
+                    const rate = total ? `${Math.round((bucket.present + bucket.late) / total * 100)}%` : '—';
+                    const month = bucket.date
+                        ? bucket.date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+                        : 'Undated records';
+                    return `<div class="parent-document-month-row"><strong>${dashboardEscape(month)}</strong><dl>${[['Present', bucket.present], ['Late', bucket.late], ['Absent', bucket.absent], ['Excused', bucket.excused], ['Other', bucket.other], ['Rate', rate]].map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl></div>`;
+                }).join('');
+                return `<section class="parent-document-section"><h4>${dashboardEscape(child.fullName || child.name || child.studentName || 'Student')}</h4>${monthRows || '<p class="parent-document-empty">No attendance records are available.</p>'}</section>`;
+            }).join('');
+            return `<div class="parent-document-sheet-heading"><h3>Attendance Summary</h3><p>Monthly attendance for linked children</p></div>${sections}`;
+        };
         Object.entries(recordCardDefinitions).forEach(([collection, definition]) => {
             const target = container.querySelector(`[data-parent-record-cards="${collection}"]`);
             const count = container.querySelector(`[data-parent-record-count="${collection}"]`);
@@ -959,7 +1067,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             target.innerHTML = records.length
-                ? records.map(record => recordCard(record, collection, definition)).join('')
+                ? records.map((record, index) => recordCard(record, collection, definition, index)).join('')
                 : '<p class="parent-record-empty" role="status">No linked records are available.</p>';
             if (count) count.textContent = `${records.length} ${records.length === 1 ? 'record' : 'records'}`;
         });
@@ -968,12 +1076,57 @@ document.addEventListener('DOMContentLoaded', () => {
             recordGroups.onclick = event => {
                 const target = event.target;
                 if (!(target instanceof Element)) return;
+                const preview = target.closest('[data-parent-document-preview]');
+                if (preview) {
+                    const type = preview.dataset.parentDocumentPreview;
+                    const index = Number(preview.dataset.parentDocumentIndex);
+                    if (type === 'reportCard' && reportCardRecords[index]) {
+                        const record = reportCardRecords[index];
+                        const child = parentRecordStudent(record);
+                        openParentDocumentPreview('Report Card', child?.fullName || 'Published report', reportCardPreviewMarkup(record), preview);
+                    } else if (type === 'feeReceipt' && feeCardRecords[index] && feeIsFullyPaid(feeCardRecords[index])) {
+                        const fee = feeCardRecords[index];
+                        const child = parentRecordStudent(fee);
+                        openParentDocumentPreview('Fee Payment Receipt', child?.fullName || 'Paid fee', feeReceiptPreviewMarkup(fee), preview);
+                    } else if (type === 'feeStatement') {
+                        openParentDocumentPreview('Fee Statement', selectedChild === 'all' ? 'Across linked children' : 'For the selected child', feeStatementPreviewMarkup(feeCardRecords), preview);
+                    } else if (type === 'attendanceSummary') {
+                        openParentDocumentPreview('Attendance Summary', selectedChild === 'all' ? 'Across linked children' : 'For the selected child', attendanceSummaryPreviewMarkup(attendanceCardRecords), preview);
+                    }
+                    return;
+                }
                 const toggle = target.closest('[data-parent-record-group-toggle]');
                 if (!toggle) return;
                 const grid = toggle.closest('.parent-record-group')?.querySelector('.parent-record-grid');
                 if (!grid) return;
                 const expanded = grid.classList.toggle('hidden') === false;
                 toggle.setAttribute('aria-expanded', String(expanded));
+            };
+        }
+        const closeParentDocumentPreview = () => {
+            documentPreviewModal?.classList.add('hidden');
+            if (documentPreviewReturnFocus?.isConnected) documentPreviewReturnFocus.focus();
+        };
+        if (documentPreviewModal) {
+            documentPreviewModal.onclick = event => {
+                const target = event.target;
+                if (target === documentPreviewModal
+                    || target instanceof Element && target.closest('[data-parent-document-close]')) {
+                    closeParentDocumentPreview();
+                }
+            };
+            documentPreviewModal.onkeydown = event => {
+                if (event.key === 'Escape') closeParentDocumentPreview();
+            };
+        }
+        const documentPrintButton = container.querySelector('[data-parent-document-print]');
+        if (documentPrintButton) {
+            documentPrintButton.onclick = () => {
+                const clearPrintMode = () => document.body.classList.remove('parent-document-printing');
+                document.body.classList.add('parent-document-printing');
+                window.addEventListener('afterprint', clearPrintMode, { once: true });
+                window.print();
+                window.setTimeout(clearPrintMode, 1500);
             };
         }
 

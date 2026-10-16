@@ -803,6 +803,7 @@ if ('serviceWorker' in navigator) {
             <section class="parent-record-group" aria-labelledby="parentAttendanceRecordsTitle">
                 <header><button class="parent-record-group-toggle" type="button" data-parent-record-group-toggle aria-expanded="true" aria-controls="parentAttendanceRecordCards"><span><span class="parent-record-group-label"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18l-3 3-2-2-4 4"/></g></svg><span class="parent-record-group-title" id="parentAttendanceRecordsTitle">Attendance records</span></span><span data-parent-record-count="attendance"></span></span><i class="fas fa-chevron-down" aria-hidden="true"></i></button></header>
                 <div class="parent-record-grid" id="parentAttendanceRecordCards" data-parent-record-cards="attendance" aria-live="polite"></div>
+                <div class="parent-record-document-actions"><button class="parent-document-action" type="button" data-parent-document-preview="attendanceSummary"><i class="fas fa-file-lines" aria-hidden="true"></i> Preview summary</button></div>
             </section>
             <section class="parent-record-group" aria-labelledby="parentResultsRecordsTitle">
                 <header><button class="parent-record-group-toggle" type="button" data-parent-record-group-toggle aria-expanded="true" aria-controls="parentResultsRecordCards"><span><span class="parent-record-group-label"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V5M4 20h17M8 16v-3M12 16V8M16 16v-5M20 16V4"/></g></svg><span class="parent-record-group-title" id="parentResultsRecordsTitle">Report cards</span></span><span data-parent-record-count="reportCards"></span></span><i class="fas fa-chevron-down" aria-hidden="true"></i></button></header>
@@ -815,6 +816,7 @@ if ('serviceWorker' in navigator) {
             <section class="parent-record-group" aria-labelledby="parentFeesRecordsTitle">
                 <header><button class="parent-record-group-toggle" type="button" data-parent-record-group-toggle aria-expanded="true" aria-controls="parentFeesRecordCards"><span><span class="parent-record-group-label"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3"/></g></svg><span class="parent-record-group-title" id="parentFeesRecordsTitle">Fee records</span></span><span data-parent-record-count="fees"></span></span><i class="fas fa-chevron-down" aria-hidden="true"></i></button></header>
                 <div class="parent-record-grid" id="parentFeesRecordCards" data-parent-record-cards="fees" aria-live="polite"></div>
+                <div class="parent-record-document-actions"><button class="parent-document-action" type="button" data-parent-document-preview="feeStatement"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Preview statement</button></div>
             </section>
             <section class="parent-record-group" aria-labelledby="parentNoticesRecordsTitle">
                 <header><button class="parent-record-group-toggle" type="button" data-parent-record-group-toggle aria-expanded="true" aria-controls="parentNoticesRecordCards"><span><span class="parent-record-group-label"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v4h4l11 5V5L7 10H3zM7 15l2 6h4l-3-7M18 9h3v8h-3"/></g></svg><span class="parent-record-group-title" id="parentNoticesRecordsTitle">School notices</span></span><span data-parent-record-count="notices"></span></span><i class="fas fa-chevron-down" aria-hidden="true"></i></button></header>
@@ -855,6 +857,13 @@ if ('serviceWorker' in navigator) {
             </section>
         </div>
     </section>
+    <div class="parent-document-preview-modal hidden" data-parent-document-preview-modal>
+        <section class="parent-document-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="parentDocumentPreviewTitle">
+            <header><div><h2 id="parentDocumentPreviewTitle" data-parent-document-title>Document preview</h2><p data-parent-document-subtitle></p></div><button class="icon-button" type="button" data-parent-document-close aria-label="Close document preview"><i class="fas fa-times" aria-hidden="true"></i></button></header>
+            <div class="parent-document-preview-paper" data-parent-document-paper></div>
+            <footer><button class="parent-document-action" type="button" data-parent-document-print><i class="fas fa-print" aria-hidden="true"></i> Print / Save PDF</button><button class="parent-document-action" type="button" data-parent-document-close>Close</button></footer>
+        </section>
+    </div>
     <section class="parent-attendance-panel" data-parent-attendance-section aria-labelledby="parentAttendanceTitle">
         <header class="parent-analytics-heading">
             <div><h2 id="parentAttendanceTitle">Attendance pattern</h2><p>Recorded attendance over the last six months</p></div>
