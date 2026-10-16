@@ -622,7 +622,7 @@ if ('serviceWorker' in navigator) {
                 <span>Admin</span>
             </div>
             <i class="fas fa-chevron-down tiny-chevron"></i>
-            <button class="btn-secondary logout-inline" id="logoutBtn" type="button" aria-label="Logout" title="Logout"><i class="fas fa-right-from-bracket" aria-hidden="true"></i></button>
+            <button class="btn-secondary logout-inline" id="logoutBtn" type="button" aria-label="Logout" title="Logout"><i class="fas fa-right-from-bracket" aria-hidden="true"></i><span class="logout-label">Log out</span></button>
         </div>
     </div>
 </div>
@@ -837,6 +837,20 @@ if ('serviceWorker' in navigator) {
                             <button class="parent-id-card-save-button" type="button" data-parent-id-card-save><i class="fas fa-download" aria-hidden="true"></i><span>Save JPG</span></button>
                         </div>
                         <p class="parent-id-card-download-status" data-parent-id-card-download-status role="status" aria-live="polite"></p>
+                    </section>
+                </div>
+            </section>
+            <section class="parent-certificates-section" aria-label="Linked student certificates">
+                <button class="parent-certificates-trigger" type="button" data-parent-certificates-toggle aria-expanded="false" aria-controls="parentCertificateList">
+                    <span class="parent-certificates-trigger-icon" aria-hidden="true"><i class="fas fa-award"></i></span>
+                    <span class="parent-certificates-trigger-copy"><strong>View student certificates</strong><small data-parent-certificate-count>Loading certificates…</small></span>
+                    <i class="fas fa-chevron-down parent-certificates-trigger-arrow" aria-hidden="true"></i>
+                </button>
+                <div class="parent-certificate-list hidden" id="parentCertificateList" data-parent-certificates aria-live="polite"></div>
+                <div class="parent-certificate-preview-modal hidden" data-parent-certificate-preview-modal>
+                    <section class="parent-certificate-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="parentCertificatePreviewTitle">
+                        <header><div><h2 id="parentCertificatePreviewTitle">Certificate preview</h2><p data-parent-certificate-preview-subtitle>Linked student certificate</p></div><button class="icon-button" type="button" data-parent-certificate-close aria-label="Close certificate preview"><i class="fas fa-times"></i></button></header>
+                        <div class="parent-certificate-preview-content" data-parent-certificate-preview-content></div>
                     </section>
                 </div>
             </section>

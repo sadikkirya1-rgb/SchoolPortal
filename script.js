@@ -372,6 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let parentDashboardSummary = { loaded: false, records: null, error: false };
     let parentPortalIdentityKey = '';
     let activeParentPortalView = '';
+    let parentCertificatesExpanded = false;
     const parentStudentId = record => String(record.studentId || record.studentID || record.student_id
         || record.linkedStudentId || record.linkedRecordId || record.linkedChildId
         || record.childId || record.childID || record.learnerId
@@ -489,6 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
             container.querySelector('.parent-portal-overview'),
             container.querySelector('.parent-records-section'),
             container.querySelector('.parent-id-cards-section'),
+            container.querySelector('.parent-certificates-section'),
             container.querySelector('.parent-portal-attendance-summary'),
             container.querySelector('[data-parent-student-section]'),
             container.querySelector('[data-parent-results-section]'),
@@ -997,6 +999,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const image = String(value || '').trim();
                 if (!image || image.length > 4096) return '';
                 if (/^data:image\/(?:png|jpe?g|gif|webp);base64,/i.test(image)) return image;
+                if (/^data:image\/svg\+xml(?:;charset=[^;,]+)?,/i.test(image)) return image;
                 try {
                     const url = new URL(image, window.location.href);
                     return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
@@ -1263,6 +1266,121 @@ document.addEventListener('DOMContentLoaded', () => {
                 idCardsSection.onkeydown = event => {
                     if (event.key === 'Escape' && previewModal && !previewModal.classList.contains('hidden')) {
                         closePreview();
+                    }
+                };
+            }
+        }
+
+        const certificates = container.querySelector('[data-parent-certificates]');
+        if (certificates) {
+            const certificatesSection = certificates.closest('.parent-certificates-section');
+            const certificatesTrigger = certificatesSection?.querySelector('[data-parent-certificates-toggle]');
+            const certificateCount = certificatesSection?.querySelector('[data-parent-certificate-count]');
+            const previewModal = certificatesSection?.querySelector('[data-parent-certificate-preview-modal]');
+            const previewContent = certificatesSection?.querySelector('[data-parent-certificate-preview-content]');
+            const previewSubtitle = certificatesSection?.querySelector('[data-parent-certificate-preview-subtitle]');
+            const previewTitle = certificatesSection?.querySelector('#parentCertificatePreviewTitle');
+            certificates.classList.toggle('hidden', !parentCertificatesExpanded);
+            certificatesTrigger?.setAttribute('aria-expanded', String(parentCertificatesExpanded));
+            const linkedCertificates = (parentDashboardSummary.records?.certificates || [])
+                .filter(certificate => selectedChildren.some(child =>
+                    parentStudentRecordId(child) === String(certificate.studentId || '')));
+            const closeCertificatePreview = () => {
+                previewModal?.classList.add('hidden');
+                certificatesTrigger?.focus();
+            };
+            const safeCertificateImage = value => {
+                const image = String(value || '').trim();
+                if (!image || image.length > 4096) return '';
+                if (/^data:image\/(?:png|jpe?g|gif|webp);base64,/i.test(image)) return image;
+                try {
+                    const url = new URL(image, window.location.href);
+                    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+                } catch (error) {
+                    return '';
+                }
+            };
+            const renderCertificatePreview = certificate => {
+                if (!previewContent || typeof window.createCertificateSheetPreview !== 'function') return;
+                previewContent.replaceChildren(window.createCertificateSheetPreview({
+                    ...certificate,
+                    logo: safeCertificateImage(certificate.logo)
+                }));
+            };
+            if (!parentDashboardSummary.loaded) {
+                certificates.innerHTML = `<p class="parent-certificates-empty" role="status">${parentDashboardSummary.error
+                    ? 'Linked student certificates could not be loaded.'
+                    : 'Loading linked student certificates…'}</p>`;
+                if (certificateCount) certificateCount.textContent = parentDashboardSummary.error
+                    ? 'Certificates unavailable'
+                    : 'Loading certificates…';
+            } else if (!linkedCertificates.length) {
+                certificates.innerHTML = '<p class="parent-certificates-empty" role="status">No generated certificates are available for your linked children.</p>';
+                if (certificateCount) certificateCount.textContent = 'No available certificates';
+            } else {
+                certificates.innerHTML = linkedCertificates.map((certificate, index) => {
+                    const child = children.find(item => parentStudentRecordId(item) === String(certificate.studentId || ''));
+                    const studentName = child?.fullName || child?.name || 'Student';
+                    return `<button class="parent-certificate-option" type="button" data-parent-certificate-index="${index}">
+                        <span class="parent-certificate-option-icon" aria-hidden="true"><i class="fas fa-award"></i></span>
+                        <span class="parent-certificate-option-copy"><strong>${dashboardEscape(certificate.certificateType || 'Certificate')}</strong><small>${dashboardEscape(studentName)} · ${dashboardEscape(certificate.academicYear || '')}</small></span>
+                        <span class="parent-certificate-option-action">Preview <i class="fas fa-chevron-right" aria-hidden="true"></i></span>
+                    </button>`;
+                }).join('');
+                if (certificateCount) certificateCount.textContent = `${linkedCertificates.length} ${linkedCertificates.length === 1 ? 'available certificate' : 'available certificates'}`;
+            }
+            if (certificatesSection) {
+                certificatesSection.onclick = event => {
+                    const target = event.target;
+                    if (!(target instanceof Element)) return;
+                    if (target.closest('[data-parent-certificates-toggle]')) {
+                        parentCertificatesExpanded = !parentCertificatesExpanded;
+                        const expanded = parentCertificatesExpanded;
+                        certificates.classList.toggle('hidden', !expanded);
+                        certificatesTrigger?.setAttribute('aria-expanded', String(expanded));
+                        const identity = window.schoolPortalData?.getIdentity?.();
+                        const identityKey = identity ? `${identity.schoolId}:${identity.uid}` : '';
+                        if (expanded && !adminPreview && identityKey && typeof window.schoolPortalFirebase?.getParentPortalDashboardSummary === 'function') {
+                            if (certificateCount) certificateCount.textContent = 'Refreshing certificates…';
+                            void window.schoolPortalFirebase.getParentPortalDashboardSummary(identity.schoolId).then(summary => {
+                                if (parentPortalIdentityKey !== identityKey) return;
+                                parentDashboardSummary = {
+                                    ...parentDashboardSummary,
+                                    loaded: true,
+                                    error: false,
+                                    records: {
+                                        ...(parentDashboardSummary.records || {}),
+                                        certificates: summary.certificates || []
+                                    }
+                                };
+                                renderParentPortalDashboard();
+                            }).catch(error => {
+                                console.error('Unable to refresh linked student certificates.', error);
+                                if (certificateCount) certificateCount.textContent = 'Certificates could not be refreshed';
+                            });
+                        }
+                        return;
+                    }
+                    if (target.closest('[data-parent-certificate-close]') || target === previewModal) {
+                        closeCertificatePreview();
+                        return;
+                    }
+                    const previewButton = target.closest('[data-parent-certificate-index]');
+                    if (!previewButton || !previewModal || !previewContent) return;
+                    const certificate = linkedCertificates[Number(previewButton.dataset.parentCertificateIndex)];
+                    if (!certificate) return;
+                    if (previewTitle) previewTitle.textContent = certificate.certificateType || 'Certificate preview';
+                    if (previewSubtitle) {
+                        const child = children.find(item => parentStudentRecordId(item) === String(certificate.studentId || ''));
+                        previewSubtitle.textContent = child?.fullName || child?.name || 'Linked student certificate';
+                    }
+                    renderCertificatePreview(certificate);
+                    previewModal.classList.remove('hidden');
+                    certificatesSection.querySelector('[data-parent-certificate-close]')?.focus();
+                };
+                certificatesSection.onkeydown = event => {
+                    if (event.key === 'Escape' && previewModal && !previewModal.classList.contains('hidden')) {
+                        closeCertificatePreview();
                     }
                 };
             }
@@ -1878,7 +1996,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const sidebarAccountControls = document.getElementById('parentSidebarAccountControls');
         const headerActions = document.querySelector('.top-actions');
         const actionTarget = document.querySelector('.topbar');
-        if (sidebarAccountControls) sidebarAccountControls.hidden = true;
+        const logoutButton = document.getElementById('logoutBtn');
+        const isParentAccount = String(identity?.role || activeAccountPermissions?.role || '').toLowerCase() === 'parent';
+        if (sidebarAccountControls) {
+            sidebarAccountControls.hidden = !isParentAccount;
+            if (isParentAccount && logoutButton) sidebarAccountControls.append(logoutButton);
+            else if (logoutButton) document.getElementById('headerProfile')?.append(logoutButton);
+        }
         if (headerActions && actionTarget && headerActions.parentElement !== actionTarget) actionTarget.append(headerActions);
         document.querySelectorAll('[data-dashboard-nav]').forEach(button => {
             button.hidden = !findDashboardNavLink(button.dataset.dashboardNav);
@@ -2172,6 +2296,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dashboardSubscriptions = [];
             dashboardIdentityKey = `${identityKey}:parent-portal`;
             parentPortalIdentityKey = identityKey;
+            parentCertificatesExpanded = false;
             dashboardSubscribedCollections = new Set();
             dashboardLastUpdated = null;
             dashboardCollections.forEach(collection => {
@@ -2285,6 +2410,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dashboardSubscriptions = [];
         dashboardIdentityKey = '';
         parentPortalIdentityKey = '';
+        parentCertificatesExpanded = false;
         dashboardSubscribedCollections = new Set();
         dashboardLastUpdated = null;
         dashboardCollections.forEach(collection => {

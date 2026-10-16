@@ -198,38 +198,21 @@ async function prepareCloudAssets(value, collectionName, recordId, fieldPath = '
     ])));
 }
 
+let activeCloudWrites = 0;
+let cloudWriteErrors = 0;
+
 async function processMutation(mutation) {
     const owner = assertIdentity();
     if (mutation.schoolId !== owner.schoolId || mutation.uid !== owner.uid) return;
     const cloudData = await prepareCloudAssets(mutation.data, mutation.collection, mutation.recordId);
     const recordRef = cloudRecordRef(owner, mutation.collection, mutation.recordId);
     const versionRef = doc(db, 'schools', owner.schoolId, mutation.collection, String(mutation.recordId), 'versions', mutation.mutationId);
-    const conflictRef = doc(db, 'schools', owner.schoolId, 'members', owner.uid, 'syncConflicts', mutation.mutationId);
-
     const result = await runTransaction(db, async transaction => {
         const currentSnapshot = await transaction.get(recordRef);
         const current = currentSnapshot.exists() ? currentSnapshot.data() : null;
         if (current?.lastMutationId === mutation.mutationId) return { state: 'synced', current };
 
         const currentVersion = current?.version || 0;
-        if (currentVersion !== mutation.baseVersion) {
-            const existingConflict = await transaction.get(conflictRef);
-            if (!existingConflict.exists()) {
-                transaction.set(conflictRef, {
-                    collection: mutation.collection,
-                    recordId: mutation.recordId,
-                    baseVersion: mutation.baseVersion,
-                    serverVersion: currentVersion,
-                    localData: cloudData,
-                    remoteData: current?.data ?? null,
-                    createdBy: owner.uid,
-                    createdAt: serverTimestamp(),
-                    status: 'open'
-                });
-            }
-            return { state: 'conflict', current };
-        }
-
         const nextVersion = currentVersion + 1;
         const next = {
             data: cloudData,
@@ -257,12 +240,12 @@ async function processMutation(mutation) {
         recordId: String(mutation.recordId),
         data: result.current?.data ?? cloudData,
         version: result.current?.version || mutation.baseVersion,
-        syncState: result.state === 'conflict' ? 'conflict' : 'synced',
+        syncState: 'synced',
         updatedAt: Date.now()
     });
     await deleteOutbox(mutation.mutationId);
     window.dispatchEvent(new CustomEvent('school-portal-sync-update', {
-        detail: { collection: mutation.collection, recordId: mutation.recordId, state: result.state }
+        detail: { collection: mutation.collection, recordId: mutation.recordId, mutationId: mutation.mutationId, state: result.state }
     }));
 }
 
@@ -272,6 +255,7 @@ async function syncOutbox() {
     syncRunning = true;
     let failed = false;
     try {
+        for (const conflict of await getConflicts()) await resolveConflict(conflict.id);
         await quarantineReadOnlyMutations(owner);
         while (navigator.onLine) {
             const mutations = (await listOutbox()).filter(mutation =>
@@ -352,14 +336,14 @@ async function refreshSyncIndicator() {
         return;
     }
     const pending = (await listOutbox()).filter(item => item.schoolId === identity.schoolId && item.uid === identity.uid).length;
-    if (syncRunning || pending) {
+    if (syncRunning || activeCloudWrites || pending || cloudWriteErrors) {
         if (icon) icon.className = 'fas fa-cloud-arrow-up';
-        if (label) label.textContent = 'Syncing';
+        if (label) label.textContent = activeCloudWrites || syncRunning || pending ? 'Syncing' : 'Sync failed';
     } else {
         if (icon) icon.className = 'fas fa-cloud';
         if (label) label.textContent = 'Synced';
     }
-    syncIndicator.dataset.state = syncRunning || pending ? 'pending' : 'synced';
+    syncIndicator.dataset.state = syncRunning || activeCloudWrites || pending || cloudWriteErrors ? 'pending' : 'synced';
 }
 
 window.addEventListener('school-portal-sync-status', () => void refreshSyncIndicator());
@@ -396,6 +380,7 @@ async function listLocal(collectionName) {
 
 async function saveRecord(collectionName, recordId, data) {
     const owner = assertIdentity();
+    if (!navigator.onLine) throw new Error('You are offline. Reconnect before saving changes.');
     assertCollection(collectionName);
     if (!canEditCollection(owner, collectionName)) {
         throw new Error('This account has read-only access to school records.');
@@ -403,48 +388,48 @@ async function saveRecord(collectionName, recordId, data) {
     if (!recordId || !data || typeof data !== 'object' || Array.isArray(data)) {
         throw new Error('A record ID and a record object are required.');
     }
-    const key = makeKey(owner.schoolId, owner.uid, collectionName, recordId);
-    const previous = await readLocal(key);
-    const pendingMutations = (await listOutbox()).filter(mutation =>
+    const olderMutations = (await listOutbox()).filter(mutation =>
         mutation.schoolId === owner.schoolId
         && mutation.uid === owner.uid
         && mutation.collection === collectionName
         && mutation.recordId === String(recordId)
     );
+    if (olderMutations.length) {
+        while (syncRunning) {
+            await new Promise(resolve => window.addEventListener('school-portal-sync-status', resolve, { once: true }));
+        }
+        await syncOutbox();
+        const stillPending = (await listOutbox()).some(mutation =>
+            mutation.schoolId === owner.schoolId
+            && mutation.uid === owner.uid
+            && mutation.collection === collectionName
+            && mutation.recordId === String(recordId)
+        );
+        if (stillPending) throw new Error('An earlier update is still waiting for cloud sync. Try again shortly.');
+    }
     const mutationId = crypto.randomUUID();
     const cleanData = copyValue(data);
-    const record = {
-        key,
-        schoolId: owner.schoolId,
-        uid: owner.uid,
-        collection: collectionName,
-        recordId: String(recordId),
-        data: cleanData,
-        version: (previous?.version || 0) + pendingMutations.length,
-        syncState: 'pending',
-        updatedAt: Date.now()
-    };
-    await openDatabase().then(database => new Promise((resolve, reject) => {
-        const transaction = database.transaction(['records', 'outbox'], 'readwrite');
-        transaction.objectStore('records').put(record);
-        transaction.objectStore('outbox').put({
+    activeCloudWrites += 1;
+    window.dispatchEvent(new CustomEvent('school-portal-sync-update', {
+        detail: { collection: collectionName, recordId, state: 'pending' }
+    }));
+    try {
+        await processMutation({
             mutationId,
             schoolId: owner.schoolId,
             uid: owner.uid,
             collection: collectionName,
             recordId: String(recordId),
-            baseVersion: (previous?.version || 0) + pendingMutations.length,
-            data: cleanData,
-            createdAt: Date.now()
+            data: cleanData
         });
-        transaction.oncomplete = resolve;
-        transaction.onerror = () => reject(transaction.error || new Error('Unable to save the local change.'));
-        transaction.onabort = () => reject(transaction.error || new Error('Local save transaction was aborted.'));
-    }));
-    window.dispatchEvent(new CustomEvent('school-portal-sync-update', {
-        detail: { collection: collectionName, recordId, state: 'pending' }
-    }));
-    void syncOutbox();
+        cloudWriteErrors = 0;
+    } catch (error) {
+        cloudWriteErrors += 1;
+        throw error;
+    } finally {
+        activeCloudWrites = Math.max(0, activeCloudWrites - 1);
+        window.dispatchEvent(new CustomEvent('school-portal-sync-status'));
+    }
 }
 
 async function deleteRecord(collectionName, recordId) {
@@ -491,8 +476,22 @@ async function queueLegacyStorageChange(key, previousSerialized, nextSerialized)
     const owner = assertIdentity();
     const collectionName = legacyDataCollections.get(key);
     if (!collectionName || !canEditCollection(owner, collectionName)) return;
-    await syncLegacyDataset(key, previousSerialized || '[]', nextSerialized);
-    preserveLegacyStorage(owner);
+    try {
+        await syncLegacyDataset(key, previousSerialized || '[]', nextSerialized);
+        preserveLegacyStorage(owner);
+    } catch (error) {
+        suppressLegacyStorageBridge = true;
+        const scopedKey = scopedLegacyStorageKey(owner, key);
+        if (previousSerialized === null) {
+            originalStorageRemoveItem.call(localStorage, key);
+            originalStorageRemoveItem.call(localStorage, scopedKey);
+        } else {
+            originalStorageSetItem.call(localStorage, key, previousSerialized);
+            originalStorageSetItem.call(localStorage, scopedKey, previousSerialized);
+        }
+        suppressLegacyStorageBridge = false;
+        throw error;
+    }
 }
 async function migrateLegacyLocalData() {
     const owner = assertIdentity();
@@ -582,7 +581,7 @@ Storage.prototype.removeItem = function (key) {
         && legacyDataCollections.has(String(key))) {
         originalStorageRemoveItem.call(localStorage, scopedLegacyStorageKey(identity, String(key)));
         if (!canEditCollection(identity, legacyDataCollections.get(String(key)))) return;
-        void syncLegacyDataset(String(key), previous, '[]').catch(error => {
+        void queueLegacyStorageChange(String(key), previous, '[]').catch(error => {
             console.error(`Unable to queue local ${legacyDataCollections.get(String(key))} deletions.`, error);
         });
     }
@@ -591,8 +590,6 @@ Storage.prototype.removeItem = function (key) {
 async function subscribe(collectionName, onRecords, filters = [], options = {}) {
     const owner = assertIdentity();
     assertCollection(collectionName);
-    const local = await listLocal(collectionName);
-    onRecords(local, { source: 'local' });
     const constraints = filters.map(filter => where(filter.field, filter.operator || '==', filter.value));
     if (isTeachingRole(owner.role) && isClassScopedCollection(collectionName)) {
         if (!owner.assignedClassIds.length) return () => {};
@@ -611,7 +608,7 @@ async function subscribe(collectionName, onRecords, filters = [], options = {}) 
             refreshInProgress = true;
             try {
                 if (!navigator.onLine) {
-                    onRecords(await listLocal(collectionName), { source: 'local' });
+                    onRecords([], { source: 'offline' });
                     return;
                 }
                 const firebase = window.schoolPortalFirebase;
@@ -684,7 +681,8 @@ async function subscribe(collectionName, onRecords, filters = [], options = {}) 
     if (options.orderByField) constraints.push(orderBy(options.orderByField, options.orderDirection || 'asc'));
     if (Number.isInteger(options.limit) && options.limit > 0) constraints.push(limit(options.limit));
     const collectionQuery = query(collection(db, 'schools', owner.schoolId, collectionName), ...constraints);
-    return onSnapshot(collectionQuery, snapshot => {
+    return onSnapshot(collectionQuery, { includeMetadataChanges: true }, snapshot => {
+        if (snapshot.metadata.fromCache) return;
         const records = snapshot.docs.map(item => ({
             key: makeKey(owner.schoolId, owner.uid, collectionName, item.id),
             schoolId: owner.schoolId,
@@ -775,43 +773,47 @@ async function getConflicts() {
     return snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
 }
 
-async function resolveConflict(conflictId, choice) {
+async function resolveConflict(conflictId) {
     const owner = assertIdentity();
+    if (!navigator.onLine) throw new Error('Reconnect to the internet before loading cloud records.');
     const conflictRef = doc(db, 'schools', owner.schoolId, 'members', owner.uid, 'syncConflicts', conflictId);
-    const conflictSnapshot = await getDoc(conflictRef);
-    if (!conflictSnapshot.exists() || conflictSnapshot.data().createdBy !== owner.uid) {
+    const initialConflict = await getDoc(conflictRef);
+    if (!initialConflict.exists() || initialConflict.data().createdBy !== owner.uid) {
         throw new Error('This conflict is unavailable or belongs to another user.');
     }
-    const conflict = conflictSnapshot.data();
-    if (choice === 'local') {
-        await saveRecord(conflict.collection, conflict.recordId, conflict.localData);
-        await syncOutbox();
-        const record = await readLocal(makeKey(owner.schoolId, owner.uid, conflict.collection, conflict.recordId));
-        if (record?.syncState !== 'synced') throw new Error('The local version could not be applied. The conflict remains open.');
-    } else if (choice !== 'remote') {
-        throw new Error('Choose either the local or cloud version.');
-    } else {
-        const key = makeKey(owner.schoolId, owner.uid, conflict.collection, conflict.recordId);
-        const currentSnapshot = await getDoc(cloudRecordRef(owner, conflict.collection, conflict.recordId));
-        if (currentSnapshot.exists()) {
-            await writeLocal({
-                key,
-                schoolId: owner.schoolId,
-                uid: owner.uid,
-                collection: conflict.collection,
-                recordId: conflict.recordId,
-                data: currentSnapshot.data().data,
-                version: currentSnapshot.data().version,
-                syncState: 'synced',
-                updatedAt: Date.now()
-            });
+    const conflict = initialConflict.data();
+    const recordRef = cloudRecordRef(owner, conflict.collection, conflict.recordId);
+    const cloudRecord = await runTransaction(db, async transaction => {
+        const [currentSnapshot, currentConflictSnapshot] = await Promise.all([
+            transaction.get(recordRef),
+            transaction.get(conflictRef)
+        ]);
+        if (!currentConflictSnapshot.exists() || currentConflictSnapshot.data().status !== 'open') {
+            throw new Error('This conflict has already been resolved.');
         }
-    }
-    await runTransaction(db, async transaction => {
-        const current = await transaction.get(conflictRef);
-        if (!current.exists() || current.data().status !== 'open') throw new Error('This conflict has already been resolved.');
+        const current = currentSnapshot.exists() ? currentSnapshot.data() : null;
         transaction.update(conflictRef, { status: 'resolved', resolvedBy: owner.uid, resolvedAt: serverTimestamp() });
+        return current;
     });
+    const key = makeKey(owner.schoolId, owner.uid, conflict.collection, conflict.recordId);
+    if (cloudRecord) {
+        await writeLocal({
+            key,
+            schoolId: owner.schoolId,
+            uid: owner.uid,
+            collection: conflict.collection,
+            recordId: String(conflict.recordId),
+            data: cloudRecord.data,
+            version: cloudRecord.version,
+            syncState: 'synced',
+            updatedAt: Date.now()
+        });
+    } else {
+        await runStoreTransaction('records', 'readwrite', store => store.delete(key));
+    }
+    window.dispatchEvent(new CustomEvent('school-portal-sync-update', {
+        detail: { collection: conflict.collection, recordId: conflict.recordId, state: cloudRecord ? 'synced' : 'removed' }
+    }));
 }
 
 window.schoolPortalData = {

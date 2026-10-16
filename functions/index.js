@@ -597,6 +597,7 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
             assessments: [],
             fees: [],
             idCards: [],
+            certificates: [],
             noticeCount: 0,
             noticeCards: []
         };
@@ -658,6 +659,48 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
             }
         });
         return [card];
+    });
+    const certificatesRef = schoolRef.collection('certificates');
+    const certificateQueries = [];
+    if (studentIds.length) {
+        certificateQueries.push(certificatesRef.where('data.studentId', 'in', studentIds).get());
+        certificateQueries.push(certificatesRef.where(FieldPath.documentId(), 'in', studentIds).get());
+    }
+    if (admissionNumbers.length) {
+        certificateQueries.push(certificatesRef.where('data.memberId', 'in', admissionNumbers).get());
+    }
+    const certificateSnapshots = certificateQueries.length ? await Promise.all(certificateQueries) : [];
+    const linkedCertificateSnapshots = new Map(certificateSnapshots.flatMap(snapshot => snapshot.docs)
+        .map(snapshot => [snapshot.id, snapshot]));
+    const certificates = [...linkedCertificateSnapshots.values()].flatMap(snapshot => {
+        const data = snapshot.data().data || {};
+        const status = String(data.status || data.publicationStatus || '').trim().toLowerCase();
+        const isParentVisible = ['generated', 'issued', 'published'].includes(status)
+            || data.isPublished === true || data.published === true;
+        if (snapshot.data().deleted === true || data.deleted === true
+            || !isParentVisible || data.isPublished === false || data.published === false
+            || String(data.visibility || '').trim().toLowerCase() === 'private'
+            || String(data.memberType || '').trim().toLowerCase() !== 'student'
+            || !String(data.recipientName || '').trim()) {
+            return [];
+        }
+        const memberId = String(data.memberId || '').trim();
+        const linkedStudentId = String(data.studentId || data.memberRecordId || data.studentRecordId || '');
+        const linkedChild = children.find(child => child.id === linkedStudentId
+            || (child.admissionNo && child.admissionNo === memberId));
+        if (!linkedChild) return [];
+        const certificate = { id: snapshot.id, studentId: linkedChild.id };
+        [
+            'recipientName', 'memberId', 'certificateNumber', 'certificateType',
+            'memberType', 'academicYear', 'issueDate', 'description', 'schoolName',
+            'schoolAddress', 'principal', 'director', 'primary', 'gold', 'logo', 'status'
+        ].forEach(field => {
+            const value = data[field];
+            if (typeof value === 'string' || typeof value === 'number') {
+                certificate[field] = String(value).slice(0, field === 'logo' ? 4096 : field === 'description' ? 1000 : 300);
+            }
+        });
+        return [certificate];
     });
     const summaryFields = {
         attendance: ['studentId', 'memberId', 'status', 'attendanceStatus', 'attendanceDate', 'date', 'day'],
@@ -748,6 +791,7 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
     return {
         children,
         idCards,
+        certificates,
         ...Object.fromEntries(summaryRecords),
         noticeCount: noticeCards.length,
         noticeCards

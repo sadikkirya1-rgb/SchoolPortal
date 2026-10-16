@@ -258,7 +258,6 @@ function createIDCardsModule(category) {
     window.addEventListener('school-portal-sync-update', event => {
         if (event.detail?.collection !== 'idCards') return;
         if (event.detail.state === 'synced') toast('ID card synced to the school cloud.');
-        if (event.detail.state === 'conflict') toast('ID card sync conflict. Review the sync status.');
     });
     const readFile = (event, callback) => {
         const file = event.target.files[0];

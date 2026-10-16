@@ -2,3 +2,12 @@
 @media(max-width:1100px){#certificateModule .cert-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.cert-preview-area{padding:22px}}
 @media(max-width:700px){#certificateModule .cert-header,#certificateModule .cert-heading,#certificateModule .cert-panel-heading{align-items:flex-start;flex-direction:column}.cert-fields{grid-template-columns:1fr!important}.cert-field.full{grid-column:span 1}.cert-tools{width:100%;flex-direction:column;align-items:stretch}.cert-search{width:100%}.cert-preview-area{justify-content:flex-start}.certificate-sheet{width:900px;max-width:none}}
 @media print{body.cert-printing *{visibility:hidden!important}body.cert-printing #certificateModule,body.cert-printing #certificateModule *{visibility:visible!important}body.cert-printing #certificateModule{position:absolute;left:0;top:0;width:100%}body.cert-printing #certificateModule>.cert-header,body.cert-printing #certificateModule .cert-editor,body.cert-printing #certificateModule .cert-records,body.cert-printing #certificateModule .cert-preview-heading,body.cert-printing #certificateModule .cert-toast{display:none!important}body.cert-printing #certificateModule .cert-panel{border:0;box-shadow:none;margin:0}body.cert-printing #certificateModule .cert-preview-area{padding:0;min-height:0;background:#fff}.certificate-sheet{width:100%;max-width:1120px;box-shadow:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+#certificateModule .cert-btn-light{border:1px solid #94a3b8;background:#dbe4ee;color:#0f172a;box-shadow:0 2px 5px rgba(15,23,42,.12)}
+#certificateModule .cert-btn-light:hover{border-color:#64748b;background:#cbd5e1}
+#certificateModule .cert-btn:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
+#certificateModule .cert-action{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:5px 9px;border:1px solid #94a3b8;border-radius:6px;background:#e2e8f0;color:#0f172a;font:700 10px Poppins,"Segoe UI",sans-serif;white-space:nowrap}
+#certificateModule .cert-view{border-color:#60a5fa;background:#dbeafe;color:#1d4ed8}
+#certificateModule .cert-edit{border-color:#fbbf24;background:#fef3c7;color:#92400e}
+#certificateModule .cert-delete{border-color:#f87171;background:#fee2e2;color:#b91c1c}
+#certificateModule .cert-action:hover{filter:brightness(.95)}
+#certificateModule .cert-action:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
