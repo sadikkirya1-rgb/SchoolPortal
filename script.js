@@ -3244,8 +3244,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
+            const session = loadSession();
             try {
-                const session = loadSession();
                 if (window.schoolPortalFirebase) {
                     const result = await window.schoolPortalFirebase.signOut(session?.schoolId);
                     if (result?.pushCleanupWarning) alert(result.pushCleanupWarning);
@@ -3260,12 +3260,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             window.schoolPortalData?.clearIdentity();
             clearSession();
+            if (session?.schoolId) {
+                saveSession({
+                    schoolId: session.schoolId,
+                    schoolName: currentSchool?.schoolName || session.schoolName || 'School',
+                    logoURL: currentSchool?.logoURL || session.logoURL || '',
+                    step: 1,
+                    authenticated: false
+                });
+            }
             resetLoginScreen();
             container.classList.add('hidden');
             referenceLoginPage?.classList.remove('hidden');
             loginScreen?.classList.remove('active');
             loginScreen?.classList.add('hidden');
-            resetReferenceLogin();
             window.location.reload();
         });
     }

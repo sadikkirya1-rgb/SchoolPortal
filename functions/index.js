@@ -536,24 +536,40 @@ exports.getLinkedSchoolRecords = onCall(async request => {
     }
     if (!studentIds.length) return { records: [] };
 
+    const studentSnapshots = await Promise.all(studentIds.map(studentId =>
+        schoolRef.collection('students').doc(studentId).get()
+    ));
+    const linkedChildren = studentSnapshots.filter(snapshot => snapshot.exists).map(snapshot => {
+        const data = snapshot.data().data || {};
+        return {
+            id: snapshot.id,
+            admissionNo: String(data.admissionNo || data.admissionNumber || '')
+        };
+    });
+    const admissionNumbers = [...new Set(linkedChildren.map(child => child.admissionNo).filter(Boolean))];
     const documents = [];
     if (collectionName === 'students') {
-        const snapshots = await Promise.all(studentIds.map(studentId =>
-            schoolRef.collection('students').doc(studentId).get()
-        ));
-        documents.push(...snapshots.filter(snapshot => snapshot.exists));
+        documents.push(...studentSnapshots.filter(snapshot => snapshot.exists));
     } else {
         const recordsRef = schoolRef.collection(collectionName);
-        const [byStudentId, byMemberId, byDocumentId] = await Promise.all([
+        const [byStudentId, byMemberId, byStudentAdmission, byMemberAdmission, byDocumentId] = await Promise.all([
             recordsRef.where('data.studentId', 'in', studentIds).get(),
             collectionName === 'attendance'
                 ? recordsRef.where('data.memberId', 'in', studentIds).get()
+                : Promise.resolve({ docs: [] }),
+            collectionName === 'attendance' && admissionNumbers.length
+                ? recordsRef.where('data.studentId', 'in', admissionNumbers).get()
+                : Promise.resolve({ docs: [] }),
+            collectionName === 'attendance' && admissionNumbers.length
+                ? recordsRef.where('data.memberId', 'in', admissionNumbers).get()
                 : Promise.resolve({ docs: [] }),
             recordsRef.where(FieldPath.documentId(), 'in', studentIds).get()
         ]);
         const uniqueRecords = new Map([
             ...byStudentId.docs,
             ...byMemberId.docs,
+            ...byStudentAdmission.docs,
+            ...byMemberAdmission.docs,
             ...byDocumentId.docs
         ].map(snapshot => [snapshot.id, snapshot]));
         documents.push(...uniqueRecords.values());
@@ -561,11 +577,20 @@ exports.getLinkedSchoolRecords = onCall(async request => {
     return {
         records: documents
             .filter(snapshot => snapshot.data().data?.deleted !== true)
-            .map(snapshot => ({
-                id: snapshot.id,
-                data: snapshot.data().data || {},
-                version: snapshot.data().version || 0
-            }))
+            .map(snapshot => {
+                const data = snapshot.data().data || {};
+                const linkedChild = collectionName === 'attendance'
+                    ? linkedChildren.find(child => [data.studentId, data.memberId, snapshot.id]
+                        .some(identifier => identifier
+                            && (String(identifier) === child.id
+                                || child.admissionNo && String(identifier) === child.admissionNo)))
+                    : null;
+                return {
+                    id: snapshot.id,
+                    data: linkedChild ? { ...data, studentId: linkedChild.id } : data,
+                    version: snapshot.data().version || 0
+                };
+            })
     };
 });
 
@@ -721,14 +746,26 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
     };
     const summaryRecords = await Promise.all(Object.entries(summaryFields).map(async ([collectionName, fields]) => {
         const recordsRef = schoolRef.collection(collectionName);
-        const [byStudentId, byMemberId, byDocumentId] = await Promise.all([
+        const [byStudentId, byMemberId, byStudentAdmission, byMemberAdmission, byDocumentId] = await Promise.all([
             recordsRef.where('data.studentId', 'in', studentIds).get(),
             collectionName === 'attendance'
                 ? recordsRef.where('data.memberId', 'in', studentIds).get()
                 : Promise.resolve({ docs: [] }),
+            admissionNumbers.length
+                ? recordsRef.where('data.studentId', 'in', admissionNumbers).get()
+                : Promise.resolve({ docs: [] }),
+            collectionName === 'attendance' && admissionNumbers.length
+                ? recordsRef.where('data.memberId', 'in', admissionNumbers).get()
+                : Promise.resolve({ docs: [] }),
             recordsRef.where(FieldPath.documentId(), 'in', studentIds).get()
         ]);
-        const uniqueRecords = new Map([...byStudentId.docs, ...byMemberId.docs, ...byDocumentId.docs]
+        const uniqueRecords = new Map([
+            ...byStudentId.docs,
+            ...byMemberId.docs,
+            ...byStudentAdmission.docs,
+            ...byMemberAdmission.docs,
+            ...byDocumentId.docs
+        ]
             .map(snapshot => [snapshot.id, snapshot]));
         return [collectionName, [...uniqueRecords.values()]
             .filter(snapshot => {
@@ -744,7 +781,12 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
             })
             .map(snapshot => {
                 const data = snapshot.data().data || {};
-                const studentId = String(data.studentId || (collectionName === 'attendance' ? data.memberId : '') || snapshot.id);
+                const linkedChild = children.find(child => [data.studentId, data.memberId, snapshot.id]
+                    .some(identifier => identifier
+                        && (String(identifier) === child.id
+                            || child.admissionNo && String(identifier) === child.admissionNo)));
+                if (!linkedChild) return null;
+                const studentId = linkedChild.id;
                 const summary = { studentId };
                 fields.forEach(field => {
                     const value = data[field];
@@ -760,7 +802,7 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
                 });
                 return summary;
             })
-            .filter(record => studentIds.includes(record.studentId))];
+            .filter(record => record && studentIds.includes(record.studentId))];
     }));
 
     const noticeSnapshot = await schoolRef.collection('notices')
