@@ -1691,14 +1691,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         const recordDate = dateFromRecord(record, ['attendanceDate', 'date', 'day']);
                         return recordDate && dashboardDateKey(recordDate) === dateKey;
                     });
-                    const matchedRecords = statusFilter === 'all'
+                    const matchedRecords = statusFilter === 'all' || statusFilter === 'no-record'
                         ? dayRecords
                         : dayRecords.filter(record => attendanceStatusFor(record) === statusFilter);
                     const counts = Object.fromEntries(Object.keys(statusLabels).map(status => [status,
                         matchedRecords.filter(record => attendanceStatusFor(record) === status).length
                     ]));
                     const statuses = Object.entries(counts).filter(([, count]) => count > 0);
-                    const statusMarkup = statuses.length
+                    const statusMarkup = statuses.length && statusFilter !== 'no-record'
                         ? statuses.map(([status, count]) => `<span class="parent-attendance-day-status ${status}" title="${statusLabels[status]}: ${count}">${statusFilter === 'all' && selectedChild === 'all' ? `${statusMarks[status]} ${count}` : statusLabels[status]}</span>`).join('')
                         : `<small class="parent-attendance-day-empty">${dayRecords.length ? 'No matching status' : 'No record'}</small>`;
                     const weekday = date.toLocaleDateString(undefined, { weekday: 'short' });
