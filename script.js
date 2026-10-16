@@ -515,21 +515,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (title) title.textContent = config.title;
         if (description) description.textContent = config.description;
         if (icon) icon.innerHTML = `<i class="fas ${config.icon}" aria-hidden="true"></i>`;
-        const childWrap = detail.querySelector('[data-parent-detail-child-wrap]');
-        const childSelect = detail.querySelector('[data-parent-detail-child]');
-        if (childSelect) {
-            childSelect.replaceChildren();
-            if (children.length > 1) childSelect.add(new Option('All linked students', 'all'));
-            children.forEach(child => {
-                const id = parentStudentRecordId(child);
-                const name = child.fullName || child.name || child.studentName || child.displayName || 'Student';
-                const className = [child.className || child.class, child.section].filter(Boolean).join(' · ');
-                childSelect.add(new Option(`${name}${className ? ` · ${className}` : ''}`, id));
-            });
-            childSelect.value = selectedChild;
-            if (childWrap) childWrap.classList.toggle('hidden', children.length < 2);
-        }
-
         const canView = adminPreview || canViewParentPortalCollection(config.collection);
         if (!canView) {
             content.innerHTML = '<p class="parent-detail-message" role="status"><i class="fas fa-lock" aria-hidden="true"></i><span>This section has not been enabled for your account. Contact your school administrator for access.</span></p>';
@@ -557,7 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ['Academic year', child.academicYear || child.year],
                     ['Status', child.status]
                 ].filter(([, value]) => value);
-                return `<article class="parent-detail-student-card"><span class="parent-student-avatar parent-student-avatar-large" aria-hidden="true">${dashboardEscape(initials || 'S')}</span><div class="parent-detail-student-copy"><h4>${dashboardEscape(name)}</h4><dl>${fields.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl></div><button type="button" class="parent-detail-action" data-parent-select-child="${dashboardEscape(id)}"><span>View this student</span><i class="fas fa-arrow-right" aria-hidden="true"></i></button></article>`;
+                return `<article class="parent-detail-student-card"><span class="parent-student-avatar parent-student-avatar-large" aria-hidden="true">${dashboardEscape(initials || 'S')}</span><div class="parent-detail-student-copy"><h4>${dashboardEscape(name)}</h4><dl>${fields.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl></div></article>`;
             }).join('')}</div>` : '<p class="parent-detail-message" role="status">No linked student profiles are available.</p>';
             return;
         }
@@ -666,9 +651,10 @@ document.addEventListener('DOMContentLoaded', () => {
             : parentDashboardSummary.records?.children || studentRecords;
         const previousChild = childSelect?.value || 'all';
         const parentIdentity = window.schoolPortalData?.getIdentity?.() || activeAccountPermissions || {};
-        const firstName = String(parentIdentity.fullName || parentIdentity.adminUser || '').trim().split(/\s+/)[0];
+        const parentName = String(parentIdentity.parentName || parentIdentity.fullName || parentIdentity.name || parentIdentity.displayName
+            || parentIdentity.adminUser || parentIdentity.email || '').trim();
         const welcomeTitle = container.querySelector('[data-parent-welcome-title]');
-        if (welcomeTitle) welcomeTitle.textContent = firstName ? `Welcome back, ${firstName}.` : 'Welcome back.';
+        if (welcomeTitle) welcomeTitle.textContent = parentName || 'Parent';
         const permissions = window.schoolPortalData?.getIdentity()?.permissions
             || activeAccountPermissions?.permissions
             || {};
@@ -680,32 +666,22 @@ document.addEventListener('DOMContentLoaded', () => {
             childSelect.replaceChildren();
             if (children.length > 1) childSelect.add(new Option('All children', 'all'));
             children.forEach(child => {
-                const name = child.fullName || child.name || child.studentName || child.displayName || child.id;
-                const detail = [child.className || child.class, child.section].filter(Boolean).join(' · ');
-                childSelect.add(new Option(`${name}${detail ? ` — ${detail}` : ''}`, parentStudentRecordId(child)));
+                const fullName = child.fullName || child.name || child.studentName || child.displayName || child.id;
+                const firstName = child.firstName || String(fullName).trim().split(/\s+/)[0];
+                const studentId = child.displayId || child.admissionNumber || child.admissionNo
+                    || child.studentCode || child.studentId || parentStudentRecordId(child);
+                childSelect.add(new Option(`${firstName} · ID: ${studentId}`, parentStudentRecordId(child)));
             });
             const onlyChildId = children.length === 1 ? parentStudentRecordId(children[0]) : '';
-            const preferredChild = previousChild === 'all' && onlyChildId ? onlyChildId : previousChild;
-            childSelect.value = children.some(child => parentStudentRecordId(child) === preferredChild) || preferredChild === 'all'
+            const preferredChild = onlyChildId || previousChild;
+            childSelect.value = children.some(child => parentStudentRecordId(child) === preferredChild)
                 ? preferredChild
-                : 'all';
+                : children.length > 1 ? 'all' : onlyChildId;
+            childSelect.disabled = false;
             if (childSelectorWrap) childSelectorWrap.classList.toggle('hidden',
-                !canSelectChildren);
+                !canSelectChildren || children.length === 0);
         }
         const selectedChild = childSelect?.value || 'all';
-        const linkedStudentsSummary = container.querySelector('[data-parent-linked-students]');
-        if (linkedStudentsSummary) {
-            const displayedChildren = selectedChild === 'all'
-                ? children
-                : children.filter(child => parentStudentRecordId(child) === selectedChild);
-            linkedStudentsSummary.textContent = displayedChildren.map(child => {
-                const name = child.fullName || child.name || child.studentName || child.displayName || 'Student';
-                const id = child.displayId || child.admissionNumber || child.admissionNo
-                    || child.studentCode || child.studentId || parentStudentRecordId(child);
-                return id ? `${name} · ID: ${id}` : name;
-            }).join('  |  ');
-            linkedStudentsSummary.classList.toggle('hidden', displayedChildren.length === 0);
-        }
         const noChildren = document.getElementById('parentPortalNoChildren');
         noChildren?.classList.toggle('hidden',
             !canViewChildren || !parentPortalData.students.loaded || children.length > 0 || parentPortalData.students.error);
@@ -719,15 +695,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 : parentPortalData.students.error
                 ? 'Linked child information could not be loaded. Contact your school administrator if this continues.'
                 : !canViewChildren
-                    ? parentDashboardSummary.loaded && children.length
-                        ? `${children.length} linked ${children.length === 1 ? 'child' : 'children'} · Showing ${selectedChild === 'all' ? 'all linked children' : 'selected child'}`
-                        : ''
+                    ? ''
                 : activeCollectionErrors
                     ? 'Some linked records could not be loaded. Please try again later.'
                     : !parentPortalData.students.loaded
                         ? 'Loading secure linked-child overview…'
                         : children.length
-                            ? `${children.length} linked ${children.length === 1 ? 'child' : 'children'} · Showing ${selectedChild === 'all' ? 'all linked children' : 'selected child'}`
+                            ? ''
                             : 'No linked child records are available yet.';
             dataStatus.classList.toggle('hidden', !dataStatus.textContent);
             container.querySelector('.parent-portal-overview-heading')?.classList.toggle('hidden',
@@ -1822,20 +1796,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('parentPortalHome')?.addEventListener('change', event => {
         if (event.target.matches('[data-parent-results-filter]')) renderParentPortalDashboard();
-        if (event.target.matches('[data-parent-detail-child]')) {
-            const selector = document.getElementById('parentChildSelector');
-            if (!selector) return;
-            selector.value = event.target.value;
-            selector.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-    });
-    document.getElementById('parentPortalHome')?.addEventListener('click', event => {
-        const button = event.target.closest('[data-parent-select-child]');
-        if (!button) return;
-        const selector = document.getElementById('parentChildSelector');
-        if (!selector) return;
-        selector.value = button.dataset.parentSelectChild;
-        selector.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
     const dashboardRange = () => {
