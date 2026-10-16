@@ -21,4 +21,47 @@
 #attendanceModule button.attendance-action{border:1px solid transparent;color:#334155}
 #attendanceModule button.attendance-view{border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8}
 #attendanceModule button.attendance-edit{border-color:#fcd34d;background:#fff7df;color:#8a6b2a}
+.attendance-history-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;padding:0 18px 14px}
+.attendance-history-filters label{display:grid;gap:5px;color:#475569;font-size:10px;font-weight:700}
+.attendance-history-filters input,.attendance-history-filters select{width:100%;min-width:0;height:36px;padding:0 9px;border:1px solid #dce3ed;border-radius:8px;background:#fff;color:#172033;font:11px Poppins,"Segoe UI",sans-serif}
+.attendance-history-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;color:#64748b;font-size:11px}
+.attendance-history-pagination>div{display:flex;align-items:center;gap:10px}
+.attendance-history-pagination button{display:grid;width:34px;height:34px;place-items:center;margin:0;padding:0}
+.attendance-history-pagination button:disabled{opacity:.45;cursor:not-allowed}
+#attendanceModule .attendance-register{margin-bottom:18px;padding:18px;overflow:visible}
+#attendanceModule .attendance-register-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+#attendanceModule .attendance-register-heading h3{margin:0;color:#172033;font-size:15px}
+#attendanceModule .attendance-register-heading p{margin:4px 0 0;color:#64748b;font-size:11px}
+#attendanceModule .attendance-register-heading>strong{color:#475569;font-size:11px;white-space:nowrap}
+#attendanceModule .attendance-register-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:14px}
+#attendanceModule .attendance-register-filters label{display:grid;gap:5px;color:#475569;font-size:10px;font-weight:700}
+#attendanceModule .attendance-register-filters input,#attendanceModule .attendance-register-filters select{width:100%;min-width:0;height:36px;padding:0 9px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#172033;font:11px inherit}
+#attendanceModule .attendance-register-wrap{max-height:66vh;overflow:auto;border:1px solid #dce3ed;border-radius:8px}
+#attendanceModule .attendance-register table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;background:#fff}
+#attendanceModule .attendance-register th,#attendanceModule .attendance-register td{min-width:38px;padding:5px;border-right:1px solid #e8edf4;border-bottom:1px solid #e8edf4;text-align:center;font-size:10px;white-space:nowrap}
+#attendanceModule .attendance-register thead th{position:sticky;top:0;z-index:3;height:42px;background:#f8fafc;color:#475569}
+#attendanceModule .attendance-register thead th span,#attendanceModule .attendance-register thead th strong{display:block}
+#attendanceModule .attendance-register thead th span{color:#64748b;font-size:8px;font-weight:600}
+#attendanceModule .attendance-register thead th strong{margin-top:2px;font-size:11px}
+#attendanceModule .attendance-register .attendance-register-member{position:sticky;left:0;z-index:2;width:190px;min-width:190px;max-width:190px;text-align:left;background:#fff}
+#attendanceModule .attendance-register thead .attendance-register-member{z-index:5;background:#f8fafc}
+#attendanceModule .attendance-register .attendance-register-member strong{display:block;overflow:hidden;text-overflow:ellipsis}
+#attendanceModule .attendance-register .attendance-register-id{position:sticky;left:190px;z-index:2;width:118px;min-width:118px;max-width:118px;background:#fff;text-align:left}
+#attendanceModule .attendance-register thead .attendance-register-id{z-index:5;background:#f8fafc}
+#attendanceModule .attendance-register .attendance-register-type{min-width:78px;text-align:left}
+#attendanceModule .attendance-register .is-weekend{background:#f1f5f9}
+#attendanceModule .attendance-register-cell{display:grid;width:30px;height:30px;place-items:center;margin:auto;padding:0;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#64748b;font:800 10px Poppins,"Segoe UI",sans-serif;cursor:pointer}
+#attendanceModule .attendance-register-cell:hover{border-color:#64748b}
+#attendanceModule .attendance-register-cell:focus-visible{outline:3px solid #2563eb;outline-offset:1px}
+#attendanceModule .attendance-register-cell.status-present{border-color:#86efac;background:#dcfce7;color:#166534}
+#attendanceModule .attendance-register-cell.status-absent{border-color:#fca5a5;background:#fee2e2;color:#991b1b}
+#attendanceModule .attendance-register-cell.status-late{border-color:#fcd34d;background:#fef3c7;color:#854d0e}
+#attendanceModule .attendance-register-cell.status-excused{border-color:#c4b5fd;background:#ede9fe;color:#5b21b6}
+#attendanceModule .attendance-register-empty{padding:24px;color:#64748b;text-align:center}
+#attendanceModule .attendance-register-legend{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0 0;color:#64748b;font-size:10px}
+#attendanceModule .attendance-register-legend .present{color:#166534}
+#attendanceModule .attendance-register-legend .absent{color:#991b1b}
+#attendanceModule .attendance-register-legend .late{color:#854d0e}
+#attendanceModule .attendance-register-legend .excused{color:#5b21b6}
+@media(max-width:640px){#attendanceModule .attendance-register{padding:12px}#attendanceModule .attendance-register-heading{align-items:flex-start;flex-direction:column}#attendanceModule .attendance-register-filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#attendanceModule .attendance-register .attendance-register-member{width:150px;min-width:150px;max-width:150px}#attendanceModule .attendance-register .attendance-register-id{left:150px;width:105px;min-width:105px;max-width:105px}}
 #attendanceModule button.attendance-delete{border-color:#fca5a5;background:#fee2e2;color:#b91c1c}
