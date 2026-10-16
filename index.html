@@ -798,6 +798,21 @@ if ('serviceWorker' in navigator) {
             </button>
         </div>
     </section>
+    <section class="parent-attendance-panel" data-parent-attendance-section aria-labelledby="parentAttendanceTitle">
+        <header class="parent-analytics-heading">
+            <div><h2 id="parentAttendanceTitle">Attendance pattern</h2><p>Recorded attendance over the last six months</p></div>
+        </header>
+        <div class="parent-attendance-chart" data-parent-attendance-chart role="img" aria-label="Attendance chart loading"></div>
+        <div class="parent-attendance-legend" aria-label="Attendance statuses">
+            <span><i class="present" aria-hidden="true"></i>Present</span><span><i class="late" aria-hidden="true"></i>Late</span><span><i class="absent" aria-hidden="true"></i>Absent</span><span><i class="excused" aria-hidden="true"></i>Excused</span>
+        </div>
+    </section>
+    <section class="parent-attendance-calendar-panel" data-parent-attendance-calendar-section aria-labelledby="parentAttendanceCalendarTitle">
+        <header class="parent-attendance-calendar-heading"><div><h2 id="parentAttendanceCalendarTitle">Attendance calendar</h2><p data-parent-attendance-calendar-month></p></div><div class="parent-attendance-calendar-filters"><input type="month" aria-label="Filter attendance calendar by month" data-parent-attendance-calendar-month-filter><select aria-label="Filter attendance calendar by status" data-parent-attendance-calendar-status><option value="all">All statuses</option><option value="present">Present</option><option value="late">Late</option><option value="absent">Absent</option><option value="excused">Excused</option></select></div></header>
+        <div class="parent-attendance-calendar-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+        <div class="parent-attendance-calendar-grid" data-parent-attendance-calendar role="list" aria-label="Daily attendance calendar"></div>
+        <p class="parent-attendance-calendar-message" data-parent-attendance-calendar-message role="status" aria-live="polite"></p>
+    </section>
     <section class="parent-records-section" aria-label="Linked student data">
         <div class="parent-record-groups">
             <section class="parent-record-group" aria-labelledby="parentAttendanceRecordsTitle">
@@ -864,15 +879,6 @@ if ('serviceWorker' in navigator) {
             <footer><button class="parent-document-action" type="button" data-parent-document-print><i class="fas fa-print" aria-hidden="true"></i> Print / Save PDF</button><button class="parent-document-action" type="button" data-parent-document-close>Close</button></footer>
         </section>
     </div>
-    <section class="parent-attendance-panel" data-parent-attendance-section aria-labelledby="parentAttendanceTitle">
-        <header class="parent-analytics-heading">
-            <div><h2 id="parentAttendanceTitle">Attendance pattern</h2><p>Recorded attendance over the last six months</p></div>
-        </header>
-        <div class="parent-attendance-chart" data-parent-attendance-chart role="img" aria-label="Attendance chart loading"></div>
-        <div class="parent-attendance-legend" aria-label="Attendance statuses">
-            <span><i class="present" aria-hidden="true"></i>Present</span><span><i class="late" aria-hidden="true"></i>Late</span><span><i class="absent" aria-hidden="true"></i>Absent</span><span><i class="excused" aria-hidden="true"></i>Excused</span>
-        </div>
-    </section>
     <section class="parent-activity-panel" aria-labelledby="parentActivityTitle">
         <header class="parent-analytics-heading"><div><h2 id="parentActivityTitle">Recent updates</h2><p>Latest dated records for your family</p></div></header>
         <ol class="parent-activity-list" data-parent-recent-activity></ol>

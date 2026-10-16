@@ -12,10 +12,28 @@ function createAttendanceModule(category) {
     }
     const historyRecordsSection = sec.querySelector('.attendance-records');
     const historyTableWrap = historyRecordsSection?.querySelector('.attendance-table-wrap');
+    const historyToggle = document.createElement('button');
+    historyToggle.className = 'attendance-history-toggle';
+    historyToggle.type = 'button';
+    historyToggle.setAttribute('aria-expanded', 'false');
+    historyToggle.setAttribute('aria-controls', 'attendanceRecordsPanel');
+    historyToggle.innerHTML = '<span class="attendance-history-toggle-copy"><strong><i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Attendance History</strong><small>Search, filter, edit, print, or download past records.</small></span><i class="fas fa-chevron-down" aria-hidden="true"></i>';
+    historyRecordsSection?.before(historyToggle);
+    if (historyRecordsSection) {
+        historyRecordsSection.id = 'attendanceRecordsPanel';
+        historyRecordsSection.classList.add('hidden');
+    }
     const historyFilters = document.createElement('div');
     historyFilters.className = 'attendance-history-filters';
-    historyFilters.innerHTML = `<label>Month<input type="month" data-att-history-month></label><label>Member type<select data-att-history-type><option value="">All types</option><option>Students</option><option>Teachers</option><option>Staff</option></select></label><label>Class / department<select data-att-history-class><option value="">All classes</option></select></label><label>Section<select data-att-history-section><option value="">All sections</option></select></label>`;
-    historyTableWrap?.before(historyFilters);
+    historyFilters.innerHTML = `<input type="month" aria-label="Filter attendance by month" data-att-history-month><select aria-label="Filter attendance by member type" data-att-history-type><option value="">All types</option><option>Students</option><option>Teachers</option><option>Staff</option></select><select aria-label="Filter attendance by class or department" data-att-history-class><option value="">All classes</option></select><select aria-label="Filter attendance by section" data-att-history-section><option value="">All sections</option></select>`;
+    const historyToolbar = historyRecordsSection?.querySelector('.attendance-tools');
+    const historyActions = document.createElement('div');
+    historyActions.className = 'attendance-history-actions';
+    const printAttendanceButton = historyToolbar?.querySelector('[data-att-print]');
+    const exportAttendanceButton = historyToolbar?.querySelector('[data-att-export]');
+    if (printAttendanceButton) historyActions.append(printAttendanceButton);
+    if (exportAttendanceButton) historyActions.append(exportAttendanceButton);
+    historyToolbar?.append(historyFilters, historyActions);
     const historyPagination = document.createElement('div');
     historyPagination.className = 'attendance-history-pagination';
     historyPagination.innerHTML = `<span data-att-history-count></span><div><button type="button" class="attendance-btn attendance-btn-light" data-att-history-prev aria-label="Previous page" title="Previous page"><i class="fas fa-chevron-left" aria-hidden="true"></i></button><span data-att-history-page></span><button type="button" class="attendance-btn attendance-btn-light" data-att-history-next aria-label="Next page" title="Next page"><i class="fas fa-chevron-right" aria-hidden="true"></i></button></div>`;
@@ -26,7 +44,13 @@ function createAttendanceModule(category) {
     const register = document.createElement('section');
     register.className = 'attendance-panel attendance-register';
     register.innerHTML = `<div class="attendance-register-heading"><div><h3>Monthly Register</h3><p>View and update attendance one month at a time.</p></div><strong data-att-register-count></strong></div><div class="attendance-register-filters"><label>Month<input type="month" data-att-register-month></label><label>Member type<select data-att-register-type><option value="">All types</option><option>Students</option><option>Teachers</option><option>Staff</option></select></label><label>Class / department<select data-att-register-class><option value="">All classes</option></select></label><label>Section<select data-att-register-section><option value="">All sections</option></select></label><label>Status<select data-att-register-status><option value="">All statuses</option><option>Present</option><option>Absent</option><option>Late</option><option>Excused</option></select></label><label>Find member<input type="search" placeholder="Name or member ID" data-att-register-search></label></div><div class="attendance-register-wrap"><table><thead data-att-register-head></thead><tbody data-att-register-table></tbody></table></div><p class="attendance-register-legend"><span class="present">P Present</span><span class="absent">A Absent</span><span class="late">L Late</span><span class="excused">E Excused</span><span>— Not marked</span></p>`;
+    const registerPagination = document.createElement('div');
+    registerPagination.className = 'attendance-register-pagination';
+    registerPagination.innerHTML = `<span data-att-register-page-count></span><div><button type="button" class="attendance-btn attendance-btn-light" data-att-register-prev aria-label="Previous page" title="Previous page"><i class="fas fa-chevron-left" aria-hidden="true"></i></button><span data-att-register-page></span><button type="button" class="attendance-btn attendance-btn-light" data-att-register-next aria-label="Next page" title="Next page"><i class="fas fa-chevron-right" aria-hidden="true"></i></button></div>`;
+    register.querySelector('.attendance-register-wrap')?.after(registerPagination);
     sec.querySelector('.attendance-stats')?.after(register);
+    let registerPage = 0;
+    const registerPageSize = 20;
     let allRosterMembers = [];
     let rosterReady = false;
     let rosterSubscriptions = [];
@@ -263,6 +287,9 @@ function createAttendanceModule(category) {
                 && record.memberType === member.type && record.status === statusFilter)) return false;
             return true;
         });
+        const pageCount = Math.max(1, Math.ceil(visibleMembers.length / registerPageSize));
+        registerPage = Math.min(registerPage, pageCount - 1);
+        const pageMembers = visibleMembers.slice(registerPage * registerPageSize, (registerPage + 1) * registerPageSize);
         const dateKeys = Array.from({ length: dayCount }, (_, index) => {
             const date = new Date(year, monthNumber - 1, index + 1);
             return `${year}-${String(monthNumber).padStart(2, '0')}-${String(index + 1).padStart(2, '0')}`;
@@ -275,7 +302,7 @@ function createAttendanceModule(category) {
         const getRecord = (member, date) => visibleAttendanceRecords().find(record => record.date === date
             && String(record.memberId || record.studentId || '') === member.id
             && (!record.memberType || record.memberType === member.type));
-        register.querySelector('[data-att-register-table]').innerHTML = visibleMembers.map(member => `<tr><th class="attendance-register-member"><strong>${escape(member.name)}</strong></th><td class="attendance-register-id">${escape(member.displayId)}</td><td class="attendance-register-type">${escape(member.type)}</td>${dateKeys.map((date, index) => {
+        register.querySelector('[data-att-register-table]').innerHTML = pageMembers.map(member => `<tr><th class="attendance-register-member"><strong>${escape(member.name)}</strong></th><td class="attendance-register-id">${escape(member.displayId)}</td><td class="attendance-register-type">${escape(member.type)}</td>${dateKeys.map((date, index) => {
             const record = getRecord(member, date);
             const status = record?.status || '';
             const statusClass = status ? `status-${status.toLowerCase()}` : 'status-empty';
@@ -288,6 +315,10 @@ function createAttendanceModule(category) {
             String(record.memberId || record.studentId || '') === member.id
             && (!record.memberType || record.memberType === member.type))).length;
         register.querySelector('[data-att-register-count]').textContent = `${visibleMembers.length} members · ${markedCount} marked days`;
+        registerPagination.querySelector('[data-att-register-page-count]').textContent = `${visibleMembers.length} members`;
+        registerPagination.querySelector('[data-att-register-page]').textContent = `Page ${registerPage + 1} of ${pageCount}`;
+        registerPagination.querySelector('[data-att-register-prev]').disabled = registerPage === 0;
+        registerPagination.querySelector('[data-att-register-next]').disabled = registerPage >= pageCount - 1;
         if (!visibleMembers.length) {
             register.querySelector('[data-att-register-table]').innerHTML = `<tr><td colspan="${dayCount + 3}" class="attendance-register-empty">${allRosterMembers.length ? 'No members match these filters.' : 'No roster members are available.'}</td></tr>`;
         }
@@ -341,6 +372,12 @@ function createAttendanceModule(category) {
     };
     register.querySelector('[data-att-register-month]').value = today().slice(0, 7);
     syncRegisterRosterFilters();
+    historyToggle.addEventListener('click', () => {
+        const expanded = historyRecordsSection.classList.toggle('hidden') === false;
+        historyToggle.setAttribute('aria-expanded', String(expanded));
+        historyToggle.querySelector(':scope > i')?.classList.toggle('fa-chevron-up', expanded);
+        historyToggle.querySelector(':scope > i')?.classList.toggle('fa-chevron-down', !expanded);
+    });
     historyFilters.addEventListener('input', () => {
         historyPage = 0;
         render();
@@ -360,9 +397,23 @@ function createAttendanceModule(category) {
         render();
     });
     register.addEventListener('input', event => {
-        if (event.target.matches('[data-att-register-search]')) renderRegister();
+        if (event.target.matches('[data-att-register-search]')) {
+            registerPage = 0;
+            renderRegister();
+        }
     });
-    register.addEventListener('change', renderRegister);
+    register.addEventListener('change', () => {
+        registerPage = 0;
+        renderRegister();
+    });
+    registerPagination.querySelector('[data-att-register-prev]').addEventListener('click', () => {
+        registerPage = Math.max(0, registerPage - 1);
+        renderRegister();
+    });
+    registerPagination.querySelector('[data-att-register-next]').addEventListener('click', () => {
+        registerPage += 1;
+        renderRegister();
+    });
     register.addEventListener('click', async event => {
         const button = event.target.closest('[data-register-date]');
         if (!button) return;

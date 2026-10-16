@@ -496,6 +496,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const isOpen = Boolean(config);
         [
             container.querySelector('.parent-portal-overview'),
+            container.querySelector('.parent-attendance-panel'),
+            container.querySelector('[data-parent-attendance-calendar-section]'),
             container.querySelector('.parent-records-section'),
             container.querySelector('.parent-id-cards-section'),
             container.querySelector('.parent-certificates-section'),
@@ -1651,6 +1653,82 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `<div class="parent-attendance-month"><span>${month.label}</span><div class="parent-attendance-track" aria-hidden="true">${segments || '<span class="parent-attendance-empty-track"></span>'}</div><strong>${total || '—'}</strong></div>`;
                 }).join('');
             }
+        }
+        const attendanceCalendar = container.querySelector('[data-parent-attendance-calendar]');
+        const attendanceCalendarMonth = container.querySelector('[data-parent-attendance-calendar-month-filter]');
+        const attendanceCalendarStatus = container.querySelector('[data-parent-attendance-calendar-status]');
+        const attendanceCalendarTitle = container.querySelector('[data-parent-attendance-calendar-month]');
+        const attendanceCalendarMessage = container.querySelector('[data-parent-attendance-calendar-message]');
+        if (attendanceCalendar && attendanceCalendarMonth && attendanceCalendarStatus) {
+            if (!attendanceCalendarMonth.value) {
+                attendanceCalendarMonth.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            }
+            const renderAttendanceCalendar = () => {
+                const [year, monthNumber] = attendanceCalendarMonth.value.split('-').map(Number);
+                if (!year || !monthNumber) return;
+                const monthStart = new Date(year, monthNumber - 1, 1);
+                const dayCount = new Date(year, monthNumber, 0).getDate();
+                const mondayOffset = (monthStart.getDay() + 6) % 7;
+                const statusFilter = attendanceCalendarStatus.value;
+                if (attendanceCalendarTitle) {
+                    attendanceCalendarTitle.textContent = monthStart.toLocaleDateString(undefined, {
+                        month: 'long', year: 'numeric'
+                    });
+                }
+                const statusLabels = {
+                    present: 'Present',
+                    late: 'Late',
+                    absent: 'Absent',
+                    excused: 'Excused'
+                };
+                const statusMarks = { present: 'P', late: 'L', absent: 'A', excused: 'E' };
+                const cards = Array.from({ length: mondayOffset }, () =>
+                    '<span class="parent-attendance-calendar-blank" aria-hidden="true"></span>');
+                for (let day = 1; day <= dayCount; day += 1) {
+                    const date = new Date(year, monthNumber - 1, day);
+                    const dateKey = dashboardDateKey(date);
+                    const dayRecords = attendanceDashboardRecords.filter(record => {
+                        const recordDate = dateFromRecord(record, ['attendanceDate', 'date', 'day']);
+                        return recordDate && dashboardDateKey(recordDate) === dateKey;
+                    });
+                    const matchedRecords = statusFilter === 'all'
+                        ? dayRecords
+                        : dayRecords.filter(record => attendanceStatusFor(record) === statusFilter);
+                    const counts = Object.fromEntries(Object.keys(statusLabels).map(status => [status,
+                        matchedRecords.filter(record => attendanceStatusFor(record) === status).length
+                    ]));
+                    const statuses = Object.entries(counts).filter(([, count]) => count > 0);
+                    const statusMarkup = statuses.length
+                        ? statuses.map(([status, count]) => `<span class="parent-attendance-day-status ${status}" title="${statusLabels[status]}: ${count}">${statusFilter === 'all' && selectedChild === 'all' ? `${statusMarks[status]} ${count}` : statusLabels[status]}</span>`).join('')
+                        : `<small class="parent-attendance-day-empty">${dayRecords.length ? 'No matching status' : 'No record'}</small>`;
+                    const weekday = date.toLocaleDateString(undefined, { weekday: 'short' });
+                    cards.push(`<article class="parent-attendance-day-card${statuses.length ? ' has-records' : ''}" role="listitem" aria-label="${dashboardEscape(`${weekday}, ${date.toLocaleDateString()}${statuses.length ? `: ${statuses.map(([status, count]) => `${statusLabels[status]} ${count}`).join(', ')}` : ': no matching attendance record'}`)}"><span class="parent-attendance-day-heading"><small>${weekday}</small><strong>${day}</strong></span><span class="parent-attendance-day-statuses">${statusMarkup}</span></article>`);
+                }
+                attendanceCalendar.innerHTML = cards.join('');
+                attendanceCalendar.setAttribute('aria-label', `Attendance calendar for ${monthStart.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`);
+                const loaded = canViewAttendance
+                    ? parentPortalData.attendance.loaded
+                    : parentDashboardSummary.loaded;
+                const error = canViewAttendance
+                    ? parentPortalData.attendance.error && !parentPortalData.attendance.loaded
+                    : parentDashboardSummary.error;
+                if (attendanceCalendarMessage) {
+                    attendanceCalendarMessage.textContent = error
+                        ? 'Attendance details are unavailable right now.'
+                        : !loaded
+                            ? 'Loading attendance details…'
+                            : !attendanceDashboardRecords.some(record => {
+                                const recordDate = dateFromRecord(record, ['attendanceDate', 'date', 'day']);
+                                return recordDate && recordDate.getFullYear() === year
+                                    && recordDate.getMonth() === monthNumber - 1;
+                            })
+                                ? 'No attendance records for this month and student filter.'
+                                : '';
+                }
+            };
+            attendanceCalendarMonth.onchange = renderAttendanceCalendar;
+            attendanceCalendarStatus.onchange = renderAttendanceCalendar;
+            renderAttendanceCalendar();
         }
         updateDashboardActionAccess();
         const visibleFeatureCards = [...document.querySelectorAll('.parent-sidebar-navigation [data-parent-nav]')].some(button => {
