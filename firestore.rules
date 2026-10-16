@@ -81,7 +81,7 @@ service cloud.firestore {
       return collectionName in [
         'students', 'attendance', 'assessments', 'reportCards', 'fees',
         'feeInvoices', 'healthRecords', 'libraryLoans', 'disciplineCases',
-        'certificates', 'idCards', 'transcripts', 'unebExams'
+        'idCards', 'transcripts', 'unebExams'
       ];
     }
 

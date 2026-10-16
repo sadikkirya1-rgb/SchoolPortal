@@ -664,9 +664,15 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
     const certificateQueries = [];
     if (studentIds.length) {
         certificateQueries.push(certificatesRef.where('data.studentId', 'in', studentIds).get());
+        certificateQueries.push(certificatesRef.where('data.memberRecordId', 'in', studentIds).get());
+        certificateQueries.push(certificatesRef.where('data.studentRecordId', 'in', studentIds).get());
+        certificateQueries.push(certificatesRef.where('data.memberId', 'in', studentIds).get());
         certificateQueries.push(certificatesRef.where(FieldPath.documentId(), 'in', studentIds).get());
     }
     if (admissionNumbers.length) {
+        certificateQueries.push(certificatesRef.where('data.studentId', 'in', admissionNumbers).get());
+        certificateQueries.push(certificatesRef.where('data.memberRecordId', 'in', admissionNumbers).get());
+        certificateQueries.push(certificatesRef.where('data.studentRecordId', 'in', admissionNumbers).get());
         certificateQueries.push(certificatesRef.where('data.memberId', 'in', admissionNumbers).get());
     }
     const certificateSnapshots = certificateQueries.length ? await Promise.all(certificateQueries) : [];
@@ -684,10 +690,15 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
             || !String(data.recipientName || '').trim()) {
             return [];
         }
-        const memberId = String(data.memberId || '').trim();
-        const linkedStudentId = String(data.studentId || data.memberRecordId || data.studentRecordId || '');
-        const linkedChild = children.find(child => child.id === linkedStudentId
-            || (child.admissionNo && child.admissionNo === memberId));
+        const studentIdentifiers = [
+            data.studentId,
+            data.memberRecordId,
+            data.studentRecordId,
+            data.memberId
+        ].map(value => String(value || '').trim()).filter(Boolean);
+        const linkedChild = children.find(child =>
+            studentIdentifiers.includes(child.id)
+            || (child.admissionNo && studentIdentifiers.includes(child.admissionNo)));
         if (!linkedChild) return [];
         const certificate = { id: snapshot.id, studentId: linkedChild.id };
         [

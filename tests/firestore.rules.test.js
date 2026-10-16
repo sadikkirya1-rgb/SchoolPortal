@@ -263,6 +263,30 @@ test('school admins can sync representative academic, admissions, payroll, and f
     }
 });
 
+test('staff with certificate edit permission can create and update certificates', async () => {
+    await testEnvironment.withSecurityRulesDisabled(async context => {
+        await setDoc(doc(context.firestore(), 'schools/SCH-TEST/members/certificate-editor'), {
+            role: 'teacher',
+            status: 'active',
+            permissions: { certificates: { view: true, edit: true } }
+        });
+    });
+    const firestore = testEnvironment.authenticatedContext('certificate-editor').firestore();
+    const certificateRef = doc(firestore, 'schools/SCH-TEST/certificates/CERT-1');
+    await assertSucceeds(setDoc(certificateRef, {
+        data: { recipientName: 'A. Student', status: 'Draft' },
+        version: 1,
+        updatedBy: 'certificate-editor',
+        updatedAt: '2026-01-01T00:00:00.000Z'
+    }));
+    await assertSucceeds(updateDoc(certificateRef, {
+        data: { recipientName: 'A. Student', status: 'Published' },
+        version: 2,
+        updatedBy: 'certificate-editor',
+        updatedAt: '2026-01-02T00:00:00.000Z'
+    }));
+});
+
 test('school admins can read every collection used by legacy synchronization', async () => {
     const firestore = administratorContext().firestore();
     const collectionNames = [

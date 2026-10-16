@@ -36,7 +36,7 @@ const allowedCollections = new Set([
 const personalRecordCollections = new Set([
     'students', 'attendance', 'assessments', 'reportCards', 'fees',
     'feeInvoices', 'healthRecords', 'libraryLoans', 'disciplineCases',
-    'certificates', 'idCards', 'transcripts', 'unebExams'
+    'idCards', 'transcripts', 'unebExams'
 ]);
 const legacyDataCollections = new Map([
     ['school_teachers', 'teachers'], ['school_staff', 'staff'], ['school_staff_directory', 'staffDirectory'],
@@ -276,6 +276,7 @@ async function syncOutbox() {
             }
             if (failed) break;
         }
+        if (!failed) cloudWriteErrors = 0;
     } finally {
         syncRunning = false;
         const activeIdentity = identity;
