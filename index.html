@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2563eb">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -252,6 +252,7 @@ if ('serviceWorker' in navigator) {
                 <p class="reference-login-message" id="referenceSchoolMessage" role="status" aria-live="polite"></p>
             </div>
             <div class="reference-user-login hidden" id="referenceUserLogin" aria-hidden="true">
+                <button class="reference-back-school" id="referenceBackToSchool" type="button"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to School ID</button>
                 <div class="reference-school-identity" id="referenceSchoolIdentity" aria-live="polite">
                     <span class="reference-school-logo-fallback" id="referenceSchoolLogoFallback" aria-hidden="true"><i class="fa-solid fa-school"></i></span>
                     <img class="reference-school-logo hidden" id="referenceSchoolLogo" alt="">
@@ -278,8 +279,6 @@ if ('serviceWorker' in navigator) {
                     <button class="reference-text-button" type="button" id="referenceForgotPassword">Need help?</button>
                 </div>
                 <button class="reference-sign-in" type="submit">Sign In <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
-                <div class="reference-or"><span>Or continue with</span></div>
-                <p class="firebase-setup-notice" id="firebaseSetupMessage" role="status" aria-live="polite"></p>
             </div>
             <p class="reference-login-message" id="referenceLoginMessage" role="status" aria-live="polite"></p>
             <p class="reference-contact">Don't have an account? <button class="reference-text-button" id="referenceContactAdmin" type="button">Contact your school administrator</button></p>

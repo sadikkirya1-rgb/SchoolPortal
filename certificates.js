@@ -4,6 +4,7 @@ window.createCertificateSheetPreview = record => {
     const template = document.createElement('template');
     template.innerHTML = certificateSheetMarkup;
     const sheet = template.content.firstElementChild;
+    sheet.classList.toggle('is-portrait', String(record.orientation || '').toLowerCase() === 'portrait');
     const setText = (selector, value) => {
         const element = sheet.querySelector(selector);
         if (element) element.textContent = value || '';

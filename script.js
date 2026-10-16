@@ -3013,7 +3013,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             console.error('Unable to restore Firebase session.', error);
-            const message = document.getElementById('firebaseSetupMessage');
+            const message = document.getElementById('referenceLoginMessage');
             if (message) message.textContent = 'Could not verify your saved school access. Check your connection and sign in again.';
         } finally {
             document.documentElement.classList.remove('session-restoring');
@@ -3142,6 +3142,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const referenceUsername = document.getElementById('referenceLoginUsername');
     const referencePassword = document.getElementById('referenceLoginPassword');
     const referenceUserLogin = document.getElementById('referenceUserLogin');
+    const referenceBackToSchool = document.getElementById('referenceBackToSchool');
     const referenceRemember = referenceLoginForm?.elements.namedItem('remember');
     const referenceMessage = document.getElementById('referenceLoginMessage');
     const referenceSchoolMessage = document.getElementById('referenceSchoolMessage');
@@ -3153,6 +3154,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (referenceLoginForm && referenceSchoolId && referenceSchoolInformation && referenceSchoolIdentity
         && referenceVerifiedSchoolName && referenceVerifiedSchoolId && referenceSchoolLogo
         && referenceSchoolLogoFallback && referenceUsername && referencePassword && referenceUserLogin
+        && referenceBackToSchool
         && referenceRemember instanceof HTMLInputElement) {
         const hideReferenceUserLogin = () => {
             referenceUserLogin.classList.add('hidden');
@@ -3162,10 +3164,30 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             showReferenceMessage('');
         };
+        const setReferenceSchoolIdentity = school => {
+            referenceVerifiedSchoolName.textContent = school.schoolName || 'School';
+            referenceVerifiedSchoolId.textContent = school.id;
+            if (school.logoURL) {
+                referenceSchoolLogo.src = school.logoURL;
+                referenceSchoolLogo.alt = `${school.schoolName || 'School'} logo`;
+                referenceSchoolLogo.classList.remove('hidden');
+                referenceSchoolLogoFallback.classList.add('hidden');
+                referenceSchoolLogo.onerror = () => {
+                    referenceSchoolLogo.classList.add('hidden');
+                    referenceSchoolLogoFallback.classList.remove('hidden');
+                };
+            } else {
+                referenceSchoolLogo.removeAttribute('src');
+                referenceSchoolLogo.classList.add('hidden');
+                referenceSchoolLogoFallback.classList.remove('hidden');
+            }
+        };
         resetReferenceLogin = () => {
             currentSchool = null;
             schoolIdInput.value = '';
             referenceSchoolId.value = '';
+            referenceSchoolId.disabled = false;
+            referenceSchoolId.required = true;
             referenceUsername.value = '';
             referencePassword.value = '';
             referencePassword.type = 'password';
@@ -3183,6 +3205,8 @@ document.addEventListener('DOMContentLoaded', () => {
             referenceLoginForm.classList.remove('hidden');
         };
         const revealReferenceUserLogin = () => {
+            referenceSchoolId.disabled = true;
+            referenceSchoolId.required = false;
             referenceSchoolInformation.classList.add('hidden');
             referenceSchoolIdentity.classList.remove('hidden');
             referenceUserLogin.classList.remove('hidden');
@@ -3206,28 +3230,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentSchool = school;
                 schoolIdInput.value = school.id;
                 referenceSchoolId.value = school.id;
-                referenceVerifiedSchoolName.textContent = school.schoolName;
-                referenceVerifiedSchoolId.textContent = school.id;
-                if (school.logoURL) {
-                    referenceSchoolLogo.src = school.logoURL;
-                    referenceSchoolLogo.alt = `${school.schoolName} logo`;
-                    referenceSchoolLogo.classList.remove('hidden');
-                    referenceSchoolLogoFallback.classList.add('hidden');
-                    referenceSchoolLogo.onerror = () => {
-                        referenceSchoolLogo.classList.add('hidden');
-                        referenceSchoolLogoFallback.classList.remove('hidden');
-                    };
-                } else {
-                    referenceSchoolLogo.removeAttribute('src');
-                    referenceSchoolLogo.classList.add('hidden');
-                    referenceSchoolLogoFallback.classList.remove('hidden');
-                }
-                saveSession({ schoolId: school.id, step: 1, authenticated: false });
+                setReferenceSchoolIdentity(school);
+                saveSession({
+                    schoolId: school.id,
+                    schoolName: school.schoolName,
+                    logoURL: school.logoURL || '',
+                    step: 1,
+                    authenticated: false
+                });
                 referenceSchoolMessage.textContent = '';
+                showReferenceMessage('');
                 revealReferenceUserLogin();
                 return true;
             } catch (error) {
-                referenceSchoolMessage.textContent = error.message || 'Unable to verify school information.';
+                const message = error.message || 'Unable to verify school information.';
+                if (referenceUserLogin.classList.contains('hidden')) referenceSchoolMessage.textContent = message;
+                else showReferenceMessage(message);
                 return;
             } finally {
                 continueButton.disabled = false;
@@ -3235,6 +3253,20 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         hideReferenceUserLogin();
         document.getElementById('referenceSchoolContinue')?.addEventListener('click', verifyReferenceSchool);
+        referenceBackToSchool.addEventListener('click', () => {
+            clearSession();
+            currentSchool = null;
+            referenceSchoolId.disabled = false;
+            referenceSchoolId.required = true;
+            referenceUsername.value = '';
+            referencePassword.value = '';
+            referencePassword.type = 'password';
+            referenceSchoolIdentity.classList.add('hidden');
+            referenceSchoolInformation.classList.remove('hidden');
+            hideReferenceUserLogin();
+            referenceSchoolMessage.textContent = '';
+            referenceSchoolId.focus();
+        });
         referenceSchoolId.addEventListener('keydown', event => {
             if (event.key === 'Enter') {
                 event.preventDefault();
@@ -3246,19 +3278,28 @@ document.addEventListener('DOMContentLoaded', () => {
             referenceSchoolIdentity.classList.add('hidden');
             referenceSchoolMessage.textContent = '';
         });
+        const savedSchoolSession = loadSession();
         const linkedSchoolId = new URLSearchParams(window.location.search).get('schoolId');
-        if (linkedSchoolId) {
+        if (linkedSchoolId && !savedSchoolSession?.authenticated) {
             referenceSchoolId.value = normalizeSchoolId(linkedSchoolId);
-            if (!loadSession()?.authenticated) {
-                const verifyLinkedSchool = () => {
-                    verifyReferenceSchool();
-                };
-                if (window.schoolPortalFirebase) {
-                    verifyLinkedSchool();
-                } else {
-                    window.addEventListener('school-portal-firebase-ready', verifyLinkedSchool, { once: true });
-                }
+            const verifyRestoredSchool = () => {
+                verifyReferenceSchool();
+            };
+            if (window.schoolPortalFirebase) {
+                verifyRestoredSchool();
+            } else {
+                window.addEventListener('school-portal-firebase-ready', verifyRestoredSchool, { once: true });
             }
+        } else if (savedSchoolSession?.schoolId && savedSchoolSession.step === 1 && !savedSchoolSession.authenticated) {
+            referenceSchoolId.value = normalizeSchoolId(savedSchoolSession.schoolId);
+            setReferenceSchoolIdentity({
+                id: referenceSchoolId.value,
+                schoolName: savedSchoolSession.schoolName,
+                logoURL: savedSchoolSession.logoURL
+            });
+            referenceSchoolInformation.classList.add('hidden');
+            referenceSchoolIdentity.classList.remove('hidden');
+            revealReferenceUserLogin();
         }
 
         try {
@@ -3308,20 +3349,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.warn('Unable to save the remembered email address.', error);
             }
         });
-    }
-
-    const firebaseSetupMessage = document.getElementById('firebaseSetupMessage');
-    if (firebaseSetupMessage) {
-        firebaseSetupMessage.textContent = window.schoolPortalFirebase
-            ? 'Connected to Firebase. Your school and account must be provisioned before sign-in.'
-            : 'Loading Firebase services…';
-        window.addEventListener('school-portal-firebase-ready', () => {
-            firebaseSetupMessage.textContent = 'Connected to Firebase. Your school and account must be provisioned before sign-in.';
-        }, { once: true });
-        window.addEventListener('school-portal-firebase-error', event => {
-            console.error('Firebase client initialization failed.', event.detail);
-            firebaseSetupMessage.textContent = 'Firebase could not initialize. Check your network and Firebase project settings.';
-        }, { once: true });
     }
 
     restoreSession();
