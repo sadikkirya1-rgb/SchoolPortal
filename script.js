@@ -1699,8 +1699,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     ]));
                     const statuses = Object.entries(counts).filter(([, count]) => count > 0);
                     const statusMarkup = statuses.length && statusFilter !== 'no-record'
-                        ? statuses.map(([status, count]) => `<span class="parent-attendance-day-status ${status}" title="${statusLabels[status]}: ${count}">${statusFilter === 'all' && selectedChild === 'all' ? `${statusMarks[status]} ${count}` : statusLabels[status]}</span>`).join('')
-                        : `<small class="parent-attendance-day-empty">${dayRecords.length ? 'No matching status' : 'No record'}</small>`;
+                        ? statuses.map(([status, count]) => `<span class="parent-attendance-day-status ${status}" title="${statusLabels[status]}: ${count}">${statusFilter === 'all' && selectedChild === 'all' ? `${statusMarks[status]} ${count}` : statusLabels[status].slice(0, 4)}</span>`).join('')
+                        : `<small class="parent-attendance-day-empty">${dayRecords.length ? 'No matching status' : 'No Re'}</small>`;
                     const weekday = date.toLocaleDateString(undefined, { weekday: 'short' });
                     cards.push(`<article class="parent-attendance-day-card${statuses.length ? ' has-records' : ''}" role="listitem" aria-label="${dashboardEscape(`${weekday}, ${date.toLocaleDateString()}${statuses.length ? `: ${statuses.map(([status, count]) => `${statusLabels[status]} ${count}`).join(', ')}` : ': no matching attendance record'}`)}"><span class="parent-attendance-day-heading"><small>${weekday}</small><strong>${day}</strong></span><span class="parent-attendance-day-statuses">${statusMarkup}</span></article>`);
                 }
