@@ -16,7 +16,7 @@ const messaging = getMessaging();
 const backupAuth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
 const privilegedRoles = new Set(['schoolAdmin', 'superAdmin', 'director', 'headTeacher']);
 const linkedRecordCollections = new Set([
-    'students', 'attendance', 'assessments', 'reportCards', 'fees',
+    'students', 'attendance', 'assessments', 'reportCards', 'examResults', 'fees',
     'feeInvoices', 'healthRecords', 'libraryLoans', 'disciplineCases',
     'certificates', 'idCards', 'transcripts', 'unebExams'
 ]);
@@ -37,19 +37,19 @@ const roleAliases = {
     headteacher: 'headTeacher'
 };
 const rolePermissions = {
-    deputyHeadTeacher: ['students', 'parents', 'staff', 'teachers', 'classes', 'subjects', 'attendance', 'assessments', 'reportCards', 'timetables', 'notices', 'announcements', 'smsMessages', 'notifications', 'studyMaterials', 'quizzes', 'libraryBooks', 'libraryLoans', 'disciplineCases', 'clubs', 'healthRecords', 'transportRoutes', 'curriculum', 'streams', 'lessonPlans', 'schemesOfWork', 'admissions', 'applications', 'interviews', 'admissionLetters', 'waitingList', 'studentTransfers', 'enquiries', 'visitors', 'visitorLogs', 'appointments', 'incomingMail', 'followUps', 'dispatches', 'callLogs', 'calendarEvents'],
+    deputyHeadTeacher: ['students', 'parents', 'staff', 'teachers', 'classes', 'subjects', 'attendance', 'assessments', 'reportCards', 'examResults', 'timetables', 'notices', 'announcements', 'smsMessages', 'notifications', 'studyMaterials', 'quizzes', 'libraryBooks', 'libraryLoans', 'disciplineCases', 'clubs', 'healthRecords', 'transportRoutes', 'curriculum', 'streams', 'lessonPlans', 'schemesOfWork', 'admissions', 'applications', 'interviews', 'admissionLetters', 'waitingList', 'studentTransfers', 'enquiries', 'visitors', 'visitorLogs', 'appointments', 'incomingMail', 'followUps', 'dispatches', 'callLogs', 'calendarEvents'],
     bursar: ['students', 'parents', 'fees', 'feeInvoices', 'expenses', 'notices', 'payroll', 'paySlips', 'statutoryReturns', 'payrollReports', 'purchaseRequests', 'purchaseComparisons', 'quotations', 'purchaseOrders', 'goodsReceipts', 'supplierInvoices', 'suppliers'],
-    teacher: ['students', 'classes', 'subjects', 'attendance', 'assessments', 'reportCards', 'timetables', 'notices', 'announcements', 'studyMaterials', 'quizzes', 'libraryBooks', 'libraryLoans', 'disciplineCases', 'clubs', 'curriculum', 'lessonPlans', 'schemesOfWork', 'sportsActivities'],
+    teacher: ['students', 'classes', 'subjects', 'attendance', 'assessments', 'reportCards', 'examResults', 'timetables', 'notices', 'announcements', 'studyMaterials', 'quizzes', 'libraryBooks', 'libraryLoans', 'disciplineCases', 'clubs', 'curriculum', 'lessonPlans', 'schemesOfWork', 'sportsActivities'],
     librarian: ['students', 'classes', 'libraryBooks', 'libraryLoans', 'notices'],
     hrOfficer: ['staff', 'staffDirectory', 'teachers', 'staffAttendance', 'leaveRequests', 'recruitment', 'notices'],
     storeManager: ['inventory', 'assets', 'suppliers', 'purchaseOrders', 'purchaseRequests', 'purchaseComparisons', 'quotations', 'goodsReceipts', 'supplierInvoices', 'maintenanceWorkOrders', 'notices'],
-    parent: ['students', 'attendance', 'assessments', 'reportCards', 'fees', 'notices'],
-    student: ['students', 'attendance', 'assessments', 'reportCards', 'timetables', 'notices', 'studyMaterials', 'quizzes', 'libraryLoans']
+    parent: ['students', 'attendance', 'assessments', 'reportCards', 'examResults', 'fees', 'notices'],
+    student: ['students', 'attendance', 'assessments', 'reportCards', 'examResults', 'timetables', 'notices', 'studyMaterials', 'quizzes', 'libraryLoans']
 };
 const editableCollections = {
-    deputyHeadTeacher: ['attendance', 'assessments', 'disciplineCases', 'clubs', 'healthRecords', 'transportRoutes', 'admissions', 'applications', 'interviews', 'admissionLetters', 'waitingList', 'studentTransfers', 'enquiries', 'visitors', 'visitorLogs', 'appointments', 'incomingMail', 'followUps', 'dispatches', 'callLogs', 'calendarEvents'],
+    deputyHeadTeacher: ['attendance', 'assessments', 'reportCards', 'examResults', 'disciplineCases', 'clubs', 'healthRecords', 'transportRoutes', 'admissions', 'applications', 'interviews', 'admissionLetters', 'waitingList', 'studentTransfers', 'enquiries', 'visitors', 'visitorLogs', 'appointments', 'incomingMail', 'followUps', 'dispatches', 'callLogs', 'calendarEvents'],
     bursar: ['fees', 'feeInvoices', 'expenses', 'payroll', 'paySlips', 'statutoryReturns', 'payrollReports', 'purchaseRequests', 'purchaseComparisons', 'quotations', 'purchaseOrders', 'goodsReceipts', 'supplierInvoices'],
-    teacher: ['attendance', 'assessments', 'studyMaterials', 'quizzes', 'disciplineCases', 'clubs', 'lessonPlans', 'schemesOfWork', 'sportsActivities'],
+    teacher: ['attendance', 'assessments', 'reportCards', 'examResults', 'studyMaterials', 'quizzes', 'disciplineCases', 'clubs', 'lessonPlans', 'schemesOfWork', 'sportsActivities'],
     librarian: ['libraryBooks', 'libraryLoans'],
     hrOfficer: ['staff', 'staffDirectory', 'teachers', 'staffAttendance', 'leaveRequests', 'recruitment'],
     storeManager: ['inventory', 'assets', 'purchaseOrders', 'purchaseRequests', 'quotations', 'goodsReceipts', 'supplierInvoices', 'maintenanceWorkOrders']
@@ -577,6 +577,8 @@ exports.getLinkedSchoolRecords = onCall(async request => {
     return {
         records: documents
             .filter(snapshot => snapshot.data().data?.deleted !== true)
+            .filter(snapshot => collectionName !== 'examResults'
+                || isPublishedRecord(snapshot.data().data || {}))
             .map(snapshot => {
                 const data = snapshot.data().data || {};
                 const linkedChild = collectionName === 'attendance'
@@ -741,6 +743,7 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
     const summaryFields = {
         attendance: ['studentId', 'memberId', 'status', 'attendanceStatus', 'attendanceDate', 'date', 'day'],
         reportCards: ['reportName', 'title', 'name', 'period', 'academicPeriod', 'term', 'year', 'average', 'percentage', 'averagePercentage', 'grade', 'overallGrade', 'status', 'publicationStatus', 'isPublished', 'published', 'visibility', 'publishedAt', 'publicationDate', 'date'],
+        examResults: ['studentId', 'studentName', 'studentAdmissionNo', 'classId', 'className', 'section', 'subjectId', 'subjectName', 'assessmentId', 'assessmentName', 'assessmentType', 'assessmentDate', 'period', 'year', 'maxMarks', 'obtainedMarks', 'percentage', 'remarks', 'status', 'publicationStatus', 'isPublished', 'published', 'publishedAt', 'visibility'],
         assessments: ['title', 'name', 'assessmentName', 'subjectName', 'subject', 'type', 'assessmentType', 'category', 'dueDate', 'deadline', 'date', 'status', 'publicationStatus', 'isPublished', 'published', 'visibility'],
         fees: ['feeName', 'feeType', 'name', 'dueDate', 'paymentDueDate', 'deadline', 'totalFee', 'totalAmount', 'amountDue', 'balance', 'balanceDue', 'amountPaid', 'paidAmount', 'amountCollected', 'status', 'receiptNo', 'receiptNumber', 'receiptId', 'paymentDate', 'paidDate', 'paymentMethod', 'academicYear', 'schoolName']
     };
@@ -774,6 +777,11 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
                 const status = String(data.status || data.publicationStatus || '').trim().toLowerCase();
                 if (collectionName === 'reportCards') {
                     return (!status || ['published', 'released'].includes(status))
+                        && data.isPublished !== false
+                        && data.published !== false;
+                }
+                if (collectionName === 'examResults') {
+                    return ['published', 'released'].includes(status)
                         && data.isPublished !== false
                         && data.published !== false;
                 }
@@ -1521,7 +1529,7 @@ async function dispatchSchoolNotification(event, collectionName) {
         recipients = await resolvePushRecipients(schoolId, { studentIds });
         notification = { title: 'Attendance update', body: 'An attendance update is ready to review.' };
         route = 'Attendance';
-    } else if (collectionName === 'assessments' || collectionName === 'reportCards') {
+    } else if (collectionName === 'assessments' || collectionName === 'reportCards' || collectionName === 'examResults') {
         const classNames = [current.className || current.class || current.studentClass].filter(Boolean).map(String);
         if (!isPublishedRecord(current) || isPublishedRecord(previous)
             || (!classIds.length && !classNames.length && !studentIds.length)) return;
@@ -1562,9 +1570,14 @@ exports.notifyPublishedResults = onDocumentWritten(
     event => dispatchSchoolNotification(event, 'reportCards')
 );
 
+exports.notifyPublishedExamResults = onDocumentWritten(
+    'schools/{schoolId}/examResults/{recordId}',
+    event => dispatchSchoolNotification(event, 'examResults')
+);
+
 const auditedCollections = new Set([
     'students', 'parents', 'staff', 'classes', 'subjects', 'attendance',
-    'assessments', 'reportCards', 'fees', 'feeInvoices', 'expenses', 'timetables',
+    'assessments', 'reportCards', 'examResults', 'fees', 'feeInvoices', 'expenses', 'timetables',
     'notices', 'smsAlerts', 'libraryBooks', 'libraryLoans', 'healthRecords',
     'transportRoutes', 'disciplineCases', 'clubs', 'studyMaterials', 'quizzes',
     'inventory', 'assets', 'visitors', 'appointments', 'staffAttendance',

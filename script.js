@@ -371,8 +371,8 @@ document.addEventListener('DOMContentLoaded', () => {
             && feePaidAmount(fee) >= billed
             && feeOutstandingAmount(fee) === 0;
     };
-    const parentPortalCollections = ['students', 'attendance', 'assessments', 'reportCards', 'fees', 'timetables', 'studyMaterials', 'notices'];
-    const parentPortalPersonalCollections = new Set(['students', 'attendance', 'assessments', 'reportCards', 'fees']);
+    const parentPortalCollections = ['students', 'attendance', 'assessments', 'reportCards', 'examResults', 'fees', 'timetables', 'studyMaterials', 'notices'];
+    const parentPortalPersonalCollections = new Set(['students', 'attendance', 'assessments', 'reportCards', 'examResults', 'fees']);
     const parentPortalData = Object.fromEntries(parentPortalCollections.map(collection => [
         collection,
         { loaded: false, records: [], error: false }
@@ -451,12 +451,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (row.isPublished === false || row.published === false || String(row.visibility || '').toLowerCase() === 'private') return [];
             const typeLabel = [row.assessmentType, row.examType, row.type, row.period, row.academicPeriod, row.term]
                 .filter(Boolean).join(' ').toLowerCase();
+            const explicitAssessmentType = [row.assessmentType, row.examType, row.type]
+                .filter(Boolean).join(' ').toLowerCase();
+            const isExam = explicitAssessmentType
+                ? /exam|term|semester|final/.test(explicitAssessmentType)
+                : /term|exam|semester|final|report/.test(typeLabel) || collection === 'reportCards';
             return [{
                 subject: String(subject),
                 maximum,
                 score,
                 percentage: Math.min(100, Math.max(0, percentage)),
-                type: /term|exam|semester|final|report/.test(typeLabel) || collection === 'reportCards' ? 'Term exam' : 'Test',
+                assessment: String(row.assessmentName || row.examName || row.testName || row.title || ''),
+                remarks: String(row.remarks || row.teacherRemarks || ''),
+                type: isExam ? 'Term exam' : 'Test',
                 date: row.assessmentDate || row.examDate || row.date || row.publishedAt || row.createdAt || '',
                 period: row.period || row.academicPeriod || row.term || '',
                 studentId: parentStudentId(record)
@@ -466,6 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const parentPortalViewConfig = {
         Students: { collection: 'students', title: 'My Children', description: 'Profiles linked to your parent account.', icon: 'fa-child' },
         'Report Cards': { collection: 'reportCards', title: 'Report Cards', description: 'Published academic results for linked students.', icon: 'fa-square-poll-vertical' },
+        'Exam Results': { collection: 'examResults', title: 'Exam & Test Results', description: 'Published exam and test marks for linked students.', icon: 'fa-clipboard-check' },
         Assignments: { collection: 'assessments', title: 'Assignments', description: 'Learning tasks and assessment details for the selected student.', icon: 'fa-book-open' },
         Timetables: { collection: 'timetables', title: 'Timetable', description: 'Class schedule associated with the selected student.', icon: 'fa-calendar-days' },
         'Study Materials': { collection: 'studyMaterials', title: 'Study Materials', description: 'Learning resources shared with the selected student or class.', icon: 'fa-folder-open' },
@@ -486,7 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (record.deleted === true || record.isPublished === false || record.published === false
             || String(record.visibility || '').toLowerCase() === 'private') return false;
         const status = String(record.status || record.publicationStatus || '').trim().toLowerCase();
-        if (collection === 'reportCards' && status && !['published', 'released'].includes(status)) return false;
+        if (['reportCards', 'examResults'].includes(collection) && status && !['published', 'released'].includes(status)) return false;
         return !['draft', 'archived', 'deleted', 'private'].includes(status);
     };
     function renderParentPortalDetailView(container, children, selectedChild, permissions, adminPreview) {
@@ -565,6 +573,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 ['Student', record => parentPortalRecordValue(record, ['studentName', 'student', 'fullName']) || matchedChildren.find(child => parentPortalMatchesStudentContext(record, config.collection, child))?.fullName || matchedChildren[0]?.fullName || matchedChildren[0]?.name || 'Student'],
                 ['Period', record => parentPortalRecordValue(record, ['period', 'academicPeriod', 'term', 'year']) || '—'],
                 ['Average', record => parentPortalRecordValue(record, ['average', 'percentage', 'averagePercentage']) || '—'],
+                ['Subject results', record => (Array.isArray(record.subjectResults) ? record.subjectResults : [])
+                    .map(result => `${result.assessmentName || 'Assessment'} · ${result.subjectName || result.subject || 'Subject'}: ${result.obtainedMarks ?? result.score ?? '—'}/${result.maxMarks ?? result.maximumMarks ?? '—'} (${Number(result.percentage ?? 0).toFixed(1)}%)`)
+                    .join(' | ') || '—'],
                 ['Grade', record => parentPortalRecordValue(record, ['grade', 'overallGrade']) || '—'],
                 ['Status', record => parentPortalRecordValue(record, ['status', 'publicationStatus']) || 'Published']
             ],
@@ -1721,7 +1732,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedStudent = children.find(child => parentStudentRecordId(child) === selectedChild);
         if (resultsSection && canViewChildren && canViewResults && parentPortalData.students.loaded && children.length) {
             const childById = new Map(children.map(child => [parentStudentRecordId(child), child]));
-            const allowedCollections = ['reportCards', 'assessments'].filter(collection =>
+            const allowedCollections = ['reportCards', 'examResults', 'assessments'].filter(collection =>
                 adminPreview || canViewParentPortalSection('reportCards')
                     && (permissions[collection]?.view === true
                         || activeAccountPermissions?.permissions?.[collection]?.view === true)
@@ -1767,8 +1778,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     : '<p class="parent-chart-empty">Published subject scores will appear here when available.</p>';
             }
             const rows = container.querySelector('[data-parent-results-rows]');
-            if (rows) rows.innerHTML = filteredRows.length ? filteredRows.map(result => `<tr><td data-label="Student">${dashboardEscape(result.student)}</td><td data-label="Subject"><strong>${dashboardEscape(result.subject)}</strong></td><td data-label="Type"><span class="parent-assessment-type ${result.type === 'Term exam' ? 'term' : 'test'}">${dashboardEscape(result.type)}</span></td><td data-label="Maximum">${result.maximum === null ? '—' : dashboardEscape(result.maximum)}</td><td data-label="Score">${result.score === null ? '—' : dashboardEscape(result.score)}</td><td data-label="Percentage"><strong>${result.percentage.toFixed(1)}%</strong></td></tr>`).join('')
-                : '<tr><td colspan="6" class="parent-results-empty-cell">No published subject-level scores are available for this selection.</td></tr>';
+            if (rows) rows.innerHTML = filteredRows.length ? filteredRows.map(result => `<tr><td data-label="Student">${dashboardEscape(result.student)}</td><td data-label="Subject"><strong>${dashboardEscape(result.subject)}</strong></td><td data-label="Exam / test">${dashboardEscape(result.assessment || '—')}</td><td data-label="Type"><span class="parent-assessment-type ${result.type === 'Term exam' ? 'term' : 'test'}">${dashboardEscape(result.type)}</span></td><td data-label="Date">${dashboardEscape(result.date || '—')}</td><td data-label="Maximum">${result.maximum === null ? '—' : dashboardEscape(result.maximum)}</td><td data-label="Score">${result.score === null ? '—' : dashboardEscape(result.score)}</td><td data-label="Percentage"><strong>${result.percentage.toFixed(1)}%</strong></td><td data-label="Teacher remarks">${dashboardEscape(result.remarks || '—')}</td></tr>`).join('')
+                : '<tr><td colspan="9" class="parent-results-empty-cell">No published subject-level scores are available for this selection.</td></tr>';
             const caption = container.querySelector('[data-parent-results-caption]');
             if (caption) caption.textContent = selectedChild === 'all'
                 ? 'Published scores across linked students'
@@ -4575,19 +4586,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function createReportCardsModule(category) {
         const sec = document.createElement('section');
+        const api = window.schoolPortalData;
         sec.className = 'module report-cards-module';
         sec.id = 'module_report_cards';
         sec.innerHTML = `
-            <div class="module-header report-cards-header"><div><h2>Report Cards</h2><p>Manage, generate and publish student report cards</p></div><div class="report-cards-user"><span>Administrator</span><small>Super Admin</small></div></div>
+            <div class="module-header report-cards-header"><div><h2>Report Cards</h2><p>After marking an exam or test, add a result for each subject, review the calculated percentages, then publish for linked parents and students.</p></div><div class="report-cards-user"><span>Administrator</span><small>Super Admin</small></div></div>
             <div class="report-cards-stats"><div><span>Total Report Cards</span><strong data-report-stat="total">0</strong><i class="fas fa-clipboard-list"></i></div><div><span>Published</span><strong data-report-stat="published">0</strong><i class="fas fa-check"></i></div><div><span>Generated</span><strong data-report-stat="generated">0</strong><i class="fas fa-bolt"></i></div><div><span>Draft</span><strong data-report-stat="draft">0</strong><i class="fas fa-pen"></i></div></div>
             <div class="report-cards-panel"><div class="report-cards-toolbar"><div><h3>Report Cards List</h3><p>Academic Year 2026/27</p></div><div class="report-cards-actions"><label class="report-search"><i class="fas fa-search"></i><input type="search" data-report-search placeholder="Search student or report no..."></label><button class="btn-secondary" type="button" data-report-filter><i class="fas fa-filter"></i> Filter</button><button class="btn-primary" type="button" data-report-new><i class="fas fa-plus"></i> New Report Card</button></div></div><div class="report-cards-table-wrap"><table><thead><tr><th>Report Card No.</th><th>Student</th><th>Class</th><th>Section</th><th>Academic Year</th><th>Period</th><th>Average</th><th>Grade</th><th>GPA</th><th>Attendance</th><th>Status</th><th>Generated</th><th>Actions</th></tr></thead><tbody data-report-table></tbody></table></div></div>
             <div class="report-card-modal hidden" data-report-modal><div class="report-card-dialog" role="dialog" aria-modal="true" aria-labelledby="report-card-form-title"><div class="report-card-dialog-header"><div><h3 id="report-card-form-title">Report Card Setup</h3><p>Configure report card information and display options</p></div><button class="icon-button" type="button" data-report-close aria-label="Close"><i class="fas fa-times"></i></button></div><form data-report-form><input type="hidden" name="editIndex"><div class="report-form-section"><h4>General Information</h4><div class="report-form-grid"><label>Report Card Name<input name="reportName" value="Student Academic Report Card" required></label><label>Academic Year<input name="year" value="2026/27" required></label><label>Academic Period<select name="period"><option>Term 1</option><option>Term 2</option><option>Term 3</option><option>Semester 1</option><option>Semester 2</option></select></label><label>Class / Grade<select name="class"><option>Grade 6</option><option>Grade 7</option><option selected>Grade 8</option><option>Grade 9</option><option>Grade 10</option><option>Grade 11</option><option>Grade 12</option></select></label><label>Section<select name="section"><option>A</option><option>B</option><option>C</option><option>D</option></select></label><label>Report Card Type<select name="reportType"><option>Standard</option><option>Detailed</option><option>Progress Report</option><option>Final Report</option></select></label><label>Grading System<select name="grading"><option>Percentage & Letter Grade</option><option>GPA 4.0 Scale</option><option>GPA 5.0 Scale</option><option>Custom School Grading</option></select></label><label>Status<select name="status"><option>Draft</option><option>Generated</option><option>Published</option><option>Archived</option></select></label></div></div><div class="report-form-section"><h4>Display Options</h4><div class="report-checkbox-grid">${['School Logo','Student Photo','Admission Number','Date of Birth','Class / Section','Attendance','Position / Rank','GPA','Overall Grade','Teacher Remarks','Principal Remarks','Parent Signature','Teacher Signature','Principal Signature'].map(label => `<label><input type="checkbox" checked> ${label}</label>`).join('')}</div></div><div class="report-form-section"><h4>Publication</h4><div class="report-form-grid"><label>Publication Status<select name="publication"><option>Draft</option><option>Generated</option><option>Published</option><option>Archived</option></select></label><label>Generated Date<input type="date" name="generatedDate"></label></div></div><div class="report-card-dialog-footer"><button class="btn-secondary" type="button" data-report-close>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Save Report Card</button></div></form></div></div>
             <div class="report-card-preview-modal hidden" data-report-preview><div class="report-card-preview"><div class="report-card-dialog-header"><div><h3>Report Card Preview</h3><p>Official student academic report</p></div><div><button class="btn-secondary" type="button" data-report-print><i class="fas fa-print"></i> Print</button><button class="icon-button" type="button" data-report-preview-close aria-label="Close"><i class="fas fa-times"></i></button></div></div><div class="report-preview-sheet" data-report-preview-sheet></div></div></div>`;
+        const reportRole = window.schoolPortalData?.getIdentity()?.role || 'Staff';
+        sec.querySelector('.report-cards-user span').textContent = reportRole.replace(/([a-z])([A-Z])/g, '$1 $2');
+        sec.querySelector('.report-cards-user small').textContent = 'Academic results access';
         const previewActions = sec.querySelector('[data-report-preview] .report-card-dialog-header > div:last-child');
         const previewCloseButton = sec.querySelector('[data-report-preview-close]');
         previewCloseButton.insertAdjacentHTML('beforebegin', '<button class="btn-primary" type="button" data-report-download><i class="fas fa-download"></i> Download</button>');
         const storageKey = 'edumasterReportCards';
-        const seed = [{ no: 'RC-2026-00125', student: 'Ahmed Ali', class: 'Grade 8', section: 'A', year: '2026/27', period: 'Term 1', average: '84.5%', grade: 'A', gpa: '3.8', attendance: '96%', status: 'Published', generated: '24 Aug 2026' }, { no: 'RC-2026-00124', student: 'Sara Mohammed', class: 'Grade 8', section: 'A', year: '2026/27', period: 'Term 1', average: '91.2%', grade: 'A+', gpa: '4.0', attendance: '98%', status: 'Published', generated: '24 Aug 2026' }, { no: 'RC-2026-00123', student: 'Omar Hassan', class: 'Grade 8', section: 'B', year: '2026/27', period: 'Term 1', average: '78.6%', grade: 'B+', gpa: '3.4', attendance: '93%', status: 'Generated', generated: '23 Aug 2026' }, { no: 'RC-2026-00122', student: 'Fatima Ahmed', class: 'Grade 7', section: 'A', year: '2026/27', period: 'Term 1', average: '88.9%', grade: 'A', gpa: '3.8', attendance: '97%', status: 'Published', generated: '23 Aug 2026' }, { no: 'RC-2026-00121', student: 'Yusuf Ibrahim', class: 'Grade 9', section: 'C', year: '2026/27', period: 'Term 1', average: '74.3%', grade: 'B', gpa: '3.0', attendance: '90%', status: 'Draft', generated: '22 Aug 2026' }];
+        const seed = [];
         const read = () => { try { const saved = JSON.parse(localStorage.getItem(storageKey)); if (Array.isArray(saved)) return saved; } catch (error) { /* use defaults */ } localStorage.setItem(storageKey, JSON.stringify(seed)); return seed.slice(); };
         const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
         const table = sec.querySelector('[data-report-table]'); const form = sec.querySelector('[data-report-form]'); const modal = sec.querySelector('[data-report-modal]'); const preview = sec.querySelector('[data-report-preview]'); let showingPublished = false; let currentIndex = 0;
@@ -4603,6 +4618,686 @@ document.addEventListener('DOMContentLoaded', () => {
         const downloadReport = index => { const record = read()[index]; if (!record) return; openFullPreview(index); const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escape(record.no)} Report Card</title></head><body>${sec.querySelector('[data-report-preview-sheet]').innerHTML}</body></html>`; const url = URL.createObjectURL(new Blob([html], { type: 'text/html' })); const link = document.createElement('a'); link.href = url; link.download = `${record.no}-Report-Card.html`; link.click(); URL.revokeObjectURL(url); };
         previewActions.querySelector('[data-report-download]').addEventListener('click', () => downloadReport(currentIndex)); const actionObserver = new MutationObserver(addReportActions); actionObserver.observe(table, { childList: true }); addReportActions();
         table.addEventListener('click', event => { const button = event.target.closest('[data-report-action]'); if (!button || !['generate', 'print', 'download'].includes(button.dataset.reportAction)) return; const index = Number(button.dataset.index); if (button.dataset.reportAction === 'generate') openFullPreview(index); if (button.dataset.reportAction === 'print') { openFullPreview(index); setTimeout(() => window.print(), 150); } if (button.dataset.reportAction === 'download') downloadReport(index); });
+        const reportFeedback = document.createElement('p');
+        reportFeedback.className = 'report-cards-feedback';
+        reportFeedback.setAttribute('role', 'status');
+        reportFeedback.setAttribute('aria-live', 'polite');
+        sec.querySelector('.report-cards-toolbar').append(reportFeedback);
+        const studentSelect = document.createElement('select');
+        studentSelect.name = 'studentId';
+        studentSelect.required = true;
+        studentSelect.setAttribute('aria-label', 'Student');
+        const studentLabel = document.createElement('label');
+        studentLabel.append('Student *', studentSelect);
+        form.querySelector('.report-form-grid').prepend(studentLabel);
+        const resultsSection = document.createElement('section');
+        resultsSection.className = 'report-form-section report-subject-results';
+        resultsSection.innerHTML = '<h4>Exam & Test Results</h4><p class="report-subject-help">These results are loaded from published exam and test marks for the selected student, academic year, and period. Enter marks in the Exam & Test Marks tab; this report uses a snapshot of those published scores.</p><div data-report-subject-rows></div><button class="btn-secondary report-add-subject" type="button" data-report-load-results><i class="fas fa-rotate" aria-hidden="true"></i> Reload published marks</button>';
+        form.querySelector('.report-form-section').after(resultsSection);
+        const subjectRows = resultsSection.querySelector('[data-report-subject-rows]');
+        const studentRecords = [];
+        const subjectRecords = [];
+        const examResultRecords = [];
+        const workflowTabs = document.createElement('nav');
+        workflowTabs.className = 'report-workflow-tabs';
+        workflowTabs.setAttribute('aria-label', 'Academic results workflow');
+        workflowTabs.innerHTML = '<button type="button" data-report-workflow-tab="results" aria-selected="true">Exam & Test Marks</button><button type="button" data-report-workflow-tab="cards" aria-selected="false">Report Cards</button>';
+        sec.querySelector('.report-cards-stats').after(workflowTabs);
+        const cardsPanel = sec.querySelector('.report-cards-panel');
+        cardsPanel.hidden = true;
+        const examResultsPanel = document.createElement('section');
+        examResultsPanel.className = 'report-exam-results-panel';
+        examResultsPanel.hidden = false;
+        examResultsPanel.innerHTML = '<div class="report-cards-panel report-exam-entry"><header class="report-exam-heading"><div><h3>Enter marks after marking papers</h3><p>Save one result per student, subject, and exam/test. Draft marks are private. Publish after checking; published marks can then be loaded into a report card.</p></div></header><form data-exam-result-form><input type="hidden" name="recordId"><div class="report-exam-form-grid"><label>Student *<select name="studentId" required></select></label><label>Subject *<select name="subjectId" required></select></label><label>Exam / test name *<input name="assessmentName" required maxlength="100" placeholder="e.g. Term 1 Mathematics paper"></label><label>Type *<select name="assessmentType" required><option value="">Choose type</option><option value="test">Test</option><option value="exam">Examination</option></select></label><label>Exam date<input name="assessmentDate" type="date"></label><label>Academic year *<input name="year" required value="2026/27"></label><label>Term / period *<select name="period" required><option>Term 1</option><option>Term 2</option><option>Term 3</option><option>Semester 1</option><option>Semester 2</option></select></label><label>Maximum marks *<input name="maxMarks" type="number" min="0.01" step="any" required placeholder="100"></label><label>Marks obtained *<input name="obtainedMarks" type="number" min="0" step="any" required placeholder="85"></label><label>Percentage (automatic)<input name="percentage" readonly aria-label="Calculated percentage"></label><label class="report-exam-remarks">Teacher remarks<textarea name="remarks" maxlength="500" rows="2" placeholder="Optional feedback"></textarea></label></div><div class="report-exam-actions"><button class="btn-secondary" type="button" data-exam-save="Draft">Save draft</button><button class="btn-primary" type="button" data-exam-save="Published">Publish result</button><button class="btn-secondary" type="button" data-exam-reset>Clear form</button></div><p class="report-exam-feedback" data-exam-feedback role="status" aria-live="polite"></p></form></div><div class="report-cards-panel report-exam-list"><header class="report-exam-heading"><div><h3>Saved exam and test marks</h3><p>Review drafts and published marks. Select a row to update or publish it.</p></div></header><div class="report-cards-table-wrap"><table><thead><tr><th>Student ID</th><th>Student</th><th>Subject</th><th>Exam / test</th><th>Type</th><th>Period</th><th>Score</th><th>Percentage</th><th>Status</th><th>Actions</th></tr></thead><tbody data-exam-result-rows><tr><td colspan="10" class="report-empty">Loading saved results…</td></tr></tbody></table></div></div>';
+        cardsPanel.after(examResultsPanel);
+        const examResultForm = examResultsPanel.querySelector('[data-exam-result-form]');
+        const examResultRows = examResultsPanel.querySelector('[data-exam-result-rows]');
+        const examResultFeedback = examResultsPanel.querySelector('[data-exam-feedback]');
+        const getStudentName = student => student.fullName || student.name || student.studentName
+            || [student.firstName, student.lastName].filter(Boolean).join(' ') || 'Student';
+        const getStudentAdmission = student => String(student.admissionNo || student.admissionNumber
+            || student.studentCode || student.id || '');
+        const refreshStudentOptions = selectedId => {
+            const currentId = selectedId ?? studentSelect.value;
+            studentSelect.replaceChildren(new Option(studentRecords.length ? 'Select a student' : 'No student records available', ''));
+            studentRecords.forEach(student => {
+                const option = new Option(`${getStudentAdmission(student)} — ${getStudentName(student)}`, student.id);
+                studentSelect.add(option);
+            });
+            studentSelect.value = studentRecords.some(student => String(student.id) === String(currentId)) ? currentId : '';
+            studentSelect.disabled = !studentRecords.length;
+            form.querySelector('[data-report-save]')?.toggleAttribute('disabled', !studentRecords.length);
+        };
+        const refreshSubjectOptions = (select, selectedName) => {
+            select.replaceChildren(new Option(subjectRecords.length ? 'Choose a subject' : 'No school subjects available', ''));
+            subjectRecords.forEach(subject => {
+                const name = subject.subjectName || subject.name || subject.title || subject.subject || '';
+                if (!name) return;
+                const option = new Option(name, name);
+                option.dataset.subjectId = String(subject.id || subject.subjectId || '');
+                select.add(option);
+            });
+            if (selectedName && ![...select.options].some(option => option.value === selectedName)) {
+                select.add(new Option(`${selectedName} (not in subject records)`, selectedName));
+            }
+            select.value = selectedName || '';
+        };
+        const refreshExamStudentOptions = selectedId => {
+            const select = examResultForm.elements.studentId;
+            const currentId = selectedId ?? select.value;
+            select.replaceChildren(new Option(studentRecords.length ? 'Choose a student' : 'No students available', ''));
+            studentRecords.forEach(student => {
+                select.add(new Option(`${getStudentAdmission(student)} — ${getStudentName(student)}`, student.id));
+            });
+            select.value = studentRecords.some(student => String(student.id) === String(currentId)) ? currentId : '';
+        };
+        const refreshExamSubjectOptions = selectedId => {
+            const select = examResultForm.elements.subjectId;
+            const currentId = selectedId ?? select.value;
+            select.replaceChildren(new Option(subjectRecords.length ? 'Choose a subject' : 'No school subjects available', ''));
+            subjectRecords.forEach(subject => {
+                const id = String(subject.id || subject.subjectId || subject.subjectCode || subject.subjectName || subject.name || '');
+                const name = subject.subjectName || subject.name || subject.title || subject.subject || '';
+                if (id && name) select.add(new Option(name, id));
+            });
+            select.value = [...select.options].some(option => option.value === String(currentId)) ? String(currentId) : '';
+        };
+        const renderExamResults = () => {
+            const visibleRecords = examResultRecords.filter(record => record.deleted !== true)
+                .sort((left, right) => String(right.assessmentDate || '').localeCompare(String(left.assessmentDate || '')));
+            examResultRows.innerHTML = visibleRecords.length ? visibleRecords.map(record => {
+                const student = studentRecords.find(item => String(item.id) === String(record.studentId));
+                return `<tr><td>${escape(record.studentAdmissionNo || record.studentId || '—')}</td><td>${escape(record.studentName || (student && getStudentName(student)) || 'Student')}</td><td>${escape(record.subjectName || '—')}</td><td>${escape(record.assessmentName || '—')}</td><td>${String(record.assessmentType).toLowerCase() === 'exam' ? 'Examination' : 'Test'}</td><td>${escape([record.period, record.year].filter(Boolean).join(' · ') || '—')}</td><td>${escape(record.obtainedMarks ?? '—')} / ${escape(record.maxMarks ?? '—')}</td><td>${Number(record.percentage ?? 0).toFixed(1)}%</td><td><span class="report-status ${escape(String(record.status || 'Draft').toLowerCase())}">${escape(record.status || 'Draft')}</span></td><td><div class="report-row-actions"><button class="icon-button" type="button" data-exam-result-action="edit" data-record-id="${escape(record.id)}" aria-label="Edit marks"><i class="fas fa-pen" aria-hidden="true"></i></button>${String(record.status).toLowerCase() === 'published' ? '' : `<button class="icon-button" type="button" data-exam-result-action="publish" data-record-id="${escape(record.id)}" aria-label="Publish marks"><i class="fas fa-check" aria-hidden="true"></i></button>`}</div></td></tr>`;
+            }).join('') : '<tr><td colspan="10" class="report-empty">No exam or test marks entered yet.</td></tr>';
+        };
+        const clearExamResultForm = () => {
+            examResultForm.reset();
+            examResultForm.elements.recordId.value = '';
+            examResultForm.elements.assessmentDate.value = new Date().toISOString().slice(0, 10);
+            examResultForm.elements.year.value = form.elements.year.value || '2026/27';
+            examResultForm.elements.period.value = form.elements.period.value || 'Term 1';
+            examResultFeedback.textContent = '';
+            refreshExamStudentOptions('');
+            refreshExamSubjectOptions('');
+            updateExamPercentage();
+        };
+        const updateExamPercentage = () => {
+            const maxValue = examResultForm.elements.maxMarks.value;
+            const scoreValue = examResultForm.elements.obtainedMarks.value;
+            const maximum = Number(maxValue);
+            const score = Number(scoreValue);
+            examResultForm.elements.percentage.value = maxValue && scoreValue && maximum > 0
+                && Number.isFinite(score) && score >= 0 && score <= maximum
+                ? `${(score / maximum * 100).toFixed(1)}%`
+                : '';
+            examResultForm.elements.obtainedMarks.max = maxValue;
+        };
+        const updateSubjectPercentage = row => {
+            const maximumValue = row.querySelector('[data-subject-max]').value;
+            const scoreValue = row.querySelector('[data-subject-score]').value;
+            const maximum = Number(maximumValue);
+            const score = Number(scoreValue);
+            const percentage = row.querySelector('[data-subject-percentage]');
+            percentage.value = maximumValue !== '' && scoreValue !== ''
+                && maximum > 0 && Number.isFinite(score) && score >= 0 && score <= maximum
+                ? `${(score / maximum * 100).toFixed(1)}%`
+                : '';
+        };
+        const addSubjectRow = (result = {}) => {
+            const row = document.createElement('div');
+            row.className = 'report-subject-row';
+            row.innerHTML = '<label>Subject<select data-subject-name required></select></label><label>Exam / test name<input type="text" data-assessment-name required maxlength="100" placeholder="e.g. Term 1 Mathematics test"></label><label>Type<select data-assessment-type required><option value="">Choose type</option><option value="test">Test</option><option value="exam">Examination</option></select></label><label>Date<input type="date" data-assessment-date></label><label>Maximum marks<input type="number" data-subject-max required min="0.01" step="any" placeholder="100"></label><label>Marks obtained<input type="number" data-subject-score required min="0" step="any" placeholder="85"></label><label>Percentage (automatic)<input type="text" data-subject-percentage readonly aria-label="Calculated percentage"></label><label>Teacher remarks<input type="text" data-subject-remarks maxlength="300" placeholder="Optional feedback"></label><button class="icon-button" type="button" data-report-remove-subject aria-label="Remove result" title="Remove result"><i class="fas fa-trash" aria-hidden="true"></i></button>';
+            const subjectSelect = row.querySelector('[data-subject-name]');
+            refreshSubjectOptions(subjectSelect, result.subjectName || result.subject || '');
+            subjectSelect.selectedOptions[0]?.setAttribute('data-subject-id', result.subjectId || '');
+            row.querySelector('[data-assessment-name]').value = result.assessmentName || result.examName || result.testName || '';
+            const savedType = String(result.assessmentType || result.examType || '').toLowerCase();
+            row.querySelector('[data-assessment-type]').value = savedType === 'term' ? 'exam' : savedType;
+            row.querySelector('[data-assessment-date]').value = result.assessmentDate || result.examDate || '';
+            row.querySelector('[data-subject-max]').value = result.maxMarks ?? result.maximumMarks ?? '';
+            row.querySelector('[data-subject-score]').value = result.obtainedMarks ?? result.marksObtained ?? result.score ?? '';
+            row.querySelector('[data-subject-remarks]').value = result.remarks || result.teacherRemarks || '';
+            subjectRows.append(row);
+            row.querySelector('[data-subject-score]').max = row.querySelector('[data-subject-max]').value;
+            updateSubjectPercentage(row);
+        };
+        const fillSubjectRows = results => {
+            subjectRows.replaceChildren();
+            (Array.isArray(results) && results.length ? results : [{}]).forEach(result => {
+                addSubjectRow(result);
+                const row = subjectRows.lastElementChild;
+                row.querySelectorAll('input, select').forEach(input => {
+                    if (input.matches('[data-subject-percentage]')) return;
+                    if (input.matches('[data-subject-name], [data-assessment-type]')) input.disabled = true;
+                    else input.readOnly = true;
+                });
+                row.querySelector('[data-report-remove-subject]')?.remove();
+            });
+        };
+        const publishedMarksForSelectedStudent = () => {
+            const student = selectedStudent();
+            if (!student) return [];
+            const year = String(form.elements.year.value || '').trim().toLowerCase();
+            const period = String(form.elements.period.value || '').trim().toLowerCase();
+            return examResultRecords.filter(result =>
+                String(result.studentId || '') === String(student.id)
+                && ['published', 'released'].includes(String(result.status || result.publicationStatus || '').toLowerCase())
+                && result.isPublished !== false && result.published !== false
+                && String(result.year || '').trim().toLowerCase() === year
+                && String(result.period || '').trim().toLowerCase() === period
+            ).map(result => ({
+                ...result,
+                subjectName: result.subjectName,
+                assessmentName: result.assessmentName,
+                assessmentType: result.assessmentType,
+                assessmentDate: result.assessmentDate,
+                maxMarks: result.maxMarks,
+                obtainedMarks: result.obtainedMarks,
+                percentage: result.percentage,
+                remarks: result.remarks,
+                status: 'Published',
+                publicationStatus: 'Published',
+                isPublished: true,
+                published: true
+            }));
+        };
+        const loadPublishedMarksIntoReport = () => {
+            const marks = publishedMarksForSelectedStudent();
+            fillSubjectRows(marks);
+            reportFeedback.textContent = marks.length
+                ? `Loaded ${marks.length} published exam/test result${marks.length === 1 ? '' : 's'} for this student and period.`
+                : 'No published exam/test marks found for this student, academic year, and period.';
+        };
+        const selectedStudent = () => studentRecords.find(student => String(student.id) === studentSelect.value);
+        const collectSubjectResults = status => {
+            const rows = [...subjectRows.querySelectorAll('.report-subject-row')];
+            if (!rows.length) throw new Error('Add at least one subject result before saving.');
+            return rows.map(row => {
+                const subjectSelect = row.querySelector('[data-subject-name]');
+                const subjectName = subjectSelect.value.trim();
+                const assessmentName = row.querySelector('[data-assessment-name]').value.trim();
+                const assessmentType = row.querySelector('[data-assessment-type]').value;
+                const maxMarks = Number(row.querySelector('[data-subject-max]').value);
+                const obtainedMarks = Number(row.querySelector('[data-subject-score]').value);
+                if (!subjectName || !assessmentName || !assessmentType || !Number.isFinite(maxMarks) || maxMarks <= 0
+                    || !Number.isFinite(obtainedMarks) || obtainedMarks < 0 || obtainedMarks > maxMarks) {
+                    throw new Error('For every result, choose a subject and exam/test type, enter its name, and enter marks within the maximum.');
+                }
+                return {
+                    subjectId: subjectSelect.selectedOptions[0]?.dataset.subjectId || '',
+                    subjectName,
+                    assessmentName,
+                    assessmentType,
+                    assessmentDate: row.querySelector('[data-assessment-date]').value,
+                    maxMarks,
+                    obtainedMarks,
+                    percentage: obtainedMarks / maxMarks * 100,
+                    remarks: row.querySelector('[data-subject-remarks]').value.trim(),
+                    status,
+                    publicationStatus: status,
+                    isPublished: status === 'Published',
+                    published: status === 'Published'
+                };
+            });
+        };
+        const persistRecords = records => {
+            localStorage.setItem(storageKey, JSON.stringify(records));
+            render();
+        };
+        const decorateStudentIds = () => {
+            const header = table.closest('table')?.querySelector('thead tr');
+            if (header && !header.querySelector('[data-report-student-id-heading]')) {
+                const studentHeading = [...header.cells].find(cell => cell.textContent.trim() === 'Student');
+                const idHeading = document.createElement('th');
+                idHeading.textContent = 'Student ID';
+                idHeading.dataset.reportStudentIdHeading = 'true';
+                studentHeading?.after(idHeading);
+            }
+            table.querySelectorAll('tr').forEach(row => {
+                if (row.querySelector('[data-report-student-id-cell]')) return;
+                const record = read()[Number(row.querySelector('[data-report-action]')?.dataset.index)];
+                const studentCell = [...row.cells].find(cell => cell.querySelector('.report-student'));
+                if (record && studentCell) {
+                    const idCell = document.createElement('td');
+                    idCell.textContent = record.studentAdmissionNo || record.studentId || '—';
+                    idCell.dataset.reportStudentIdCell = 'true';
+                    studentCell.after(idCell);
+                } else {
+                    const emptyCell = row.querySelector('.report-empty');
+                    if (emptyCell) emptyCell.colSpan = 14;
+                }
+            });
+            table.querySelectorAll('[data-report-action]').forEach(button => {
+                const labels = { view: 'View report', edit: 'Edit report', publish: 'Publish results', archive: 'Archive report', generate: 'Preview report', print: 'Print report', download: 'Download report' };
+                button.setAttribute('aria-label', labels[button.dataset.reportAction] || 'Report action');
+            });
+        };
+        const addReportSubjectControls = new MutationObserver(decorateStudentIds);
+        addReportSubjectControls.observe(table, { childList: true });
+        decorateStudentIds();
+        resultsSection.addEventListener('click', event => {
+            if (event.target.closest('[data-report-remove-subject]')) {
+                event.target.closest('.report-subject-row')?.remove();
+            }
+        });
+        subjectRows.addEventListener('input', event => {
+            const row = event.target.closest('.report-subject-row');
+            if (!row) return;
+            if (event.target.matches('[data-subject-max]')) {
+                row.querySelector('[data-subject-score]').max = event.target.value;
+            }
+            if (event.target.matches('[data-subject-max], [data-subject-score]')) {
+                updateSubjectPercentage(row);
+            }
+        });
+        studentSelect.addEventListener('change', () => {
+            const student = selectedStudent();
+            if (!student) return;
+            const className = student.className || student.class || '';
+            if (className) {
+                if (![...form.elements.class.options].some(option => option.value === className)) {
+                    form.elements.class.add(new Option(className, className));
+                }
+                form.elements.class.value = className;
+            }
+            if (student.section) form.elements.section.value = student.section;
+            loadPublishedMarksIntoReport();
+        });
+        form.elements.status.addEventListener('change', () => {
+            form.elements.publication.value = form.elements.status.value;
+        });
+        form.elements.publication.addEventListener('change', () => {
+            form.elements.status.value = form.elements.publication.value;
+        });
+        const showReportError = error => {
+            reportFeedback.textContent = error?.message || 'Unable to save this report card. Please try again.';
+            console.error('Unable to save or load report card data.', error);
+        };
+        const showExamResultError = error => {
+            examResultFeedback.textContent = error?.message || 'Unable to save exam/test marks.';
+            console.error('Unable to save or load exam/test marks.', error);
+        };
+        const saveExamResult = async status => {
+            if (!examResultForm.reportValidity()) return;
+            const identity = window.schoolPortalData?.getIdentity();
+            const student = studentRecords.find(item => String(item.id) === examResultForm.elements.studentId.value);
+            const subject = subjectRecords.find(item => String(item.id || item.subjectId || item.subjectCode
+                || item.subjectName || item.name) === examResultForm.elements.subjectId.value);
+            if (!student || !subject) {
+                showExamResultError(new Error('Choose a student and a school subject.'));
+                return;
+            }
+            const maxMarks = Number(examResultForm.elements.maxMarks.value);
+            const obtainedMarks = Number(examResultForm.elements.obtainedMarks.value);
+            if (!Number.isFinite(maxMarks) || maxMarks <= 0 || !Number.isFinite(obtainedMarks)
+                || obtainedMarks < 0 || obtainedMarks > maxMarks) {
+                showExamResultError(new Error('Marks obtained must be between zero and the maximum marks.'));
+                return;
+            }
+            const classId = String(student.classId || student.classID || '');
+            if (['teacher', 'deputyHeadTeacher'].includes(identity?.role)
+                && (!classId || !identity.assignedClassIds?.includes(classId))) {
+                showExamResultError(new Error('You can only enter marks for students in your assigned classes.'));
+                return;
+            }
+            const recordId = examResultForm.elements.recordId.value || crypto.randomUUID();
+            const existing = examResultRecords.find(record => String(record.id) === recordId) || {};
+            const subjectName = subject.subjectName || subject.name || subject.title || subject.subject;
+            const record = {
+                ...existing,
+                id: recordId,
+                studentId: String(student.id),
+                studentName: getStudentName(student),
+                studentAdmissionNo: getStudentAdmission(student),
+                classId,
+                className: student.className || student.class || '',
+                section: student.section || student.sectionName || '',
+                subjectId: String(subject.id || subject.subjectId || subject.subjectCode || ''),
+                subjectName,
+                assessmentName: examResultForm.elements.assessmentName.value.trim(),
+                assessmentType: examResultForm.elements.assessmentType.value,
+                assessmentDate: examResultForm.elements.assessmentDate.value,
+                year: examResultForm.elements.year.value.trim(),
+                period: examResultForm.elements.period.value,
+                maxMarks,
+                obtainedMarks,
+                percentage: obtainedMarks / maxMarks * 100,
+                remarks: examResultForm.elements.remarks.value.trim(),
+                status,
+                publicationStatus: status,
+                isPublished: status === 'Published',
+                published: status === 'Published',
+                publishedAt: status === 'Published' ? new Date().toISOString() : existing.publishedAt || ''
+            };
+            try {
+                if (!window.schoolPortalData?.saveRecord) throw new Error('Exam-results cloud saving is unavailable. Reload the page and try again.');
+                await window.schoolPortalData.saveRecord('examResults', recordId, record);
+                examResultForm.elements.recordId.value = recordId;
+                examResultFeedback.textContent = status === 'Published'
+                    ? 'Result published. Linked parents and students can now view this mark.'
+                    : 'Draft marks saved. They are not visible to parents or students.';
+                if (status === 'Published') clearExamResultForm();
+            } catch (error) {
+                showExamResultError(error);
+            }
+        };
+        examResultsPanel.addEventListener('click', event => {
+            const saveButton = event.target.closest('[data-exam-save]');
+            if (saveButton) {
+                void saveExamResult(saveButton.dataset.examSave);
+                return;
+            }
+            if (event.target.closest('[data-exam-reset]')) {
+                clearExamResultForm();
+                return;
+            }
+            const actionButton = event.target.closest('[data-exam-result-action]');
+            if (!actionButton) return;
+            const record = examResultRecords.find(item => String(item.id) === actionButton.dataset.recordId);
+            if (!record) return;
+            if (actionButton.dataset.examResultAction === 'edit') {
+                examResultForm.elements.recordId.value = record.id;
+                refreshExamStudentOptions(record.studentId);
+                refreshExamSubjectOptions(record.subjectId || record.subjectName);
+                examResultForm.elements.assessmentName.value = record.assessmentName || '';
+                examResultForm.elements.assessmentType.value = record.assessmentType || '';
+                examResultForm.elements.assessmentDate.value = record.assessmentDate || '';
+                examResultForm.elements.year.value = record.year || '';
+                examResultForm.elements.period.value = record.period || '';
+                examResultForm.elements.maxMarks.value = record.maxMarks ?? '';
+                examResultForm.elements.obtainedMarks.value = record.obtainedMarks ?? '';
+                examResultForm.elements.remarks.value = record.remarks || '';
+                updateExamPercentage();
+                examResultForm.elements.assessmentName.focus();
+                examResultFeedback.textContent = `Editing ${record.assessmentName || 'saved result'} for ${record.studentName || 'student'}.`;
+                return;
+            }
+            if (actionButton.dataset.examResultAction === 'publish') {
+                const published = {
+                    ...record,
+                    status: 'Published',
+                    publicationStatus: 'Published',
+                    isPublished: true,
+                    published: true,
+                    publishedAt: new Date().toISOString()
+                };
+                void window.schoolPortalData.saveRecord('examResults', record.id, published)
+                    .then(() => {
+                        examResultFeedback.textContent = 'Result published. Linked parents and students can now view this mark.';
+                    })
+                    .catch(showExamResultError);
+            }
+        });
+        examResultForm.addEventListener('input', event => {
+            if (event.target.matches('[name="maxMarks"], [name="obtainedMarks"]')) updateExamPercentage();
+        });
+        examResultForm.addEventListener('change', event => {
+            if (event.target.matches('[name="studentId"]')) {
+                const student = studentRecords.find(item => String(item.id) === event.target.value);
+                if (student) {
+                    const className = student.className || student.class || '';
+                    if (className && ![...form.elements.class.options].some(option => option.value === className)) {
+                        form.elements.class.add(new Option(className, className));
+                    }
+                    if (className) form.elements.class.value = className;
+                    if (student.section) form.elements.section.value = student.section;
+                }
+            }
+        });
+        workflowTabs.addEventListener('click', event => {
+            const tab = event.target.closest('[data-report-workflow-tab]');
+            if (!tab) return;
+            const showResults = tab.dataset.reportWorkflowTab === 'results';
+            cardsPanel.hidden = showResults;
+            examResultsPanel.hidden = !showResults;
+            workflowTabs.querySelectorAll('[data-report-workflow-tab]').forEach(item => {
+                item.setAttribute('aria-selected', String(item === tab));
+            });
+        });
+        form.elements.period.addEventListener('change', loadPublishedMarksIntoReport);
+        form.elements.year.addEventListener('change', loadPublishedMarksIntoReport);
+        sec.querySelector('[data-report-load-results]').addEventListener('click', loadPublishedMarksIntoReport);
+        const canManageExamResults = identity => ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(identity?.role)
+            || identity?.permissions?.examResults?.edit === true
+            || ['teacher', 'deputyHeadTeacher'].includes(identity?.role)
+                && identity.assignedClassIds?.length > 0
+                && identity.permissions?.examResults === undefined;
+        if (!canManageExamResults(api?.getIdentity?.())) {
+            examResultForm.querySelectorAll('[data-exam-save]').forEach(button => {
+                button.disabled = true;
+            });
+            examResultFeedback.textContent = 'Your account does not have permission to enter exam results. Ask an administrator to enable Exam Results edit access.';
+        }
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            if (!form.reportValidity()) return;
+            void (async () => {
+                const student = selectedStudent();
+                if (!student) {
+                    showReportError(new Error('Select a student before saving results.'));
+                    return;
+                }
+                const editIndex = form.elements.editIndex.value;
+                const records = read();
+                const existing = editIndex === '' ? {} : records[Number(editIndex)];
+                const identity = window.schoolPortalData?.getIdentity();
+                const classId = String(student.classId || student.classID || existing?.classId || '');
+                if (['teacher', 'deputyHeadTeacher'].includes(identity?.role)
+                    && (!classId || !identity.assignedClassIds?.includes(classId))) {
+                    showReportError(new Error('You can only enter results for a student in one of your assigned classes. Ask an administrator to check the student class and your class assignments.'));
+                    return;
+                }
+                const status = form.elements.publication.value;
+                let subjectResults;
+                try {
+                    subjectResults = collectSubjectResults(status);
+                } catch (error) {
+                    showReportError(error);
+                    return;
+                }
+                const totalMaximum = subjectResults.reduce((total, result) => total + result.maxMarks, 0);
+                const totalScore = subjectResults.reduce((total, result) => total + result.obtainedMarks, 0);
+                const reportNo = existing.no || `RC-${new Date().getFullYear()}-${Date.now()}`;
+                const record = {
+                    ...existing,
+                    id: existing.id || reportNo,
+                    no: reportNo,
+                    studentId: String(student.id),
+                    classId,
+                    studentAdmissionNo: getStudentAdmission(student),
+                    student: getStudentName(student),
+                    class: form.elements.class.value || student.className || student.class || '',
+                    section: form.elements.section.value || student.section || '',
+                    year: form.elements.year.value,
+                    period: form.elements.period.value,
+                    average: `${(totalScore / totalMaximum * 100).toFixed(1)}%`,
+                    grade: existing.grade || '-',
+                    gpa: existing.gpa || '—',
+                    attendance: existing.attendance || '—',
+                    reportName: form.elements.reportName.value,
+                    subjectResults,
+                    status,
+                    publicationStatus: status,
+                    isPublished: status === 'Published',
+                    published: status === 'Published',
+                    publishedAt: status === 'Published' ? new Date().toISOString() : existing.publishedAt || '',
+                    generated: formatDate(form.elements.generatedDate.value)
+                };
+                try {
+                    const api = window.schoolPortalData;
+                    if (!api?.saveRecord) throw new Error('Report-card cloud saving is unavailable. Reload the page and try again.');
+                    await api.saveRecord('reportCards', reportNo, record);
+                    if (editIndex === '') records.unshift(record);
+                    else records[Number(editIndex)] = record;
+                    persistRecords(records);
+                    reportFeedback.textContent = status === 'Published'
+                        ? 'Results published and available to the linked student and parent.'
+                        : 'Report card saved.';
+                    modal.classList.add('hidden');
+                    form.reset();
+                    form.elements.editIndex.value = '';
+                    refreshStudentOptions();
+                    fillSubjectRows();
+                } catch (error) {
+                    showReportError(error);
+                }
+            })();
+        }, true);
+        table.addEventListener('click', event => {
+            const button = event.target.closest('[data-report-action]');
+            if (!button) return;
+            const index = Number(button.dataset.index);
+            const records = read();
+            const record = records[index];
+            if (!record || !['edit', 'publish', 'view', 'generate', 'print', 'download'].includes(button.dataset.reportAction)) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            if (button.dataset.reportAction === 'edit') {
+                openForm(index);
+                const student = studentRecords.find(item => String(item.id) === String(record.studentId)
+                    || getStudentAdmission(item) === String(record.studentAdmissionNo || record.studentId));
+                refreshStudentOptions(student?.id || '');
+                studentSelect.value = student?.id || '';
+                studentSelect.dispatchEvent(new Event('change'));
+                form.elements.reportName.value = record.reportName || 'Student Academic Report Card';
+                form.elements.publication.value = record.status || 'Draft';
+                form.elements.generatedDate.value = '';
+                fillSubjectRows(record.subjectResults);
+                return;
+            }
+            if (button.dataset.reportAction === 'publish') {
+                const student = studentRecords.find(item => String(item.id) === String(record.studentId));
+                if (!student || !Array.isArray(record.subjectResults) || !record.subjectResults.length) {
+                    reportFeedback.textContent = 'Assign this report to a student and enter subject scores before publishing.';
+                    openForm(index);
+                    refreshStudentOptions(student?.id || '');
+                    studentSelect.value = student?.id || '';
+                    studentSelect.dispatchEvent(new Event('change'));
+                    fillSubjectRows(record.subjectResults);
+                    return;
+                }
+                const published = {
+                    ...record,
+                    studentId: String(student.id),
+                    classId: String(student.classId || student.classID || record.classId || ''),
+                    studentAdmissionNo: getStudentAdmission(student),
+                    status: 'Published',
+                    publicationStatus: 'Published',
+                    isPublished: true,
+                    published: true,
+                    publishedAt: new Date().toISOString(),
+                    subjectResults: record.subjectResults.map(result => ({
+                        ...result,
+                        status: 'Published',
+                        publicationStatus: 'Published',
+                        isPublished: true,
+                        published: true
+                    }))
+                };
+                if (!window.schoolPortalData?.saveRecord) {
+                    showReportError(new Error('Report-card cloud saving is unavailable. Reload the page and try again.'));
+                    return;
+                }
+                void window.schoolPortalData.saveRecord('reportCards', published.no, published)
+                    .then(() => {
+                        records[index] = published;
+                        persistRecords(records);
+                        reportFeedback.textContent = 'Results published and available to the linked student and parent.';
+                    })
+                    .catch(showReportError);
+                return;
+            }
+            const showPreview = () => {
+                openFullPreview(index);
+                const sheet = sec.querySelector('[data-report-preview-sheet]');
+                const student = studentRecords.find(item => String(item.id) === String(record.studentId));
+                const details = [...sheet.querySelectorAll('.report-detail-grid div')];
+                details.forEach(detail => {
+                    const label = detail.querySelector('span')?.textContent;
+                    if (label === 'Student Name') detail.querySelector('strong').textContent = record.student || 'Student';
+                    if (label === 'Admission No.') detail.querySelector('strong').textContent = record.studentAdmissionNo || (student && getStudentAdmission(student)) || '—';
+                });
+                const marksTable = sheet.querySelector('.report-marks-table');
+                const marksBody = marksTable?.querySelector('tbody');
+                if (marksTable) marksTable.querySelector('thead tr').innerHTML = '<th>Exam / test</th><th>Type</th><th>Date</th><th>Subject</th><th>Maximum</th><th>Obtained</th><th>Percentage</th><th>Teacher remarks</th>';
+                if (marksBody) marksBody.innerHTML = (record.subjectResults || []).map(result => {
+                    const percentage = Number(result.percentage ?? (Number(result.maxMarks) ? Number(result.obtainedMarks) / Number(result.maxMarks) * 100 : 0));
+                    const type = String(result.assessmentType || '').toLowerCase() === 'exam' ? 'Examination' : 'Test';
+                    return `<tr><td>${escape(result.assessmentName || '')}</td><td>${type}</td><td>${escape(result.assessmentDate || '—')}</td><td>${escape(result.subjectName || result.subject || '')}</td><td>${escape(result.maxMarks || '')}</td><td>${escape(result.obtainedMarks ?? '')}</td><td>${percentage.toFixed(1)}%</td><td>${escape(result.remarks || '—')}</td></tr>`;
+                }).join('') || '<tr><td colspan="8">No subject scores entered.</td></tr>';
+            };
+            if (button.dataset.reportAction === 'print') {
+                showPreview();
+                setTimeout(() => window.print(), 150);
+            } else if (button.dataset.reportAction === 'download') {
+                showPreview();
+                const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escape(record.no)} Report Card</title></head><body>${sec.querySelector('[data-report-preview-sheet]').innerHTML}</body></html>`;
+                const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${record.no}-Report-Card.html`;
+                link.click();
+                URL.revokeObjectURL(url);
+            } else {
+                showPreview();
+            }
+        }, true);
+        previewActions.addEventListener('click', event => {
+            if (event.target.closest('[data-report-download]')) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                const record = read()[currentIndex];
+                if (!record) return;
+                const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escape(record.no)} Report Card</title></head><body>${sec.querySelector('[data-report-preview-sheet]').innerHTML}</body></html>`;
+                const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${record.no}-Report-Card.html`;
+                link.click();
+                URL.revokeObjectURL(url);
+            }
+        }, true);
+        form.querySelector('[type="submit"]').dataset.reportSave = 'true';
+        if (api?.subscribe) {
+            Promise.all([
+                api.subscribe('students', records => {
+                    studentRecords.splice(0, studentRecords.length, ...records.filter(student => student.deleted !== true));
+                    refreshStudentOptions();
+                    refreshExamStudentOptions();
+                    renderExamResults();
+                }),
+                api.subscribe('subjects', records => {
+                    subjectRecords.splice(0, subjectRecords.length, ...records.filter(subject => subject.deleted !== true
+                        && String(subject.status || 'active').toLowerCase() !== 'inactive'));
+                    subjectRows.querySelectorAll('[data-subject-name]').forEach(select => {
+                        refreshSubjectOptions(select, select.value);
+                    });
+                    refreshExamSubjectOptions();
+                    if (!subjectRecords.length) {
+                        reportFeedback.textContent = 'No school subjects were found. Add subjects in the school subject records before entering marks.';
+                    }
+                }),
+                api.subscribe('examResults', records => {
+                    examResultRecords.splice(0, examResultRecords.length, ...records.filter(record => record.deleted !== true));
+                    renderExamResults();
+                    render();
+                    if (!modal.classList.contains('hidden') && studentSelect.value) loadPublishedMarksIntoReport();
+                }),
+                api.subscribe('reportCards', records => {
+                    const visibleRecords = records.filter(record => record.deleted !== true).map(record => {
+                        const { _syncState, ...visibleRecord } = record;
+                        return visibleRecord;
+                    });
+                    localStorage.setItem(storageKey, JSON.stringify(visibleRecords));
+                    render();
+                })
+            ]).catch(showReportError);
+        } else {
+            showReportError(new Error('School records are unavailable. Reload the page and try again.'));
+        }
+        refreshStudentOptions('');
+        fillSubjectRows();
         render(); return sec;
     }
 

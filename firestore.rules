@@ -44,12 +44,30 @@ service cloud.firestore {
         && member(schoolId).permissions[collectionName].get(permission, false) == true;
     }
 
+    function hasLegacyTeachingExamResultsPermission(schoolId, permission) {
+      let account = member(schoolId);
+      return isMember(schoolId)
+        && account.role in ['teacher', 'deputyHeadTeacher']
+        && account.get('assignedClassIds', []) is list
+        && account.get('assignedClassIds', []).size() > 0
+        && (!account.keys().hasAny(['permissions'])
+          || !(account.permissions is map)
+          || !account.permissions.keys().hasAny(['examResults'])
+          || account.permissions.examResults.get(permission, false) == true);
+    }
+
     function canView(schoolId, collectionName) {
-      return isSchoolAdmin(schoolId) || hasPermission(schoolId, collectionName, 'view');
+      return isSchoolAdmin(schoolId)
+        || hasPermission(schoolId, collectionName, 'view')
+        || (collectionName == 'examResults'
+          && hasLegacyTeachingExamResultsPermission(schoolId, 'view'));
     }
 
     function canEdit(schoolId, collectionName) {
-      return isSchoolAdmin(schoolId) || hasPermission(schoolId, collectionName, 'edit');
+      return isSchoolAdmin(schoolId)
+        || hasPermission(schoolId, collectionName, 'edit')
+        || (collectionName == 'examResults'
+          && hasLegacyTeachingExamResultsPermission(schoolId, 'edit'));
     }
 
     function canDelete(schoolId, collectionName) {
@@ -79,7 +97,7 @@ service cloud.firestore {
 
     function isPersonalCollection(collectionName) {
       return collectionName in [
-        'students', 'attendance', 'assessments', 'reportCards', 'fees',
+        'students', 'attendance', 'assessments', 'reportCards', 'examResults', 'fees',
         'feeInvoices', 'healthRecords', 'libraryLoans', 'disciplineCases',
         'idCards', 'transcripts', 'unebExams'
       ];
@@ -89,19 +107,22 @@ service cloud.firestore {
       return record.data is map ? record.data : {};
     }
 
-    function canReadPersonalRecord(schoolId, recordId, record) {
+    function canReadPersonalRecord(schoolId, collectionName, recordId, record) {
       let data = recordData(record);
       let studentId = data.get('studentId', recordId);
+      let isPublishedExamResult = data.get('isPublished', false) == true
+        || data.get('published', false) == true
+        || data.get('status', '') in ['Published', 'published', 'Released', 'released'];
       return isSchoolAdmin(schoolId)
         || (data.keys().hasAny(['classId']) && isAssignedStaff(schoolId, data.classId))
-        || isLinkedStudent(schoolId, studentId)
-        || isLinkedParent(schoolId, studentId);
+        || ((isLinkedStudent(schoolId, studentId) || isLinkedParent(schoolId, studentId))
+          && (collectionName != 'examResults' || isPublishedExamResult));
     }
 
     function recordReadAllowed(schoolId, collectionName, recordId, record) {
       return canView(schoolId, collectionName)
         && (!isPersonalCollection(collectionName)
-          || canReadPersonalRecord(schoolId, recordId, record));
+          || canReadPersonalRecord(schoolId, collectionName, recordId, record));
     }
 
     function canEditRecord(schoolId, collectionName, record) {
@@ -122,7 +143,7 @@ service cloud.firestore {
     function isAppCollection(collectionName) {
       return collectionName in [
         'students', 'parents', 'staff', 'classes', 'subjects', 'attendance',
-        'assessments', 'reportCards', 'fees', 'feeInvoices', 'expenses',
+        'assessments', 'reportCards', 'examResults', 'fees', 'feeInvoices', 'expenses',
         'timetables', 'notices', 'smsAlerts', 'libraryBooks', 'libraryLoans',
         'healthRecords', 'transportRoutes', 'disciplineCases', 'clubs',
         'studyMaterials', 'quizzes', 'inventory', 'assets', 'visitors',

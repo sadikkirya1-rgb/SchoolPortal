@@ -36,6 +36,15 @@ before(async () => {
             assignedClassIds: ['CLASS-A'],
             permissions: { students: { view: true, edit: true } }
         });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/teacher-results-1'), {
+            role: 'teacher',
+            status: 'active',
+            assignedClassIds: ['CLASS-A'],
+            permissions: {
+                reportCards: { view: true, edit: true },
+                examResults: { view: true, edit: true }
+            }
+        });
         await setDoc(doc(firestore, 'schools/SCH-TEST/members/admin-password-only'), {
             role: 'schoolAdmin',
             status: 'active',
@@ -49,6 +58,7 @@ before(async () => {
                 attendance: { view: true },
                 assessments: { view: true },
                 reportCards: { view: true },
+                examResults: { view: true },
                 fees: { view: true },
                 notices: { view: true }
             }
@@ -134,6 +144,18 @@ before(async () => {
             updatedBy: 'teacher-deleter-1',
             updatedAt: '2026-01-01T00:00:00.000Z'
         });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/examResults/RESULT-PUBLISHED'), {
+            data: { studentId: 'STUDENT-A', classId: 'CLASS-A', subjectName: 'Mathematics', status: 'Published' },
+            version: 1,
+            updatedBy: 'teacher-results-1',
+            updatedAt: '2026-01-01T00:00:00.000Z'
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/examResults/RESULT-DRAFT'), {
+            data: { studentId: 'STUDENT-A', classId: 'CLASS-A', subjectName: 'Science', status: 'Draft' },
+            version: 1,
+            updatedBy: 'teacher-results-1',
+            updatedAt: '2026-01-01T00:00:00.000Z'
+        });
         await setDoc(doc(firestore, 'schools/SCH-TEST/auditEvents/EVENT-1'), {
             data: { actorUid: 'teacher-1', action: 'update', collection: 'students' },
             version: 1,
@@ -183,6 +205,87 @@ test('teachers can read assigned-class students but not other classes', async ()
         updatedBy: 'teacher-1',
         updatedAt: '2026-01-01T00:00:00.000Z'
     }));
+});
+
+test('teachers can save results only for their assigned classes', async () => {
+    const firestore = testEnvironment.authenticatedContext('teacher-results-1').firestore();
+    const examResult = {
+        data: {
+            studentId: 'STUDENT-A',
+            classId: 'CLASS-A',
+            subjectName: 'Mathematics',
+            assessmentName: 'Term 1 test',
+            maxMarks: 100,
+            obtainedMarks: 85,
+            status: 'Draft',
+            isPublished: false
+        },
+        version: 1,
+        updatedBy: 'teacher-results-1',
+        updatedAt: '2026-10-17T00:00:00.000Z'
+    };
+    await assertSucceeds(setDoc(doc(firestore, 'schools/SCH-TEST/examResults/RESULT-TEACHER-A'), examResult));
+    await assertFails(setDoc(doc(firestore, 'schools/SCH-TEST/examResults/RESULT-TEACHER-B'), {
+        ...examResult,
+        data: { ...examResult.data, studentId: 'STUDENT-B', classId: 'CLASS-B' }
+    }));
+    await assertSucceeds(getDoc(doc(firestore, 'schools/SCH-TEST/examResults/RESULT-DRAFT')));
+
+    const reportCard = {
+        data: {
+            studentId: 'STUDENT-A',
+            classId: 'CLASS-A',
+            status: 'Published',
+            subjectResults: [{
+                subjectName: 'Mathematics',
+                assessmentName: 'Term 1 test',
+                assessmentType: 'test',
+                maxMarks: 100,
+                obtainedMarks: 85,
+                percentage: 85,
+                isPublished: true
+            }]
+        },
+        version: 1,
+        updatedBy: 'teacher-results-1',
+        updatedAt: '2026-10-17T00:00:00.000Z'
+    };
+    await assertSucceeds(setDoc(doc(firestore, 'schools/SCH-TEST/reportCards/RESULT-A'), reportCard));
+    await assertFails(setDoc(doc(firestore, 'schools/SCH-TEST/reportCards/RESULT-B'), {
+        ...reportCard,
+        data: { ...reportCard.data, studentId: 'STUDENT-B', classId: 'CLASS-B' }
+    }));
+});
+
+test('legacy teachers without exam-results permissions can access assigned-class marks', async () => {
+    const firestore = testEnvironment.authenticatedContext('teacher-1').firestore();
+    const assignedClassResults = query(
+        collection(firestore, 'schools/SCH-TEST/examResults'),
+        where('data.classId', '==', 'CLASS-A')
+    );
+    await assertSucceeds(getDocs(assignedClassResults));
+    await assertSucceeds(setDoc(doc(firestore, 'schools/SCH-TEST/examResults/RESULT-LEGACY-TEACHER'), {
+        data: {
+            studentId: 'STUDENT-A',
+            classId: 'CLASS-A',
+            subjectName: 'Mathematics',
+            assessmentName: 'Term 1 test',
+            status: 'Draft'
+        },
+        version: 1,
+        updatedBy: 'teacher-1',
+        updatedAt: '2026-10-17T00:00:00.000Z'
+    }));
+    await assertFails(getDocs(query(
+        collection(firestore, 'schools/SCH-TEST/examResults'),
+        where('data.classId', '==', 'CLASS-B')
+    )));
+});
+
+test('parents can read linked published exam results but not drafts', async () => {
+    const firestore = testEnvironment.authenticatedContext('parent-1').firestore();
+    await assertSucceeds(getDoc(doc(firestore, 'schools/SCH-TEST/examResults/RESULT-PUBLISHED')));
+    await assertFails(getDoc(doc(firestore, 'schools/SCH-TEST/examResults/RESULT-DRAFT')));
 });
 
 test('parent data access is read-only and limited to recommended linked-child collections', async () => {

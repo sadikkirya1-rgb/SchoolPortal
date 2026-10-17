@@ -16,7 +16,7 @@ import {
 const db = window.schoolPortalFirebase?.db;
 const allowedCollections = new Set([
     'students', 'parents', 'staff', 'classes', 'subjects', 'attendance',
-    'assessments', 'reportCards', 'fees', 'feeInvoices', 'expenses',
+    'assessments', 'reportCards', 'examResults', 'fees', 'feeInvoices', 'expenses',
     'timetables', 'notices', 'smsAlerts', 'libraryBooks', 'libraryLoans',
     'healthRecords', 'transportRoutes', 'disciplineCases', 'clubs',
     'studyMaterials', 'quizzes', 'inventory', 'assets', 'visitors',
@@ -34,7 +34,7 @@ const allowedCollections = new Set([
     'ministryReports', 'emisReports', 'teachers', 'staffDirectory', 'visitorLogs', 'notifications'
 ]);
 const personalRecordCollections = new Set([
-    'students', 'attendance', 'assessments', 'reportCards', 'fees',
+    'students', 'attendance', 'assessments', 'reportCards', 'examResults', 'fees',
     'feeInvoices', 'healthRecords', 'libraryLoans', 'disciplineCases',
     'idCards', 'transcripts', 'unebExams'
 ]);
@@ -123,8 +123,14 @@ function isTeachingRole(role) {
 
 function canEditCollection(owner, collectionName) {
     if (!owner || ['parent', 'student'].includes(String(owner.role).toLowerCase())) return false;
-    return ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(owner.role)
-        || owner.permissions?.[collectionName]?.edit === true;
+    const isAdministrator = ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(owner.role);
+    const hasLegacyExamResultsAccess = collectionName === 'examResults'
+        && isTeachingRole(owner.role)
+        && owner.assignedClassIds.length > 0
+        && owner.permissions?.examResults === undefined;
+    return isAdministrator
+        || owner.permissions?.[collectionName]?.edit === true
+        || hasLegacyExamResultsAccess;
 }
 
 async function linkedStudentIds(owner) {
