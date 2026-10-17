@@ -7619,6 +7619,18 @@ Total Amount: $4,820.00
                 return;
             }
 
+            if (linkText === 'Subjects') {
+                let subjectsModule = document.getElementById('subjectsModule');
+                if (!subjectsModule) {
+                    subjectsModule = window.createSubjectsModule();
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(subjectsModule, dashboardEl);
+                }
+                showSection('subjectsModule');
+                updateBreadcrumb(['Academic Department', 'Subjects']);
+                return;
+            }
+
             if (linkText === 'Curriculum') {
                 let curriculumModule = document.getElementById('curriculumModule');
                 if (!curriculumModule) {
