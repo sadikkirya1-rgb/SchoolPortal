@@ -876,7 +876,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const recordIcon = name => `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${recordIconShapes[name] || recordIconShapes['fa-circle-info']}</g></svg>`;
             const summary = fields[0];
             const documentAction = collection === 'reportCards'
-                ? `<button class="parent-document-action" type="button" data-parent-document-preview="reportCard" data-parent-document-index="${recordIndex}"><i class="fas fa-file-lines" aria-hidden="true"></i> Preview report</button>`
+                ? `<button class="parent-document-action parent-document-action-report" type="button" data-parent-document-preview="reportCard" data-parent-document-index="${recordIndex}" aria-label="Preview report card"><i class="fas fa-file-lines" aria-hidden="true"></i> Preview report card</button>`
                 : collection === 'fees' && feeIsFullyPaid(record)
                     ? `<button class="parent-document-action" type="button" data-parent-document-preview="feeReceipt" data-parent-document-index="${recordIndex}"><i class="fas fa-receipt" aria-hidden="true"></i> View receipt</button>`
                     : '';
@@ -953,6 +953,7 @@ document.addEventListener('DOMContentLoaded', () => {
             documentPreviewReturnFocus = trigger;
             documentPreviewTitle.textContent = title;
             if (documentPreviewSubtitle) documentPreviewSubtitle.textContent = subtitle;
+            documentPreviewModal.classList.toggle('parent-report-card-preview', title === 'Report Card');
             documentPreviewPaper.innerHTML = markup;
             documentPreviewModal.classList.remove('hidden');
             container.querySelector('[data-parent-document-close]')?.focus();
@@ -960,19 +961,35 @@ document.addEventListener('DOMContentLoaded', () => {
         const reportCardPreviewMarkup = record => {
             const child = parentRecordStudent(record);
             const subjectRows = parentResultRows(record, 'reportCards');
-            const detail = [
-                ['Student', child?.fullName || child?.name || child?.studentName || 'Linked student'],
-                ['Period', parentPortalRecordValue(record, ['period', 'academicPeriod', 'term', 'year']) || '—'],
-                ['Average', parentPortalRecordValue(record, ['average', 'percentage', 'averagePercentage']) || '—'],
-                ['Grade', parentPortalRecordValue(record, ['grade', 'overallGrade']) || '—'],
-                ['Status', parentPortalRecordValue(record, ['status', 'publicationStatus']) || 'Published'],
-                ['Published', parentRecordDate(record, ['publishedAt', 'publicationDate', 'date']) || '—']
-            ];
+            const studentName = child?.fullName || child?.name || child?.studentName
+                || parentPortalRecordValue(record, ['studentName', 'student', 'fullName']) || 'Linked student';
+            const year = parentPortalRecordValue(record, ['year', 'academicYear']) || '—';
+            const period = parentPortalRecordValue(record, ['period', 'academicPeriod', 'term']) || '—';
+            const averageValue = parentPortalRecordValue(record, ['average', 'percentage', 'averagePercentage'])
+                || (subjectRows.length
+                    ? `${(subjectRows.reduce((total, row) => total + row.percentage, 0) / subjectRows.length).toFixed(1)}%`
+                    : '—');
             const rows = subjectRows.map(row => {
-                const score = row.score === null ? '—' : `${row.score}${row.maximum ? ` / ${row.maximum}` : ''}`;
-                return `<article class="parent-document-line-item"><h5>${dashboardEscape(row.subject)}<span>${dashboardEscape(row.percentage.toFixed(1))}%</span></h5><dl class="parent-document-detail"><div><dt>Score</dt><dd>${dashboardEscape(score)}</dd></div></dl></article>`;
+                const examType = /exam|term/.test(row.type.toLowerCase()) ? 'Examination' : 'Test';
+                return `<tr><td>${dashboardEscape(row.assessment || '—')}</td><td>${examType}</td><td>${dashboardEscape(row.date ? parentRecordDate({ date: row.date }, ['date']) || row.date : '—')}</td><td>${dashboardEscape(row.subject)}</td><td>${dashboardEscape(row.maximum || '—')}</td><td>${dashboardEscape(row.score ?? '—')}</td><td>${dashboardEscape(row.percentage.toFixed(1))}%</td><td>${dashboardEscape(row.remarks || '—')}</td></tr>`;
             }).join('');
-            return `<div class="parent-document-sheet-heading"><h3>${dashboardEscape(parentPortalRecordValue(record, ['reportName', 'title', 'name']) || 'Report Card')}</h3><p>Published academic results</p></div><dl class="parent-document-summary-grid">${detail.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl><section class="parent-document-section"><h4>Subject results</h4>${rows || '<p class="parent-document-empty">Subject-level marks are not available in this published report record.</p>'}</section>`;
+            const details = [
+                ['Student Name', studentName],
+                ['Admission No.', parentPortalRecordValue(record, ['studentAdmissionNo', 'admissionNo', 'admissionNumber']) || '—'],
+                ['Date of Birth', child && parentRecordDate(child, ['dateOfBirth', 'dob', 'birthDate']) || '—'],
+                ['Class / Section', [parentPortalRecordValue(record, ['class', 'className']) || child?.className || child?.class || '', parentPortalRecordValue(record, ['section']) || child?.section || ''].filter(Boolean).join(' / ') || '—'],
+                ['Academic Year', year],
+                ['Report Card No.', parentPortalRecordValue(record, ['no', 'reportNo', 'reportNumber']) || '—']
+            ];
+            const summary = [
+                ['Average', averageValue],
+                ['Overall Grade', parentPortalRecordValue(record, ['grade', 'overallGrade']) || '—'],
+                ['GPA', parentPortalRecordValue(record, ['gpa']) || '—'],
+                ['Attendance', parentPortalRecordValue(record, ['attendance', 'attendanceRate']) || '—']
+            ];
+            const teacherRemarks = parentPortalRecordValue(record, ['teacherRemarks', 'classTeacherRemarks']) || '—';
+            const principalRemarks = parentPortalRecordValue(record, ['principalRemarks', 'headTeacherRemarks']) || '—';
+            return `<div class="report-preview-sheet parent-report-preview-sheet"><div class="report-sheet-header"><div class="report-school-logo"><i class="fas fa-graduation-cap" aria-hidden="true"></i></div><div><strong>${dashboardEscape(parentPortalRecordValue(record, ['schoolName']) || 'EXCELLENCE INTERNATIONAL SCHOOL')}</strong><span>${dashboardEscape(parentPortalRecordValue(record, ['schoolAddress', 'address']) || 'Abu Dhabi • United Arab Emirates')}</span><small>Excellence in Learning • Character • Leadership</small></div></div><div class="report-sheet-title"><h2>Student Report Card</h2><p>Academic Year <strong>${dashboardEscape(year)}</strong> • ${dashboardEscape(period)}</p></div><div class="report-student-details"><div class="report-detail-grid">${details.map(([label, value]) => `<div><span>${dashboardEscape(label)}</span><strong>${dashboardEscape(value)}</strong></div>`).join('')}</div><div class="report-student-photo"><i class="fas fa-user" aria-hidden="true"></i></div></div><table class="report-marks-table"><thead><tr><th>Exam / test</th><th>Type</th><th>Date</th><th>Subject</th><th>Maximum</th><th>Obtained</th><th>Percentage</th><th>Teacher remarks</th></tr></thead><tbody>${rows || '<tr><td colspan="8">Subject-level marks are not available in this published report record.</td></tr>'}</tbody></table><div class="report-sheet-summary">${summary.map(([label, value]) => `<div><span>${dashboardEscape(label)}</span><strong>${dashboardEscape(value)}</strong></div>`).join('')}</div><div class="report-remarks"><div><h4>Teacher&apos;s Remarks</h4><p>${dashboardEscape(teacherRemarks)}</p></div><div><h4>Principal&apos;s Remarks</h4><p>${dashboardEscape(principalRemarks)}</p></div></div><div class="report-signatures"><span>Parent / Guardian Signature</span><span>Class Teacher Signature</span><span>Principal / Head Teacher Signature</span></div><div class="report-sheet-footer"><span>${dashboardEscape(parentPortalRecordValue(record, ['reportName', 'title', 'name']) || 'Published Report Card')}</span><span>${dashboardEscape(parentRecordDate(record, ['publishedAt', 'publicationDate', 'date']) || 'Published')}</span></div></div>`;
         };
         const feeStatementPreviewMarkup = fees => {
             if (!fees.length) return '<div class="parent-document-sheet-heading"><h3>Fee Statement</h3></div><p class="parent-document-empty">No fee records are available for the selected child scope.</p>';
@@ -1092,6 +1109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const closeParentDocumentPreview = () => {
             documentPreviewModal?.classList.add('hidden');
+            documentPreviewModal?.classList.remove('parent-report-card-preview');
             if (documentPreviewReturnFocus?.isConnected) documentPreviewReturnFocus.focus();
         };
         if (documentPreviewModal) {
