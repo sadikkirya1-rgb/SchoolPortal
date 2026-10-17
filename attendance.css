@@ -21,14 +21,6 @@
 #attendanceModule button.attendance-action{border:1px solid transparent;color:#334155}
 #attendanceModule button.attendance-view{border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8}
 #attendanceModule button.attendance-edit{border-color:#fcd34d;background:#fff7df;color:#8a6b2a}
-.attendance-history-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:48px;margin:0 0 12px;padding:0 14px;border:1px solid #dce3ed;border-radius:9px;background:#fff;color:#172033;font:700 12px Poppins,"Segoe UI",sans-serif;text-align:left;cursor:pointer}
-.attendance-history-toggle>span{display:flex;align-items:center;gap:8px}
-.attendance-history-toggle-copy{display:grid!important;gap:3px!important}
-.attendance-history-toggle-copy strong{display:flex;align-items:center;gap:8px;color:#172033;font-size:12px}
-.attendance-history-toggle-copy strong i{color:#2563eb}
-.attendance-history-toggle-copy small{color:#64748b;font-size:10px;font-weight:400}
-.attendance-history-toggle:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
-.attendance-records.hidden{display:none!important}
 .attendance-records .attendance-tools{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;width:100%;overflow-x:auto;padding:0 18px 14px;scrollbar-width:thin}
 .attendance-history-actions{display:flex;flex:0 0 auto;align-items:center;gap:8px;margin-left:auto}
 .attendance-records .attendance-search{flex:0 0 130px;width:130px;min-width:0}

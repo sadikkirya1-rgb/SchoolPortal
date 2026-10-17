@@ -12,17 +12,6 @@ function createAttendanceModule(category) {
     }
     const historyRecordsSection = sec.querySelector('.attendance-records');
     const historyTableWrap = historyRecordsSection?.querySelector('.attendance-table-wrap');
-    const historyToggle = document.createElement('button');
-    historyToggle.className = 'attendance-history-toggle';
-    historyToggle.type = 'button';
-    historyToggle.setAttribute('aria-expanded', 'false');
-    historyToggle.setAttribute('aria-controls', 'attendanceRecordsPanel');
-    historyToggle.innerHTML = '<span class="attendance-history-toggle-copy"><strong><i class="fas fa-clock-rotate-left" aria-hidden="true"></i> Attendance History</strong><small>Search, filter, edit, print, or download past records.</small></span><i class="fas fa-chevron-down" aria-hidden="true"></i>';
-    historyRecordsSection?.before(historyToggle);
-    if (historyRecordsSection) {
-        historyRecordsSection.id = 'attendanceRecordsPanel';
-        historyRecordsSection.classList.add('hidden');
-    }
     const historyFilters = document.createElement('div');
     historyFilters.className = 'attendance-history-filters';
     historyFilters.innerHTML = `<input type="month" aria-label="Filter attendance by month" data-att-history-month><select aria-label="Filter attendance by member type" data-att-history-type><option value="">All types</option><option>Students</option><option>Teachers</option><option>Staff</option></select><select aria-label="Filter attendance by class or department" data-att-history-class><option value="">All classes</option></select><select aria-label="Filter attendance by section" data-att-history-section><option value="">All sections</option></select>`;
@@ -372,12 +361,6 @@ function createAttendanceModule(category) {
     };
     register.querySelector('[data-att-register-month]').value = today().slice(0, 7);
     syncRegisterRosterFilters();
-    historyToggle.addEventListener('click', () => {
-        const expanded = historyRecordsSection.classList.toggle('hidden') === false;
-        historyToggle.setAttribute('aria-expanded', String(expanded));
-        historyToggle.querySelector(':scope > i')?.classList.toggle('fa-chevron-up', expanded);
-        historyToggle.querySelector(':scope > i')?.classList.toggle('fa-chevron-down', !expanded);
-    });
     historyFilters.addEventListener('input', () => {
         historyPage = 0;
         render();
