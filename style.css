@@ -2205,6 +2205,12 @@ body {
     font-weight: 700;
 }
 
+.stat-copy small {
+    color: #7d818a;
+    font-size: 0.62rem;
+    line-height: 1.2;
+}
+
 .stat-icon {
     width: 44px;
     height: 44px;

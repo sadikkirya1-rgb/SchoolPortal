@@ -1003,6 +1003,15 @@ if ('serviceWorker' in navigator) {
             <article class="stat-card dashboard-kpi">
                 <div class="stat-header">
                     <div class="stat-copy">
+                        <span>Total fees billed</span>
+                        <strong data-dashboard-stat="totalFees">—</strong>
+                    </div>
+                    <div class="stat-icon purple"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i></div>
+                </div>
+            </article>
+            <article class="stat-card dashboard-kpi">
+                <div class="stat-header">
+                    <div class="stat-copy">
                         <span>Fee balance</span>
                         <strong data-dashboard-stat="outstanding">—</strong>
                     </div>
@@ -1041,6 +1050,7 @@ if ('serviceWorker' in navigator) {
                     <div class="stat-copy">
                         <span>Attendance</span>
                         <strong data-dashboard-stat="attendanceRate">—</strong>
+                        <small data-dashboard-stat-detail="attendanceRate">Loading attendance…</small>
                     </div>
                     <div class="stat-icon blue"><i class="fas fa-calendar-check" aria-hidden="true"></i></div>
                 </div>

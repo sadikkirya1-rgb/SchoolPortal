@@ -2010,6 +2010,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const element = document.querySelector(`[data-dashboard-stat="${name}"]`);
             if (element) element.textContent = value;
         };
+        const setStatDetail = (name, value) => {
+            const element = document.querySelector(`[data-dashboard-stat-detail="${name}"]`);
+            if (element) element.textContent = value;
+        };
         const availableCount = collection => dashboardData[collection].loaded
             ? recordsFor(collection).length.toLocaleString()
             : '—';
@@ -2036,6 +2040,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? sum + feePaidAmount(fee)
                 : sum;
         }, 0);
+        const totalFeesBilled = fees.reduce((sum, fee) => sum + feeBilledAmount(fee), 0);
         const outstanding = fees.reduce((sum, fee) => sum + feeOutstandingAmount(fee), 0);
         const overdueFees = fees.filter(fee => {
             const dueDate = fee.dueDate ? parseDashboardDate(fee.dueDate) : null;
@@ -2058,21 +2063,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 : sum;
         }, 0);
         const todayKey = dashboardDateKey(new Date());
-        const attendanceToday = attendance.filter(record => {
-            const date = record.date ? parseDashboardDate(record.date) : null;
-            return date && !Number.isNaN(date.getTime()) && dashboardDateKey(date) === todayKey;
-        });
-        const attendedToday = attendanceToday.filter(record => ['present', 'late', 'excused'].includes(String(record.status || '').toLowerCase())).length;
+        const datedAttendance = attendance.map(record => ({
+            record,
+            date: record.date ? parseDashboardDate(record.date) : null
+        })).filter(item => item.date && !Number.isNaN(item.date.getTime()));
+        const attendanceToday = datedAttendance
+            .filter(item => dashboardDateKey(item.date) === todayKey)
+            .map(item => item.record);
+        const latestAttendanceDate = datedAttendance.reduce((latest, item) => {
+            const key = dashboardDateKey(item.date);
+            return key <= todayKey && (!latest || key > dashboardDateKey(latest)) ? item.date : latest;
+        }, null);
+        const attendanceForRate = attendanceToday.length
+            ? attendanceToday
+            : latestAttendanceDate
+                ? datedAttendance
+                    .filter(item => dashboardDateKey(item.date) === dashboardDateKey(latestAttendanceDate))
+                    .map(item => item.record)
+                : [];
+        const attendedInRatePeriod = attendanceForRate.filter(record =>
+            ['present', 'late', 'excused'].includes(String(record.status || '').toLowerCase())
+        ).length;
         setStat('earnings', dashboardData.fees.loaded && !range.invalid ? dashboardMoney(collectedInPeriod) : '—');
+        setStat('totalFees', dashboardData.fees.loaded ? dashboardMoney(totalFeesBilled) : '—');
         setStat('outstanding', dashboardData.fees.loaded ? dashboardMoney(outstanding) : '—');
         setStat('collectionRate', dashboardData.fees.loaded && !range.invalid && billedInPeriod > 0
             ? `${Math.round(collectedAgainstBilled / billedInPeriod * 100)}%`
             : '—');
         setStat('overdueFees', dashboardData.fees.loaded ? overdueFees.length.toLocaleString() : '—');
         setStat('expenses', dashboardData.expenses.loaded && !range.invalid ? dashboardMoney(expensesInPeriod) : '—');
-        setStat('attendanceRate', dashboardData.attendance.loaded && attendanceToday.length
-            ? `${Math.round(attendedToday / attendanceToday.length * 100)}%`
-            : '—');
+        setStat('attendanceRate', !dashboardData.attendance.loaded
+            ? '—'
+            : attendanceForRate.length
+                ? `${Math.round(attendedInRatePeriod / attendanceForRate.length * 100)}%`
+                : 'No records');
+        setStatDetail('attendanceRate', !dashboardData.attendance.loaded
+            ? 'Loading attendance…'
+            : attendanceToday.length
+                ? 'Today'
+                : latestAttendanceDate
+                    ? `Latest: ${dashboardDateLabel(latestAttendanceDate)}`
+                    : 'No attendance recorded');
         setStat('attendanceRecords', dashboardData.attendance.loaded ? attendanceToday.length.toLocaleString() : '—');
 
         const dateRangeInputs = [document.getElementById('dashboardStartDate'), document.getElementById('dashboardEndDate')];
