@@ -316,6 +316,9 @@ function createAttendanceModule(category) {
     const formatDate = value => value
         ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
         : '—';
+    const formatAttendanceTime = value => value
+        ? new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : '';
     const filteredHistoryRecords = () => {
         const query = sec.querySelector('[data-att-search]').value.trim().toLowerCase();
         const status = sec.querySelector('[data-att-status]').value;
@@ -346,7 +349,12 @@ function createAttendanceModule(category) {
             const member = rosterMemberForAttendance(record);
             const displayId = member?.displayId || record.memberDisplayId || record.memberId || '—';
             const initials = String(record.memberName || '').split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
-            return `<tr><td>${historyPage * historyPageSize + row + 1}</td><td><div class="attendance-person"><div class="attendance-person-avatar">${escape(initials)}</div><strong>${escape(record.memberName)}</strong></div></td><td>${escape(displayId)}</td><td>${escape(record.memberType)}</td><td>${formatDate(record.date)}</td><td>${escape(record.classDepartment)}</td><td>${escape(record.section)}</td><td>${escape(record.subject)}</td><td>${escape(record.teacher)}</td><td><span class="attendance-badge ${statusClass(record.status)}">${escape(record.status)}</span></td><td>${escape(record.remarks || '—')}</td><td><div class="attendance-row-actions"><button class="attendance-action attendance-view" data-action="view" data-index="${index}">View</button><button class="attendance-action attendance-edit" data-action="edit" data-index="${index}">Edit</button><button class="attendance-action attendance-delete" data-action="delete" data-index="${index}">Delete</button></div></td></tr>`;
+            const scanTimes = [
+                record.checkInAt && `In ${formatAttendanceTime(record.checkInAt)}`,
+                record.checkOutAt && `Out ${formatAttendanceTime(record.checkOutAt)}`
+            ].filter(Boolean).join(' · ');
+            const remarks = [record.remarks, scanTimes].filter(Boolean).join(' · ');
+            return `<tr><td>${historyPage * historyPageSize + row + 1}</td><td><div class="attendance-person"><div class="attendance-person-avatar">${escape(initials)}</div><strong>${escape(record.memberName)}</strong></div></td><td>${escape(displayId)}</td><td>${escape(record.memberType)}</td><td>${formatDate(record.date)}</td><td>${escape(record.classDepartment)}</td><td>${escape(record.section)}</td><td>${escape(record.subject)}</td><td>${escape(record.teacher)}</td><td><span class="attendance-badge ${statusClass(record.status)}">${escape(record.status)}</span></td><td>${escape(remarks || '—')}</td><td><div class="attendance-row-actions"><button class="attendance-action attendance-view" data-action="view" data-index="${index}">View</button><button class="attendance-action attendance-edit" data-action="edit" data-index="${index}">Edit</button><button class="attendance-action attendance-delete" data-action="delete" data-index="${index}">Delete</button></div></td></tr>`;
         }).join('');
         sec.querySelector('[data-att-empty]').style.display = filtered.length ? 'none' : 'block';
         historyPagination.querySelector('[data-att-history-count]').textContent = `${filtered.length} records`;
@@ -511,6 +519,7 @@ function createAttendanceModule(category) {
             const existing = records.find(record => record.date === data.date
                 && record.memberId === member.id && record.memberType === member.type);
             const record = {
+                ...(existing || {}),
                 id: existing?.id || `ATT-${Date.now()}-${member.id}`,
                 memberId: member.id,
                 memberDisplayId: member.displayId,
@@ -552,7 +561,7 @@ function createAttendanceModule(category) {
             toast('Attendance could not be saved. Check your access and try again.');
         }
     });
-    sec.querySelector('[data-att-search]').addEventListener('input',render);sec.querySelector('[data-att-status]').addEventListener('change',render);sec.querySelector('[data-att-print]').addEventListener('click',()=>window.print());sec.querySelector('[data-att-export]').addEventListener('click',()=>{if(!records.length)return toast('No attendance records available.');const rows=[['Member ID','Member Name','Member Type','Date','Academic Year','Period','Class / Department','Section','Subject','Officer','Status','Remarks'],...records.map(record=>[record.memberId,record.memberName,record.memberType,record.date,record.academicYear,record.period,record.classDepartment,record.section,record.subject,record.teacher,record.status,record.remarks])];const csv=rows.map(row=>row.map(value=>`"${String(value??'').replace(/"/g,'""')}"`).join(',')).join('\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));const link=document.createElement('a');link.href=url;link.download='school-attendance-records.csv';link.click();URL.revokeObjectURL(url);toast('Attendance exported successfully.')});
+    sec.querySelector('[data-att-search]').addEventListener('input',render);sec.querySelector('[data-att-status]').addEventListener('change',render);sec.querySelector('[data-att-print]').addEventListener('click',()=>window.print());sec.querySelector('[data-att-export]').addEventListener('click',()=>{if(!records.length)return toast('No attendance records available.');const rows=[['Member ID','Member Name','Member Type','Date','Academic Year','Period','Class / Department','Section','Subject','Officer','Status','Check In','Check Out','Remarks'],...records.map(record=>[record.memberDisplayId || record.memberId,record.memberName,record.memberType,record.date,record.academicYear,record.period,record.classDepartment,record.section,record.subject,record.teacher,record.status,record.checkInAt || '',record.checkOutAt || '',record.remarks])];const csv=rows.map(row=>row.map(value=>`"${String(value??'').replace(/"/g,'""')}"`).join(',')).join('\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));const link=document.createElement('a');link.href=url;link.download='school-attendance-records.csv';link.click();URL.revokeObjectURL(url);toast('Attendance exported successfully.')});
     sec.querySelector('[data-att-table]').addEventListener('click', async event => {
         const button = event.target.closest('[data-action]');
         if (!button) return;
@@ -581,7 +590,7 @@ function createAttendanceModule(category) {
             return;
         }
         if (button.dataset.action === 'view') {
-            alert(`ATTENDANCE RECORD\n\nMember: ${record.memberName}\nType: ${record.memberType}\nDate: ${formatDate(record.date)}\nClass: ${record.classDepartment}\nSection: ${record.section}\nSubject: ${record.subject}\nOfficer: ${record.teacher}\nStatus: ${record.status}\nRemarks: ${record.remarks || 'None'}`);
+            alert(`ATTENDANCE RECORD\n\nMember: ${record.memberName}\nType: ${record.memberType}\nDate: ${formatDate(record.date)}\nCheck in: ${formatAttendanceTime(record.checkInAt) || 'Not recorded'}\nCheck out: ${formatAttendanceTime(record.checkOutAt) || 'Not recorded'}\nClass: ${record.classDepartment}\nSection: ${record.section}\nSubject: ${record.subject}\nOfficer: ${record.teacher}\nStatus: ${record.status}\nRemarks: ${record.remarks || 'None'}`);
             return;
         }
         editingIndex = index;

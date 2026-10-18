@@ -7,6 +7,26 @@
 #idCardsModule .idc-view-cards{display:flex;align-items:center;justify-content:center;gap:20px}
 #idCardsModule .idc-view-cards .id-card{transform:scale(.82);transform-origin:center}
 @media(max-width:700px){#idCardsModule .idc-view-modal{padding:10px}#idCardsModule .idc-view-cards{flex-direction:column;gap:0}#idCardsModule .idc-view-cards .id-card{margin:-38px 0;transform:scale(.7)}}
+#idCardsModule .idc-header{flex-wrap:wrap}
+#idCardsModule .idc-attendance-qr{position:absolute;bottom:12px;left:50%;display:grid;width:150px;justify-items:center;gap:3px;transform:translateX(-50%);color:#fff;font-size:7px;font-weight:800;letter-spacing:.7px;text-align:center}
+#idCardsModule .idc-attendance-qr canvas{display:block;width:132px;height:132px;border:6px solid #fff;border-radius:3px;background:#fff;image-rendering:pixelated}
+#idCardsModule .idc-barcode-number{display:none}
+#idCardsModule .idc-back-content .idc-gold-line{margin-bottom:10px}
+#idCardsModule .idc-back-content .idc-address{font-size:9px;line-height:1.35}
+#idCardsModule .idc-back-content .idc-emergency{margin-top:8px;padding:8px}
+#idCardsModule .idc-back-content .idc-emergency-number{font-size:10px}
+#idCardsModule .idc-back-content .idc-card-number{bottom:168px}
+#idCardsModule .idc-scan-panel{padding:18px}
+#idCardsModule .idc-scan-heading,#idCardsModule .idc-scan-controls{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#idCardsModule .idc-scan-heading{margin-bottom:14px}
+#idCardsModule .idc-scan-heading h3{font-size:15px}
+#idCardsModule .idc-scan-heading p,#idCardsModule .idc-scan-status{margin-top:4px;color:#64748b;font-size:12px}
+#idCardsModule .idc-scan-controls{justify-content:flex-start;flex-wrap:wrap;margin-bottom:12px}
+#idCardsModule .idc-scan-controls label{display:grid;gap:4px;color:#475569;font-size:11px;font-weight:700}
+#idCardsModule .idc-scan-controls select{min-width:140px;height:38px;padding:0 10px;border:1px solid #dce4ef;border-radius:8px;background:#fff;color:#334155;font:inherit}
+#idCardsModule [data-idc-camera]{display:block;width:min(100%,520px);max-height:340px;margin:0 auto;border-radius:10px;background:#0f172a;object-fit:cover}
+#idCardsModule .idc-scan-status{text-align:center}
+@media(max-width:600px){#idCardsModule .idc-header{justify-content:flex-start}#idCardsModule .idc-brand{order:-1;width:100%}#idCardsModule .idc-scan-panel{padding:14px}#idCardsModule .idc-scan-heading{align-items:flex-start}#idCardsModule .idc-scan-controls>*{flex:1}#idCardsModule .idc-scan-controls label{min-width:100%}}
 #idCardsModule .idc-record-heading{padding:16px 20px 0;margin-bottom:14px}
 #idCardsModule .idc-record-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,360px) minmax(0,1fr);align-items:center;gap:12px;padding:0 20px 16px}
 #idCardsModule .idc-record-filters{display:flex;flex-wrap:wrap;gap:8px}

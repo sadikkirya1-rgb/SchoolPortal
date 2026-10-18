@@ -48,4 +48,14 @@ if (!fs.existsSync(path.join(publicDirectory, 'index.html'))) {
     throw new Error('Hosting staging did not produce public/index.html.');
 }
 
+[
+    'node_modules/qrcode-generator/dist/qrcode.js',
+    'node_modules/jsqr/dist/jsQR.js'
+].forEach(relativePath => {
+    const sourcePath = path.join(projectDirectory, relativePath);
+    const targetPath = path.join(publicDirectory, relativePath);
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+    fs.copyFileSync(sourcePath, targetPath);
+});
+
 console.log('Prepared Firebase Hosting files in public/.');

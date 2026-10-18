@@ -4,7 +4,9 @@
     "test": "firebase emulators:exec --only firestore,functions,storage,pubsub --project demo-school-portal \"node --test tests/*.test.js\""
   },
   "dependencies": {
-    "firebase": "^13.0.0"
+    "firebase": "^13.0.0",
+    "jsqr": "^1.4.0",
+    "qrcode-generator": "^2.0.4"
   },
   "overrides": {
     "@grpc/grpc-js": "^1.14.6"
