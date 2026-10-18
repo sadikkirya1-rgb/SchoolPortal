@@ -2,7 +2,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/fireba
 import {
     browserLocalPersistence,
     EmailAuthProvider,
-    getAuth,
+    initializeAuth,
     onAuthStateChanged,
     reauthenticateWithCredential,
     setPersistence,
@@ -43,7 +43,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const auth = initializeAuth(app, { persistence: [browserLocalPersistence] });
 let db;
 try {
     db = initializeFirestore(app, {

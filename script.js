@@ -3065,6 +3065,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (label === 'Home') {
                         button.dataset.mobileParentNav = 'Home';
                     } else if (label === 'Notifications') {
+                        button.dataset.mobileNotifications = '';
+                        button.setAttribute('aria-haspopup', 'dialog');
+                        button.setAttribute('aria-controls', 'notificationPanel');
+                        button.setAttribute('aria-expanded', 'false');
                         const count = document.createElement('small');
                         count.className = 'mobile-role-nav-count';
                         count.dataset.mobileNotificationCount = '';
@@ -3076,6 +3080,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     button.append(text);
                     button.addEventListener('click', () => {
                         if (label === 'Documents') openParentDocuments();
+                        else if (label === 'Notifications') toggleNotificationPanel();
                         else source.click();
                     });
                     nav.append(button);
@@ -3271,7 +3276,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         document.getElementById('notificationPanel')?.classList.add('hidden');
-        document.getElementById('enablePushNotifications')?.setAttribute('aria-expanded', 'false');
+        document.querySelectorAll('#enablePushNotifications, [data-mobile-notifications]').forEach(button =>
+            button.setAttribute('aria-expanded', 'false')
+        );
         const route = String(item.route || '');
         if (route === 'Documents' && String(identity.role || '').toLowerCase() === 'parent') {
             openParentDocuments();
@@ -3311,23 +3318,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const pushNotificationsButton = document.getElementById('enablePushNotifications');
     const notificationPanel = document.getElementById('notificationPanel');
-    pushNotificationsButton?.addEventListener('click', () => {
+    function toggleNotificationPanel() {
         const isOpen = !notificationPanel?.classList.contains('hidden');
         notificationPanel?.classList.toggle('hidden', isOpen);
-        pushNotificationsButton.setAttribute('aria-expanded', String(!isOpen));
+        document.querySelectorAll('#enablePushNotifications, [data-mobile-notifications]').forEach(button =>
+            button.setAttribute('aria-expanded', String(!isOpen))
+        );
         renderNotificationUi();
-    });
+    }
+    pushNotificationsButton?.addEventListener('click', toggleNotificationPanel);
     document.addEventListener('click', event => {
-        if (!event.target.closest('.notification-menu')) {
+        if (!event.target.closest('.notification-menu')
+            && !event.target.closest('[data-mobile-notifications]')
+            && !event.target.closest('#notificationPanel')) {
             notificationPanel?.classList.add('hidden');
-            pushNotificationsButton?.setAttribute('aria-expanded', 'false');
+            document.querySelectorAll('#enablePushNotifications, [data-mobile-notifications]').forEach(button =>
+                button.setAttribute('aria-expanded', 'false')
+            );
         }
     });
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && !notificationPanel?.classList.contains('hidden')) {
             notificationPanel.classList.add('hidden');
-            pushNotificationsButton?.setAttribute('aria-expanded', 'false');
-            pushNotificationsButton?.focus();
+            document.querySelectorAll('#enablePushNotifications, [data-mobile-notifications]').forEach(button =>
+                button.setAttribute('aria-expanded', 'false')
+            );
+            (document.querySelector('[data-mobile-notifications]') || pushNotificationsButton)?.focus();
         }
     });
 

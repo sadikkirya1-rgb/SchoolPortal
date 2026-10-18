@@ -5626,10 +5626,10 @@ input:checked + .slider:before {
 .notification-count-badge[hidden]{display:none}
 
 .notification-panel{
-    position:absolute;
+    position:fixed;
     z-index:1250;
-    top:calc(100% + 12px);
-    right:0;
+    top:72px;
+    right:16px;
     display:flex;
     width:min(390px,calc(100vw - 24px));
     max-height:min(560px,calc(100dvh - 100px));
@@ -5876,7 +5876,7 @@ input:checked + .slider:before {
     .mobile-role-nav-count{position:absolute;top:1px;right:7px;display:grid;min-width:16px;height:16px;place-items:center;padding:0 4px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:9px;font-weight:750;line-height:1}
     .mobile-role-nav-count[hidden]{display:none}
     .parent-documents-heading{align-items:flex-start;flex-direction:column}
-    .notification-panel{position:fixed;top:calc(64px + env(safe-area-inset-top));right:8px;width:min(390px,calc(100vw - 16px));max-height:calc(100dvh - 150px)}
+    .notification-panel{top:calc(64px + env(safe-area-inset-top));right:8px;width:min(390px,calc(100vw - 16px));max-height:calc(100dvh - 150px)}
 
     .mobile-role-nav-item:focus-visible{
         outline:2px solid #2563eb;
