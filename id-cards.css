@@ -8,14 +8,21 @@
 #idCardsModule .idc-view-cards .id-card{transform:scale(.82);transform-origin:center}
 @media(max-width:700px){#idCardsModule .idc-view-modal{padding:10px}#idCardsModule .idc-view-cards{flex-direction:column;gap:0}#idCardsModule .idc-view-cards .id-card{margin:-38px 0;transform:scale(.7)}}
 #idCardsModule .idc-header{flex-wrap:wrap}
-#idCardsModule .idc-attendance-qr{position:absolute;top:168px;left:50%;display:grid;width:150px;justify-items:center;gap:3px;transform:translateX(-50%);color:#fff;font-size:7px;font-weight:800;letter-spacing:.7px;text-align:center}
+#idCardsModule .idc-attendance-qr{position:absolute;top:108px;left:50%;display:grid;width:150px;justify-items:center;gap:3px;transform:translateX(-50%);color:#fff;font-size:7px;font-weight:800;letter-spacing:.7px;text-align:center}
 #idCardsModule .idc-attendance-qr canvas{display:block;width:132px;height:132px;border:6px solid #fff;border-radius:3px;background:#fff;image-rendering:pixelated}
 #idCardsModule .idc-barcode-number{display:none}
 #idCardsModule .idc-back-content .idc-gold-line{margin-bottom:10px}
-#idCardsModule .idc-back-content .idc-address{font-size:9px;line-height:1.35}
+#idCardsModule .idc-back-content .idc-return-title{position:absolute;top:290px;right:14px;left:14px;color:#bfdbfe;font-size:12px;font-weight:900;letter-spacing:.8px;text-align:center}
+#idCardsModule .idc-back-content .idc-address{position:absolute;top:312px;right:14px;left:14px;margin:0;color:#fff;font-size:11px;line-height:1.3;text-align:center}
 #idCardsModule .idc-back-content .idc-emergency{position:absolute;right:23px;bottom:14px;left:23px;margin:0;padding:8px;text-align:center}
 #idCardsModule .idc-back-content .idc-emergency-number{font-size:10px}
 #idCardsModule .idc-back-content .idc-card-number{display:none}
+.parent-id-card-preview-content .idc-back-content .idc-attendance-qr{position:absolute;top:108px;left:50%;display:grid;width:150px;justify-items:center;gap:3px;transform:translateX(-50%);color:#fff;font-size:7px;font-weight:800;letter-spacing:.7px;text-align:center}
+.parent-id-card-preview-content .idc-attendance-qr canvas{display:block;width:132px;height:132px;border:6px solid #fff;border-radius:3px;background:#fff;image-rendering:pixelated}
+.parent-id-card-preview-content .idc-back-content .idc-return-title{position:absolute;top:290px;right:14px;left:14px;color:#bfdbfe;font-size:12px;font-weight:900;letter-spacing:.8px;text-align:center}
+.parent-id-card-preview-content .idc-back-content .idc-address{position:absolute;top:312px;right:14px;left:14px;margin:0;color:#fff;font-size:11px;line-height:1.3;text-align:center}
+.parent-id-card-preview-content .idc-back-content .idc-emergency{position:absolute;right:23px;bottom:14px;left:23px;margin:0;padding:8px;text-align:center}
+.parent-id-card-preview-content .idc-back-content .idc-card-number,.parent-id-card-preview-content .idc-back-content .idc-barcode-number{display:none}
 #idCardsModule .idc-scan-panel{padding:18px}
 #idCardsModule .idc-scan-heading,#idCardsModule .idc-scan-controls{display:flex;align-items:center;justify-content:space-between;gap:12px}
 #idCardsModule .idc-scan-heading{margin-bottom:14px}
@@ -24,8 +31,19 @@
 #idCardsModule .idc-scan-controls{justify-content:flex-start;flex-wrap:wrap;margin-bottom:12px}
 #idCardsModule .idc-scan-controls label{display:grid;gap:4px;color:#475569;font-size:11px;font-weight:700}
 #idCardsModule .idc-scan-controls select{min-width:140px;height:38px;padding:0 10px;border:1px solid #dce4ef;border-radius:8px;background:#fff;color:#334155;font:inherit}
-#idCardsModule [data-idc-camera]{display:block;width:min(100%,520px);max-height:340px;margin:0 auto;border-radius:10px;background:#0f172a;object-fit:cover}
+#idCardsModule .idc-camera-frame{position:relative;width:min(100%,520px);height:min(62vw,340px);min-height:220px;margin:0 auto;overflow:hidden;border-radius:10px;background:#0f172a}
+#idCardsModule [data-idc-camera]{display:block;width:100%;height:100%;object-fit:cover}
+#idCardsModule .idc-camera-guide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff;text-align:center;pointer-events:none}
+#idCardsModule .idc-camera-guide-label,#idCardsModule .idc-camera-guide-hint{padding:5px 9px;border-radius:20px;background:#0f172acc;font-size:11px;font-weight:800}
+#idCardsModule .idc-camera-guide-box{position:relative;width:min(62%,240px);aspect-ratio:1;border:3px solid #38f8c2;border-radius:14px;box-shadow:0 0 0 999px #0f172a40,0 0 16px #38f8c299}
+#idCardsModule .idc-camera-scan-line{position:absolute;top:0;right:0;left:0;height:2px;opacity:0;background:#38f8c2;box-shadow:0 0 8px 2px #38f8c299}
+#idCardsModule .idc-camera-frame.is-scanning .idc-camera-scan-line{opacity:1;animation:idc-scan-sweep 2.4s ease-in-out infinite alternate}
+@keyframes idc-scan-sweep{from{top:2%}to{top:98%}}
+#idCardsModule .idc-scan-result{display:grid;justify-items:center;gap:5px;max-width:520px;margin:12px auto 0;padding:14px;border:1px solid #86efac;border-radius:10px;background:#f0fdf4;color:#166534;font-size:13px;text-align:center}
+#idCardsModule .idc-scan-result [data-idc-result-action]{font-size:16px;font-weight:900}
+#idCardsModule .idc-scan-result .idc-result-name{font-size:15px}
 #idCardsModule .idc-scan-status{text-align:center}
+@media(prefers-reduced-motion:reduce){#idCardsModule .idc-camera-frame.is-scanning .idc-camera-scan-line{animation:none;top:50%}}
 @media(max-width:600px){#idCardsModule .idc-header{justify-content:flex-start}#idCardsModule .idc-brand{order:-1;width:100%}#idCardsModule .idc-scan-panel{padding:14px}#idCardsModule .idc-scan-heading{align-items:flex-start}#idCardsModule .idc-scan-controls>*{flex:1}#idCardsModule .idc-scan-controls label{min-width:100%}}
 #idCardsModule .idc-record-heading{padding:16px 20px 0;margin-bottom:14px}
 #idCardsModule .idc-record-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,360px) minmax(0,1fr);align-items:center;gap:12px;padding:0 20px 16px}

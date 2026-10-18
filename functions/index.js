@@ -711,7 +711,7 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
         [
             'memberName', 'memberId', 'memberType', 'designation', 'department',
             'division', 'validUntil', 'emergency', 'status', 'primary', 'secondary',
-            'schoolName', 'schoolAddress', 'photo', 'logo'
+            'schoolName', 'schoolAddress', 'photo', 'logo', 'qrToken'
         ].forEach(field => {
             const value = data[field];
             if (typeof value === 'string' || typeof value === 'number') {

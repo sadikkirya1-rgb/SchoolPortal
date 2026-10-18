@@ -1382,15 +1382,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="idc-card-content idc-back-content">
                             <div class="idc-back-title">${schoolName}</div>
                             <div class="idc-gold-line"></div>
+                            <div class="idc-attendance-qr"><canvas data-parent-id-card-qr role="img" aria-label="Student attendance QR code"></canvas><span>SCAN FOR ATTENDANCE</span></div>
                             <div class="idc-return-title">If this card is found</div>
-                            <div class="idc-address">Please return this identification card to:<br><br><strong>${schoolName}<br>${dashboardEscape(card.schoolAddress || '')}</strong><br><br>Tel: +971 00 000 0000<br>Email: admin@school.edu</div>
+                            <div class="idc-address">Please return this identification card to:<br><strong>${schoolName}<br>${dashboardEscape(card.schoolAddress || '')}</strong><br>Tel: +971 00 000 0000<br>Email: admin@school.edu</div>
                             <div class="idc-emergency"><div class="idc-emergency-title">Emergency Contact</div><div class="idc-emergency-number">${dashboardEscape(card.emergency || '')}</div></div>
-                            <div class="idc-signature">Authorized Signature / Principal</div>
-                            <div class="idc-card-number">CARD NO: <strong>${memberId}</strong></div>
-                            <div class="idc-barcode"></div>
-                            <div class="idc-barcode-number">${memberId}</div>
                         </div>
-                    </article>`;
+                    </div>`;
                 }
                 const validUntil = card.validUntil
                     ? new Date(`${card.validUntil}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -1408,13 +1405,53 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="idc-detail"><span class="idc-detail-label">Department / Class</span><span class="idc-detail-value">${dashboardEscape(card.department || '')}</span></div>
                             <div class="idc-detail"><span class="idc-detail-label">Division / House</span><span class="idc-detail-value">${dashboardEscape(card.division || '')}</span></div>
                         </div>
-                        <div class="idc-card-bottom"><div class="idc-validity">VALID UNTIL<strong>${dashboardEscape(validUntil)}</strong></div><div class="idc-qr"></div></div>
+                        <div class="idc-card-bottom"><div class="idc-validity">VALID UNTIL<strong>${dashboardEscape(validUntil)}</strong></div></div>
                     </div>
                 </div>`;
+            };
+            const renderParentIdCardQr = (canvas, card = previewCard) => {
+                const schoolId = window.schoolPortalData?.getIdentity?.()?.schoolId;
+                const token = String(card?.qrToken || card?.id || '');
+                if (!canvas || !schoolId || !token || typeof window.qrcode !== 'function') {
+                    const label = canvas?.nextElementSibling;
+                    if (label) label.textContent = 'QR CODE UNAVAILABLE — CONTACT THE SCHOOL';
+                    return;
+                }
+                try {
+                    const qr = window.qrcode(0, 'H');
+                    qr.addData(`EDU1|${encodeURIComponent(schoolId)}|${token}`);
+                    qr.make();
+                    const size = 224;
+                    const quietZone = 4;
+                    const moduleCount = qr.getModuleCount();
+                    const moduleSize = size / (moduleCount + quietZone * 2);
+                    const context = canvas.getContext('2d');
+                    if (!context) throw new Error('Canvas rendering is unavailable.');
+                    canvas.width = size;
+                    canvas.height = size;
+                    context.fillStyle = '#fff';
+                    context.fillRect(0, 0, size, size);
+                    context.fillStyle = '#111827';
+                    for (let row = 0; row < moduleCount; row += 1) {
+                        for (let column = 0; column < moduleCount; column += 1) {
+                            if (!qr.isDark(row, column)) continue;
+                            const left = Math.floor((column + quietZone) * moduleSize);
+                            const top = Math.floor((row + quietZone) * moduleSize);
+                            const right = Math.ceil((column + quietZone + 1) * moduleSize);
+                            const bottom = Math.ceil((row + quietZone + 1) * moduleSize);
+                            context.fillRect(left, top, right - left, bottom - top);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Unable to generate the parent portal ID-card QR code.', error);
+                    const label = canvas.nextElementSibling;
+                    if (label) label.textContent = 'QR CODE UNAVAILABLE — CONTACT THE SCHOOL';
+                }
             };
             const renderPreviewCard = () => {
                 if (!previewCard || !previewContent) return;
                 previewContent.innerHTML = renderIdCard(previewCard, previewSide);
+                renderParentIdCardQr(previewContent.querySelector('[data-parent-id-card-qr]'));
                 if (flipButton) {
                     flipButton.querySelector('span').textContent = previewSide === 'front' ? 'Show back' : 'Show front';
                     flipButton.setAttribute('aria-pressed', String(previewSide === 'back'));
@@ -1524,21 +1561,25 @@ document.addEventListener('DOMContentLoaded', () => {
                             drawText(value || '—', x, y + 45, 26, '#ffffff', 'left', '700');
                         });
                     } else {
-                        drawText('IF THIS CARD IS FOUND', width / 2, 360, 32, '#dbeafe', 'center', '700');
-                        drawText('Please return this card to the school.', width / 2, 415, 22, '#ffffff', 'center');
-                        [
-                            ['SCHOOL', previewCard.schoolName],
-                            ['ADDRESS', previewCard.schoolAddress],
-                            ['EMERGENCY CONTACT', previewCard.emergency]
-                        ].forEach(([label, value], index) => {
-                            const y = 545 + index * 190;
-                            context.fillStyle = 'rgba(0,0,0,.12)';
-                            context.beginPath();
-                            context.roundRect(64, y - 45, width - 128, 140, 18);
-                            context.fill();
-                            drawText(label, 92, y, 18, '#bfdbfe');
-                            drawText(value || '—', 92, y + 48, 24, '#ffffff', 'left', '700');
-                        });
+                        drawText('IF THIS CARD IS FOUND', width / 2, 270, 30, '#dbeafe', 'center', '700');
+                        const qrCanvas = document.createElement('canvas');
+                        renderParentIdCardQr(qrCanvas, previewCard);
+                        if (qrCanvas.width && qrCanvas.height) {
+                            context.fillStyle = '#fff';
+                            context.fillRect(width / 2 - 190, 310, 380, 380);
+                            context.drawImage(qrCanvas, width / 2 - 180, 320, 360, 360);
+                            drawText('SCAN FOR ATTENDANCE', width / 2, 715, 16, '#ffffff', 'center', '700');
+                        }
+                        drawText('Please return this identification card to:', width / 2, 790, 20, '#ffffff', 'center');
+                        drawText(previewCard.schoolName || '', width / 2, 835, 22, '#ffffff', 'center', '700');
+                        drawText(previewCard.schoolAddress || '', width / 2, 875, 18, '#ffffff', 'center');
+                        drawText('Tel: +971 00 000 0000  |  Email: admin@school.edu', width / 2, 915, 16, '#ffffff', 'center');
+                        context.fillStyle = 'rgba(0,0,0,.12)';
+                        context.beginPath();
+                        context.roundRect(64, 1040, width - 128, 140, 18);
+                        context.fill();
+                        drawText('EMERGENCY CONTACT', width / 2, 1090, 18, '#bfdbfe', 'center');
+                        drawText(previewCard.emergency || '—', width / 2, 1140, 24, '#ffffff', 'center', '700');
                         context.strokeStyle = 'rgba(255,255,255,.45)';
                         context.beginPath();
                         context.moveTo(64, 1225);
