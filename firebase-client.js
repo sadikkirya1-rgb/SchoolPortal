@@ -16,10 +16,15 @@ import {
     getDocs,
     getFirestore,
     initializeFirestore,
+    limit,
+    onSnapshot,
+    orderBy,
     persistentLocalCache,
     persistentMultipleTabManager,
+    query,
     serverTimestamp,
-    updateDoc
+    updateDoc,
+    writeBatch
 } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-functions.js';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js';
@@ -263,6 +268,45 @@ const savePushToken = httpsCallable(functions, 'savePushToken');
 const removePushToken = httpsCallable(functions, 'removePushToken');
 let foregroundMessagingListenerRegistered = false;
 
+function pushTokenStorageKey(schoolId, uid) {
+    return `schoolPushToken:${encodeURIComponent(schoolId)}:${encodeURIComponent(uid)}`;
+}
+
+function subscribeToNotifications(schoolId, onNotifications, onError) {
+    const uid = auth.currentUser?.uid;
+    if (!uid) throw new Error('Sign in to view notifications.');
+    const notifications = query(
+        collection(db, 'schools', schoolId, 'members', uid, 'notifications'),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+    );
+    return onSnapshot(notifications, snapshot => {
+        onNotifications(snapshot.docs.map(item => {
+            const data = item.data();
+            return {
+                id: item.id,
+                ...data,
+                createdAt: typeof data.createdAt?.toDate === 'function'
+                    ? data.createdAt.toDate().toISOString()
+                    : ''
+            };
+        }));
+    }, onError);
+}
+
+async function markNotificationsRead(schoolId, notificationIds) {
+    const uid = auth.currentUser?.uid;
+    if (!uid) throw new Error('Sign in to update notifications.');
+    const ids = [...new Set(notificationIds.filter(id => typeof id === 'string' && id))].slice(0, 100);
+    if (!ids.length) return;
+    const batch = writeBatch(db);
+    ids.forEach(id => batch.update(
+        doc(db, 'schools', schoolId, 'members', uid, 'notifications', id),
+        { read: true, readAt: serverTimestamp() }
+    ));
+    await batch.commit();
+}
+
 async function enablePushNotifications(schoolId) {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) {
         throw new Error('Push notifications are not supported by this browser.');
@@ -285,6 +329,8 @@ async function enablePushNotifications(schoolId) {
     });
     if (!token) throw new Error('Firebase did not return a device notification token.');
     await savePushToken({ schoolId, token });
+    const uid = auth.currentUser?.uid;
+    if (uid) localStorage.setItem(pushTokenStorageKey(schoolId, uid), token);
 
     if (!foregroundMessagingListenerRegistered) {
         foregroundMessagingListenerRegistered = true;
@@ -298,15 +344,24 @@ async function enablePushNotifications(schoolId) {
 }
 
 async function disablePushNotifications(schoolId) {
-    if (!('Notification' in window) || Notification.permission !== 'granted' || !await isSupported()) return;
-    const serviceWorkerRegistration = await navigator.serviceWorker.ready;
-    const messagingClient = getMessaging(app);
-    const token = await getToken(messagingClient, {
-        vapidKey: webPushVapidKey,
-        serviceWorkerRegistration
-    });
-    if (token) await removePushToken({ schoolId, token });
-    await deleteToken(messagingClient);
+    const uid = auth.currentUser?.uid;
+    if (!uid) throw new Error('Sign in to manage notifications.');
+    const storageKey = pushTokenStorageKey(schoolId, uid);
+    const savedToken = localStorage.getItem(storageKey);
+    if (savedToken) await removePushToken({ schoolId, token: savedToken });
+
+    if ('Notification' in window && 'serviceWorker' in navigator
+        && Notification.permission === 'granted' && await isSupported()) {
+        const serviceWorkerRegistration = await navigator.serviceWorker.ready;
+        const messagingClient = getMessaging(app);
+        const token = await getToken(messagingClient, {
+            vapidKey: webPushVapidKey,
+            serviceWorkerRegistration
+        });
+        if (token && token !== savedToken) await removePushToken({ schoolId, token });
+        await deleteToken(messagingClient);
+    }
+    localStorage.removeItem(storageKey);
 }
 
 window.schoolPortalFirebase = {
@@ -318,6 +373,8 @@ window.schoolPortalFirebase = {
     getSchool,
     getMembership,
     listMembers,
+    subscribeToNotifications,
+    markNotificationsRead,
     updateProfile,
     uploadProfilePhoto,
     uploadMemberPhoto,

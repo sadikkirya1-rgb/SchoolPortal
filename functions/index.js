@@ -1225,13 +1225,22 @@ exports.deleteSchoolUser = onCall(async request => {
             throw new HttpsError('failed-precondition', 'A school must retain at least one active administrator.');
         }
     }
-    const [linkedStudents, pushTokens] = await Promise.all([
+    const [linkedStudents, pushTokens, notifications] = await Promise.all([
         memberRef.collection('linkedStudents').get(),
-        memberRef.collection('pushTokens').get()
+        memberRef.collection('pushTokens').get(),
+        memberRef.collection('notifications').get()
     ]);
+    const subcollectionRefs = [
+        ...linkedStudents.docs,
+        ...pushTokens.docs,
+        ...notifications.docs
+    ].map(snapshot => snapshot.ref);
+    for (let index = 0; index < subcollectionRefs.length; index += 400) {
+        const cleanupBatch = db.batch();
+        subcollectionRefs.slice(index, index + 400).forEach(reference => cleanupBatch.delete(reference));
+        await cleanupBatch.commit();
+    }
     const batch = db.batch();
-    linkedStudents.docs.forEach(link => batch.delete(link.ref));
-    pushTokens.docs.forEach(token => batch.delete(token.ref));
     batch.delete(memberRef);
     batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
         request,
@@ -1280,10 +1289,6 @@ exports.savePushToken = onCall(async request => {
     const uid = request.auth.uid;
     await requireActiveSchoolMember(schoolId, uid);
     const tokenRef = db.doc(`schools/${schoolId}/members/${uid}/pushTokens/${pushTokenId(token)}`);
-    const existingTokens = await db.collection(`schools/${schoolId}/members/${uid}/pushTokens`).get();
-    if (!existingTokens.docs.some(snapshot => snapshot.id === tokenRef.id) && existingTokens.size >= 10) {
-        throw new HttpsError('resource-exhausted', 'This account has reached the limit of 10 registered devices.');
-    }
     await tokenRef.set({
         schoolId,
         uid,
@@ -1441,6 +1446,23 @@ async function sendSchoolPush(schoolId, recipientUids, notification, route, excl
     const uids = new Set(recipientUids.filter(uid => uid && uid !== excludedUid));
     if (!uids.size) return;
     const uidList = [...uids];
+    await Promise.all(uidList.map(uid => {
+        const notificationId = createHash('sha256')
+            .update(`${notification.eventId}:${uid}`)
+            .digest('hex');
+        const notificationRef = db.doc(`schools/${schoolId}/members/${uid}/notifications/${notificationId}`);
+        return db.runTransaction(async transaction => {
+            const existing = await transaction.get(notificationRef);
+            if (existing.exists) return;
+            transaction.create(notificationRef, {
+                title: notification.title,
+                body: notification.body,
+                route,
+                read: false,
+                createdAt: FieldValue.serverTimestamp()
+            });
+        });
+    }));
     const tokenSnapshots = await Promise.all(Array.from({ length: Math.ceil(uidList.length / 30) }, (_, index) =>
         db.collectionGroup('pushTokens')
             .where('schoolId', '==', schoolId)
@@ -1491,6 +1513,93 @@ function isPublishedRecord(data) {
     return data.isPublished === true || ['published', 'released'].includes(status);
 }
 
+const parentNotificationRoutes = {
+    students: 'Students',
+    attendance: 'Attendance',
+    assessments: 'Assignments',
+    reportCards: 'Report Cards',
+    examResults: 'Report Cards',
+    fees: 'Fees',
+    feeInvoices: 'Fees',
+    timetables: 'Timetables',
+    studyMaterials: 'Study Materials',
+    certificates: 'Documents',
+    idCards: 'Documents',
+    healthRecords: 'Students',
+    libraryLoans: 'Students',
+    disciplineCases: 'Students',
+    transcripts: 'Documents',
+    unebExams: 'Report Cards'
+};
+
+async function parentRecipientsForStudents(schoolId, studentIds) {
+    const ids = [...new Set(studentIds.filter(Boolean).map(String))];
+    if (!ids.length) return [];
+    const linkSnapshots = await Promise.all(Array.from({ length: Math.ceil(ids.length / 30) }, (_, index) =>
+        db.collectionGroup('linkedStudents')
+            .where('studentId', 'in', ids.slice(index * 30, index * 30 + 30))
+            .get()
+    ));
+    const parentUids = new Set();
+    linkSnapshots.flatMap(snapshot => snapshot.docs).forEach(link => {
+        const path = link.ref.path.split('/');
+        if (path.length === 6 && path[0] === 'schools' && path[1] === schoolId
+            && path[2] === 'members' && path[4] === 'linkedStudents'
+            && ids.includes(String(link.data().studentId || link.id))) {
+            parentUids.add(path[3]);
+        }
+    });
+    const parentSnapshots = await Promise.all(Array.from(
+        { length: Math.ceil(parentUids.size / 30) },
+        (_, index) => db.collection(`schools/${schoolId}/members`)
+            .where(FieldPath.documentId(), 'in', [...parentUids].slice(index * 30, index * 30 + 30))
+            .get()
+    ));
+    return parentSnapshots.flatMap(snapshot => snapshot.docs)
+        .filter(member => member.data().status === 'active' && member.data().role === 'parent')
+        .map(member => member.id);
+}
+
+async function linkedStudentsForNotification(schoolId, collectionName, recordId, record) {
+    const identifiers = [
+        collectionName === 'students' ? recordId : '',
+        record.studentId, record.studentID, record.studentRecordId, record.student_id,
+        record.linkedStudentId, record.linkedRecordId, record.linkedChildId,
+        record.childId, record.childID, record.learnerId, record.memberId,
+        record.studentAdmissionNo, record.admissionNo, record.admissionNumber,
+        record.student && typeof record.student === 'object'
+            ? record.student.id || record.student.studentId || record.student.studentID
+                || record.student.admissionNo || record.student.admissionNumber
+            : ''
+    ].filter(Boolean).map(String);
+    const studentIds = new Set();
+    const uniqueIdentifiers = [...new Set(identifiers)];
+    const directStudentSnapshots = await Promise.all(uniqueIdentifiers.map(identifier =>
+        db.doc(`schools/${schoolId}/students/${identifier}`).get()
+    ));
+    const unresolvedIdentifiers = [];
+    directStudentSnapshots.forEach((student, index) => {
+        if (student.exists) studentIds.add(student.id);
+        else unresolvedIdentifiers.push(uniqueIdentifiers[index]);
+    });
+    for (let index = 0; index < unresolvedIdentifiers.length; index += 30) {
+        const admissionNumbers = unresolvedIdentifiers.slice(index, index + 30);
+        const [byAdmissionNo, byAdmissionNumber] = await Promise.all([
+            db.collection(`schools/${schoolId}/students`).where('data.admissionNo', 'in', admissionNumbers).get(),
+            db.collection(`schools/${schoolId}/students`).where('data.admissionNumber', 'in', admissionNumbers).get()
+        ]);
+        [...byAdmissionNo.docs, ...byAdmissionNumber.docs].forEach(item => studentIds.add(item.id));
+    }
+    const classIds = [record.classId || record.classID].filter(Boolean).map(String);
+    const classNames = [record.className || record.class || record.studentClass].filter(Boolean).map(String);
+    const [byClassId, byClassName] = await Promise.all([
+        classIds.length ? studentIdsInClasses(schoolId, classIds, String(record.section || '')) : [],
+        classNames.length ? studentIdsInClassNames(schoolId, classNames, String(record.section || '')) : []
+    ]);
+    [...byClassId, ...byClassName].forEach(id => studentIds.add(id));
+    return [...studentIds];
+}
+
 async function dispatchSchoolNotification(event, collectionName) {
     if (!event.data?.after.exists) return;
     const { schoolId } = event.params;
@@ -1498,7 +1607,6 @@ async function dispatchSchoolNotification(event, collectionName) {
     const previous = event.data.before.exists ? recordBusinessData(event.data.before) : {};
     if (current.deleted === true || current.archived === true) return;
     const classIds = [current.classId || current.classID].filter(Boolean).map(String);
-    const studentIds = [current.studentId || current.studentRecordId].filter(Boolean).map(String);
     let recipients;
     let notification;
     let route;
@@ -1525,28 +1633,56 @@ async function dispatchSchoolNotification(event, collectionName) {
     } else if (collectionName === 'attendance') {
         const status = String(current.status || current.attendanceStatus || '').trim().toLowerCase();
         const previousStatus = String(previous.status || previous.attendanceStatus || '').trim().toLowerCase();
-        if (!studentIds.length || !['absent', 'late', 'tardy'].includes(status) || status === previousStatus) return;
-        recipients = await resolvePushRecipients(schoolId, { studentIds });
+        if (!['absent', 'late', 'tardy'].includes(status) || status === previousStatus) return;
+        const linkedStudentIds = await linkedStudentsForNotification(
+            schoolId,
+            collectionName,
+            event.params.recordId,
+            current
+        );
+        if (!linkedStudentIds.length) return;
+        recipients = await resolvePushRecipients(schoolId, { studentIds: linkedStudentIds });
         notification = { title: 'Attendance update', body: 'An attendance update is ready to review.' };
         route = 'Attendance';
     } else if (collectionName === 'assessments' || collectionName === 'reportCards' || collectionName === 'examResults') {
         const classNames = [current.className || current.class || current.studentClass].filter(Boolean).map(String);
-        if (!isPublishedRecord(current) || isPublishedRecord(previous)
-            || (!classIds.length && !classNames.length && !studentIds.length)) return;
+        if (!isPublishedRecord(current)) return;
+        const linkedStudentIds = await linkedStudentsForNotification(
+            schoolId,
+            collectionName,
+            event.params.recordId,
+            current
+        );
+        if (!classIds.length && !classNames.length && !linkedStudentIds.length) return;
         recipients = await resolvePushRecipients(schoolId, {
             classIds,
             classNames,
             section: String(current.section || '').trim(),
-            studentIds
+            studentIds: linkedStudentIds
         });
         notification = collectionName === 'assessments'
             ? { title: 'New assignment or assessment', body: 'A new school assignment or assessment is available.' }
             : { title: 'Results published', body: 'New school results are available.' };
         route = collectionName === 'assessments' ? 'Assignments' : 'Report Cards';
+    } else if (Object.hasOwn(parentNotificationRoutes, collectionName)) {
+        const linkedStudentIds = await linkedStudentsForNotification(
+            schoolId,
+            collectionName,
+            event.params.recordId,
+            current
+        );
+        recipients = await parentRecipientsForStudents(schoolId, linkedStudentIds);
+        if (!recipients.length) return;
+        notification = {
+            title: `${collectionName === 'students' ? 'Student profile' : collectionName.replace(/([A-Z])/g, ' $1')} updated`,
+            body: `A linked student ${collectionName === 'students' ? 'profile' : 'record'} has been updated.`
+        };
+        route = parentNotificationRoutes[collectionName];
     } else {
         return;
     }
 
+    notification.eventId = event.id;
     await sendSchoolPush(schoolId, recipients, notification, route, event.data.after.data()?.updatedBy);
 }
 
@@ -1574,6 +1710,15 @@ exports.notifyPublishedExamResults = onDocumentWritten(
     'schools/{schoolId}/examResults/{recordId}',
     event => dispatchSchoolNotification(event, 'examResults')
 );
+
+for (const collectionName of Object.keys(parentNotificationRoutes)
+    .filter(name => !['attendance', 'assessments', 'reportCards', 'examResults'].includes(name))) {
+    const functionName = `notifyParent${collectionName[0].toUpperCase()}${collectionName.slice(1)}Updates`;
+    exports[functionName] = onDocumentWritten(
+        `schools/{schoolId}/${collectionName}/{recordId}`,
+        event => dispatchSchoolNotification(event, collectionName)
+    );
+}
 
 const auditedCollections = new Set([
     'students', 'parents', 'staff', 'classes', 'subjects', 'attendance',

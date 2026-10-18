@@ -302,6 +302,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const dashboardData = Object.fromEntries(dashboardCollections.map(name => [name, { loaded: false, records: [], error: false }]));
     let dashboardSubscriptions = [];
     let dashboardIdentityKey = '';
+    let notificationUnsubscribe = null;
+    let notificationIdentityKey = '';
+    let notificationItems = [];
+    let notificationStatus = 'Sign in to view notifications.';
+    let notificationError = false;
     let dashboardSubscribedCollections = new Set();
     let dashboardLastUpdated = null;
     const dashboardToday = new Date();
@@ -501,21 +506,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const detail = container.querySelector('[data-parent-detail-view]');
         const content = container.querySelector('[data-parent-detail-content]');
         const config = parentPortalViewConfig[activeParentPortalView];
-        const isOpen = Boolean(config);
+        const isDocumentsView = activeParentPortalView === 'Documents';
+        const isOpen = Boolean(config) || isDocumentsView;
+        const recordsSection = container.querySelector('.parent-records-section');
+        const idCardsSection = container.querySelector('.parent-id-cards-section');
+        const certificatesSection = container.querySelector('.parent-certificates-section');
+        const reportCardsGroup = container.querySelector('[data-parent-record-cards="reportCards"]')?.closest('.parent-record-group');
+        const documentsHeading = container.querySelector('[data-parent-documents-heading]');
         [
             container.querySelector('.parent-portal-overview'),
             container.querySelector('.parent-attendance-panel'),
             container.querySelector('[data-parent-attendance-calendar-section]'),
-            container.querySelector('.parent-records-section'),
-            container.querySelector('.parent-id-cards-section'),
-            container.querySelector('.parent-certificates-section'),
+            recordsSection,
+            idCardsSection,
+            certificatesSection,
             container.querySelector('.parent-portal-attendance-summary'),
             container.querySelector('[data-parent-student-section]'),
             container.querySelector('[data-parent-results-section]'),
             ...container.querySelectorAll(':scope > .parent-portal-section')
-        ].filter(Boolean).forEach(section => section.classList.toggle('hidden', isOpen));
-        detail?.classList.toggle('hidden', !isOpen);
+        ].filter(Boolean).forEach(section => {
+            const visibleInDocuments = isDocumentsView
+                && [recordsSection, idCardsSection, certificatesSection].includes(section);
+            section.classList.toggle('hidden', isOpen && !visibleInDocuments);
+        });
+        recordsSection?.querySelectorAll(':scope > .parent-record-groups > .parent-record-group').forEach(group => {
+            group.classList.toggle('hidden', isDocumentsView
+                ? group !== reportCardsGroup
+                : group === reportCardsGroup);
+        });
+        idCardsSection?.classList.toggle('hidden', !isDocumentsView);
+        certificatesSection?.classList.toggle('hidden', !isDocumentsView);
+        documentsHeading?.classList.toggle('hidden', !isDocumentsView);
+        if (isDocumentsView) {
+            const idCardList = idCardsSection?.querySelector('[data-parent-id-cards]');
+            idCardList?.classList.remove('hidden');
+            idCardsSection?.querySelector('[data-parent-id-cards-toggle]')?.setAttribute('aria-expanded', 'true');
+        }
+        detail?.classList.toggle('hidden', !isOpen || isDocumentsView);
         if (!isOpen || !detail || !content) return;
+        if (isDocumentsView) return;
 
         const title = detail.querySelector('[data-parent-detail-title]');
         const description = detail.querySelector('[data-parent-detail-description]');
@@ -795,9 +824,22 @@ document.addEventListener('DOMContentLoaded', () => {
             : 'No classified attendance records';
         setParentMetric('attendance', 'attendance', attendanceRate, attendanceDetail);
 
-        const reportRecords = familyRecordsFor('reportCards');
         const reportCardRecords = cardRecordsFor('reportCards').filter(record =>
             parentPortalRecordIsVisible(record, 'reportCards'));
+        const linkedDocumentIdCards = parentDashboardSummary.records?.idCards || [];
+        const linkedDocumentCertificates = parentDashboardSummary.records?.certificates || [];
+        const summaryReportCardCount = parentDashboardSummary.records?.reportCards?.length || 0;
+        const linkedReportCardCount = Math.max(
+            summaryReportCardCount,
+            parentPortalData.reportCards.records.filter(record =>
+                parentPortalRecordIsVisible(record, 'reportCards')).length
+        );
+        const documentCount = document.querySelector('[data-mobile-documents-count]');
+        if (documentCount) {
+            const count = linkedReportCardCount + linkedDocumentIdCards.length + linkedDocumentCertificates.length;
+            documentCount.textContent = String(count);
+            documentCount.setAttribute('aria-label', `${count} documents`);
+        }
         const childScope = selectedChild === 'all' ? 'Across linked children' : 'For the selected child';
         setParentMetric('results', 'reportCards', String(reportCardRecords.length), childScope);
         const assignments = cardRecordsFor('assessments');
@@ -1681,34 +1723,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (attentionItems) attentionItems.innerHTML = attentionMessages.join('');
         attention?.classList.toggle('hidden', !attentionMessages.length);
-
-        const activityCandidates = [
-            ...attendanceDashboardRecords.map(record => ({
-                date: dateFromRecord(record, ['attendanceDate', 'date', 'day']),
-                label: `Attendance marked · ${record.status || record.attendanceStatus || 'Recorded'}`,
-                icon: 'fa-calendar-check'
-            })),
-            ...reportRecords.map(record => ({
-                date: dateFromRecord(record, ['publishedAt', 'publicationDate', 'updatedAt', 'date', 'createdAt']),
-                label: `Result published · ${parentPortalRecordValue(record, ['title', 'term', 'period', 'academicPeriod']) || 'Report card'}`,
-                icon: 'fa-square-poll-vertical'
-            })),
-            ...feeRecords.map(record => ({
-                date: dateFromRecord(record, ['paymentDate', 'updatedAt', 'createdAt']),
-                label: `Fee updated · ${parentPortalRecordValue(record, ['feeName', 'feeType', 'name']) || 'School fee'}`,
-                icon: 'fa-receipt'
-            })),
-            ...noticeRecords.map(record => ({
-                date: dateFromRecord(record, ['publishedAt', 'publishDate', 'date', 'createdAt']),
-                label: `School notice · ${parentPortalRecordValue(record, ['title', 'subject', 'name']) || 'New notice'}`,
-                icon: 'fa-bullhorn'
-            }))
-        ].filter(item => item.date);
-        const recentActivity = activityCandidates.sort((left, right) => right.date - left.date).slice(0, 6);
-        const activityList = container.querySelector('[data-parent-recent-activity]');
-        const activityEmpty = container.querySelector('[data-parent-activity-empty]');
-        if (activityList) activityList.innerHTML = recentActivity.map(item => `<li><i class="fas ${item.icon}" aria-hidden="true"></i><span>${dashboardEscape(item.label)}</span><time datetime="${item.date.toISOString()}">${dashboardEscape(dashboardDateLabel(item.date))}</time></li>`).join('');
-        activityEmpty?.classList.toggle('hidden', recentActivity.length > 0);
 
         const attendanceChart = container.querySelector('[data-parent-attendance-chart]');
         if (attendanceChart) {
@@ -2612,6 +2626,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const identity = api?.getIdentity();
         if (!api || !identity) return;
         const identityKey = `${identity.schoolId}:${identity.uid}`;
+        subscribeToAccountNotifications(identity, identityKey);
         if (String(userData.role || '').toLowerCase() === 'parent') {
             if (dashboardIdentityKey === `${identityKey}:parent-portal`) return;
             dashboardSubscriptions.forEach(unsubscribe => unsubscribe());
@@ -2730,6 +2745,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.documentElement.classList.remove('parent-portal-active');
         dashboardSubscriptions.forEach(unsubscribe => unsubscribe());
         dashboardSubscriptions = [];
+        notificationUnsubscribe?.();
+        notificationUnsubscribe = null;
+        notificationIdentityKey = '';
+        notificationItems = [];
+        notificationStatus = 'Sign in to view notifications.';
+        notificationError = false;
+        renderNotificationUi();
         dashboardIdentityKey = '';
         parentPortalIdentityKey = '';
         parentCertificatesExpanded = false;
@@ -2982,8 +3004,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const dashboardLink = document.getElementById('dashboardBtn');
             dashboardLink?.classList.remove('active');
             dashboardLink?.removeAttribute('aria-current');
+        } else if (activeParentPortalView === 'Documents') {
+            const dashboardLink = document.getElementById('dashboardBtn');
+            dashboardLink?.classList.remove('active');
+            dashboardLink?.removeAttribute('aria-current');
         }
-        const activeKey = activeButton?.dataset.parentNav || (activeButton?.hasAttribute('data-parent-home') ? 'Home' : '');
+        const activeKey = activeParentPortalView === 'Documents'
+            ? 'Documents'
+            : activeButton?.dataset.parentNav || (activeButton?.hasAttribute('data-parent-home') ? 'Home' : '');
         document.querySelectorAll('#mobileRoleNav [data-mobile-parent-nav]').forEach(button => {
                 const active = button.dataset.mobileParentNav === activeKey;
                 button.classList.toggle('active', active);
@@ -2992,12 +3020,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function openParentDocuments() {
+        const parentPortalHome = document.getElementById('parentPortalHome');
+        if (!parentPortalHome) return;
+        const isPreview = parentPortalHome.classList.contains('parent-portal-preview');
+        activeParentPortalView = 'Documents';
+        parentCertificatesExpanded = true;
+        hideAllContentAreas();
+        parentPortalHome.classList.remove('hidden');
+        document.documentElement.classList.toggle('parent-portal-preview-active', isPreview);
+        updateParentPortalNavActive(null);
+        renderParentPortalDashboard();
+        setApplicationPage('Parent Documents');
+    }
+
     function renderMobileRoleNav(userData) {
         const nav = document.getElementById('mobileRoleNav');
         if (!nav) return;
         const role = String(userData.role || '').toLowerCase().replace(/[\s_-]+/g, '');
         if (role.includes('parent')) {
                 const parentActions = [
+                    { label: 'Home', icon: 'fa-house', source: document.querySelector('.parent-sidebar-navigation [data-parent-home]') },
+                    { label: 'Documents', icon: 'fa-folder', source: null },
                     { label: 'Messages', icon: 'fa-envelope', source: document.querySelector('.top-actions [aria-label="Messages"]') },
                     { label: 'Notifications', icon: 'fa-bell', source: document.getElementById('enablePushNotifications') },
                     { label: 'Profile', icon: 'fa-user-circle', source: document.getElementById('headerProfile') }
@@ -3005,16 +3049,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 nav.replaceChildren();
                 nav.classList.add('mobile-role-nav-parent', 'mobile-role-nav-actions');
                 parentActions.forEach(({ label, icon, source }) => {
-                    if (!source) return;
+                    if (!source && label !== 'Documents') return;
                     const button = document.createElement('button');
                     button.type = 'button';
                     button.className = 'mobile-role-nav-item';
                     button.setAttribute('aria-label', label);
                     button.innerHTML = `<i class="fas ${icon}" aria-hidden="true"></i>`;
+                    if (label === 'Documents') {
+                        button.dataset.mobileParentNav = 'Documents';
+                        const count = document.createElement('small');
+                        count.className = 'mobile-role-nav-count';
+                        count.dataset.mobileDocumentsCount = '';
+                        count.textContent = '0';
+                        button.append(count);
+                    } else if (label === 'Home') {
+                        button.dataset.mobileParentNav = 'Home';
+                    } else if (label === 'Notifications') {
+                        const count = document.createElement('small');
+                        count.className = 'mobile-role-nav-count';
+                        count.dataset.mobileNotificationCount = '';
+                        count.hidden = true;
+                        button.append(count);
+                    }
                     const text = document.createElement('span');
                     text.textContent = label;
                     button.append(text);
-                    button.addEventListener('click', () => source.click());
+                    button.addEventListener('click', () => {
+                        if (label === 'Documents') openParentDocuments();
+                        else source.click();
+                    });
                     nav.append(button);
                 });
                 nav.hidden = nav.childElementCount === 0;
@@ -3076,6 +3139,161 @@ document.addEventListener('DOMContentLoaded', () => {
         updateMobileRoleNavActive(sidebarLinks.find(link => link.classList.contains('active')));
     }
 
+    function notificationPreferenceKey(identity) {
+        return `schoolPushEnabled:${encodeURIComponent(identity.schoolId)}:${encodeURIComponent(identity.uid)}`;
+    }
+
+    function notificationPermissionMessage(error) {
+        if (error?.code === 'permission-denied') {
+            return 'Notification access is blocked by Firestore Rules. Ask your administrator to deploy the updated Firestore rules.';
+        }
+        return 'Notifications could not be loaded. Check your connection or contact your school administrator.';
+    }
+
+    function renderNotificationUi() {
+        const session = loadSession();
+        const unreadCount = notificationItems.filter(item => item.read !== true).length;
+        document.querySelectorAll('[data-notification-count]').forEach(badge => {
+            badge.hidden = unreadCount === 0;
+            badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+            badge.setAttribute('aria-label', `${unreadCount} unread notifications`);
+        });
+        document.querySelectorAll('[data-mobile-notification-count]').forEach(badge => {
+            badge.hidden = unreadCount === 0;
+            badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+        });
+
+        const status = document.querySelector('[data-notification-status]');
+        const list = document.querySelector('[data-notification-list]');
+        const markAll = document.querySelector('[data-notification-mark-all]');
+        if (status) {
+            status.textContent = notificationStatus || (unreadCount
+                ? `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`
+                : 'You are all caught up.');
+        }
+        if (markAll) markAll.disabled = unreadCount === 0 || notificationError;
+        if (list) {
+            list.replaceChildren();
+            if (notificationError) {
+                const message = document.createElement('li');
+                message.className = 'notification-error';
+                message.textContent = notificationStatus || 'Notifications could not be loaded.';
+                list.append(message);
+            } else if (!notificationItems.length) {
+                const message = document.createElement('li');
+                message.className = 'notification-empty';
+                message.textContent = notificationStatus || 'No notifications yet.';
+                list.append(message);
+            } else {
+                notificationItems.forEach(item => {
+                    const row = document.createElement('li');
+                    row.className = `notification-list-item${item.read === true ? '' : ' unread'}`;
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'notification-item-button';
+                    const title = document.createElement('span');
+                    title.className = 'notification-item-title';
+                    title.textContent = String(item.title || 'School update');
+                    const body = document.createElement('span');
+                    body.className = 'notification-item-body';
+                    body.textContent = String(item.body || '');
+                    button.append(title, body);
+                    if (item.createdAt) {
+                        const time = document.createElement('time');
+                        time.className = 'notification-item-time';
+                        const date = new Date(item.createdAt);
+                        if (!Number.isNaN(date.getTime())) {
+                            time.dateTime = date.toISOString();
+                            time.textContent = date.toLocaleString();
+                        }
+                        if (time.textContent) button.append(time);
+                    }
+                    button.addEventListener('click', () => openNotification(item));
+                    row.append(button);
+                    list.append(row);
+                });
+            }
+        }
+
+        const pushStatus = document.querySelector('[data-push-status]');
+        const pushToggle = document.querySelector('[data-notification-push-toggle]');
+        const pushEnabled = session?.schoolId && session?.userId
+            && localStorage.getItem(notificationPreferenceKey({ schoolId: session.schoolId, uid: session.userId })) === 'true';
+        if (pushStatus) pushStatus.textContent = pushEnabled
+            ? 'Push notifications are enabled on this device.'
+            : 'Push notifications are off on this device.';
+        if (pushToggle) pushToggle.textContent = pushEnabled ? 'Disable push' : 'Enable push';
+    }
+
+    function subscribeToAccountNotifications(identity, identityKey) {
+        if (notificationIdentityKey === identityKey) return;
+        notificationUnsubscribe?.();
+        notificationUnsubscribe = null;
+        notificationIdentityKey = identityKey;
+        notificationItems = [];
+        notificationStatus = 'Loading notifications…';
+        notificationError = false;
+        renderNotificationUi();
+        void waitForFirebase().then(firebase => {
+            if (notificationIdentityKey !== identityKey) return;
+            notificationUnsubscribe = firebase.subscribeToNotifications(identity.schoolId, items => {
+                if (notificationIdentityKey !== identityKey) return;
+                notificationItems = items;
+                notificationStatus = '';
+                notificationError = false;
+                renderNotificationUi();
+            }, error => {
+                if (notificationIdentityKey !== identityKey) return;
+                notificationStatus = notificationPermissionMessage(error);
+                notificationError = true;
+                console.error('Unable to load the notification inbox.', error);
+                renderNotificationUi();
+            });
+        }).catch(error => {
+            if (notificationIdentityKey !== identityKey) return;
+            notificationStatus = notificationPermissionMessage(error);
+            notificationError = true;
+            console.error('Unable to start the notification inbox.', error);
+            renderNotificationUi();
+        });
+    }
+
+    async function openNotification(item) {
+        const identity = window.schoolPortalData?.getIdentity();
+        if (!identity) return;
+        if (item.read !== true) {
+            try {
+                await getFirebase().markNotificationsRead(identity.schoolId, [item.id]);
+            } catch (error) {
+                notificationStatus = 'This notification could not be marked as read.';
+                console.error('Unable to mark a notification as read.', error);
+                renderNotificationUi();
+            }
+        }
+        document.getElementById('notificationPanel')?.classList.add('hidden');
+        document.getElementById('enablePushNotifications')?.setAttribute('aria-expanded', 'false');
+        const route = String(item.route || '');
+        if (route === 'Documents' && String(identity.role || '').toLowerCase() === 'parent') {
+            openParentDocuments();
+            return;
+        }
+        if (String(identity.role || '').toLowerCase() === 'parent') {
+            const parentLink = [...document.querySelectorAll('.parent-sidebar-navigation [data-parent-nav]')]
+                .find(link => link.dataset.parentNav === route);
+            if (parentLink) {
+                parentLink.click();
+                return;
+            }
+        }
+        const routeLink = [...document.querySelectorAll('.nav-links a')].find(link => {
+            const label = (link.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.textContent || link.textContent).trim();
+            return label.toLowerCase() === route.toLowerCase()
+                && !link.closest('.account-access-hidden')
+                && !link.closest('[hidden]');
+        });
+        routeLink?.click();
+    }
+
     function handleNotificationRoute() {
         const url = new URL(window.location.href);
         const destination = url.searchParams.get('openSection');
@@ -3092,33 +3310,72 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const pushNotificationsButton = document.getElementById('enablePushNotifications');
-    pushNotificationsButton?.addEventListener('click', async () => {
+    const notificationPanel = document.getElementById('notificationPanel');
+    pushNotificationsButton?.addEventListener('click', () => {
+        const isOpen = !notificationPanel?.classList.contains('hidden');
+        notificationPanel?.classList.toggle('hidden', isOpen);
+        pushNotificationsButton.setAttribute('aria-expanded', String(!isOpen));
+        renderNotificationUi();
+    });
+    document.addEventListener('click', event => {
+        if (!event.target.closest('.notification-menu')) {
+            notificationPanel?.classList.add('hidden');
+            pushNotificationsButton?.setAttribute('aria-expanded', 'false');
+        }
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !notificationPanel?.classList.contains('hidden')) {
+            notificationPanel.classList.add('hidden');
+            pushNotificationsButton?.setAttribute('aria-expanded', 'false');
+            pushNotificationsButton?.focus();
+        }
+    });
+
+    document.querySelector('[data-notification-mark-all]')?.addEventListener('click', async event => {
+        const identity = window.schoolPortalData?.getIdentity();
+        const unread = notificationItems.filter(item => item.read !== true).map(item => item.id);
+        if (!identity || !unread.length) return;
+        const markAllButton = event.currentTarget;
+        markAllButton.disabled = true;
+        try {
+            await getFirebase().markNotificationsRead(identity.schoolId, unread);
+        } catch (error) {
+            notificationStatus = 'Notifications could not be marked as read. Please try again.';
+            console.error('Unable to mark notifications as read.', error);
+            renderNotificationUi();
+        } finally {
+            markAllButton.disabled = false;
+        }
+    });
+
+    document.querySelector('[data-notification-push-toggle]')?.addEventListener('click', async event => {
         const session = loadSession();
         if (!session?.schoolId || !session?.userId) return;
-        const preferenceKey = `schoolPushEnabled:${encodeURIComponent(session.schoolId)}:${encodeURIComponent(session.userId)}`;
+        const preferenceKey = notificationPreferenceKey({ schoolId: session.schoolId, uid: session.userId });
         const enabled = localStorage.getItem(preferenceKey) === 'true';
-        pushNotificationsButton.disabled = true;
+        const pushToggle = event.currentTarget;
+        pushToggle.disabled = true;
         try {
             const firebase = await waitForFirebase();
             if (enabled) {
                 await firebase.disablePushNotifications(session.schoolId);
                 localStorage.removeItem(preferenceKey);
-                pushNotificationsButton.setAttribute('aria-label', 'Enable push notifications');
-                pushNotificationsButton.title = 'Enable push notifications';
-                alert('Push notifications are disabled on this device.');
+                notificationStatus = '';
             } else {
                 await firebase.enablePushNotifications(session.schoolId);
                 localStorage.setItem(preferenceKey, 'true');
-                pushNotificationsButton.setAttribute('aria-label', 'Disable push notifications');
-                pushNotificationsButton.title = 'Disable push notifications';
-                alert('Push notifications are enabled on this device.');
+                notificationStatus = '';
             }
+            renderNotificationUi();
         } catch (error) {
-            alert(error.message || 'Unable to update push notification settings.');
+            const pushStatus = document.querySelector('[data-push-status]');
+            if (pushStatus) pushStatus.textContent = error.message || 'Unable to update push notification settings.';
+            console.error('Unable to update push notification settings.', error);
         } finally {
-            pushNotificationsButton.disabled = false;
+            pushToggle.disabled = false;
         }
     });
+    renderNotificationUi();
 
     window.addEventListener('school-portal-push-message', event => {
         const detail = event.detail || {};

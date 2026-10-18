@@ -7,7 +7,7 @@ const {
     assertSucceeds,
     initializeTestEnvironment
 } = require('@firebase/rules-unit-testing');
-const { collection, deleteDoc, doc, documentId, getDoc, getDocs, query, setDoc, updateDoc, where } = require('firebase/firestore');
+const { collection, deleteDoc, doc, documentId, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } = require('firebase/firestore');
 
 let testEnvironment;
 
@@ -71,6 +71,13 @@ before(async () => {
         });
         await setDoc(doc(firestore, 'schools/SCH-TEST/members/parent-1/linkedStudents/STUDENT-A'), {
             studentId: 'STUDENT-A'
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/parent-1/notifications/NOTICE-1'), {
+            title: 'Attendance update',
+            body: 'An attendance update is ready to review.',
+            route: 'Attendance',
+            read: false,
+            createdAt: new Date('2026-10-17T00:00:00.000Z')
         });
         await setDoc(doc(firestore, 'schools/OTHER-SCHOOL'), { status: 'active' });
         await setDoc(doc(firestore, 'schools/OTHER-SCHOOL/students/PRIVATE'), {
@@ -311,6 +318,31 @@ test('parent data access is read-only and limited to recommended linked-child co
     await assertFails(updateDoc(doc(firestore, 'schools/SCH-TEST/attendance/ATTENDANCE-A'), {
         'data.status': 'Absent'
     }));
+});
+
+test('members can only read their own notifications and mark them as read', async () => {
+    const parentDb = testEnvironment.authenticatedContext('parent-1').firestore();
+    const notificationRef = doc(parentDb, 'schools/SCH-TEST/members/parent-1/notifications/NOTICE-1');
+    await assertSucceeds(getDoc(notificationRef));
+    await assertSucceeds(getDocs(query(
+        collection(parentDb, 'schools/SCH-TEST/members/parent-1/notifications'),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+    )));
+    await assertSucceeds(updateDoc(notificationRef, { read: true, readAt: serverTimestamp() }));
+    await assertFails(updateDoc(notificationRef, {
+        title: 'Changed title',
+        read: true,
+        readAt: serverTimestamp()
+    }));
+    await assertFails(setDoc(doc(parentDb, 'schools/SCH-TEST/members/parent-1/notifications/NOTICE-2'), {
+        title: 'Forged notification',
+        read: false
+    }));
+    await assertFails(deleteDoc(notificationRef));
+
+    const teacherDb = testEnvironment.authenticatedContext('teacher-1').firestore();
+    await assertFails(getDoc(doc(teacherDb, 'schools/SCH-TEST/members/parent-1/notifications/NOTICE-1')));
 });
 
 test('school administrator access works with ordinary email and password authentication', async () => {

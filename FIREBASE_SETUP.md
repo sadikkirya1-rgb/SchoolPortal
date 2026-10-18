@@ -48,24 +48,22 @@ The Firebase client is configured for the `delivery-app-6a47f` project and the `
 
 The portal is a responsive installable web app (PWA); the same school account works in a mobile browser or from the installed app. Hosting must use HTTPS, and the deployed site includes the web manifest, app icon, and offline application shell.
 
-To enable Firebase Cloud Messaging (FCM) web push:
+Firebase Cloud Messaging (FCM) web push is configured with the public VAPID key in `firebase-config.js`. If Firebase Console's Web Push certificate changes, update that value to match.
 
-1. In Firebase Console, open **Project settings → Cloud Messaging → Web configuration → Web Push certificates** and generate or copy the public VAPID key. Set `webPushVapidKey` in `firebase-config.js` to that public key. The key is safe to include in the web app; do not put a service-account credential or private key there.
-2. Deploy Firestore Rules, Cloud Functions, and Hosting after setting the key:
+1. To rotate or replace the key, open **Project settings → Cloud Messaging → Web configuration → Web Push certificates** and set `webPushVapidKey` in `firebase-config.js` to the matching public key. The key is safe to include in the web app; do not put a service-account credential or private key there.
+2. Deploy Firestore Rules, Cloud Functions, and Hosting:
 
    ```sh
    npx firebase-tools deploy --only firestore:rules,firestore:indexes,functions,hosting
    ```
 
-3. Users sign in and tap the bell button on each device, then allow notifications in the browser. Each device registers its own FCM token; tokens are stored in a server-only member subcollection and can be removed from that device with the same button.
+3. Users sign in and open the bell's notification panel. The panel shows the notification inbox and unread count; its **Enable push** control registers that device after the user grants browser permission. Each device has its own token, and accounts can register multiple devices. The same control disables push on the current device.
 
-Push delivery is deliberately limited to generic, non-sensitive messages:
+Notifications are stored in a per-member inbox, where users can mark their own items as read. The bell badge and parent mobile navigation badge show the unread count. The inbox displays the latest 100 items. Firestore Rules prevent users from reading or changing another member's notifications.
 
-- A notice sends a push only when it is published with its **Browser Push** channel enabled; its audience selects parents, students, staff, or all users.
-- Attendance notifications are sent to the linked student and parent accounts when an attendance entry is changed to absent, late, or tardy.
-- Published assignments/assessments and report cards are sent to linked students and parents for the matching class or student. Stable class IDs and student links provide the most reliable targeting.
+Push delivery is deliberately limited to generic, non-sensitive messages. Updates tied to a linked child are sent to that child's parent accounts; published assignments, assessments, report cards, and exam results are also delivered to matching linked student accounts. Parent-facing notices send only when published with the **Browser Push** channel enabled, and follow the notice audience. Attendance pushes are sent when an entry changes to absent, late, or tardy. Other linked-child updates include student profiles, fees, timetables, study materials, certificates, ID cards, health records, library loans, discipline cases, transcripts, and UNEB exam records. Stable student IDs and class IDs provide the most reliable targeting.
 
-Push support requires a compatible browser and notification permission. On iPhone/iPad, install the portal from Safari using **Share → Add to Home Screen** first; web push requires iOS/iPadOS 16.4 or later. On Android and desktop browsers, use the browser's **Install app** or **Add to Home Screen** option. Users can also turn off the portal's push token on a device or revoke permission in browser settings.
+Push support requires a compatible browser and notification permission on each device; the portal cannot grant permission on a user's behalf. On iPhone/iPad, install the portal from Safari using **Share → Add to Home Screen** first; web push requires iOS/iPadOS 16.4 or later. On Android and desktop browsers, use the browser's **Install app** or **Add to Home Screen** option. Users can turn off the portal's push token on a device or revoke permission in browser settings.
 
 Firebase Cloud Messaging has no separate per-message charge. Cloud Functions deployment and execution require a billing-enabled Firebase project; normal usage is subject to the project's current Functions, Firestore, and network quotas/pricing. Push is not sent by SMS, email, or to users who have not opted in on a device.
 

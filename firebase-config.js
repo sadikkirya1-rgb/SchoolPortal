@@ -9,4 +9,4 @@ export const firebaseConfig = {
     measurementId: 'G-JWV2EWL0XL'
 };
 
-export const webPushVapidKey = '';
+export const webPushVapidKey = 'BE6wVkQvHwvcaI41RmZEzigJJ85e4LRe2OrbidkWXZF6dGE3oOvMHPRYDYFLp2kr_dm6hbJYmhdgnyRF_We-oKE';

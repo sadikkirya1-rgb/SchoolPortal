@@ -599,9 +599,23 @@ if ('serviceWorker' in navigator) {
         </div>
 
         <button class="icon-button" type="button" aria-label="Messages"><i class="fas fa-envelope"></i><span class="dot-indicator">8</span></button>
-        <button class="icon-button" id="enablePushNotifications" type="button" aria-label="Enable push notifications" title="Enable push notifications">
-            <i class="fas fa-bell" aria-hidden="true"></i>
-        </button>
+        <div class="notification-menu">
+            <button class="icon-button" id="enablePushNotifications" type="button" aria-label="Notifications" title="Notifications" aria-haspopup="dialog" aria-expanded="false" aria-controls="notificationPanel">
+                <i class="fas fa-bell" aria-hidden="true"></i>
+                <span class="notification-count-badge" data-notification-count hidden></span>
+            </button>
+            <section class="notification-panel hidden" id="notificationPanel" role="dialog" aria-label="Notifications" aria-modal="false">
+                <header class="notification-panel-header">
+                    <div><h2>Notifications</h2><p data-notification-status role="status" aria-live="polite">Loading notifications…</p></div>
+                    <button class="notification-mark-all" type="button" data-notification-mark-all>Mark all read</button>
+                </header>
+                <ul class="notification-list" data-notification-list aria-live="polite"></ul>
+                <footer class="notification-panel-footer">
+                    <span data-push-status>Push notifications are off on this device.</span>
+                    <button type="button" data-notification-push-toggle>Enable push</button>
+                </footer>
+            </section>
+        </div>
         <button class="icon-button hidden" id="installPortalButton" type="button" aria-label="Install Smart School" title="Install Smart School">
             <i class="fas fa-download" aria-hidden="true"></i>
         </button>
@@ -806,6 +820,10 @@ if ('serviceWorker' in navigator) {
         <p class="parent-attendance-calendar-message" data-parent-attendance-calendar-message role="status" aria-live="polite"></p>
     </section>
     <section class="parent-records-section" aria-label="Linked student data">
+        <header class="parent-documents-heading hidden" data-parent-documents-heading>
+            <h2>Documents</h2>
+            <p>Report cards, student ID cards, and certificates for your linked children.</p>
+        </header>
         <div class="parent-record-groups">
             <section class="parent-record-group" aria-labelledby="parentResultsRecordsTitle">
                 <header><button class="parent-record-group-toggle" type="button" data-parent-record-group-toggle aria-expanded="true" aria-controls="parentResultsRecordCards"><span><span class="parent-record-group-label"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V5M4 20h17M8 16v-3M12 16V8M16 16v-5M20 16V4"/></g></svg><span class="parent-record-group-title" id="parentResultsRecordsTitle">Report cards</span></span><span data-parent-record-count="reportCards"></span></span><i class="fas fa-chevron-down" aria-hidden="true"></i></button></header>
@@ -866,11 +884,6 @@ if ('serviceWorker' in navigator) {
             <footer><button class="parent-document-action" type="button" data-parent-document-print><i class="fas fa-print" aria-hidden="true"></i> Print / Save PDF</button><button class="parent-document-action" type="button" data-parent-document-close>Close</button></footer>
         </section>
     </div>
-    <section class="parent-activity-panel" aria-labelledby="parentActivityTitle">
-        <header class="parent-analytics-heading"><div><h2 id="parentActivityTitle">Recent updates</h2><p>Latest dated records for your family</p></div></header>
-        <ol class="parent-activity-list" data-parent-recent-activity></ol>
-        <p class="parent-activity-empty hidden" data-parent-activity-empty role="status">Recent linked updates will appear here when available.</p>
-    </section>
     <section class="parent-results-section hidden" data-parent-results-section aria-label="Results">
         <div class="parent-section-heading parent-results-heading">
             <div><span class="parent-section-kicker">Academic progress</span><p data-parent-results-caption>Scores from linked student records</p></div>
