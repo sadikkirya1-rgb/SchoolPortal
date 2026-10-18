@@ -2008,27 +2008,6 @@ body {
     cursor: pointer;
 }
 
-.dot-indicator {
-    position: absolute;
-    top: -2px;
-    right: -2px;
-    min-width: 16px;
-    height: 16px;
-    padding: 0 4px;
-    border-radius: 999px;
-    background: #f28b5d;
-    color: #fff;
-    font-size: 0.56rem;
-    display: grid;
-    place-items: center;
-    font-weight: 700;
-    border: 2px solid #fff;
-}
-
-.dot-indicator.bell {
-    background: #5d6df7;
-}
-
 .profile {
     display: flex;
     align-items: center;

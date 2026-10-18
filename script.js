@@ -3042,7 +3042,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const parentActions = [
                     { label: 'Home', icon: 'fa-house', source: document.querySelector('.parent-sidebar-navigation [data-parent-home]') },
                     { label: 'Documents', icon: 'fa-folder', source: null },
-                    { label: 'Messages', icon: 'fa-envelope', source: document.querySelector('.top-actions [aria-label="Messages"]') },
                     { label: 'Notifications', icon: 'fa-bell', source: document.getElementById('enablePushNotifications') },
                     { label: 'Profile', icon: 'fa-user-circle', source: document.getElementById('headerProfile') }
                 ];
