@@ -948,13 +948,124 @@ document.addEventListener('DOMContentLoaded', () => {
         const documentPreviewSubtitle = container.querySelector('[data-parent-document-subtitle]');
         const documentPreviewPaper = container.querySelector('[data-parent-document-paper]');
         let documentPreviewReturnFocus = null;
+        const prepareParentReportPreview = markup => {
+            const template = document.createElement('template');
+            template.innerHTML = markup;
+            const sheet = template.content.querySelector('.parent-report-preview-sheet');
+            if (!sheet) return markup;
+            const hasLiveValue = value => value !== undefined && value !== null
+                && !['', '—', '-', '–'].includes(String(value).trim());
+
+            const schoolName = String(currentSchool?.schoolName || '').trim();
+            let logoUrl = '';
+            try {
+                const parsedLogoUrl = new URL(currentSchool?.logoURL || '', window.location.href);
+                if (currentSchool?.logoURL && (parsedLogoUrl.protocol === 'https:' || parsedLogoUrl.origin === window.location.origin)) {
+                    logoUrl = parsedLogoUrl.href;
+                }
+            } catch (error) {
+                console.warn('The school logo URL is invalid.', error);
+            }
+            const schoolHeader = sheet.querySelector('.report-sheet-header');
+            if (schoolHeader) {
+                schoolHeader.replaceChildren();
+                if (schoolName || logoUrl) {
+                    if (logoUrl) {
+                        const logo = document.createElement('div');
+                        logo.className = 'report-school-logo';
+                        const image = document.createElement('img');
+                        image.src = logoUrl;
+                        image.alt = '';
+                        logo.append(image);
+                        schoolHeader.append(logo);
+                    }
+                    if (schoolName) {
+                        const name = document.createElement('div');
+                        const heading = document.createElement('strong');
+                        heading.textContent = schoolName;
+                        name.append(heading);
+                        schoolHeader.append(name);
+                    }
+                } else {
+                    schoolHeader.remove();
+                }
+            }
+
+            const period = sheet.querySelector('.report-sheet-title p');
+            if (period) {
+                const values = period.textContent.replace(/^Academic Year\s*/, '').split('•')
+                    .map(value => value.trim()).filter(value => value && value !== '—');
+                period.textContent = values.join(' · ');
+                if (!period.textContent) period.remove();
+            }
+
+            sheet.querySelector('.report-student-photo')?.remove();
+            const detailGrid = sheet.querySelector('.report-detail-grid');
+            detailGrid?.querySelectorAll('div').forEach(detail => {
+                const label = detail.querySelector('span')?.textContent.trim();
+                const value = detail.querySelector('strong')?.textContent.trim();
+                if (['Date of Birth', 'Academic Year'].includes(label) || !hasLiveValue(value)) {
+                    detail.remove();
+                } else if (label === 'Student Name') {
+                    detail.querySelector('span').textContent = 'Student';
+                }
+            });
+            if (detailGrid && !detailGrid.children.length) detailGrid.remove();
+
+            const marksTable = sheet.querySelector('.report-marks-table');
+            const marksBody = marksTable?.querySelector('tbody');
+            if (marksTable && marksBody) {
+                const rows = [...marksBody.rows];
+                if (!rows.length || rows.some(row => row.querySelector('[colspan]'))) {
+                    marksTable.remove();
+                } else {
+                    const columns = ['Subject', 'Score / max', 'Percentage', 'Remark'];
+                    marksTable.querySelector('thead tr').replaceChildren(...columns.map(label => {
+                        const heading = document.createElement('th');
+                        heading.textContent = label;
+                        return heading;
+                    }));
+                    rows.forEach(row => {
+                        const cells = [...row.cells];
+                        const values = cells.map(cell => {
+                            const value = cell.textContent.trim();
+                            return hasLiveValue(value) ? value : '';
+                        });
+                        row.replaceChildren(...values.map((value, index) => {
+                            const cell = document.createElement('td');
+                            cell.dataset.label = columns[index];
+                            cell.textContent = value;
+                            return cell;
+                        }));
+                    });
+                }
+            }
+
+            sheet.querySelectorAll('.report-sheet-summary').forEach(summary => {
+                [...summary.children].forEach(item => {
+                    const label = item.querySelector('span')?.textContent.trim().toLowerCase();
+                    const value = item.querySelector('strong')?.textContent.trim();
+                    if (label !== 'overall grade' || !hasLiveValue(value)) item.remove();
+                });
+                if (!summary.children.length) summary.remove();
+            });
+            sheet.querySelectorAll('.report-remarks').forEach(remarks => {
+                remarks.querySelectorAll(':scope > div').forEach(item => {
+                    const value = item.querySelector('p')?.textContent.trim();
+                    if (!hasLiveValue(value)) item.remove();
+                });
+                if (!remarks.children.length) remarks.remove();
+            });
+            sheet.querySelector('.report-sheet-footer')?.remove();
+            return sheet.outerHTML;
+        };
         const openParentDocumentPreview = (title, subtitle, markup, trigger) => {
             if (!documentPreviewModal || !documentPreviewTitle || !documentPreviewPaper) return;
             documentPreviewReturnFocus = trigger;
             documentPreviewTitle.textContent = title;
             if (documentPreviewSubtitle) documentPreviewSubtitle.textContent = subtitle;
             documentPreviewModal.classList.toggle('parent-report-card-preview', title === 'Report Card');
-            documentPreviewPaper.innerHTML = markup;
+            documentPreviewPaper.innerHTML = title === 'Report Card' ? prepareParentReportPreview(markup) : markup;
             documentPreviewModal.classList.remove('hidden');
             container.querySelector('[data-parent-document-close]')?.focus();
         };
@@ -962,34 +1073,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const child = parentRecordStudent(record);
             const subjectRows = parentResultRows(record, 'reportCards');
             const studentName = child?.fullName || child?.name || child?.studentName
-                || parentPortalRecordValue(record, ['studentName', 'student', 'fullName']) || 'Linked student';
+                || parentPortalRecordValue(record, ['studentName', 'student', 'fullName']) || '';
             const year = parentPortalRecordValue(record, ['year', 'academicYear']) || '—';
             const period = parentPortalRecordValue(record, ['period', 'academicPeriod', 'term']) || '—';
-            const averageValue = parentPortalRecordValue(record, ['average', 'percentage', 'averagePercentage'])
-                || (subjectRows.length
-                    ? `${(subjectRows.reduce((total, row) => total + row.percentage, 0) / subjectRows.length).toFixed(1)}%`
-                    : '—');
             const rows = subjectRows.map(row => {
-                const examType = /exam|term/.test(row.type.toLowerCase()) ? 'Examination' : 'Test';
-                return `<tr><td>${dashboardEscape(row.assessment || '—')}</td><td>${examType}</td><td>${dashboardEscape(row.date ? parentRecordDate({ date: row.date }, ['date']) || row.date : '—')}</td><td>${dashboardEscape(row.subject)}</td><td>${dashboardEscape(row.maximum || '—')}</td><td>${dashboardEscape(row.score ?? '—')}</td><td>${dashboardEscape(row.percentage.toFixed(1))}%</td><td>${dashboardEscape(row.remarks || '—')}</td></tr>`;
+                const score = row.score === null ? '' : [row.score, row.maximum].filter(value => value !== null && value !== '').join(' / ');
+                return `<tr><td data-label="Subject">${dashboardEscape(row.subject)}</td><td data-label="Score / max">${dashboardEscape(score)}</td><td data-label="Percentage">${dashboardEscape(row.percentage.toFixed(1))}%</td><td data-label="Remark">${dashboardEscape(row.remarks)}</td></tr>`;
             }).join('');
             const details = [
                 ['Student Name', studentName],
-                ['Admission No.', parentPortalRecordValue(record, ['studentAdmissionNo', 'admissionNo', 'admissionNumber']) || '—'],
-                ['Date of Birth', child && parentRecordDate(child, ['dateOfBirth', 'dob', 'birthDate']) || '—'],
+                ['Admission No.', parentPortalRecordValue(record, ['studentAdmissionNo', 'admissionNo', 'admissionNumber']) || child?.admissionNumber || child?.studentCode || '—'],
                 ['Class / Section', [parentPortalRecordValue(record, ['class', 'className']) || child?.className || child?.class || '', parentPortalRecordValue(record, ['section']) || child?.section || ''].filter(Boolean).join(' / ') || '—'],
-                ['Academic Year', year],
                 ['Report Card No.', parentPortalRecordValue(record, ['no', 'reportNo', 'reportNumber']) || '—']
             ];
             const summary = [
-                ['Average', averageValue],
-                ['Overall Grade', parentPortalRecordValue(record, ['grade', 'overallGrade']) || '—'],
-                ['GPA', parentPortalRecordValue(record, ['gpa']) || '—'],
-                ['Attendance', parentPortalRecordValue(record, ['attendance', 'attendanceRate']) || '—']
+                ['Overall Grade', parentPortalRecordValue(record, ['grade', 'overallGrade']) || '—']
             ];
             const teacherRemarks = parentPortalRecordValue(record, ['teacherRemarks', 'classTeacherRemarks']) || '—';
             const principalRemarks = parentPortalRecordValue(record, ['principalRemarks', 'headTeacherRemarks']) || '—';
-            return `<div class="report-preview-sheet parent-report-preview-sheet"><div class="report-sheet-header"><div class="report-school-logo"><i class="fas fa-graduation-cap" aria-hidden="true"></i></div><div><strong>${dashboardEscape(parentPortalRecordValue(record, ['schoolName']) || 'EXCELLENCE INTERNATIONAL SCHOOL')}</strong><span>${dashboardEscape(parentPortalRecordValue(record, ['schoolAddress', 'address']) || 'Abu Dhabi • United Arab Emirates')}</span><small>Excellence in Learning • Character • Leadership</small></div></div><div class="report-sheet-title"><h2>Student Report Card</h2><p>Academic Year <strong>${dashboardEscape(year)}</strong> • ${dashboardEscape(period)}</p></div><div class="report-student-details"><div class="report-detail-grid">${details.map(([label, value]) => `<div><span>${dashboardEscape(label)}</span><strong>${dashboardEscape(value)}</strong></div>`).join('')}</div><div class="report-student-photo"><i class="fas fa-user" aria-hidden="true"></i></div></div><table class="report-marks-table"><thead><tr><th>Exam / test</th><th>Type</th><th>Date</th><th>Subject</th><th>Maximum</th><th>Obtained</th><th>Percentage</th><th>Teacher remarks</th></tr></thead><tbody>${rows || '<tr><td colspan="8">Subject-level marks are not available in this published report record.</td></tr>'}</tbody></table><div class="report-sheet-summary">${summary.map(([label, value]) => `<div><span>${dashboardEscape(label)}</span><strong>${dashboardEscape(value)}</strong></div>`).join('')}</div><div class="report-remarks"><div><h4>Teacher&apos;s Remarks</h4><p>${dashboardEscape(teacherRemarks)}</p></div><div><h4>Principal&apos;s Remarks</h4><p>${dashboardEscape(principalRemarks)}</p></div></div><div class="report-signatures"><span>Parent / Guardian Signature</span><span>Class Teacher Signature</span><span>Principal / Head Teacher Signature</span></div><div class="report-sheet-footer"><span>${dashboardEscape(parentPortalRecordValue(record, ['reportName', 'title', 'name']) || 'Published Report Card')}</span><span>${dashboardEscape(parentRecordDate(record, ['publishedAt', 'publicationDate', 'date']) || 'Published')}</span></div></div>`;
+            return `<div class="report-preview-sheet parent-report-preview-sheet"><div class="report-sheet-header"></div><div class="report-sheet-title"><h2>Student Report Card</h2><p>Academic Year <strong>${dashboardEscape(year)}</strong> • ${dashboardEscape(period)}</p></div><div class="report-detail-grid">${details.map(([label, value]) => `<div><span>${dashboardEscape(label)}</span><strong>${dashboardEscape(value)}</strong></div>`).join('')}</div>${rows ? `<div class="report-marks-table-wrap"><table class="report-marks-table"><thead><tr><th>Subject</th><th>Score / max</th><th>Percentage</th><th>Remark</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}<div class="report-remarks parent-teacher-remark"><div><h4>Teacher&apos;s Remarks</h4><p>${dashboardEscape(teacherRemarks)}</p></div></div><div class="report-sheet-summary">${summary.map(([label, value]) => `<div><span>${dashboardEscape(label)}</span><strong>${dashboardEscape(value)}</strong></div>`).join('')}</div><div class="report-remarks"><div><h4>Principal&apos;s Remarks</h4><p>${dashboardEscape(principalRemarks)}</p></div></div><div class="report-signatures"><span>Class Teacher</span><span>Head Teacher</span><span>Parent / Guardian</span></div></div>`;
         };
         const feeStatementPreviewMarkup = fees => {
             if (!fees.length) return '<div class="parent-document-sheet-heading"><h3>Fee Statement</h3></div><p class="parent-document-empty">No fee records are available for the selected child scope.</p>';
@@ -1087,7 +1189,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (type === 'reportCard' && reportCardRecords[index]) {
                         const record = reportCardRecords[index];
                         const child = parentRecordStudent(record);
-                        openParentDocumentPreview('Report Card', child?.fullName || 'Published report', reportCardPreviewMarkup(record), preview);
+                        openParentDocumentPreview('Report Card', child?.fullName || '', reportCardPreviewMarkup(record), preview);
                     } else if (type === 'feeReceipt' && feeCardRecords[index] && feeIsFullyPaid(feeCardRecords[index])) {
                         const fee = feeCardRecords[index];
                         const child = parentRecordStudent(fee);
@@ -4624,11 +4726,86 @@ document.addEventListener('DOMContentLoaded', () => {
         const read = () => { try { const saved = JSON.parse(localStorage.getItem(storageKey)); if (Array.isArray(saved)) return saved; } catch (error) { /* use defaults */ } localStorage.setItem(storageKey, JSON.stringify(seed)); return seed.slice(); };
         const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
         const table = sec.querySelector('[data-report-table]'); const form = sec.querySelector('[data-report-form]'); const modal = sec.querySelector('[data-report-modal]'); const preview = sec.querySelector('[data-report-preview]'); let showingPublished = false; let currentIndex = 0;
-        const initials = name => name.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase(); const formatDate = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '24 Aug 2026';
+        const initials = name => name.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase(); const formatDate = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
         const render = () => { const query = sec.querySelector('[data-report-search]').value.toLowerCase(); const records = read(); const filtered = records.map((record, index) => ({ record, index })).filter(({ record }) => (!showingPublished || record.status === 'Published') && [record.student, record.no, record.class, record.section].some(value => String(value).toLowerCase().includes(query))); table.innerHTML = filtered.length ? filtered.map(({ record, index }) => `<tr><td><strong>${escape(record.no)}</strong></td><td><div class="report-student"><span>${escape(initials(record.student))}</span><strong>${escape(record.student)}</strong></div></td><td>${escape(record.class)}</td><td>${escape(record.section)}</td><td>${escape(record.year)}</td><td>${escape(record.period)}</td><td><strong>${escape(record.average)}</strong></td><td><strong class="report-grade">${escape(record.grade)}</strong></td><td><strong>${escape(record.gpa)}</strong></td><td>${escape(record.attendance)}</td><td><span class="report-status ${escape(record.status.toLowerCase())}">${escape(record.status)}</span></td><td>${escape(record.generated)}</td><td><div class="report-row-actions"><button class="icon-button" type="button" data-report-action="view" data-index="${index}" title="View"><i class="fas fa-eye"></i></button><button class="icon-button" type="button" data-report-action="edit" data-index="${index}" title="Edit"><i class="fas fa-pen"></i></button><button class="icon-button" type="button" data-report-action="publish" data-index="${index}" title="Publish"><i class="fas fa-check"></i></button><button class="icon-button" type="button" data-report-action="archive" data-index="${index}" title="Archive"><i class="fas fa-box-archive"></i></button></div></td></tr>`).join('') : '<tr><td colspan="13" class="report-empty">No report cards found.</td></tr>'; sec.querySelector('[data-report-stat="total"]').textContent = records.length; ['published', 'generated', 'draft'].forEach(status => { sec.querySelector(`[data-report-stat="${status}"]`).textContent = records.filter(record => record.status.toLowerCase() === status).length; }); };
-        const closeModal = () => { modal.classList.add('hidden'); form.reset(); form.elements.editIndex.value = ''; }; const openForm = index => { form.reset(); form.elements.editIndex.value = index ?? ''; const record = index === undefined ? null : read()[index]; if (record) { form.elements.year.value = record.year; form.elements.period.value = record.period; form.elements.class.value = record.class; form.elements.section.value = record.section; form.elements.status.value = record.status; form.elements.publication.value = record.status; } else form.elements.generatedDate.value = new Date().toISOString().slice(0, 10); modal.classList.remove('hidden'); form.elements.year.focus(); };
-        const openPreview = index => { const record = read()[index]; if (!record) return; currentIndex = index; sec.querySelector('[data-report-preview-sheet]').innerHTML = `<div class="report-sheet-heading"><strong>EXCELLENCE INTERNATIONAL SCHOOL</strong><span>Abu Dhabi • United Arab Emirates</span><h2>Student Report Card</h2><small>Academic Year ${escape(record.year)} • ${escape(record.period)}</small></div><div class="report-sheet-info"><b>Student Name</b><strong>${escape(record.student)}</strong><b>Class</b><strong>${escape(record.class)} - ${escape(record.section)}</strong><b>Report Card No.</b><strong>${escape(record.no)}</strong><b>Attendance</b><strong>${escape(record.attendance)}</strong></div><table><thead><tr><th>Subject</th><th>Obtained</th><th>Percentage</th><th>Grade</th><th>Remarks</th></tr></thead><tbody><tr><td>English Language</td><td>88</td><td>88%</td><td>A</td><td>Excellent</td></tr><tr><td>Mathematics</td><td>91</td><td>91%</td><td>A+</td><td>Outstanding</td></tr><tr><td>Science</td><td>86</td><td>86%</td><td>A</td><td>Excellent</td></tr></tbody></table><div class="report-sheet-summary"><span>Average <strong>${escape(record.average)}</strong></span><span>Overall Grade <strong>${escape(record.grade)}</strong></span><span>GPA <strong>${escape(record.gpa)}</strong></span></div>`; preview.classList.remove('hidden'); };
-        const openFullPreview = index => { openPreview(index); const record = read()[index]; if (!record) return; sec.querySelector('[data-report-preview-sheet]').innerHTML = `<div class="report-sheet-header"><div class="report-school-logo"><i class="fas fa-graduation-cap"></i></div><div><strong>EXCELLENCE INTERNATIONAL SCHOOL</strong><span>Abu Dhabi • United Arab Emirates</span><small>Excellence in Learning • Character • Leadership</small></div></div><div class="report-sheet-title"><h2>Student Report Card</h2><p>Academic Year <strong>${escape(record.year)}</strong> • ${escape(record.period)}</p></div><div class="report-student-details"><div class="report-detail-grid"><div><span>Student Name</span><strong>${escape(record.student)}</strong></div><div><span>Admission No.</span><strong>ADM-2026-00125</strong></div><div><span>Date of Birth</span><strong>14 March 2013</strong></div><div><span>Class / Section</span><strong>${escape(record.class)} - ${escape(record.section)}</strong></div><div><span>Academic Year</span><strong>${escape(record.year)}</strong></div><div><span>Report Card No.</span><strong>${escape(record.no)}</strong></div></div><div class="report-student-photo"><i class="fas fa-user"></i></div></div><table class="report-marks-table"><thead><tr><th>Subject</th><th>Max Marks</th><th>Obtained</th><th>Percentage</th><th>Grade</th><th>Remarks</th></tr></thead><tbody><tr><td>English Language</td><td>100</td><td>88</td><td>88%</td><td>A</td><td>Excellent</td></tr><tr><td>Mathematics</td><td>100</td><td>91</td><td>91%</td><td>A+</td><td>Outstanding</td></tr><tr><td>Science</td><td>100</td><td>86</td><td>86%</td><td>A</td><td>Excellent</td></tr><tr><td>Social Studies</td><td>100</td><td>81</td><td>81%</td><td>A</td><td>Very Good</td></tr><tr><td>Computer Science</td><td>100</td><td>84</td><td>84%</td><td>A</td><td>Very Good</td></tr><tr><td>Arabic</td><td>100</td><td>77</td><td>77%</td><td>B+</td><td>Good</td></tr></tbody></table><div class="report-sheet-summary"><div><span>Average</span><strong>${escape(record.average)}</strong></div><div><span>Overall Grade</span><strong>${escape(record.grade)}</strong></div><div><span>GPA</span><strong>${escape(record.gpa)}</strong></div><div><span>Attendance</span><strong>${escape(record.attendance)}</strong></div></div><div class="report-sheet-summary report-sheet-secondary-summary"><div><span>Class Position</span><strong>4 / 32</strong></div><div><span>Days Present</span><strong>92 / 96</strong></div></div><div class="report-remarks"><div><h4>Teacher's Remarks</h4><p>${escape(record.student)} has demonstrated excellent academic progress this term. He participates actively and consistently completes assignments.</p></div><div><h4>Principal's Remarks</h4><p>A very strong performance. Continue the excellent effort and maintain this level of commitment in the next term.</p></div></div><div class="report-signatures"><span>Parent / Guardian Signature</span><span>Class Teacher Signature</span><span>Principal / Headteacher Signature</span></div><div class="report-sheet-footer"><span>Generated by EduMaster School Management System</span><span>${escape(record.generated)}</span></div>`; };
+        const closeModal = () => { modal.classList.add('hidden'); form.reset(); form.elements.editIndex.value = ''; };
+        const openForm = index => {
+            form.reset();
+            form.elements.editIndex.value = index ?? '';
+            const record = index === undefined ? null : read()[index];
+            if (record) {
+                form.elements.year.value = record.year || '';
+                form.elements.period.value = record.period || '';
+                form.elements.class.value = record.class || '';
+                form.elements.section.value = record.section || '';
+                form.elements.status.value = record.status || '';
+                form.elements.publication.value = record.status || '';
+            } else {
+                form.elements.year.value = '';
+                form.elements.generatedDate.value = new Date().toISOString().slice(0, 10);
+            }
+            modal.classList.remove('hidden');
+            form.elements.year.focus();
+        };
+        const renderReportPreview = record => {
+            const student = studentRecords.find(item => String(item.id) === String(record.studentId));
+            const schoolName = String(currentSchool?.schoolName || '').trim();
+            let schoolLogoUrl = '';
+            try {
+                const logoUrl = new URL(currentSchool?.logoURL || '', window.location.href);
+                if (currentSchool?.logoURL && (logoUrl.protocol === 'https:' || logoUrl.origin === window.location.origin)) {
+                    schoolLogoUrl = logoUrl.href;
+                }
+            } catch (error) {
+                console.warn('The school logo URL is invalid.', error);
+            }
+            const schoolHeader = schoolName || schoolLogoUrl
+                ? `<div class="report-sheet-header">${schoolLogoUrl ? `<div class="report-school-logo"><img src="${escape(schoolLogoUrl)}" alt=""></div>` : ''}<div>${schoolName ? `<strong>${escape(schoolName)}</strong>` : ''}</div></div>`
+                : '';
+            const studentName = record.student || (student && getStudentName(student)) || '';
+            const admissionNumber = record.studentAdmissionNo || (student && getStudentAdmission(student)) || '';
+            const className = [record.class || student?.className || student?.class, record.section || student?.section]
+                .filter(Boolean).join(' / ');
+            const details = [
+                ['Student', studentName],
+                ['Admission No.', admissionNumber],
+                ['Class', className],
+                ['Report No.', record.no]
+            ].filter(([, value]) => value !== undefined && value !== null
+                && !['', '—', '-', '–'].includes(String(value).trim()));
+            const period = [record.year, record.period].filter(Boolean).join(' · ');
+            const results = (record.subjectResults || []).filter(result => result.subjectName || result.subject);
+            const resultRows = results.map(result => {
+                const subject = result.subjectName || result.subject;
+                const maximum = result.maxMarks ?? result.maximumMarks;
+                const score = result.obtainedMarks ?? result.score;
+                const percentage = Number(result.percentage ?? (Number(maximum) > 0 && score !== undefined ? Number(score) / Number(maximum) * 100 : NaN));
+                const scoreText = [score, maximum].filter(value => value !== undefined && value !== null && value !== '').join(' / ');
+                const scoreWithPercentage = scoreText && Number.isFinite(percentage) ? `${scoreText} (${percentage.toFixed(1)}%)` : scoreText;
+                const grade = result.grade || result.letterGrade || '';
+                const remarks = result.remarks || result.teacherRemarks || '';
+                return `<tr><td data-label="Subject">${escape(subject)}</td><td data-label="Score">${escape(scoreWithPercentage)}</td><td data-label="Grade">${escape(grade)}</td><td data-label="Remark">${escape(remarks)}</td></tr>`;
+            }).join('');
+            const summary = [
+                ['Overall grade', record.grade || record.overallGrade]
+            ].filter(([, value]) => value !== undefined && value !== null
+                && !['', '—', '-', '–'].includes(String(value).trim()));
+            const remarks = [
+                ['Teacher remarks', record.teacherRemarks || record.classTeacherRemarks],
+                ['Principal remarks', record.principalRemarks || record.headTeacherRemarks]
+            ].filter(([, value]) => value !== undefined && value !== null
+                && !['', '—', '-', '–'].includes(String(value).trim()));
+            const sheet = sec.querySelector('[data-report-preview-sheet]');
+            sheet.innerHTML = `${schoolHeader}<div class="report-sheet-title"><h2>Student Report Card</h2>${period ? `<p>${escape(period)}</p>` : ''}</div>${details.length ? `<div class="report-detail-grid">${details.map(([label, value]) => `<div><span>${escape(label)}</span><strong>${escape(value)}</strong></div>`).join('')}</div>` : ''}${resultRows ? `<div class="report-marks-table-wrap"><table class="report-marks-table"><thead><tr><th>Subject</th><th>Score</th><th>Grade</th><th>Remark</th></tr></thead><tbody>${resultRows}</tbody></table></div>` : ''}${summary.length ? `<div class="report-sheet-summary">${summary.map(([label, value]) => `<div><span>${escape(label)}</span><strong>${escape(value)}</strong></div>`).join('')}</div>` : ''}${remarks.length ? `<div class="report-remarks">${remarks.map(([label, value]) => `<div><h4>${escape(label)}</h4><p>${escape(value)}</p></div>`).join('')}</div>` : ''}`;
+            preview.classList.remove('hidden');
+        };
+        const openPreview = index => {
+            const record = read()[index];
+            if (!record) return;
+            currentIndex = index;
+            renderReportPreview(record);
+        };
+        const openFullPreview = openPreview;
         sec.querySelector('[data-report-new]').addEventListener('click', () => openForm()); sec.querySelector('[data-report-filter]').addEventListener('click', () => { showingPublished = !showingPublished; render(); }); sec.querySelector('[data-report-search]').addEventListener('input', render); sec.querySelectorAll('[data-report-close]').forEach(button => button.addEventListener('click', closeModal)); sec.querySelector('[data-report-preview-close]').addEventListener('click', () => preview.classList.add('hidden')); sec.querySelector('[data-report-print]').addEventListener('click', () => window.print());
         form.addEventListener('submit', event => { event.preventDefault(); if (!form.checkValidity()) { form.reportValidity(); return; } const records = read(); const data = Object.fromEntries(new FormData(form).entries()); const index = data.editIndex; const existing = index === '' ? {} : records[Number(index)]; const status = data.publication; const record = { ...existing, no: existing?.no || `RC-${new Date().getFullYear()}-${String(records.length + 126).padStart(5, '0')}`, student: existing?.student || 'New Student', class: data.class, section: data.section, year: data.year, period: data.period, average: existing?.average || '0%', grade: existing?.grade || '-', gpa: existing?.gpa || '0.0', attendance: existing?.attendance || '0%', status, generated: formatDate(data.generatedDate) }; if (index === '') records.unshift(record); else records[Number(index)] = record; localStorage.setItem(storageKey, JSON.stringify(records)); closeModal(); render(); });
         table.addEventListener('click', event => { const button = event.target.closest('[data-report-action]'); if (!button) return; const index = Number(button.dataset.index); const records = read(); if (!records[index]) return; if (button.dataset.reportAction === 'edit') openForm(index); if (button.dataset.reportAction === 'view') openFullPreview(index); if (button.dataset.reportAction === 'publish') { records[index].status = 'Published'; localStorage.setItem(storageKey, JSON.stringify(records)); render(); } if (button.dataset.reportAction === 'archive') { records[index].status = 'Archived'; localStorage.setItem(storageKey, JSON.stringify(records)); render(); } });
@@ -4918,7 +5095,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 form.elements.class.value = className;
             }
-            if (student.section) form.elements.section.value = student.section;
+            if (student.section) {
+                if (![...form.elements.section.options].some(option => option.value === student.section)) {
+                    form.elements.section.add(new Option(student.section, student.section));
+                }
+                form.elements.section.value = student.section;
+            }
+            const academicYear = student.academicYear || student.year;
+            if (academicYear) form.elements.year.value = academicYear;
             loadPublishedMarksIntoReport();
         });
         form.elements.status.addEventListener('change', () => {
@@ -5227,29 +5411,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             const showPreview = () => {
-                openFullPreview(index);
-                const sheet = sec.querySelector('[data-report-preview-sheet]');
-                const student = studentRecords.find(item => String(item.id) === String(record.studentId));
-                const details = [...sheet.querySelectorAll('.report-detail-grid div')];
-                details.forEach(detail => {
-                    const label = detail.querySelector('span')?.textContent;
-                    if (label === 'Student Name') detail.querySelector('strong').textContent = record.student || 'Student';
-                    if (label === 'Admission No.') detail.querySelector('strong').textContent = record.studentAdmissionNo || (student && getStudentAdmission(student)) || '—';
-                });
-                const marksTable = sheet.querySelector('.report-marks-table');
-                const marksBody = marksTable?.querySelector('tbody');
-                if (marksTable) marksTable.querySelector('thead tr').innerHTML = '<th>Exam / test</th><th>Type</th><th>Date</th><th>Subject</th><th>Maximum</th><th>Obtained</th><th>Percentage</th><th>Teacher remarks</th>';
-                if (marksBody) marksBody.innerHTML = (record.subjectResults || []).map(result => {
-                    const percentage = Number(result.percentage ?? (Number(result.maxMarks) ? Number(result.obtainedMarks) / Number(result.maxMarks) * 100 : 0));
-                    const type = String(result.assessmentType || '').toLowerCase() === 'exam' ? 'Examination' : 'Test';
-                    return `<tr><td>${escape(result.assessmentName || '')}</td><td>${type}</td><td>${escape(result.assessmentDate || '—')}</td><td>${escape(result.subjectName || result.subject || '')}</td><td>${escape(result.maxMarks || '')}</td><td>${escape(result.obtainedMarks ?? '')}</td><td>${percentage.toFixed(1)}%</td><td>${escape(result.remarks || '—')}</td></tr>`;
-                }).join('') || '<tr><td colspan="8">No subject scores entered.</td></tr>';
+                currentIndex = index;
+                renderReportPreview(record);
             };
             if (button.dataset.reportAction === 'print') {
                 showPreview();
+                event.stopPropagation();
                 setTimeout(() => window.print(), 150);
             } else if (button.dataset.reportAction === 'download') {
                 showPreview();
+                event.stopPropagation();
                 const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escape(record.no)} Report Card</title></head><body>${sec.querySelector('[data-report-preview-sheet]').innerHTML}</body></html>`;
                 const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
                 const link = document.createElement('a');
@@ -5259,6 +5430,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 URL.revokeObjectURL(url);
             } else {
                 showPreview();
+                event.stopPropagation();
             }
         }, true);
         previewActions.addEventListener('click', event => {

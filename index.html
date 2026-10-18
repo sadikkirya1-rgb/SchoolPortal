@@ -28,16 +28,6 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./service-worker.js', {
             scope: './',
             updateViaCache: 'none'
-        }).then((registration) => {
-            registration.addEventListener('updatefound', () => {
-                const installingWorker = registration.installing;
-                if (!installingWorker) return;
-                installingWorker.addEventListener('statechange', () => {
-                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        window.location.reload();
-                    }
-                });
-            });
         }).catch(error => console.warn('Offline app shell could not be registered.', error));
     });
 }

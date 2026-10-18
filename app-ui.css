@@ -601,3 +601,94 @@
         padding-inline: 8px;
     }
 }
+
+@media (max-width: 640px) {
+    .report-cards-module .report-cards-table-wrap table:has(> tbody[data-report-table]) {
+        width: 100%;
+        min-width: 0;
+        table-layout: fixed;
+    }
+
+    .report-cards-module .report-cards-table-wrap table:has(> tbody[data-report-table]) thead {
+        display: none;
+    }
+
+    .report-cards-module [data-report-table] {
+        display: grid;
+        gap: 8px;
+    }
+
+    .report-cards-module [data-report-table] tr {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .report-cards-module [data-report-table] td {
+        display: grid;
+        grid-template-columns: minmax(95px, 0.45fr) minmax(0, 1fr);
+        align-items: start;
+        gap: 8px;
+        min-width: 0;
+        padding: 9px 10px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .report-cards-module [data-report-table] td:not(:last-child) {
+        border-bottom: 1px solid #edf1f5;
+    }
+
+    .report-cards-module [data-report-table] td:nth-child(1)::before { content: "Report Card No."; }
+    .report-cards-module [data-report-table] td:nth-child(2)::before { content: "Student"; }
+    .report-cards-module [data-report-table] td:nth-child(3)::before { content: "Class"; }
+    .report-cards-module [data-report-table] td:nth-child(4)::before { content: "Section"; }
+    .report-cards-module [data-report-table] td:nth-child(5)::before { content: "Academic Year"; }
+    .report-cards-module [data-report-table] td:nth-child(6)::before { content: "Period"; }
+    .report-cards-module [data-report-table] td:nth-child(7)::before { content: "Average"; }
+    .report-cards-module [data-report-table] td:nth-child(8)::before { content: "Grade"; }
+    .report-cards-module [data-report-table] td:nth-child(9)::before { content: "GPA"; }
+    .report-cards-module [data-report-table] td:nth-child(10)::before { content: "Attendance"; }
+    .report-cards-module [data-report-table] td:nth-child(11)::before { content: "Status"; }
+    .report-cards-module [data-report-table] td:nth-child(12)::before { content: "Generated"; }
+    .report-cards-module [data-report-table] td:nth-child(13)::before { content: "Actions"; }
+
+    .report-cards-module [data-report-table] td::before {
+        color: #64748b;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
+    .report-cards-module [data-report-table] td:last-child {
+        position: static;
+        box-shadow: none;
+    }
+
+    .report-cards-module [data-report-table] td.report-empty {
+        display: block;
+        text-align: center !important;
+    }
+
+    .report-cards-module [data-report-table] td.report-empty::before {
+        content: none;
+    }
+
+    .report-cards-module .report-student {
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    .report-cards-module .report-student strong {
+        overflow-wrap: anywhere;
+    }
+
+    .report-cards-module .report-row-actions {
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+}

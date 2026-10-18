@@ -1301,7 +1301,8 @@ border-radius:0;
 display:none;
 }
 
-html.session-restoring .reference-login-page {
+html.session-restoring .reference-login-page,
+html.session-restoring .login-screen {
     display:none !important;
 }
 
@@ -3988,7 +3989,7 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .account-notification-preferences label{display:inline-flex;align-items:center;gap:7px;font-size:13px}
 .account-notification-preferences input{accent-color:var(--primary)}
 .user-notification-summary{display:block;margin-top:4px;color:#64748b;font-size:11px}
-@media(max-width:640px){
+@media(max-width:768px){
     #sectionsContainer{padding:11px}
     .section-access-toolbar{align-items:flex-start;flex-direction:column}
     .section-access-grants{grid-template-columns:1fr}
@@ -4751,7 +4752,8 @@ color:white;
 /* Complete Report Card Preview */
 .report-preview-sheet{position:relative;isolation:isolate;max-height:calc(92vh - 100px);overflow:auto;margin:20px;padding:28px;border:1px solid #dbe2ea;color:#172033}.report-preview-sheet:before{content:"";position:absolute;z-index:-1;width:430px;height:430px;left:50%;top:54%;transform:translate(-50%,-50%);opacity:.055;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='92' fill='none' stroke='%232563eb' stroke-width='5'/%3E%3Cpath d='M55 82 Q100 45 145 82 L135 125 Q100 160 65 125Z' fill='%232563eb'/%3E%3Cpath d='M50 85 L150 85' stroke='white' stroke-width='6'/%3E%3Ctext x='100' y='108' text-anchor='middle' font-size='20' font-weight='bold' fill='white'%3ESCHOOL%3C/text%3E%3C/svg%3E") center/contain no-repeat;pointer-events:none}.report-preview-sheet>*{position:relative;z-index:1}
 .report-sheet-header{display:flex;align-items:center;justify-content:center;gap:16px;text-align:center;border-bottom:3px solid #2563eb;padding-bottom:14px}.report-school-logo{width:70px;height:70px;display:grid;place-items:center;border:3px solid #2563eb;border-radius:50%;background:#eff6ff;color:#2563eb;font-size:30px}.report-sheet-header strong,.report-sheet-header span,.report-sheet-header small{display:block}.report-sheet-header strong{font-size:21px}.report-sheet-header span,.report-sheet-header small{color:#64748b;font-size:10px;margin-top:4px}.report-sheet-title{text-align:center;padding:16px 0}.report-sheet-title h2{color:#1d4ed8;text-transform:uppercase;font-size:16px}.report-sheet-title p{color:#64748b;font-size:11px;margin-top:5px}.report-student-details{display:grid;grid-template-columns:1fr 100px;gap:18px;margin-bottom:18px}.report-detail-grid{display:grid;grid-template-columns:1fr 1fr;border:1px solid #dbe2ea;border-radius:8px;overflow:hidden}.report-detail-grid div{display:flex;gap:8px;padding:9px;border-bottom:1px solid #dbe2ea;font-size:10px}.report-detail-grid div:nth-child(odd){border-right:1px solid #dbe2ea}.report-detail-grid span{width:100px;color:#64748b;font-weight:700}.report-student-photo{width:100px;height:120px;display:grid;place-items:center;border:3px solid #dbeafe;border-radius:8px;background:#eff6ff;color:#64748b;font-size:32px}.report-marks-table{width:100%;border-collapse:collapse;font-size:11px}.report-marks-table th,.report-marks-table td{padding:9px;border:1px solid #dbe2ea;text-align:left}.report-marks-table th{background:#1e40af;color:#fff}.report-marks-table td:not(:first-child){text-align:center}.report-sheet-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}.report-sheet-summary>div{padding:10px;border:1px solid #dbe2ea;text-align:center;color:#64748b;font-size:10px}.report-sheet-summary strong{display:block;margin-top:4px;color:#172033;font-size:15px}.report-sheet-secondary-summary{grid-template-columns:1fr 1fr}.report-remarks{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}.report-remarks>div{padding:12px;border:1px solid #dbe2ea;border-radius:8px;min-height:78px}.report-remarks h4{color:#2563eb;font-size:10px;text-transform:uppercase;margin-bottom:6px}.report-remarks p{font-size:10px;line-height:1.5}.report-signatures{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:42px;text-align:center}.report-signatures span{padding-top:8px;border-top:1px solid #64748b;color:#475569;font-size:10px;font-weight:700}.report-sheet-footer{display:flex;justify-content:space-between;gap:12px;margin-top:22px;padding-top:10px;border-top:1px dashed #cbd5e1;color:#94a3b8;font-size:9px}
-@media(max-width:768px){.report-preview-sheet{margin:10px;padding:18px}.report-sheet-header strong{font-size:16px}.report-student-details{grid-template-columns:1fr}.report-student-photo{margin:auto}.report-detail-grid{grid-template-columns:1fr}.report-detail-grid div:nth-child(odd){border-right:none}.report-sheet-summary{grid-template-columns:1fr 1fr}.report-remarks,.report-signatures{grid-template-columns:1fr}.report-sheet-footer{flex-direction:column}.report-marks-table{min-width:620px}}
+@media(max-width:768px){.report-preview-sheet{margin:10px;padding:18px}.report-sheet-header strong{font-size:16px}.report-student-details{grid-template-columns:1fr}.report-student-photo{margin:auto}.report-detail-grid{grid-template-columns:1fr}.report-detail-grid div:nth-child(odd){border-right:none}.report-sheet-summary{grid-template-columns:1fr 1fr}.report-remarks,.report-signatures{grid-template-columns:1fr}.report-sheet-footer{flex-direction:column}.report-preview-sheet .report-marks-table{width:100%;min-width:0;table-layout:fixed;font-size:9px}.report-preview-sheet .report-marks-table th,.report-preview-sheet .report-marks-table td{padding:5px;overflow-wrap:anywhere;word-break:break-word}}
+.report-marks-table-wrap{max-width:100%}
 @media print{body *{visibility:hidden!important}.report-card-preview-modal,.report-card-preview-modal *{visibility:visible!important}.report-card-preview-modal{position:absolute;inset:0;background:#fff;padding:0}.report-card-preview{width:100%;max-height:none;box-shadow:none;border-radius:0}.report-card-preview .report-card-dialog-header{display:none}.report-preview-sheet{max-height:none;overflow:visible;margin:0;border:0}}
 .report-card-preview .report-card-dialog-header [data-report-print]{background:#e2e8f0!important;color:#1e293b!important;border:1px solid #94a3b8!important;margin-top:0}.report-card-preview .report-card-dialog-header [data-report-download]{background:#2563eb!important;color:#fff!important;border:1px solid #1d4ed8!important;margin-top:0}.report-card-preview .report-card-dialog-header [data-report-preview-close]{background:#e2e8f0;color:#1e293b;border:1px solid #cbd5e1}.report-card-preview .report-card-dialog-header [data-report-download]:hover{background:#1d4ed8!important;color:#fff!important}.report-card-preview .report-card-dialog-header [data-report-print]:hover,.report-card-preview .report-card-dialog-header [data-report-preview-close]:hover{background:#cbd5e1!important;color:#0f172a!important}
 input:checked + .slider {
@@ -5857,3 +5859,32 @@ html.parent-portal-preview-active .topbar .welcome,html.parent-portal-preview-ac
     html.parent-portal-active .parent-welcome-card,html.parent-portal-preview-active .parent-welcome-card{padding-right:8px;padding-left:8px}
 }
 .parent-report-card-preview .parent-document-preview-paper{padding:0;border:0;background:transparent;box-shadow:none}
+.parent-report-preview-sheet .parent-teacher-remark{grid-template-columns:1fr;margin-top:12px}
+.report-school-logo img{display:block;width:100%;height:100%;object-fit:contain;border-radius:inherit}
+.report-preview-sheet .report-sheet-summary{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+@media(max-width:640px){
+    .parent-report-card-preview .parent-document-preview-dialog{padding:12px}
+    .parent-report-card-preview .report-preview-sheet{margin:0;padding:12px}
+    .parent-report-card-preview .report-marks-table-wrap{overflow-x:auto}
+    .parent-report-card-preview .report-preview-sheet .report-marks-table{display:table;width:100%;max-width:100%;min-width:0;table-layout:fixed;border-collapse:collapse;font-size:9px}
+    .parent-report-card-preview .report-marks-table thead{display:table-header-group}
+    .parent-report-card-preview .report-marks-table tbody{display:table-row-group;width:auto;min-width:0}
+    .parent-report-card-preview .report-marks-table tbody tr{display:table-row;min-width:0;overflow:visible;border:0;border-radius:0;background:transparent}
+    .parent-report-card-preview .report-marks-table th,
+    .parent-report-card-preview .report-marks-table td{display:table-cell;min-width:0;max-width:none;padding:5px 4px;border:1px solid #dbe2ea;text-align:center;overflow-wrap:anywhere;word-break:normal}
+    .parent-report-card-preview .report-marks-table thead th:nth-child(2){font-size:0}
+    .parent-report-card-preview .report-marks-table thead th:nth-child(2)::after{content:"Max";font-size:9px}
+    .parent-report-card-preview .report-marks-table thead th:nth-child(3){font-size:0}
+    .parent-report-card-preview .report-marks-table thead th:nth-child(3)::after{content:"%";font-size:9px}
+    .parent-report-card-preview .report-marks-table th:first-child,
+    .parent-report-card-preview .report-marks-table td:first-child{width:34%;text-align:left}
+    .parent-report-card-preview .report-marks-table th:nth-child(2),
+    .parent-report-card-preview .report-marks-table td:nth-child(2){width:18%}
+    .parent-report-card-preview .report-marks-table th:nth-child(3),
+    .parent-report-card-preview .report-marks-table td:nth-child(3){width:20%}
+    .parent-report-card-preview .report-marks-table th:last-child,
+    .parent-report-card-preview .report-marks-table td:last-child{width:28%}
+    .parent-report-card-preview .report-marks-table tbody td::before{content:none}
+    .parent-report-preview-sheet .report-signatures{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:24px}
+    .parent-report-preview-sheet .report-signatures span{overflow-wrap:anywhere}
+}
