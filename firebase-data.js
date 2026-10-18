@@ -745,7 +745,8 @@ async function subscribeLegacyCollections() {
     const collectionNames = new Set(legacyDataCollections.values());
     for (const collectionName of collectionNames) {
         const mayView = isSchoolAdmin || owner.permissions[collectionName]?.view === true;
-        if (!mayView || (!isSchoolAdmin && isClassScopedCollection(collectionName))) continue;
+        if (!mayView || (owner.role === 'parent' && collectionName === 'notices')
+            || (!isSchoolAdmin && isClassScopedCollection(collectionName))) continue;
         const storageKeys = Array.from(legacyDataCollections)
             .filter(([, mappedCollection]) => mappedCollection === collectionName)
             .map(([key]) => key);

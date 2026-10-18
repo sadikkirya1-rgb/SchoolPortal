@@ -121,8 +121,24 @@ service cloud.firestore {
           && (collectionName != 'examResults' || isPublishedExamResult));
     }
 
+    function canReadNotice(schoolId, record) {
+      let data = recordData(record);
+      let targetParentUid = data.get('targetParentUid', '');
+      let targetStudentId = data.get('targetStudentId', '');
+      return targetParentUid == '' || targetParentUid == null
+        || isSchoolAdmin(schoolId)
+        || (isMember(schoolId)
+          && member(schoolId).role != 'parent')
+        || (isMember(schoolId)
+          && member(schoolId).role == 'parent'
+          && targetParentUid == request.auth.uid
+          && targetStudentId != ''
+          && isLinkedParent(schoolId, targetStudentId));
+    }
+
     function recordReadAllowed(schoolId, collectionName, recordId, record) {
       return canView(schoolId, collectionName)
+        && (collectionName != 'notices' || canReadNotice(schoolId, record))
         && (!isPersonalCollection(collectionName)
           || canReadPersonalRecord(schoolId, collectionName, recordId, record));
     }

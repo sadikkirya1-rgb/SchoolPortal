@@ -12,6 +12,8 @@ function createNoticeBoardModule() {
                 <h4 class="nb-section-title">Notice Information</h4><div class="nb-grid">
                     <label>Notice ID<input name="noticeId" required placeholder="NTC-2026-001"></label><label>Notice Title<input name="title" required placeholder="Important Parent Meeting Announcement"></label><label>Category<select name="category"><option>General Announcement</option><option>Academic</option><option>Events</option><option>Examination</option><option>Holiday</option><option>Emergency</option><option>Finance</option><option>Attendance</option><option>Transport</option><option>Admissions</option><option>Sports</option><option>Other</option></select></label>
                     <label>Audience<select name="audience"><option>School Community</option><option>Parents</option><option>Students</option><option>Staff</option><option>Public</option><option>Parents &amp; Students</option><option>Teachers &amp; Staff</option></select></label><label>Priority<select name="priority"><option>Normal</option><option>Urgent</option><option>High</option><option>Low</option></select></label><label>Status<select name="status"><option>Draft</option><option>Pending</option><option>Scheduled</option><option>Published</option><option>Archived</option><option>Expired</option></select></label>
+                    <label>Parent Portal Delivery<select name="targetMode"><option value="general">General notice for the selected audience</option><option value="specific-parent">Specific parent and child</option></select></label>
+                    <label class="nb-full" data-nb-target-recipient-wrap hidden>Parent and child<select name="targetRecipient" aria-label="Choose the parent and child this notice is for"><option value="">Select a parent and child</option></select></label>
                 </div>
                 <h4 class="nb-section-title">Publishing Information</h4><div class="nb-grid">
                     <label>Publish Date<input name="publishDate" type="date" required></label><label>Publish Time<input name="publishTime" type="time" value="08:00"></label><label>Expiry Date<input name="expiryDate" type="date"></label>
@@ -51,6 +53,9 @@ function createNoticeBoardModule() {
     let editingId = null;
     let viewingId = null;
     let toastTimer;
+    let noticeRecipients = [];
+    let noticeRecipientsLoaded = false;
+    let noticeRecipientsRequest = null;
     const q = selector => section.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
     const formatDate = value => {
@@ -93,6 +98,49 @@ function createNoticeBoardModule() {
         return `NTC-${new Date().getFullYear()}-${String(max + 1).padStart(3, '0')}`;
     };
     const updateCounter = () => { q('[data-nb-char-count]').textContent = q('[name="contentText"]').value.length; };
+    const updateNoticeTargetControls = () => {
+        const isSpecific = q('[name="targetMode"]').value === 'specific-parent';
+        const recipientWrap = q('[data-nb-target-recipient-wrap]');
+        const recipientSelect = q('[name="targetRecipient"]');
+        recipientWrap.hidden = !isSpecific;
+        recipientSelect.required = isSpecific;
+        q('[name="audience"]').disabled = isSpecific;
+        if (isSpecific) q('[name="audience"]').value = 'Parents';
+    };
+    const loadNoticeRecipients = () => {
+        if (noticeRecipientsLoaded) return Promise.resolve(noticeRecipients);
+        if (noticeRecipientsRequest) return noticeRecipientsRequest;
+        const identity = window.schoolPortalData?.getIdentity?.();
+        const firebase = window.schoolPortalFirebase;
+        if (!identity?.schoolId || typeof firebase?.getAssignableNoticeRecipients !== 'function') {
+            return Promise.reject(new Error('Parent and child directory is unavailable.'));
+        }
+        const recipientSelect = q('[name="targetRecipient"]');
+        recipientSelect.replaceChildren(new Option('Loading parents and children…', ''));
+        noticeRecipientsRequest = firebase.getAssignableNoticeRecipients(identity.schoolId)
+            .then(recipients => {
+                noticeRecipients = recipients;
+                noticeRecipientsLoaded = true;
+                recipientSelect.replaceChildren(new Option('Select a parent and child', ''));
+                recipients.forEach(recipient => {
+                    const option = new Option(`${recipient.parentName} · ${recipient.studentName}`, JSON.stringify([recipient.parentUid, recipient.studentId]));
+                    recipientSelect.add(option);
+                });
+                if (!recipients.length) {
+                    recipientSelect.replaceChildren(new Option('No active parent-child links found', ''));
+                }
+                return recipients;
+            })
+            .finally(() => { noticeRecipientsRequest = null; });
+        return noticeRecipientsRequest;
+    };
+    const syncNoticeTargetRecipients = () => {
+        if (q('[name="targetMode"]').value !== 'specific-parent') return;
+        loadNoticeRecipients().catch(error => {
+            console.error('Unable to load parent and child notice recipients.', error);
+            toast('Parent and child recipients could not be loaded. Please try again.');
+        });
+    };
     const updateStats = () => {
         q('[data-nb-stat="total"]').textContent = notices.length;
         q('[data-nb-stat="published"]').textContent = notices.filter(notice => notice.status === 'Published').length;
@@ -131,9 +179,21 @@ function createNoticeBoardModule() {
         form.elements.noticeId.value = notice?.noticeId || nextId();
         if (notice) {
             ['title', 'category', 'audience', 'priority', 'status', 'publishDate', 'publishTime', 'expiryDate', 'expiryTime', 'department', 'postedBy', 'displayStyle', 'attachment', 'contentText', 'displayBoard', 'sendSMS', 'sendEmail', 'sendWhatsApp', 'sendPush', 'website', 'portal', 'pin', 'notes'].forEach(field => { form.elements[field].value = notice[field] ?? 'No'; });
+            form.elements.targetMode.value = notice.targetParentUid ? 'specific-parent' : 'general';
         } else {
             form.elements.publishDate.value = new Date().toISOString().slice(0, 10);
             form.elements.postedBy.value = 'Communication Officer';
+            form.elements.targetMode.value = 'general';
+        }
+        q('[name="targetRecipient"]').value = '';
+        updateNoticeTargetControls();
+        if (notice?.targetParentUid && notice?.targetStudentId) {
+            loadNoticeRecipients().then(() => {
+                q('[name="targetRecipient"]').value = JSON.stringify([notice.targetParentUid, notice.targetStudentId]);
+            }).catch(error => {
+                console.error('Unable to load parent and child notice recipients.', error);
+                toast('This notice recipient could not be loaded.');
+            });
         }
         updateCounter();
         q('[data-nb-form-overlay]').classList.add('is-open');
@@ -174,6 +234,10 @@ function createNoticeBoardModule() {
     };
 
     q('[data-nb-new]').addEventListener('click', () => openForm());
+    q('[name="targetMode"]').addEventListener('change', () => {
+        updateNoticeTargetControls();
+        syncNoticeTargetRecipients();
+    });
     q('[data-nb-search]').addEventListener('input', render);
     q('[data-nb-status]').addEventListener('change', render);
     q('[data-nb-priority]').addEventListener('change', render);
@@ -198,6 +262,27 @@ function createNoticeBoardModule() {
         notice.title = notice.title.trim();
         if (notices.some(item => item.noticeId.toLowerCase() === notice.noticeId.toLowerCase() && item.noticeId !== editingId)) return toast('Notice ID already exists.');
         const existing = notices.find(item => item.noticeId === editingId);
+        if (notice.targetMode === 'specific-parent') {
+            let target;
+            try {
+                target = JSON.parse(notice.targetRecipient);
+            } catch (error) {
+                return toast('Choose a valid parent and child for this notice.');
+            }
+            const recipient = noticeRecipients.find(item =>
+                item.parentUid === target[0] && item.studentId === target[1]);
+            if (!recipient) return toast('Choose a valid parent and child for this notice.');
+            notice.targetParentUid = recipient.parentUid;
+            notice.targetStudentId = recipient.studentId;
+            notice.targetStudentName = recipient.studentName;
+            notice.audience = 'Parents';
+        } else {
+            delete notice.targetParentUid;
+            delete notice.targetStudentId;
+            delete notice.targetStudentName;
+        }
+        delete notice.targetRecipient;
+        delete notice.targetMode;
         notice.channels = getSelectedChannels(notice);
         notice.deliveryStatus = deliveryStatus(notice);
         if (existing) notices = notices.map(item => item.noticeId === editingId ? notice : item);

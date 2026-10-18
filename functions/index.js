@@ -499,6 +499,39 @@ exports.getAssignableSchoolRecords = onCall(async request => {
         .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
 });
 
+exports.getAssignableNoticeRecipients = onCall(async request => {
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    await requireSchoolAdmin(request, schoolId);
+    const members = await db.collection(`schools/${schoolId}/members`)
+        .where('role', '==', 'parent')
+        .get();
+    const activeParents = members.docs.filter(parent => parent.data().status === 'active');
+    const linkedStudents = await Promise.all(activeParents.map(async parent => {
+        const links = await parent.ref.collection('linkedStudents').get();
+        return links.docs.map(link => ({
+            parentUid: parent.id,
+            parentName: String(parent.data().fullName || parent.data().name || parent.data().email || 'Parent'),
+            studentId: link.id
+        }));
+    }));
+    const linkedRecipients = linkedStudents.flat();
+    const studentIds = [...new Set(linkedRecipients.map(recipient => recipient.studentId))];
+    const students = await Promise.all(studentIds.map(studentId =>
+        db.doc(`schools/${schoolId}/students/${studentId}`).get()
+    ));
+    const studentNames = new Map(students.map(student => {
+        const data = student.data()?.data || {};
+        return [student.id, String(data.fullName || data.name || data.studentName
+            || [data.firstName, data.lastName].filter(Boolean).join(' ') || student.id)];
+    }));
+    return linkedRecipients.map(recipient => ({
+        ...recipient,
+        studentName: studentNames.get(recipient.studentId) || recipient.studentId
+    })).sort((left, right) =>
+        left.parentName.localeCompare(right.parentName) || left.studentName.localeCompare(right.studentName)
+    );
+});
+
 exports.getLinkedSchoolRecords = onCall(async request => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to view linked student records.');
     const schoolId = validateSchoolId(request.data?.schoolId);
@@ -813,31 +846,44 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
             .filter(record => record && studentIds.includes(record.studentId))];
     }));
 
-    const noticeSnapshot = await schoolRef.collection('notices')
-        .where('data.status', 'in', ['Published', 'published'])
-        .get();
+    const noticeSnapshot = await schoolRef.collection('notices').get();
     const today = new Date();
     const noticeCards = [];
     noticeSnapshot.docs.forEach(snapshot => {
         const record = snapshot.data().data || {};
-        const visibleOnPortal = [record.portal, record.displayBoard]
-            .filter(value => value !== undefined && value !== null)
-            .every(value => String(value).trim().toLowerCase() !== 'no');
+        const visibleOnPortal = record.portal === undefined
+            || !['no', 'false', '0'].includes(String(record.portal).trim().toLowerCase());
+        const status = String(record.status || record.publicationStatus || '').trim().toLowerCase();
         if (snapshot.data().deleted === true || record.deleted === true
-            || String(record.status || '').trim().toLowerCase() !== 'published'
+            || (status !== 'published' && record.isPublished !== true && record.published !== true)
             || !visibleOnPortal) return;
-        const audience = String(record.audienceRoles || record.targetRoles
-            || record.targetAudience || record.audience || '').toLowerCase();
-        if (!audience || !/\b(parent|parents|family|families|guardian|guardians|school community|public|all|everyone)\b/.test(audience)) return;
+        const targetParentUid = String(record.targetParentUid || '').trim();
+        const targetStudentId = String(record.targetStudentId || '').trim();
+        if (targetParentUid || targetStudentId) {
+            if (!targetParentUid || !targetStudentId
+                || targetParentUid !== request.auth.uid
+                || !studentIds.includes(targetStudentId)) return;
+        }
+        const audienceValue = record.audienceRoles || record.targetRoles
+            || record.targetAudience || record.audience || '';
+        const audience = (Array.isArray(audienceValue) ? audienceValue : [audienceValue])
+            .map(value => String(value).trim().toLowerCase()).join(' ');
+        const parentFacing = /\b(parent|parents|family|families|guardian|guardians|school community|general|public|all|everyone)\b/.test(audience);
+        if (!targetParentUid && !parentFacing) return;
         const publishDate = record.publishDate?.toDate?.() || record.publishDate;
         if (publishDate && !Number.isNaN(Date.parse(publishDate)) && new Date(publishDate) > today) return;
         const expiry = record.expiryDate || record.expiry || '';
         const expiryDate = expiry?.toDate?.() || expiry;
         if (expiryDate && !Number.isNaN(Date.parse(expiryDate)) && new Date(expiryDate) < today) return;
         noticeCards.push({
+            id: snapshot.id,
             title: String(record.title || record.subject || record.name || 'School notice'),
             category: String(record.category || ''),
             audience: String(record.audience || ''),
+            studentId: targetStudentId,
+            studentName: String(record.targetStudentName
+                || children.find(child => child.id === targetStudentId)?.fullName
+                || ''),
             priority: String(record.priority || ''),
             publishDate: publishDate && !Number.isNaN(Date.parse(publishDate))
                 ? new Date(publishDate).toISOString()
@@ -1615,20 +1661,33 @@ async function dispatchSchoolNotification(event, collectionName) {
     if (collectionName === 'notices') {
         if (!isPublishedRecord(current) || isPublishedRecord(previous)
             || !['yes', 'true', '1'].includes(String(current.sendPush || '').trim().toLowerCase())) return;
-        const rawAudience = current.audience || current.targetAudience || 'all';
-        const audience = (Array.isArray(rawAudience) ? rawAudience : String(rawAudience).split(/[,&/]+/))
-            .map(value => String(value).trim().toLowerCase());
-        const audienceText = audience.join(' ');
-        const roles = audienceText.includes('all') || !audienceText
-            ? allSchoolRoles
-            : [
-                ...(audienceText.includes('parent') ? ['parent'] : []),
-                ...(audienceText.includes('student') ? ['student'] : []),
-                ...(audienceText.includes('staff') || audienceText.includes('teacher')
-                    ? allSchoolRoles.filter(role => !['parent', 'student'].includes(role))
-                    : [])
-            ];
-        recipients = await resolvePushRecipients(schoolId, { roles });
+        const targetParentUid = String(current.targetParentUid || '').trim();
+        const targetStudentId = String(current.targetStudentId || '').trim();
+        if (targetParentUid || targetStudentId) {
+            if (!targetParentUid || !targetStudentId) return;
+            const parentRef = db.doc(`schools/${schoolId}/members/${targetParentUid}`);
+            const [parent, link] = await Promise.all([
+                parentRef.get(),
+                parentRef.collection('linkedStudents').doc(targetStudentId).get()
+            ]);
+            if (!parent.exists || parent.data().status !== 'active' || parent.data().role !== 'parent' || !link.exists) return;
+            recipients = [targetParentUid];
+        } else {
+            const rawAudience = current.audience || current.targetAudience || 'all';
+            const audience = (Array.isArray(rawAudience) ? rawAudience : String(rawAudience).split(/[,&/]+/))
+                .map(value => String(value).trim().toLowerCase());
+            const audienceText = audience.join(' ');
+            const roles = audienceText.includes('all') || audienceText.includes('general') || !audienceText
+                ? allSchoolRoles
+                : [
+                    ...(audienceText.includes('parent') || audienceText.includes('school community') ? ['parent'] : []),
+                    ...(audienceText.includes('student') || audienceText.includes('school community') ? ['student'] : []),
+                    ...(audienceText.includes('staff') || audienceText.includes('teacher') || audienceText.includes('school community')
+                        ? allSchoolRoles.filter(role => !['parent', 'student'].includes(role))
+                        : [])
+                ];
+            recipients = await resolvePushRecipients(schoolId, { roles });
+        }
         notification = { title: 'New school notice', body: 'A new school notice is available.' };
         route = 'Notice Board';
     } else if (collectionName === 'attendance') {

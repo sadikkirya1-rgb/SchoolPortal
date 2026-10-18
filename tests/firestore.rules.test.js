@@ -77,6 +77,14 @@ before(async () => {
         await setDoc(doc(firestore, 'schools/SCH-TEST/members/parent-1/linkedStudents/STUDENT-A'), {
             studentId: 'STUDENT-A'
         });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/parent-2'), {
+            role: 'parent',
+            status: 'active',
+            permissions: { notices: { view: true } }
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/parent-2/linkedStudents/STUDENT-B'), {
+            studentId: 'STUDENT-B'
+        });
         await setDoc(doc(firestore, 'schools/SCH-TEST/members/parent-1/notifications/NOTICE-1'), {
             title: 'Attendance update',
             body: 'An attendance update is ready to review.',
@@ -329,6 +337,36 @@ test('parent data access is read-only and limited to recommended linked-child co
     await assertFails(updateDoc(doc(firestore, 'schools/SCH-TEST/attendance/ATTENDANCE-A'), {
         'data.status': 'Absent'
     }));
+});
+
+test('specific-parent notices are readable only by their target parent', async () => {
+    await testEnvironment.withSecurityRulesDisabled(async context => {
+        const firestore = context.firestore();
+        await setDoc(doc(firestore, 'schools/SCH-TEST/notices/NOTICE-PARENT-A'), {
+            data: {
+                title: 'Student A notice',
+                audience: 'Parents',
+                targetParentUid: 'parent-1',
+                targetStudentId: 'STUDENT-A'
+            },
+            version: 1,
+            updatedBy: 'admin-1',
+            updatedAt: '2026-10-18T00:00:00.000Z'
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/notices/NOTICE-GENERAL'), {
+            data: { title: 'General parent notice', audience: 'General' },
+            version: 1,
+            updatedBy: 'admin-1',
+            updatedAt: '2026-10-18T00:00:00.000Z'
+        });
+    });
+    const parentOne = testEnvironment.authenticatedContext('parent-1').firestore();
+    const parentTwo = testEnvironment.authenticatedContext('parent-2').firestore();
+    const administrator = administratorContext().firestore();
+    await assertSucceeds(getDoc(doc(parentOne, 'schools/SCH-TEST/notices/NOTICE-PARENT-A')));
+    await assertFails(getDoc(doc(parentTwo, 'schools/SCH-TEST/notices/NOTICE-PARENT-A')));
+    await assertSucceeds(getDoc(doc(parentTwo, 'schools/SCH-TEST/notices/NOTICE-GENERAL')));
+    await assertSucceeds(getDoc(doc(administrator, 'schools/SCH-TEST/notices/NOTICE-PARENT-A')));
 });
 
 test('bursars can update and remove fee records', async () => {

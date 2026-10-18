@@ -401,6 +401,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const parentPortalMatchesStudentContext = (record, collection, child) => {
         const childId = parentStudentRecordId(child);
         if (parentPortalPersonalCollections.has(collection)) return parentPortalMatchesChild(record, collection, childId);
+        if (collection === 'notices') {
+            const targetParentUid = String(record.targetParentUid || '').trim();
+            const targetStudentId = String(record.targetStudentId || '').trim();
+            if (targetParentUid || targetStudentId) {
+                const currentParentUid = String(window.schoolPortalData?.getIdentity?.()?.uid || '');
+                return Boolean(targetParentUid && targetStudentId
+                    && targetParentUid === currentParentUid && targetStudentId === childId);
+            }
+        }
         const linkedStudentId = parentStudentId(record);
         if (linkedStudentId) return linkedStudentId === childId;
         const recordClassId = String(record.classId || record.classID || '');
@@ -421,8 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const audience = record.audienceRoles || record.targetRoles || record.targetAudience || record.audience;
             if (audience) {
                 const text = (Array.isArray(audience) ? audience : [audience]).join(' ').toLowerCase();
-                const parentFacing = /\b(parent|parents|family|families|guardian|guardians)\b/.test(text);
-                const broadlyVisible = /^(all|everyone|whole school|schoolwide|all users)$/i.test(text.trim());
+                const parentFacing = /\b(parent|parents|family|families|guardian|guardians|school community|general)\b/.test(text);
+                const broadlyVisible = /^(all|everyone|whole school|schoolwide|all users|general)$/i.test(text.trim());
                 if (!parentFacing && !broadlyVisible) return false;
             }
         }
@@ -878,7 +887,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const recordCard = (record, collection, definition, recordIndex) => {
             const child = parentRecordStudent(record);
             const studentName = collection === 'notices'
-                ? 'For parent community'
+                ? record.targetStudentName ? `For ${record.targetStudentName}` : 'For parent community'
                 : child?.fullName || child?.name || child?.studentName || 'Linked student';
             const title = definition.title(record);
             const fields = definition.fields(record).filter(([, value]) =>
@@ -2729,9 +2738,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     const records = await window.schoolPortalFirebase.getParentPortalDashboardSummary(identity.schoolId);
                     if (dashboardIdentityKey !== `${identityKey}:parent-portal`) return;
                     parentDashboardSummary = { loaded: true, records, error: false };
+                    parentPortalData.notices = {
+                        loaded: true,
+                        records: records.noticeCards || [],
+                        error: false
+                    };
                 } catch (error) {
                     if (dashboardIdentityKey !== `${identityKey}:parent-portal`) return;
                     parentDashboardSummary = { loaded: false, records: null, error: true };
+                    parentPortalData.notices = { loaded: false, records: [], error: true };
                     console.error('Unable to load linked-student parent dashboard summaries.', error);
                 }
                 renderParentPortalDashboard();
@@ -2739,7 +2754,7 @@ document.addEventListener('DOMContentLoaded', () => {
             void loadParentDashboardSummary();
             const permissions = identity.permissions || userData.permissions || {};
             const permittedCollections = parentPortalCollections.filter(collection =>
-                permissions[collection]?.view === true
+                collection !== 'notices' && permissions[collection]?.view === true
             );
             const subscriptions = permittedCollections.map(async collection => {
                 const unsubscribe = await api.subscribe(collection, records => {

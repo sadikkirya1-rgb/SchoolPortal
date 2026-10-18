@@ -248,6 +248,7 @@ async function changeOwnPassword(schoolId, currentPassword, newPassword) {
 
 const createSchoolUser = httpsCallable(functions, 'createSchoolUser');
 const getAssignableSchoolPermissions = httpsCallable(functions, 'getAssignableSchoolPermissions');
+const getAssignableNoticeRecipients = httpsCallable(functions, 'getAssignableNoticeRecipients');
 const updateSchoolUser = httpsCallable(functions, 'updateSchoolUser');
 const generateSchoolUserPasswordResetLink = httpsCallable(functions, 'generateSchoolUserPasswordResetLink');
 const setSchoolUserStatus = httpsCallable(functions, 'setSchoolUserStatus');
@@ -380,6 +381,8 @@ window.schoolPortalFirebase = {
     disablePushNotifications,
     getAssignableSchoolClasses: listAssignableSchoolClasses,
     getAssignableSchoolRecords: listAssignableSchoolRecords,
+    getAssignableNoticeRecipients: async schoolId =>
+        (await getAssignableNoticeRecipients({ schoolId: normalizeSchoolId(schoolId) })).data,
     getLinkedSchoolRecords: async (schoolId, collectionName) =>
         (await getLinkedSchoolRecords({ schoolId, collectionName })).data.records,
     getParentPortalDashboardSummary: async schoolId =>
