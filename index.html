@@ -18,6 +18,16 @@ if (!location.hostname.endsWith('.app.github.dev')) {
 <link rel="icon" href="./school-portal-icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="./school-portal-icon-192.png">
 <title>EduMaster Uganda - Advanced School Management Portal</title>
+<script>
+try {
+    const savedSession = JSON.parse(localStorage.getItem('edumasterAdminSession'));
+    if (savedSession?.authenticated && savedSession.schoolId && savedSession.userId) {
+        document.documentElement.classList.add('session-bootstrap');
+    }
+} catch (error) {
+    console.warn('Unable to check the saved login session.', error);
+}
+</script>
 
 <script>
 if ('serviceWorker' in navigator) {
@@ -210,6 +220,14 @@ if ('serviceWorker' in navigator) {
 </head>
 
 <body>
+
+<div class="session-bootstrap-screen" role="status" aria-live="polite">
+    <div class="session-bootstrap-card">
+        <span class="session-bootstrap-mark" aria-hidden="true"><i class="fas fa-school"></i></span>
+        <strong>Restoring your workspace</strong>
+        <span>Your school portal will be ready shortly.</span>
+    </div>
+</div>
 
 <section class="reference-login-page" aria-label="Smart School Management login design">
     <h2 class="visually-hidden">Smart School Management sign in</h2>

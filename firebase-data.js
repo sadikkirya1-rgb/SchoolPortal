@@ -850,7 +850,7 @@ window.schoolPortalData = {
         } catch (error) {
             console.warn('Unable to persist the active school identity for this tab.', error);
         }
-        if (canPersistIdentityMarker && loadedIdentity !== identityKey) {
+        if (canPersistIdentityMarker && loadedIdentity && loadedIdentity !== identityKey) {
             window.location.reload();
             return identity;
         }

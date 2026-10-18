@@ -29,6 +29,63 @@ transition: background 0.3s, color 0.3s;
 margin:0;
 }
 
+html.session-bootstrap body {
+    background: #f4f1ee;
+}
+
+html.session-bootstrap .reference-login-page {
+    display: none !important;
+}
+
+.session-bootstrap-screen {
+    display: none;
+}
+
+html.session-bootstrap .session-bootstrap-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: linear-gradient(145deg, #f8fafc, #eaf1fb);
+    color: #1e293b;
+}
+
+.session-bootstrap-card {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    width: min(100%, 340px);
+    padding: 30px 24px;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+    text-align: center;
+}
+
+.session-bootstrap-mark {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 6px;
+    border-radius: 15px;
+    background: #e8efff;
+    color: #4f46e5;
+    font-size: 20px;
+}
+
+.session-bootstrap-card strong {
+    font-size: 16px;
+}
+
+.session-bootstrap-card > span:last-child {
+    color: #64748b;
+    font-size: 13px;
+}
+
 .landing-page {
     width: 100%;
     min-height: 100vh;

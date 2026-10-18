@@ -3590,21 +3590,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearSession();
                 return;
             }
+            if (authUser.uid !== session.userId) {
+                clearSession();
+                window.schoolPortalData?.clearIdentity();
+                return;
+            }
+            const cachedUser = session.user;
+            if (cachedUser) {
+                currentSchool = {
+                    id: session.schoolId,
+                    schoolName: session.schoolName || cachedUser.schoolName || 'School',
+                    logoURL: session.logoURL || ''
+                };
+                schoolIdInput.value = currentSchool.id;
+                window.schoolPortalData?.setIdentity(currentSchool.id, authUser.uid, cachedUser);
+                unlockDashboard({ ...cachedUser, schoolName: currentSchool.schoolName });
+                void revalidateRestoredMembership(firebase, session, authUser);
+                return;
+            }
             currentSchool = await firebase.getSchool(session.schoolId);
             const membership = await firebase.getMembership(currentSchool.id, authUser.uid);
             if (!membership || (membership.perms?.view === false && !isPrivilegedRole(membership.role))) {
-                clearSession();
-                await firebase.signOut(session.schoolId);
-                resetLoginScreen();
-                window.schoolPortalData?.clearIdentity();
-                container.classList.add('hidden');
-                referenceLoginPage?.classList.remove('hidden');
-                resetReferenceLogin();
+                await endRestoredSession(firebase, session);
                 return;
             }
             const user = normalizeMember(membership, authUser);
             schoolIdInput.value = currentSchool.id;
-            saveSession({ schoolId: currentSchool.id, userId: authUser.uid, authenticated: true, user });
+            saveSession({
+                schoolId: currentSchool.id,
+                schoolName: currentSchool.schoolName,
+                logoURL: currentSchool.logoURL || '',
+                userId: authUser.uid,
+                authenticated: true,
+                user
+            });
             window.schoolPortalData?.setIdentity(currentSchool.id, authUser.uid, membership);
             if (membership.mustChangePassword) openPasswordChangeDialog('first-login', user);
             else unlockDashboard(user);
@@ -3612,16 +3631,76 @@ document.addEventListener('DOMContentLoaded', () => {
             const cachedUser = session?.user;
             const authenticatedUid = window.schoolPortalFirebase?.auth?.currentUser?.uid;
             if (!navigator.onLine && cachedUser && authenticatedUid === session.userId) {
-                currentSchool = { id: session.schoolId, schoolName: cachedUser.schoolName || 'School' };
+                currentSchool = {
+                    id: session.schoolId,
+                    schoolName: session.schoolName || cachedUser.schoolName || 'School',
+                    logoURL: session.logoURL || ''
+                };
                 schoolIdInput.value = currentSchool.id;
                 window.schoolPortalData?.setIdentity(session.schoolId, authenticatedUid, cachedUser);
-                if (cachedUser.mustChangePassword) openPasswordChangeDialog('first-login', cachedUser);
-                else unlockDashboard(cachedUser);
+                unlockDashboard({ ...cachedUser, schoolName: currentSchool.schoolName });
                 return;
             }
             console.error('Unable to restore Firebase session.', error);
             const message = document.getElementById('referenceLoginMessage');
             if (message) message.textContent = 'Could not verify your saved school access. Check your connection and sign in again.';
+        } finally {
+            document.documentElement.classList.remove('session-bootstrap');
+        }
+    };
+
+    const endRestoredSession = async (firebase, session) => {
+        window.schoolPortalData?.clearIdentity();
+        clearSession();
+        try {
+            await firebase.signOut(session.schoolId);
+        } catch (error) {
+            console.error('Unable to sign out an account without active school membership.', error);
+        }
+        resetLoginScreen();
+        container.classList.add('hidden');
+        referenceLoginPage?.classList.remove('hidden');
+        resetReferenceLogin();
+    };
+
+    const revalidateRestoredMembership = async (firebase, session, authUser) => {
+        try {
+            const [membership, verifiedSchool] = await Promise.all([
+                firebase.getMembership(session.schoolId, authUser.uid),
+                session.schoolName
+                    ? Promise.resolve(null)
+                    : firebase.getSchool(session.schoolId)
+            ]);
+            if (!membership || (membership.perms?.view === false && !isPrivilegedRole(membership.role))) {
+                await endRestoredSession(firebase, session);
+                return;
+            }
+            const school = {
+                id: session.schoolId,
+                schoolName: session.schoolName || verifiedSchool?.schoolName || session.user?.schoolName || 'School',
+                logoURL: session.logoURL || verifiedSchool?.logoURL || ''
+            };
+            currentSchool = school;
+            const user = { ...normalizeMember(membership, authUser), schoolName: school.schoolName };
+            saveSession({
+                schoolId: school.id,
+                schoolName: school.schoolName,
+                logoURL: school.logoURL,
+                userId: authUser.uid,
+                authenticated: true,
+                user
+            });
+            dashboardSubscriptions.forEach(unsubscribe => unsubscribe());
+            dashboardSubscriptions = [];
+            dashboardIdentityKey = '';
+            notificationUnsubscribe?.();
+            notificationUnsubscribe = null;
+            notificationIdentityKey = '';
+            window.schoolPortalData?.setIdentity(school.id, authUser.uid, membership);
+            if (membership.mustChangePassword) openPasswordChangeDialog('first-login', user);
+            else unlockDashboard(user);
+        } catch (error) {
+            console.error('Unable to revalidate the restored school membership.', error);
         }
     };
 
@@ -3674,7 +3753,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             currentSchool = school;
             const user = normalizeMember(membership, authUser);
-            saveSession({ schoolId: school.id, userId: authUser.uid, step: 2, authenticated: true, user });
+            saveSession({
+                schoolId: school.id,
+                schoolName: school.schoolName,
+                logoURL: school.logoURL || '',
+                userId: authUser.uid,
+                step: 2,
+                authenticated: true,
+                user: { ...user, schoolName: school.schoolName }
+            });
             window.schoolPortalData?.setIdentity(school.id, authUser.uid, membership);
             showError(adminError, '');
             if (membership.mustChangePassword) openPasswordChangeDialog('first-login', user);
