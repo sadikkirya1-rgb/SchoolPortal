@@ -6356,7 +6356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         Administrator: { sections: null, perms: { view: true, edit: true, delete: true } },
         Director: { sections: null, perms: { view: true, edit: true, delete: true } },
         'Head Teacher': { sections: null, perms: { view: true, edit: true, delete: false } },
-        'Deputy Head Teacher': { sections: ['Main', 'Front Office Department', 'Academic Department', 'E-Learning Department', 'Student Life Department', "Principal's Office Department"], perms: { view: true, edit: true, delete: false } },
+        'Deputy Head Teacher': { sections: ['Main', 'Front Office Department', 'Academic Department', 'E-Learning Department', 'Student Life Department'], perms: { view: true, edit: true, delete: false } },
         Bursar: { sections: ['Main', 'Finance Department', 'Payroll Department'], perms: { view: true, edit: true, delete: false } },
         Teacher: { sections: ['Main', 'Academic Department', 'E-Learning Department', 'Student Life Department'], perms: { view: true, edit: true, delete: false } },
         Librarian: { sections: ['Main', 'Academic Department', 'E-Learning Department', 'Student Life Department'], perms: { view: true, edit: true, delete: false } },
