@@ -845,7 +845,8 @@ exports.getParentPortalDashboardSummary = onCall({ cors: true }, async request =
             expiryDate: expiryDate && !Number.isNaN(Date.parse(expiryDate))
                 ? new Date(expiryDate).toISOString()
                 : '',
-            contentText: String(record.contentText || record.content || '').slice(0, 240)
+            contentText: String(record.contentText || record.content || '').slice(0, 5000),
+            attachment: String(record.attachment || '').slice(0, 2048)
         });
     });
 

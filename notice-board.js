@@ -24,7 +24,7 @@ function createNoticeBoardModule() {
                 <h4 class="nb-section-title">Communication Channels</h4><div class="nb-grid">
                     <label>Display On Notice Board<select name="displayBoard"><option>Yes</option><option>No</option></select></label><label>Send SMS Alert<select name="sendSMS"><option>No</option><option>Yes</option></select></label><label>Send Email<select name="sendEmail"><option>Yes</option><option>No</option></select></label><label>Send WhatsApp<select name="sendWhatsApp"><option>No</option><option>Yes</option></select></label><label>Send Browser Push<select name="sendPush"><option>No</option><option>Yes</option></select></label><label>Website Publication<select name="website"><option>Yes</option><option>No</option></select></label><label>Portal Publication<select name="portal"><option>Yes</option><option>No</option></select></label><label>Pin To Top<select name="pin"><option>No</option><option>Yes</option></select></label>
                 </div>
-                <p class="nb-delivery-note"><i class="fas fa-circle-info" aria-hidden="true"></i> Channel selections are saved as preferences only. No SMS, email, WhatsApp or push message is sent until Firebase and a delivery provider are connected.</p>
+                <p class="nb-delivery-note"><i class="fas fa-circle-info" aria-hidden="true"></i> Browser push can be sent when a notice is published with Send Browser Push enabled, provided Firebase push and recipient tokens are configured. SMS, email and WhatsApp are saved as preferences only; delivery providers for these channels are not connected.</p>
                 <h4 class="nb-section-title">Internal Notes</h4><div class="nb-grid"><label class="nb-full">Internal Notes<textarea name="notes" placeholder="Internal communication department notes..."></textarea></label></div>
                 <footer class="nb-modal-actions"><button class="nb-button nb-light" type="button" data-nb-cancel>Cancel</button><button class="nb-button nb-primary" type="submit">Save Notice</button></footer>
             </form>
@@ -69,7 +69,18 @@ function createNoticeBoardModule() {
         ['Website', notice.website],
         ['Portal', notice.portal]
     ].filter(([, enabled]) => enabled === 'Yes').map(([channel]) => channel);
-    const deliveryStatus = 'Not sent — Firebase/provider integration required';
+    const deliveryStatus = notice => {
+        const published = String(notice.status || '').toLowerCase() === 'published';
+        const pushEnabled = ['yes', 'true', '1'].includes(String(notice.sendPush || '').trim().toLowerCase());
+        if (published && pushEnabled) {
+            return 'Browser push triggered on publish when Firebase push and recipient tokens are configured; SMS, email and WhatsApp are not sent.';
+        }
+        if (published) return 'Published; browser push is off. SMS, email and WhatsApp are not sent.';
+        return 'Not sent — publish the notice to trigger enabled browser push.';
+    };
+    notices.forEach(notice => {
+        notice.deliveryStatus = deliveryStatus(notice);
+    });
     const toast = message => {
         const element = q('[data-nb-toast]');
         element.textContent = message;
@@ -146,6 +157,7 @@ function createNoticeBoardModule() {
     };
     const duplicateNotice = notice => {
         const copy = { ...notice, noticeId: nextId(), title: `${notice.title} - Copy`, status: 'Draft' };
+        copy.deliveryStatus = deliveryStatus(copy);
         notices.unshift(copy);
         save();
         render();
@@ -154,11 +166,11 @@ function createNoticeBoardModule() {
     const publishNotice = notice => {
         if (!confirm(`Publish "${notice.title}" now?`)) return;
         notice.status = 'Published';
-        notice.deliveryStatus = deliveryStatus;
+        notice.deliveryStatus = deliveryStatus(notice);
         save();
         render();
         closeView();
-        toast('Published in this browser preview. No external notifications were sent.');
+        toast('Published. Browser push is triggered when enabled and configured; SMS, email and WhatsApp are not sent.');
     };
 
     q('[data-nb-new]').addEventListener('click', () => openForm());
@@ -187,13 +199,13 @@ function createNoticeBoardModule() {
         if (notices.some(item => item.noticeId.toLowerCase() === notice.noticeId.toLowerCase() && item.noticeId !== editingId)) return toast('Notice ID already exists.');
         const existing = notices.find(item => item.noticeId === editingId);
         notice.channels = getSelectedChannels(notice);
-        notice.deliveryStatus = deliveryStatus;
+        notice.deliveryStatus = deliveryStatus(notice);
         if (existing) notices = notices.map(item => item.noticeId === editingId ? notice : item);
         else notices.unshift(notice);
         save();
         closeForm();
         render();
-        toast(`${existing ? 'Notice updated' : 'Notice saved'} in this browser preview. No external notifications were sent.`);
+        toast(`${existing ? 'Notice updated' : 'Notice saved'}. Publish it to trigger configured browser push; SMS, email and WhatsApp are not sent.`);
     });
     q('[data-nb-rows]').addEventListener('click', event => {
         const button = event.target.closest('[data-nb-action]');

@@ -921,13 +921,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `<button class="parent-document-action parent-document-action-report" type="button" data-parent-document-preview="reportCard" data-parent-document-index="${recordIndex}" aria-label="Preview report card"><i class="fas fa-file-lines" aria-hidden="true"></i> Preview report card</button>`
                 : collection === 'fees' && feeIsFullyPaid(record)
                     ? `<button class="parent-document-action" type="button" data-parent-document-preview="feeReceipt" data-parent-document-index="${recordIndex}"><i class="fas fa-receipt" aria-hidden="true"></i> View receipt</button>`
+                    : collection === 'notices'
+                        ? `<button class="parent-document-action parent-document-action-notice" type="button" data-parent-document-preview="notice" data-parent-document-index="${recordIndex}"><i class="fas fa-eye" aria-hidden="true"></i> Preview notice</button>`
                     : '';
-            return `<article class="parent-record-card parent-record-card-${collection}">
-                <div class="parent-record-card-heading"><small>${recordIcon('fa-user')} ${dashboardEscape(studentName)}</small></div>
-                <div class="parent-record-card-title-row"><span class="parent-record-card-icon">${recordIcon(definition.icon)}</span><h3>${dashboardEscape(title)}</h3></div>
-                ${summary ? `<div class="parent-record-card-summary"><span class="parent-record-card-summary-icon">${recordIcon(fieldIcons[summary[0]] || 'fa-circle-info')}</span><span><small>${dashboardEscape(summary[0])}</small><strong>${dashboardEscape(summary[1])}</strong></span></div>` : ''}
+            const cardHeading = `<div class="parent-record-card-heading"><small>${recordIcon('fa-user')} ${dashboardEscape(studentName)}</small></div>
+                <div class="parent-record-card-title-row"><span class="parent-record-card-icon">${recordIcon(definition.icon)}</span><h3>${dashboardEscape(title)}</h3></div>`;
+            const cardBody = `${summary ? `<div class="parent-record-card-summary"><span class="parent-record-card-summary-icon">${recordIcon(fieldIcons[summary[0]] || 'fa-circle-info')}</span><span><small>${dashboardEscape(summary[0])}</small><strong>${dashboardEscape(summary[1])}</strong></span></div>` : ''}
                 ${fields.length > 1 ? `<dl>${fields.slice(1).map(([label, value]) => `<div><dt>${recordIcon(fieldIcons[label] || 'fa-circle-info')}${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl>` : ''}
-                ${documentAction ? `<div class="parent-record-card-actions">${documentAction}</div>` : ''}
+                ${documentAction ? `<div class="parent-record-card-actions">${documentAction}</div>` : ''}`;
+            return `<article class="parent-record-card parent-record-card-${collection}">
+                ${cardHeading}${cardBody}
             </article>`;
         };
         const recordCardDefinitions = {
@@ -972,8 +975,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 title: record => parentPortalRecordValue(record, ['title', 'subject', 'name']) || 'School notice',
                 fields: record => [
                     ['Category', parentPortalRecordValue(record, ['category', 'priority'])],
-                    ['Published', parentRecordDate(record, ['publishDate', 'publishedAt', 'date'])],
-                    ['Details', String(parentPortalRecordValue(record, ['contentText', 'content']) || '').slice(0, 240)]
+                    ['Published', parentRecordDate(record, ['publishDate', 'publishedAt', 'date'])]
                 ]
             }
         };
@@ -982,9 +984,11 @@ document.addEventListener('DOMContentLoaded', () => {
             reportCards: reportCardRecords,
             assessments: assignments.filter(record => parentPortalRecordIsVisible(record, 'assessments')),
             fees: feeCardRecords,
-            notices: parentDashboardSummary.records?.noticeCards
-                || (canViewParentPortalCollection('notices') ? noticeRecords : [])
+            notices: adminPreview || canViewParentPortalCollection('notices')
+                ? noticeRecords
+                : parentDashboardSummary.records?.noticeCards || []
         };
+        const noticeCardRecords = recordSets.notices;
         const documentPreviewModal = container.querySelector('[data-parent-document-preview-modal]');
         const documentPreviewTitle = container.querySelector('[data-parent-document-title]');
         const documentPreviewSubtitle = container.querySelector('[data-parent-document-subtitle]');
@@ -1228,7 +1232,17 @@ document.addEventListener('DOMContentLoaded', () => {
             target.innerHTML = records.length
                 ? records.map((record, index) => recordCard(record, collection, definition, index)).join('')
                 : '<p class="parent-record-empty" role="status">No linked records are available.</p>';
-            if (count) count.textContent = `${records.length} ${records.length === 1 ? 'record' : 'records'}`;
+            if (count) {
+                const countLabel = {
+                    reportCards: 'report cards',
+                    assessments: 'assignments',
+                    fees: 'fee records',
+                    notices: 'notices',
+                    attendance: 'attendance records'
+                }[collection] || 'documents';
+                count.textContent = String(records.length);
+                count.setAttribute('aria-label', `${records.length} ${countLabel}`);
+            }
         });
         const recordGroups = container.querySelector('.parent-records-section');
         if (recordGroups) {
@@ -1247,6 +1261,27 @@ document.addEventListener('DOMContentLoaded', () => {
                         const fee = feeCardRecords[index];
                         const child = parentRecordStudent(fee);
                         openParentDocumentPreview('Fee Payment Receipt', child?.fullName || 'Paid fee', feeReceiptPreviewMarkup(fee), preview);
+                    } else if (type === 'notice' && noticeCardRecords[index]) {
+                        const notice = noticeCardRecords[index];
+                        const attachment = String(notice.attachment || '').trim();
+                        let attachmentMarkup = '';
+                        if (attachment) {
+                            let attachmentUrl = '';
+                            try {
+                                if (/^https?:\/\//i.test(attachment)) {
+                                    const parsedUrl = new URL(attachment);
+                                    if (['http:', 'https:'].includes(parsedUrl.protocol)) attachmentUrl = parsedUrl.href;
+                                }
+                            } catch (error) {
+                                console.warn('A parent notice attachment reference is invalid.', error);
+                            }
+                            attachmentMarkup = attachmentUrl
+                                ? `<p><strong>Attachment:</strong> <a href="${dashboardEscape(attachmentUrl)}" target="_blank" rel="noopener noreferrer">${dashboardEscape(attachment)}</a></p>`
+                                : `<p><strong>Attachment:</strong> ${dashboardEscape(attachment)}</p>`;
+                        }
+                        const content = notice.contentText || notice.content || notice.message || notice.description || '';
+                        const markup = `<div class="parent-document-sheet-heading"><h3>${dashboardEscape(notice.title || notice.subject || 'School notice')}</h3><p>${dashboardEscape(notice.category || 'School notice')} · ${dashboardEscape(parentRecordDate(notice, ['publishDate', 'publishedAt', 'date']) || 'Published notice')}</p></div><section class="parent-document-section"><h4>For parent community</h4><p class="parent-notice-preview-content">${dashboardEscape(content || 'No notice details are available.')}</p>${attachmentMarkup}</section>`;
+                        openParentDocumentPreview('School Notice', 'For parent community', markup, preview);
                     } else if (type === 'feeStatement') {
                         openParentDocumentPreview('Fee Statement', selectedChild === 'all' ? 'Across linked children' : 'For the selected child', feeStatementPreviewMarkup(feeCardRecords), preview);
                     } else if (type === 'attendanceSummary') {
@@ -1256,9 +1291,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 const toggle = target.closest('[data-parent-record-group-toggle]');
                 if (!toggle) return;
-                const grid = toggle.closest('.parent-record-group')?.querySelector('.parent-record-grid');
-                if (!grid) return;
-                const expanded = grid.classList.toggle('hidden') === false;
+                const content = toggle.closest('.parent-record-group')
+                    ?.querySelector('[data-parent-record-group-content], .parent-record-grid');
+                if (!content) return;
+                const expanded = content.classList.toggle('hidden') === false;
                 toggle.setAttribute('aria-expanded', String(expanded));
             };
         }
