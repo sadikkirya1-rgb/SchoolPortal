@@ -40,6 +40,10 @@
     gap: 12px;
 }
 
+.main .dashboard-shell .stats-strip {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
 .main :is(.front-office-kpis, .report-cards-stats) {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 165px), 1fr));
@@ -133,6 +137,18 @@
     border-color: #334155;
     background: #1e293b;
     box-shadow: none;
+}
+
+@media (max-width: 1200px) {
+    .main .dashboard-shell .stats-strip {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .main .dashboard-shell .stats-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .main > section.module .module-header,

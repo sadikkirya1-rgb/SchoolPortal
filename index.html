@@ -1002,9 +1002,33 @@ if ('serviceWorker' in navigator) {
                     </div>
                 </div>
             </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Notices</span>
+                        <strong data-dashboard-stat="notices">—</strong>
+                    </div>
+                    <div class="stat-icon purple">
+                        <i class="fas fa-bullhorn" aria-hidden="true"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Calendar events</span>
+                        <strong data-dashboard-stat="calendarEvents">—</strong>
+                    </div>
+                    <div class="stat-icon blue">
+                        <i class="fas fa-calendar-days" aria-hidden="true"></i>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="dashboard-finance-kpis" aria-label="Fee balance indicators">
+        <div class="dashboard-finance-kpis" aria-label="School and fee summary">
             <article class="stat-card dashboard-kpi">
                 <div class="stat-header">
                     <div class="stat-copy">
@@ -1062,16 +1086,63 @@ if ('serviceWorker' in navigator) {
             </article>
         </div>
 
-        <section class="dashboard-queue panel" aria-labelledby="dashboardQueueTitle">
-            <div class="panel-header">
-                <div>
-                    <h3 id="dashboardQueueTitle">Needs attention</h3>
-                    <p>Items that may need follow-up</p>
+        <div class="dashboard-finance-kpis dashboard-data-kpis" aria-label="School data summary">
+            <article class="stat-card dashboard-kpi dashboard-queue-card">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Needs attention</span>
+                        <strong id="dashboardQueueCount">—</strong>
+                    </div>
+                    <div class="stat-icon coral"><i class="fas fa-circle-exclamation" aria-hidden="true"></i></div>
                 </div>
-                <span id="dashboardQueueCount" class="dashboard-queue-count">—</span>
-            </div>
-            <div id="dashboardActionQueue" aria-live="polite"></div>
-        </section>
+                <div id="dashboardActionQueue" aria-live="polite"></div>
+            </article>
+            <article class="stat-card dashboard-kpi">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>App data records</span>
+                        <strong data-dashboard-stat="appData">—</strong>
+                    </div>
+                    <div class="stat-icon blue"><i class="fas fa-database" aria-hidden="true"></i></div>
+                </div>
+            </article>
+            <article class="stat-card dashboard-kpi">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Fee records</span>
+                        <strong data-dashboard-stat="feeRecords">—</strong>
+                    </div>
+                    <div class="stat-icon purple"><i class="fas fa-file-invoice" aria-hidden="true"></i></div>
+                </div>
+            </article>
+            <article class="stat-card dashboard-kpi">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Expense records</span>
+                        <strong data-dashboard-stat="expenseRecords">—</strong>
+                    </div>
+                    <div class="stat-icon gold"><i class="fas fa-receipt" aria-hidden="true"></i></div>
+                </div>
+            </article>
+            <article class="stat-card dashboard-kpi">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Attendance today</span>
+                        <strong data-dashboard-stat="attendanceRecords">—</strong>
+                    </div>
+                    <div class="stat-icon blue"><i class="fas fa-clipboard-check" aria-hidden="true"></i></div>
+                </div>
+            </article>
+            <article class="stat-card dashboard-kpi">
+                <div class="stat-header">
+                    <div class="stat-copy">
+                        <span>Upcoming events</span>
+                        <strong data-dashboard-stat="upcomingEvents">—</strong>
+                    </div>
+                    <div class="stat-icon coral"><i class="fas fa-calendar-day" aria-hidden="true"></i></div>
+                </div>
+            </article>
+        </div>
 
         <div class="analytics-row">
             <div class="panel earnings-panel">

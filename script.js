@@ -2066,6 +2066,24 @@ document.addEventListener('DOMContentLoaded', () => {
         setStat('students', availableCount('students'));
         setStat('teachers', availableCount('teachers'));
         setStat('parents', availableCount('parents'));
+        setStat('notices', availableCount('notices'));
+        setStat('calendarEvents', availableCount('calendarEvents'));
+        setStat('feeRecords', availableCount('fees'));
+        setStat('expenseRecords', availableCount('expenses'));
+        const currentDayStart = new Date();
+        currentDayStart.setHours(0, 0, 0, 0);
+        const upcomingEventCount = recordsFor('calendarEvents').filter(event => {
+            const eventDate = dashboardDate(event);
+            return eventDate && eventDate >= currentDayStart;
+        }).length;
+        setStat('upcomingEvents', dashboardData.calendarEvents.loaded ? upcomingEventCount.toLocaleString() : '—');
+        const loadedDashboardCollections = [...dashboardSubscribedCollections]
+            .filter(collection => dashboardData[collection]?.loaded);
+        const appRecordCount = loadedDashboardCollections.reduce(
+            (total, collection) => total + recordsFor(collection).length,
+            0
+        );
+        setStat('appData', loadedDashboardCollections.length ? appRecordCount.toLocaleString() : '—');
 
         const fees = recordsFor('fees');
         const expenses = recordsFor('expenses');
@@ -2180,7 +2198,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (dashboardData.fees.loaded && overdueFees.length) {
             queue.push({
                 title: `${overdueFees.length} fee ${overdueFees.length === 1 ? 'balance is' : 'balances are'} overdue`,
-                detail: `Outstanding total: ${dashboardMoney(overdueFees.reduce((sum, fee) => sum + feeOutstandingAmount(fee), 0))}`,
                 section: 'Fees'
             });
         }
@@ -2189,7 +2206,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (drafts.length) {
                 queue.push({
                     title: `${drafts.length} notice ${drafts.length === 1 ? 'needs' : 'need'} review`,
-                    detail: 'Draft or pending notices are not yet published.',
                     section: 'Notice Board'
                 });
             }
@@ -2198,7 +2214,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (dashboardData.attendance.loaded && absentToday) {
             queue.push({
                 title: `${absentToday} ${absentToday === 1 ? 'absence is' : 'absences are'} recorded today`,
-                detail: 'Review today’s attendance register.',
                 section: 'Attendance'
             });
         }
@@ -2206,11 +2221,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const queueCount = document.getElementById('dashboardQueueCount');
         if (queueCount) queueCount.textContent = String(queue.length);
         if (queueContainer) {
-            const loadedActionSources = [...dashboardSubscribedCollections].some(collection => dashboardData[collection].loaded);
-            const actionSourceError = [...dashboardSubscribedCollections].some(collection => dashboardData[collection].error);
             queueContainer.innerHTML = queue.length
-                ? queue.map(item => `<article class="dashboard-queue-item"><div><strong>${dashboardEscape(item.title)}</strong><span>${dashboardEscape(item.detail)}</span></div><button type="button" data-dashboard-open="${dashboardEscape(item.section)}">Review <i class="fas fa-arrow-right" aria-hidden="true"></i></button></article>`).join('')
-                : `<p class="dashboard-empty">${actionSourceError ? 'Some action items are unavailable because a permitted data source could not be loaded.' : loadedActionSources ? 'Nothing currently needs attention based on available records.' : 'No action items are available to this account.'}</p>`;
+                ? queue.map(item => `<article class="dashboard-queue-item"><strong>${dashboardEscape(item.title)}</strong><button type="button" data-dashboard-open="${dashboardEscape(item.section)}">Review <i class="fas fa-arrow-right" aria-hidden="true"></i></button></article>`).join('')
+                : '';
         }
         updateDashboardActionAccess();
 
