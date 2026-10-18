@@ -3581,7 +3581,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const restoreSession = async () => {
         const session = loadSession();
         if (!session?.schoolId || !session.authenticated) {
-            document.documentElement.classList.remove('session-restoring');
             return;
         }
         try {
@@ -3597,7 +3596,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearSession();
                 await firebase.signOut(session.schoolId);
                 resetLoginScreen();
-                window.location.reload();
+                window.schoolPortalData?.clearIdentity();
+                container.classList.add('hidden');
+                referenceLoginPage?.classList.remove('hidden');
+                resetReferenceLogin();
                 return;
             }
             const user = normalizeMember(membership, authUser);
@@ -3620,8 +3622,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Unable to restore Firebase session.', error);
             const message = document.getElementById('referenceLoginMessage');
             if (message) message.textContent = 'Could not verify your saved school access. Check your connection and sign in again.';
-        } finally {
-            document.documentElement.classList.remove('session-restoring');
         }
     };
 
@@ -3663,7 +3663,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return false;
         }
         try {
-            const { school, user: authUser, membership } = await getFirebase().signIn(schoolId, email, password);
+            const { school, user: authUser, membership } = await getFirebase().signIn(
+                schoolId,
+                email,
+                password,
+                currentSchool?.id === normalizeSchoolId(schoolId) ? currentSchool : undefined
+            );
             if (membership.perms?.view === false && !isPrivilegedRole(membership.role)) {
                 throw new Error('This account does not have dashboard access. Contact your school administrator.');
             }
@@ -3697,10 +3702,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             const session = loadSession();
+            const schoolForLogin = currentSchool || (session?.schoolId ? {
+                id: session.schoolId,
+                schoolName: session.schoolName || 'School',
+                logoURL: session.logoURL || ''
+            } : null);
             try {
                 if (window.schoolPortalFirebase) {
-                    const result = await window.schoolPortalFirebase.signOut(session?.schoolId);
-                    if (result?.pushCleanupWarning) alert(result.pushCleanupWarning);
+                    await window.schoolPortalFirebase.signOut(session?.schoolId);
                 }
                 if (session?.schoolId && session?.userId) {
                     localStorage.removeItem(`schoolPushEnabled:${encodeURIComponent(session.schoolId)}:${encodeURIComponent(session.userId)}`);
@@ -3712,11 +3721,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             window.schoolPortalData?.clearIdentity();
             clearSession();
-            if (session?.schoolId) {
+            if (schoolForLogin?.id) {
                 saveSession({
-                    schoolId: session.schoolId,
-                    schoolName: currentSchool?.schoolName || session.schoolName || 'School',
-                    logoURL: currentSchool?.logoURL || session.logoURL || '',
+                    schoolId: schoolForLogin.id,
+                    schoolName: schoolForLogin.schoolName || 'School',
+                    logoURL: schoolForLogin.logoURL || '',
                     step: 1,
                     authenticated: false
                 });
@@ -3726,7 +3735,8 @@ document.addEventListener('DOMContentLoaded', () => {
             referenceLoginPage?.classList.remove('hidden');
             loginScreen?.classList.remove('active');
             loginScreen?.classList.add('hidden');
-            window.location.reload();
+            document.documentElement.classList.remove('parent-portal-preview-active');
+            resetReferenceLogin(schoolForLogin);
         });
     }
 
@@ -3755,6 +3765,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const referenceUsername = document.getElementById('referenceLoginUsername');
     const referencePassword = document.getElementById('referenceLoginPassword');
     const referenceUserLogin = document.getElementById('referenceUserLogin');
+    const referenceSignInButton = referenceLoginForm?.querySelector('.reference-sign-in');
     const referenceBackToSchool = document.getElementById('referenceBackToSchool');
     const referenceRemember = referenceLoginForm?.elements.namedItem('remember');
     const referenceMessage = document.getElementById('referenceLoginMessage');
@@ -3795,7 +3806,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 referenceSchoolLogoFallback.classList.remove('hidden');
             }
         };
-        resetReferenceLogin = () => {
+        resetReferenceLogin = school => {
             currentSchool = null;
             schoolIdInput.value = '';
             referenceSchoolId.value = '';
@@ -3816,6 +3827,13 @@ document.addEventListener('DOMContentLoaded', () => {
             referenceSchoolMessage.textContent = '';
             showReferenceMessage('');
             referenceLoginForm.classList.remove('hidden');
+            if (school) {
+                currentSchool = school;
+                schoolIdInput.value = school.id;
+                referenceSchoolId.value = school.id;
+                setReferenceSchoolIdentity(school);
+                revealReferenceUserLogin();
+            }
         };
         const revealReferenceUserLogin = () => {
             referenceSchoolId.disabled = true;
@@ -3830,39 +3848,55 @@ document.addEventListener('DOMContentLoaded', () => {
             referenceSchoolMessage.textContent = 'School information confirmed. Enter your user details.';
             referenceUsername.focus();
         };
+        let schoolVerificationPromise = null;
+        let schoolVerificationId = '';
         const verifyReferenceSchool = async () => {
             const schoolId = normalizeSchoolId(referenceSchoolId.value);
             if (!schoolId) {
                 referenceSchoolMessage.textContent = 'Enter your School ID.';
                 return;
             }
+            if (schoolVerificationPromise && schoolVerificationId === schoolId) {
+                return schoolVerificationPromise;
+            }
             const continueButton = document.getElementById('referenceSchoolContinue');
             continueButton.disabled = true;
-            try {
-                const school = await getFirebase().getSchool(schoolId);
-                currentSchool = school;
-                schoolIdInput.value = school.id;
-                referenceSchoolId.value = school.id;
-                setReferenceSchoolIdentity(school);
-                saveSession({
-                    schoolId: school.id,
-                    schoolName: school.schoolName,
-                    logoURL: school.logoURL || '',
-                    step: 1,
-                    authenticated: false
-                });
-                referenceSchoolMessage.textContent = '';
-                showReferenceMessage('');
-                revealReferenceUserLogin();
-                return true;
-            } catch (error) {
-                const message = error.message || 'Unable to verify school information.';
-                if (referenceUserLogin.classList.contains('hidden')) referenceSchoolMessage.textContent = message;
-                else showReferenceMessage(message);
-                return;
-            } finally {
-                continueButton.disabled = false;
-            }
+            schoolVerificationId = schoolId;
+            const verification = (async () => {
+                try {
+                    const school = await getFirebase().getSchool(schoolId);
+                    if (normalizeSchoolId(referenceSchoolId.value) !== schoolId) return;
+                    currentSchool = school;
+                    schoolIdInput.value = school.id;
+                    referenceSchoolId.value = school.id;
+                    setReferenceSchoolIdentity(school);
+                    saveSession({
+                        schoolId: school.id,
+                        schoolName: school.schoolName,
+                        logoURL: school.logoURL || '',
+                        step: 1,
+                        authenticated: false
+                    });
+                    referenceSchoolMessage.textContent = '';
+                    showReferenceMessage('');
+                    revealReferenceUserLogin();
+                    return true;
+                } catch (error) {
+                    if (normalizeSchoolId(referenceSchoolId.value) !== schoolId) return;
+                    const message = error.message || 'Unable to verify school information.';
+                    if (referenceUserLogin.classList.contains('hidden')) referenceSchoolMessage.textContent = message;
+                    else showReferenceMessage(message);
+                    return;
+                } finally {
+                    if (schoolVerificationPromise === verification) {
+                        continueButton.disabled = false;
+                        schoolVerificationPromise = null;
+                        schoolVerificationId = '';
+                    }
+                }
+            })();
+            schoolVerificationPromise = verification;
+            return verification;
         };
         hideReferenceUserLogin();
         document.getElementById('referenceSchoolContinue')?.addEventListener('click', verifyReferenceSchool);
@@ -3913,6 +3947,7 @@ document.addEventListener('DOMContentLoaded', () => {
             referenceSchoolInformation.classList.add('hidden');
             referenceSchoolIdentity.classList.remove('hidden');
             revealReferenceUserLogin();
+            void verifyReferenceSchool();
         }
 
         try {
@@ -3945,21 +3980,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         referenceLoginForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-            const verified = currentSchool?.id === normalizeSchoolId(referenceSchoolId.value) || await verifyReferenceSchool();
-            if (!verified) return;
-            const signedIn = await authenticateAdmin(referenceUsername.value, referencePassword.value, currentSchool.id);
-            if (!signedIn) {
-                showReferenceMessage(adminError.textContent);
-                return;
+            if (referenceSignInButton?.disabled) return;
+            const signInButtonHtml = referenceSignInButton?.innerHTML;
+            if (referenceSignInButton) {
+                referenceSignInButton.disabled = true;
+                referenceSignInButton.textContent = 'Signing in…';
             }
             try {
-                if (referenceRemember.checked) {
-                    localStorage.setItem(rememberedUsernameKey, referenceUsername.value.trim());
-                } else {
-                    localStorage.removeItem(rememberedUsernameKey);
+                const verified = currentSchool?.id === normalizeSchoolId(referenceSchoolId.value)
+                    || await verifyReferenceSchool();
+                if (!verified) return;
+                const signedIn = await authenticateAdmin(referenceUsername.value, referencePassword.value, currentSchool.id);
+                if (!signedIn) {
+                    showReferenceMessage(adminError.textContent);
+                    return;
                 }
-            } catch (error) {
-                console.warn('Unable to save the remembered email address.', error);
+                try {
+                    if (referenceRemember.checked) {
+                        localStorage.setItem(rememberedUsernameKey, referenceUsername.value.trim());
+                    } else {
+                        localStorage.removeItem(rememberedUsernameKey);
+                    }
+                } catch (error) {
+                    console.warn('Unable to save the remembered email address.', error);
+                }
+            } finally {
+                if (referenceSignInButton) {
+                    referenceSignInButton.disabled = false;
+                    referenceSignInButton.innerHTML = signInButtonHtml;
+                }
             }
         });
     }

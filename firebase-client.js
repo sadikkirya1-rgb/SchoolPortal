@@ -5,7 +5,6 @@ import {
     initializeAuth,
     onAuthStateChanged,
     reauthenticateWithCredential,
-    setPersistence,
     signInWithEmailAndPassword,
     signOut
 } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
@@ -208,9 +207,9 @@ async function uploadSchoolAsset(schoolId, collectionName, recordId, fieldPath, 
     return getDownloadURL(imageRef);
 }
 
-async function signIn(schoolCode, email, password) {
-    const school = await getSchool(schoolCode);
-    await setPersistence(auth, browserLocalPersistence);
+async function signIn(schoolCode, email, password, verifiedSchool) {
+    const schoolId = normalizeSchoolId(schoolCode);
+    const school = verifiedSchool?.id === schoolId ? verifiedSchool : await getSchool(schoolId);
     const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
     const membership = await getMembership(school.id, credential.user.uid);
     if (!membership) {
@@ -221,27 +220,21 @@ async function signIn(schoolCode, email, password) {
 }
 
 async function signOutCurrentUser(schoolId) {
-    let pushCleanupWarning = '';
-    if (schoolId && auth.currentUser && 'Notification' in window
-        && Notification.permission === 'granted' && webPushVapidKey) {
-        try {
-            if (await isSupported()) {
-                const serviceWorkerRegistration = await navigator.serviceWorker.ready;
-                const messagingClient = getMessaging(app);
-                const token = await getToken(messagingClient, {
-                    vapidKey: webPushVapidKey,
-                    serviceWorkerRegistration
-                });
-                if (token) await removePushToken({ schoolId, token });
-                await deleteToken(messagingClient);
-            }
-        } catch (error) {
-            console.warn('This device push token could not be removed before sign-out.', error);
-            pushCleanupWarning = 'This device could not be removed from push notifications. If notifications continue, revoke permission in browser settings.';
-        }
+    const user = auth.currentUser;
+    const savedToken = schoolId && user
+        ? localStorage.getItem(pushTokenStorageKey(schoolId, user.uid))
+        : null;
+    if (schoolId && user && savedToken) {
+        void removePushToken({ schoolId, token: savedToken })
+            .then(() => localStorage.removeItem(pushTokenStorageKey(schoolId, user.uid)))
+            .catch(error => console.warn('This device push token could not be removed.', error));
+    }
+    if ('Notification' in window && Notification.permission === 'granted' && webPushVapidKey) {
+        void isSupported().then(supported => {
+            if (supported) return deleteToken(getMessaging(app));
+        }).catch(error => console.warn('This device push token could not be deleted.', error));
     }
     await signOut(auth);
-    return { pushCleanupWarning };
 }
 
 async function changeOwnPassword(schoolId, currentPassword, newPassword) {

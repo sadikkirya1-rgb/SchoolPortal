@@ -1301,41 +1301,6 @@ border-radius:0;
 display:none;
 }
 
-html.session-restoring .reference-login-page,
-html.session-restoring .login-screen {
-    display:none !important;
-}
-
-.session-restore-screen {
-    display:none;
-}
-
-html.session-restoring .session-restore-screen {
-    position:fixed;
-    inset:0;
-    z-index:99999;
-    display:grid;
-    place-content:center;
-    justify-items:center;
-    gap:14px;
-    background:#0f172a;
-    color:#e2e8f0;
-    font-size:14px;
-}
-
-.session-restore-spinner {
-    width:32px;
-    height:32px;
-    border:3px solid rgba(226,232,240,.25);
-    border-top-color:#60a5fa;
-    border-radius:50%;
-    animation:session-restore-spin .8s linear infinite;
-}
-
-@keyframes session-restore-spin {
-    to { transform:rotate(360deg); }
-}
-
 .login-wrapper{
 display:grid;
 grid-template-columns:1fr 1fr;
