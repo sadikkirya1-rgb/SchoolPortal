@@ -1,13 +1,8 @@
 (() => {
-    const defaults = [
-        { id: 1, day:'Monday', startTime:'08:00', endTime:'08:45', periodNo:'1', academicYear:'2026 - 2027', className:'Grade 6', section:'A', subject:'Mathematics', subjectCode:'MAT101', teacher:'Mr. Ahmed', room:'Room 101', status:'Active', notes:'' },
-        { id: 2, day:'Monday', startTime:'08:50', endTime:'09:35', periodNo:'2', academicYear:'2026 - 2027', className:'Grade 6', section:'A', subject:'English', subjectCode:'ENG101', teacher:'Ms. Sarah', room:'Room 101', status:'Active', notes:'' },
-        { id: 3, day:'Monday', startTime:'09:40', endTime:'10:25', periodNo:'3', academicYear:'2026 - 2027', className:'Grade 7', section:'B', subject:'Science', subjectCode:'SCI201', teacher:'Mr. John', room:'Room 203', status:'Active', notes:'' },
-        { id: 4, day:'Tuesday', startTime:'08:00', endTime:'08:45', periodNo:'1', academicYear:'2026 - 2027', className:'Grade 7', section:'B', subject:'Mathematics', subjectCode:'MAT201', teacher:'Mr. Ahmed', room:'Room 203', status:'Active', notes:'' }
-    ];
+
     const fields = ['day','startTime','endTime','periodNo','academicYear','className','section','subject','subjectCode','teacher','room','status','notes'];
     const escape = value => String(value || '').replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[character]));
-    const read = () => { try { return JSON.parse(localStorage.getItem('school_timetables')) || defaults; } catch { return defaults; } };
+    const read = () => { try { return JSON.parse(localStorage.getItem('school_timetables')) || []; } catch { return []; } };
     const save = records => localStorage.setItem('school_timetables', JSON.stringify(records));
     const time = value => { if (!value) return '-'; const [hours, minutes] = value.split(':'); const hour = Number(hours); return `${hour % 12 || 12}:${minutes} ${hour >= 12 ? 'PM' : 'AM'}`; };
 

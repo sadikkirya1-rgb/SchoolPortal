@@ -1,11 +1,8 @@
 (() => {
-    const defaults = [
-        { id:1, studentName:'Ahmed Khan', admissionNo:'STU-2026-001', className:'Grade 6', section:'A', gender:'Male', guardianPhone:'+971 50 000 0000', sessionDate:'2026-08-12', sessionType:'Academic Counseling', counselor:'School Counselor', concernCategory:'Academic', followUp:'Yes', followUpDate:'2026-09-05', status:'Follow-up Pending', concern:'Student requested support with study planning and examination preparation.', discussion:'Discussed study habits, time management and areas requiring additional academic support.', recommendations:'Create a weekly study timetable and schedule a follow-up meeting.', notes:'Parent may be contacted if further support is required.', photo:'' },
-        { id:2, studentName:'Sara Ali', admissionNo:'STU-2026-002', className:'Grade 7', section:'B', gender:'Female', guardianPhone:'+971 55 000 0000', sessionDate:'2026-08-18', sessionType:'Emotional Support', counselor:'School Counselor', concernCategory:'Emotional', followUp:'No', followUpDate:'', status:'Completed', concern:'Student discussed general school-related stress.', discussion:'Student was given an opportunity to discuss concerns in a supportive environment.', recommendations:'Encouraged healthy routines and communication with trusted adults.', notes:'', photo:'' }
-    ];
+
     const fields = ['studentName','admissionNo','className','section','gender','guardianPhone','sessionDate','sessionType','counselor','concernCategory','followUp','followUpDate','status','concern','discussion','recommendations','notes','photo'];
     const escape = value => String(value || '').replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[character]));
-    const read = () => { try { return JSON.parse(localStorage.getItem('school_counseling')) || defaults; } catch { return defaults; } };
+    const read = () => { try { return JSON.parse(localStorage.getItem('school_counseling')) || []; } catch { return []; } };
     const save = records => localStorage.setItem('school_counseling', JSON.stringify(records));
     const date = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '-';
     const avatar = name => `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Student')}&background=4f46e5&color=fff&size=200`;

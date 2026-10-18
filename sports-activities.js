@@ -1,11 +1,8 @@
 (() => {
-    const defaults = [
-        { id:1, activityName:'Football', activityType:'Sport', activityCode:'SP-001', coordinator:'Ahmed Hassan', contact:'+971 50 000 0000', ageGroup:'Grade 7 - 9', day:'Monday', startTime:'15:00', endTime:'17:00', location:'Main Sports Ground', maxParticipants:30, participants:24, academicYear:'2026 - 2027', startDate:'2026-04-15', status:'Active', description:'School football training and competitive activities.', notes:'Students should bring sports shoes and water.' },
-        { id:2, activityName:'Art Club', activityType:'Club', activityCode:'CL-001', coordinator:'Sara Ahmed', contact:'+971 55 000 0000', ageGroup:'Grade 4 - 6', day:'Wednesday', startTime:'14:30', endTime:'16:00', location:'Art Room', maxParticipants:25, participants:18, academicYear:'2026 - 2027', startDate:'2026-04-16', status:'Active', description:'Creative art, drawing and painting activities.', notes:'Students should bring their art materials.' }
-    ];
+
     const fields = ['activityName','activityType','activityCode','coordinator','contact','ageGroup','day','startTime','endTime','location','maxParticipants','participants','academicYear','startDate','status','description','notes'];
     const escape = value => String(value || '').replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[character]));
-    const read = () => { try { return JSON.parse(localStorage.getItem('school_activities')) || defaults; } catch { return defaults; } };
+    const read = () => { try { return JSON.parse(localStorage.getItem('school_activities')) || []; } catch { return []; } };
     const save = records => localStorage.setItem('school_activities', JSON.stringify(records));
     const time = value => { if (!value) return '-'; const [hours, minutes] = value.split(':'); const hour = Number(hours); return `${hour % 12 || 12}:${minutes} ${hour >= 12 ? 'PM' : 'AM'}`; };
     const date = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '-';

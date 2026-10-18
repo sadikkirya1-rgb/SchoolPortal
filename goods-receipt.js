@@ -25,18 +25,13 @@ function createGoodsReceiptModule() {
         <div class="grn-toast" role="status" aria-live="polite" data-grn-toast></div>`;
 
     const storageKey = 'schoolGoodsReceipts';
-    const seed = [
-        { id: 'GRN-2026-001', supplier: 'Gulf Technology LLC', po: 'PO-2026-014', deliveryNote: 'DN-4588', invoice: 'INV-99012', receiptDate: '2026-09-24', inspectionDate: '2026-09-25', warehouse: 'Main Warehouse', receivedBy: 'Ahmed Khalid', inspectedBy: 'Mohammed Ali', currency: 'USD', status: 'Completed', condition: 'Good Condition', notes: 'All items received in good condition and passed inspection.', items: [{ description: 'Business Laptop', ordered: 10, received: 10, rejected: 0, price: 1850 }, { description: 'Laptop Carry Bag', ordered: 10, received: 10, rejected: 0, price: 45 }] },
-        { id: 'GRN-2026-002', supplier: 'Al Noor Office Supplies', po: 'PO-2026-018', deliveryNote: 'DN-7712', invoice: 'INV-55124', receiptDate: '2026-09-29', inspectionDate: '', warehouse: 'Central Store', receivedBy: 'Sara Ahmed', inspectedBy: '', currency: 'USD', status: 'Pending Inspection', condition: 'Good Condition', notes: 'Goods received. Awaiting quality inspection.', items: [{ description: 'Executive Office Chair', ordered: 10, received: 8, rejected: 0, price: 250 }, { description: 'Office Desk', ordered: 5, received: 5, rejected: 0, price: 950 }] },
-        { id: 'GRN-2026-003', supplier: 'Smart Business Solutions', po: 'PO-2026-021', deliveryNote: 'DN-8820', invoice: 'INV-66422', receiptDate: '2026-10-01', inspectionDate: '2026-10-02', warehouse: 'IT Store', receivedBy: 'John Mathew', inspectedBy: 'David George', currency: 'USD', status: 'Partial', condition: 'Minor Damage', notes: 'Two toner cartridges were damaged during transportation.', items: [{ description: 'Laser Printer', ordered: 8, received: 8, rejected: 0, price: 550 }, { description: 'Toner Cartridge', ordered: 24, received: 22, rejected: 2, price: 65 }] },
-        { id: 'GRN-2026-004', supplier: 'Prime Industrial Trading', po: 'PO-2026-025', deliveryNote: 'DN-9014', invoice: 'INV-71220', receiptDate: '2026-10-03', inspectionDate: '', warehouse: 'South Warehouse', receivedBy: 'Michael George', inspectedBy: '', currency: 'USD', status: 'Draft', condition: 'Good Condition', notes: 'Initial receiving entry awaiting confirmation.', items: [{ description: 'Safety Helmet', ordered: 100, received: 100, rejected: 0, price: 18 }, { description: 'Safety Vest', ordered: 100, received: 95, rejected: 0, price: 12 }] }
-    ];
+
     let receipts;
     try {
         const stored = JSON.parse(localStorage.getItem(storageKey));
-        receipts = Array.isArray(stored) ? stored : seed;
+        receipts = Array.isArray(stored) ? stored : [];
     } catch (error) {
-        receipts = seed;
+        receipts = [];
     }
     let editingId = null;
     let viewingId = null;

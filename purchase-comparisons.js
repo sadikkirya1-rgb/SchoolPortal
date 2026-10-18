@@ -22,18 +22,13 @@ function createPurchaseComparisonsModule() {
         <div class="pc-toast" role="status" aria-live="polite" data-pc-toast></div>`;
 
     const storageKey = 'schoolPurchaseComparisons';
-    const seed = [
-        { id: 'PC-2026-001', request: 'PR-2026-014', requirement: 'Laptop Computers', department: 'IT', quantity: 10, currency: 'USD', date: '2026-09-22', criteria: 'Best Value', status: 'Completed', recommended: 'Gulf Technology LLC', notes: 'Gulf Technology offered the best overall combination of price, warranty and delivery.', vendors: [{ name: 'Gulf Technology LLC', quote: 18500, delivery: 7, warranty: '3 Years', rating: 4.8 }, { name: 'Smart Business Solutions', quote: 19800, delivery: 10, warranty: '2 Years', rating: 4.5 }, { name: 'Prime Computers', quote: 19200, delivery: 8, warranty: '3 Years', rating: 4.4 }] },
-        { id: 'PC-2026-002', request: 'PR-2026-018', requirement: 'Office Furniture', department: 'Administration', quantity: 25, currency: 'USD', date: '2026-09-27', criteria: 'Lowest Price', status: 'Approved', recommended: 'Al Noor Office Supplies', notes: 'Lowest compliant quotation with acceptable delivery schedule.', vendors: [{ name: 'Al Noor Office Supplies', quote: 7600, delivery: 12, warranty: '2 Years', rating: 4.3 }, { name: 'Modern Workspace', quote: 8250, delivery: 9, warranty: '3 Years', rating: 4.6 }, { name: 'Office World', quote: 8900, delivery: 14, warranty: '2 Years', rating: 4.2 }] },
-        { id: 'PC-2026-003', request: 'PR-2026-021', requirement: 'Printer & Toner', department: 'Finance', quantity: 8, currency: 'USD', date: '2026-10-01', criteria: 'Quality & Price', status: 'Pending', recommended: '', notes: 'Waiting for technical evaluation from Finance.', vendors: [{ name: 'Smart Business Solutions', quote: 5400, delivery: 5, warranty: '3 Years', rating: 4.7 }, { name: 'Digital Office Systems', quote: 5100, delivery: 8, warranty: '2 Years', rating: 4.5 }] },
-        { id: 'PC-2026-004', request: 'PR-2026-025', requirement: 'Safety Equipment', department: 'Operations', quantity: 150, currency: 'USD', date: '2026-10-02', criteria: 'Lowest Price', status: 'Draft', recommended: '', notes: 'Supplier quotations received and awaiting review.', vendors: [{ name: 'Prime Industrial Trading', quote: 4200, delivery: 6, warranty: '1 Year', rating: 4.6 }, { name: 'Industrial Safety LLC', quote: 4550, delivery: 5, warranty: '2 Years', rating: 4.7 }] }
-    ];
+
     let comparisons;
     try {
         const stored = JSON.parse(localStorage.getItem(storageKey));
-        comparisons = Array.isArray(stored) ? stored : seed;
+        comparisons = Array.isArray(stored) ? stored : [];
     } catch (error) {
-        comparisons = seed;
+        comparisons = [];
     }
     let editingId = null;
     let viewingId = null;

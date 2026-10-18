@@ -24,19 +24,13 @@ function createSupplierInvoicesModule() {
         <div class="si-toast" role="status" aria-live="polite" data-si-toast></div>`;
 
     const storageKey = 'schoolSupplierInvoices';
-    const seed = [
-        { id: 'SI-2026-001', invoiceNo: 'INV-GT-4588', supplier: 'Gulf Technology LLC', po: 'PO-2026-014', grn: 'GRN-2026-001', invoiceDate: '2026-09-24', dueDate: '2026-10-24', currency: 'USD', paymentTerms: 'Net 30', status: 'Approved', paymentMethod: 'Bank Transfer', department: 'IT', paymentReference: '', paidAmount: 0, notes: 'Invoice matched against PO and GRN.', items: [{ description: 'Business Laptop', qty: 10, price: 1850, tax: 5 }, { description: 'Laptop Carry Bag', qty: 10, price: 45, tax: 5 }] },
-        { id: 'SI-2026-002', invoiceNo: 'INV-AO-7712', supplier: 'Al Noor Office Supplies', po: 'PO-2026-018', grn: 'GRN-2026-002', invoiceDate: '2026-09-29', dueDate: '2026-10-14', currency: 'USD', paymentTerms: 'Net 15', status: 'Pending Approval', paymentMethod: 'Bank Transfer', department: 'Administration', paymentReference: '', paidAmount: 0, notes: 'Awaiting finance approval.', items: [{ description: 'Executive Office Chair', qty: 8, price: 250, tax: 5 }, { description: 'Office Desk', qty: 5, price: 950, tax: 5 }] },
-        { id: 'SI-2026-003', invoiceNo: 'INV-SB-8820', supplier: 'Smart Business Solutions', po: 'PO-2026-021', grn: 'GRN-2026-003', invoiceDate: '2026-10-01', dueDate: '2026-10-31', currency: 'USD', paymentTerms: 'Net 30', status: 'Partially Paid', paymentMethod: 'Bank Transfer', department: 'IT', paymentReference: 'TRX-884201', paidAmount: 2000, notes: 'Partial payment processed.', items: [{ description: 'Laser Printer', qty: 8, price: 550, tax: 5 }, { description: 'Toner Cartridge', qty: 22, price: 65, tax: 5 }] },
-        { id: 'SI-2026-004', invoiceNo: 'INV-PI-9014', supplier: 'Prime Industrial Trading', po: 'PO-2026-025', grn: 'GRN-2026-004', invoiceDate: '2026-08-20', dueDate: '2026-09-20', currency: 'USD', paymentTerms: 'Net 30', status: 'Overdue', paymentMethod: 'Cheque', department: 'Operations', paymentReference: '', paidAmount: 0, notes: 'Payment pending due to invoice verification.', items: [{ description: 'Safety Helmet', qty: 100, price: 18, tax: 5 }, { description: 'Safety Vest', qty: 95, price: 12, tax: 5 }] },
-        { id: 'SI-2026-005', invoiceNo: 'INV-MF-2244', supplier: 'Modern Facilities Trading', po: 'PO-2026-030', grn: 'GRN-2026-007', invoiceDate: '2026-09-05', dueDate: '2026-10-05', currency: 'USD', paymentTerms: 'Net 30', status: 'Paid', paymentMethod: 'Bank Transfer', department: 'Facilities', paymentReference: 'TRX-778521', paidAmount: 3150, notes: 'Paid in full.', items: [{ description: 'Cleaning Equipment', qty: 5, price: 600, tax: 5 }] }
-    ];
+
     let invoices;
     try {
         const stored = JSON.parse(localStorage.getItem(storageKey));
-        invoices = Array.isArray(stored) ? stored : seed;
+        invoices = Array.isArray(stored) ? stored : [];
     } catch (error) {
-        invoices = seed;
+        invoices = [];
     }
     let editingId = null;
     let viewingId = null;

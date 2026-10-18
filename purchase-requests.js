@@ -51,19 +51,13 @@ function createPurchaseRequestsModule() {
         <div class="pr-toast" role="status" aria-live="polite" data-pr-toast></div>`;
 
     const storageKey = 'schoolPurchaseRequests';
-    const seed = [
-        { id: 'PR-2026-001', requester: 'Ahmed Khan', department: 'IT', date: '2026-09-28', status: 'Pending', priority: 'High', purpose: 'New laptops for the development team.', items: [['MacBook Pro 14', 3, 1850], ['USB-C Dock', 3, 145]] },
-        { id: 'PR-2026-002', requester: 'Sara Ali', department: 'Operations', date: '2026-09-29', status: 'Approved', priority: 'Normal', purpose: 'Office and warehouse supplies.', items: [['Office Chair', 10, 210], ['Storage Boxes', 25, 18]] },
-        { id: 'PR-2026-003', requester: 'Omar Hassan', department: 'Finance', date: '2026-10-01', status: 'Pending', priority: 'Normal', purpose: 'Printer and accounting supplies.', items: [['Laser Printer', 2, 490], ['Toner Cartridge', 8, 72]] },
-        { id: 'PR-2026-004', requester: 'Mariam Noor', department: 'HR', date: '2026-10-02', status: 'Draft', priority: 'Normal', purpose: 'Employee onboarding materials.', items: [['Welcome Kits', 20, 35]] },
-        { id: 'PR-2026-005', requester: 'Daniel Lee', department: 'Marketing', date: '2026-10-03', status: 'Approved', priority: 'Urgent', purpose: 'Promotional campaign materials.', items: [['Display Banner', 5, 120], ['Brochures', 1000, 0.8]] }
-    ];
+
     let requests;
     try {
         const stored = JSON.parse(localStorage.getItem(storageKey));
-        requests = Array.isArray(stored) ? stored : seed;
+        requests = Array.isArray(stored) ? stored : [];
     } catch (error) {
-        requests = seed;
+        requests = [];
     }
     let editId = null;
     let viewId = null;

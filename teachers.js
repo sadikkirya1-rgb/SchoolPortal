@@ -1,13 +1,10 @@
 (() => {
-    const defaultTeachers = [
-        { id: 1, firstName: 'Mohammed', lastName: 'Ahmed', employeeNo: 'TCH-2026-001', dob: '1985-05-15', gender: 'Male', nationality: 'UAE', department: 'Mathematics', subject: 'Mathematics', designation: 'Senior Teacher', joiningDate: '2021-08-25', employmentType: 'Full Time', status: 'Active', phone: '+971 50 111 1111', email: 'mohammed@example.com', emergency: '+971 50 222 2222', address: 'School District, Main Street', qualification: 'M.Ed', specialization: 'Mathematics Education', experience: '12 Years', academicYear: '2026 - 2027', notes: 'Senior Mathematics teacher.', photo: '' },
-        { id: 2, firstName: 'Sara', lastName: 'Hassan', employeeNo: 'TCH-2026-002', dob: '1990-09-20', gender: 'Female', nationality: 'UAE', department: 'English', subject: 'English', designation: 'Teacher', joiningDate: '2023-08-20', employmentType: 'Full Time', status: 'Active', phone: '+971 55 333 3333', email: 'sara@example.com', emergency: '+971 55 444 4444', address: 'Green Avenue', qualification: 'B.Ed', specialization: 'English Literature', experience: '7 Years', academicYear: '2026 - 2027', notes: 'English Language teacher.', photo: '' }
-    ];
+
     const logo = 'https://via.placeholder.com/150x150.png?text=LOGO';
     const fields = ['firstName','lastName','employeeNo','dob','gender','nationality','department','subject','designation','joiningDate','employmentType','status','phone','email','emergency','address','qualification','specialization','experience','academicYear','notes'];
     const escape = value => String(value || '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[char]));
     const avatar = teacher => teacher.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(`${teacher.firstName} ${teacher.lastName}`)}&background=4f46e5&color=fff`;
-    const readTeachers = () => { try { return JSON.parse(localStorage.getItem('school_teachers')) || defaultTeachers; } catch { return defaultTeachers; } };
+    const readTeachers = () => { try { return JSON.parse(localStorage.getItem('school_teachers')) || []; } catch { return []; } };
     const saveTeachers = teachers => localStorage.setItem('school_teachers', JSON.stringify(teachers));
     const date = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 

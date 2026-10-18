@@ -1,12 +1,8 @@
 (() => {
-    const defaults = [
-        { id: 1, subjectName: 'Mathematics', subjectCode: 'MATH-06', curriculumType: 'Core', className: 'Grade 6', section: 'A', academicYear: '2026 - 2027', teacherName: 'Mr. Ahmed Hassan', lessons: 40, weeklyPeriods: 5, totalHours: 40, status: 'Active', startDate: '2026-04-10', endDate: '2027-03-20', objectives: 'Develop mathematical reasoning, problem solving and numerical skills.', topics: 'Numbers, fractions, decimals, algebra, geometry and statistics.', notes: 'Regular assessment required.' },
-        { id: 2, subjectName: 'English', subjectCode: 'ENG-07', curriculumType: 'Core', className: 'Grade 7', section: 'B', academicYear: '2026 - 2027', teacherName: 'Ms. Sara Ali', lessons: 38, weeklyPeriods: 5, totalHours: 38, status: 'Active', startDate: '2026-04-10', endDate: '2027-03-20', objectives: 'Improve reading, writing, speaking and comprehension skills.', topics: 'Grammar, reading comprehension, writing, literature and communication.', notes: 'Include project-based learning.' },
-        { id: 3, subjectName: 'Science', subjectCode: 'SCI-08', curriculumType: 'Core', className: 'Grade 8', section: 'A', academicYear: '2026 - 2027', teacherName: 'Mr. John Thomas', lessons: 42, weeklyPeriods: 5, totalHours: 42, status: 'Active', startDate: '2026-04-10', endDate: '2027-03-20', objectives: 'Develop scientific knowledge and practical investigation skills.', topics: 'Matter, energy, living organisms, environment and physical science.', notes: 'Laboratory activities should be included.' }
-    ];
+
     const fields = ['subjectName','subjectCode','curriculumType','className','section','academicYear','teacherName','lessons','weeklyPeriods','totalHours','status','startDate','endDate','objectives','topics','notes'];
     const escape = value => String(value || '').replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[character]));
-    const read = () => { try { return JSON.parse(localStorage.getItem('school_curriculum')) || defaults; } catch { return defaults; } };
+    const read = () => { try { return JSON.parse(localStorage.getItem('school_curriculum')) || []; } catch { return []; } };
     const save = records => localStorage.setItem('school_curriculum', JSON.stringify(records));
     const date = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '-';
 

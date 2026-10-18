@@ -32,19 +32,13 @@ function createPurchaseOrdersModule() {
         <div class="po-toast" role="status" aria-live="polite" data-po-toast></div>`;
 
     const storageKey = 'schoolPurchaseOrders';
-    const seed = [
-        { id: 'PO-2026-001', vendor: 'Gulf Technology LLC', buyer: 'Ahmed Khan', date: '2026-09-25', delivery: '2026-10-08', status: 'Confirmed', payment: 'Net 30', shipping: 'Standard Delivery', currency: 'USD', department: 'IT', address: 'Abu Dhabi, UAE', notes: 'Please deliver during business hours.', items: [['MacBook Pro 14', 5, 1850, ''], ['USB-C Dock', 5, 145, ''], ['Wireless Mouse', 10, 35, '']] },
-        { id: 'PO-2026-002', vendor: 'Al Noor Office Supplies', buyer: 'Sara Ali', date: '2026-09-28', delivery: '2026-10-05', status: 'Sent', payment: 'Net 30', shipping: 'Vendor Delivery', currency: 'USD', department: 'Administration', address: 'Main Office, Abu Dhabi', notes: 'Call reception before delivery.', items: [['Office Chair', 20, 210, ''], ['Desk Organizer', 30, 18, '']] },
-        { id: 'PO-2026-003', vendor: 'Prime Industrial Trading', buyer: 'Omar Hassan', date: '2026-09-30', delivery: '2026-10-12', status: 'Received', payment: 'Net 15', shipping: 'Express Delivery', currency: 'USD', department: 'Operations', address: 'Warehouse 4', notes: 'Partial delivery accepted.', items: [['Safety Helmet', 50, 28, ''], ['Safety Gloves', 100, 12, ''], ['Safety Vest', 50, 22, '']] },
-        { id: 'PO-2026-004', vendor: 'Smart Business Solutions', buyer: 'Mariam Noor', date: '2026-10-01', delivery: '2026-10-15', status: 'Draft', payment: 'Due on Delivery', shipping: 'Courier', currency: 'USD', department: 'Finance', address: 'Finance Department', notes: 'Awaiting final approval.', items: [['Laser Printer', 3, 490, ''], ['Toner Cartridge', 12, 72, '']] },
-        { id: 'PO-2026-005', vendor: 'Creative Media House', buyer: 'Daniel Lee', date: '2026-10-02', delivery: '2026-10-09', status: 'Sent', payment: 'Advance Payment', shipping: 'Express Delivery', currency: 'USD', department: 'Marketing', address: 'Marketing Department', notes: 'Urgent promotional materials.', items: [['Display Banner', 10, 120, ''], ['Brochures', 2000, 0.8, '']] }
-    ];
+
     let orders;
     try {
         const stored = JSON.parse(localStorage.getItem(storageKey));
-        orders = Array.isArray(stored) ? stored : seed;
+        orders = Array.isArray(stored) ? stored : [];
     } catch (error) {
-        orders = seed;
+        orders = [];
     }
     let editingId = null;
     let viewingId = null;

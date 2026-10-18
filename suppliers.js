@@ -22,20 +22,13 @@ function createSuppliersModule() {
         <div class="sp-toast" role="status" aria-live="polite" data-sp-toast></div>`;
 
     const storageKey = 'schoolSupplierDirectory';
-    const seed = [
-        { id: 'SUP-001', name: 'Gulf Technology LLC', type: 'Distributor', category: 'IT & Technology', contact: 'Ahmed Hassan', jobTitle: 'Sales Manager', email: 'ahmed@gulftech.example', phone: '+971 50 123 4567', altPhone: '+971 2 555 1234', country: 'United Arab Emirates', city: 'Abu Dhabi', website: 'www.gulftech.example', paymentTerms: 'Net 30', currency: 'AED', creditLimit: 150000, rating: 5, status: 'Preferred', taxNumber: '100234567800003', registration: 'CN-154821', address: 'Mussafah Industrial Area, Abu Dhabi, UAE', products: 'Laptops, networking equipment, printers and IT accessories.', notes: 'Strategic technology supplier with excellent delivery performance.' },
-        { id: 'SUP-002', name: 'Al Noor Office Supplies', type: 'Local Supplier', category: 'Office Supplies', contact: 'Fatima Ali', jobTitle: 'Account Manager', email: 'fatima@alnoor.example', phone: '+971 50 245 8812', altPhone: '', country: 'United Arab Emirates', city: 'Dubai', website: 'www.alnoor.example', paymentTerms: 'Net 30', currency: 'AED', creditLimit: 80000, rating: 4, status: 'Active', taxNumber: '100456789100003', registration: 'CN-258741', address: 'Al Quoz, Dubai, UAE', products: 'Office furniture, stationery, printers and consumables.', notes: 'Reliable office supplies partner.' },
-        { id: 'SUP-003', name: 'Smart Business Solutions', type: 'Service Provider', category: 'Professional Services', contact: 'Michael Thomas', jobTitle: 'Business Development Manager', email: 'michael@sbs.example', phone: '+971 52 998 1122', altPhone: '', country: 'United Arab Emirates', city: 'Abu Dhabi', website: 'www.sbs.example', paymentTerms: 'Net 45', currency: 'USD', creditLimit: 200000, rating: 5, status: 'Preferred', taxNumber: '100784521300003', registration: 'CN-365214', address: 'Al Reem Island, Abu Dhabi, UAE', products: 'Business consulting, managed services and software solutions.', notes: 'Preferred strategic services provider.' },
-        { id: 'SUP-004', name: 'Prime Industrial Trading', type: 'Manufacturer', category: 'Industrial', contact: 'Omar Khalid', jobTitle: 'Key Account Manager', email: 'omar@primeindustrial.example', phone: '+971 55 654 3321', altPhone: '', country: 'United Arab Emirates', city: 'Sharjah', website: 'www.primeindustrial.example', paymentTerms: 'Net 60', currency: 'AED', creditLimit: 250000, rating: 3, status: 'Pending Approval', taxNumber: '100654789200003', registration: 'CN-487512', address: 'Industrial Area 10, Sharjah, UAE', products: 'Industrial tools, safety equipment and protective products.', notes: 'New supplier currently undergoing procurement approval.' },
-        { id: 'SUP-005', name: 'Modern Facilities Trading', type: 'Distributor', category: 'Facilities', contact: 'Sara Wilson', jobTitle: 'Sales Executive', email: 'sara@modernfacilities.example', phone: '+971 50 785 4421', altPhone: '', country: 'United Arab Emirates', city: 'Dubai', website: 'www.modernfacilities.example', paymentTerms: 'Net 30', currency: 'AED', creditLimit: 100000, rating: 4, status: 'Active', taxNumber: '100521478900003', registration: 'CN-512478', address: 'Ras Al Khor, Dubai, UAE', products: 'Cleaning equipment, janitorial supplies and facility products.', notes: 'Good supplier with consistent product availability.' },
-        { id: 'SUP-006', name: 'Global Medical Solutions', type: 'International Supplier', category: 'Medical', contact: 'Daniel George', jobTitle: 'Regional Sales Director', email: 'daniel@gms.example', phone: '+971 56 111 9090', altPhone: '', country: 'United Arab Emirates', city: 'Abu Dhabi', website: 'www.gms.example', paymentTerms: 'Net 45', currency: 'USD', creditLimit: 300000, rating: 5, status: 'Active', taxNumber: '100987451200003', registration: 'CN-625874', address: 'Khalifa City, Abu Dhabi, UAE', products: 'Medical equipment, consumables and laboratory supplies.', notes: 'Certified international medical supplier.' }
-    ];
+
     let suppliers;
     try {
         const stored = JSON.parse(localStorage.getItem(storageKey));
-        suppliers = Array.isArray(stored) ? stored : seed;
+        suppliers = Array.isArray(stored) ? stored : [];
     } catch (error) {
-        suppliers = seed;
+        suppliers = [];
     }
     let editingId = null;
     let viewingId = null;

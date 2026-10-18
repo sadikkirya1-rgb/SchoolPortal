@@ -4249,10 +4249,10 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const config = actionConfigs[sectionLabel] || { text: `New ${sectionLabel}`, icon: 'fa-plus' };
-        
+
         addBtn.innerHTML = `<i class="fas ${config.icon}"></i> ${config.text}`;
         addBtn.setAttribute('data-section', sectionLabel);
-        
+
         // Visibility Logic: Hide button on sections with their own actions or no record creation
         const hideOn = ['Audit Logs', 'Backups', 'Analytics', 'Settings', 'System Settings', 'School Branding', 'School Statistics', 'EMIS Reports'];
         addBtn.style.display = hideOn.includes(sectionLabel) ? 'none' : 'flex';
@@ -4319,7 +4319,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     headerProfile?.addEventListener('click', (e) => {
         if (e.target.closest('#logoutBtn')) return;
-        
+
         const session = loadSession();
         const currentUser = session?.user;
         if (currentUser) {
@@ -5223,8 +5223,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const previewCloseButton = sec.querySelector('[data-report-preview-close]');
         previewCloseButton.insertAdjacentHTML('beforebegin', '<button class="btn-primary" type="button" data-report-download><i class="fas fa-download"></i> Download</button>');
         const storageKey = 'edumasterReportCards';
-        const seed = [];
-        const read = () => { try { const saved = JSON.parse(localStorage.getItem(storageKey)); if (Array.isArray(saved)) return saved; } catch (error) { /* use defaults */ } localStorage.setItem(storageKey, JSON.stringify(seed)); return seed.slice(); };
+        const read = () => { try { const saved = JSON.parse(localStorage.getItem(storageKey)); return Array.isArray(saved) ? saved : []; } catch (error) { return []; } };
         const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
         const table = sec.querySelector('[data-report-table]'); const form = sec.querySelector('[data-report-form]'); const modal = sec.querySelector('[data-report-modal]'); const preview = sec.querySelector('[data-report-preview]'); let showingPublished = false; let currentIndex = 0;
         const initials = name => name.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase(); const formatDate = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
@@ -7118,10 +7117,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </form>
             </div>
             <div class="table-card staff-directory-table-card"><div class="table-wrap"><table><thead><tr><th>Staff</th><th>Employee No.</th><th>Role</th><th>Department</th><th>Phone</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead><tbody data-staff-table></tbody></table></div></div>`;
-        let staff = JSON.parse(localStorage.getItem('school_staff_directory') || 'null') || [
-            { id: 1, name: 'Staff Member A', employeeNo: 'STF-001', role: 'Teacher', department: category, phone: '', email: '', status: 'Active' },
-            { id: 2, name: 'Staff Member B', employeeNo: 'STF-002', role: 'Administrator', department: category, phone: '', email: '', status: 'Active' }
-        ];
+        let staff = JSON.parse(localStorage.getItem('school_staff_directory') || '[]') || [];
         let editingId = null;
         const formWrap = sec.querySelector('[data-staff-form-wrap]');
         const form = sec.querySelector('[data-staff-form]');
@@ -7183,7 +7179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sec.className = 'module payroll-module hidden';
         sec.id = 'payrollModule';
         sec.innerHTML = `<div class="payroll-page-header"><div class="payroll-heading"><div class="payroll-header-icon"><i class="fas fa-money-bill-wave"></i></div><div><h2>Run Payroll</h2><p>Manage employee salaries, deductions and payroll processing</p></div></div><div class="payroll-header-actions"><button class="btn-secondary" type="button" data-payroll-export><i class="fas fa-download"></i> Export CSV</button><button class="btn-primary" type="button" data-payroll-new><i class="fas fa-plus"></i> Run Payroll</button></div></div><div class="payroll-stats"><div><i class="fas fa-users"></i><span>Total Employees</span><strong data-payroll-stat="employees">0</strong><small>Payroll employees</small></div><div><i class="fas fa-credit-card"></i><span>Gross Payroll</span><strong data-payroll-stat="gross">AED 0</strong><small>Current payroll</small></div><div><i class="fas fa-hourglass-half"></i><span>Pending Payroll</span><strong data-payroll-stat="pending">0</strong><small>Awaiting payment</small></div><div><i class="fas fa-check-circle"></i><span>Net Payroll</span><strong data-payroll-stat="net">AED 0</strong><small>Total take-home</small></div></div><div class="payroll-card"><div class="payroll-toolbar"><div><h3>Employee Payroll</h3><p>Review and manage monthly employee payroll</p></div><div class="payroll-filters"><label class="payroll-search"><i class="fas fa-search"></i><input data-payroll-search type="search" placeholder="Search employee..."></label><select data-payroll-filter><option value="">All Status</option><option>Paid</option><option>Pending</option><option>Processing</option></select></div></div><div class="payroll-table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Pay Period</th><th>Basic Salary</th><th>Allowances</th><th>Deductions</th><th>Net Salary</th><th>Status</th><th>Actions</th></tr></thead><tbody data-payroll-table></tbody></table><div class="payroll-empty hidden" data-payroll-empty><i class="fas fa-file-invoice-dollar"></i><strong>No payroll records found</strong><span>Try changing your search or run a new payroll.</span></div></div></div><div class="payroll-overlay hidden" data-payroll-form-overlay><div class="payroll-modal"><div class="payroll-modal-header"><div><h3 data-payroll-form-title>Run Payroll</h3><p>Enter employee payroll information</p></div><button class="payroll-close" type="button" data-payroll-close-form aria-label="Close"><i class="fas fa-times"></i></button></div><form data-payroll-form><input type="hidden" name="id"><div class="payroll-form-grid"><label>Employee Name *<input name="employeeName" required placeholder="e.g. Sarah Johnson"></label><label>Employee ID<input name="employeeId" placeholder="EMP-001"></label><label>Department *<select name="department" required><option value="">Select department</option><option>Academic</option><option>Administration</option><option>Finance</option><option>IT</option><option>Student Services</option><option>Human Resources</option></select></label><label>Pay Period *<input name="payPeriod" type="month" required></label><label>Basic Salary (AED) *<input name="basicSalary" type="number" min="0" step="0.01" required></label><label>Housing Allowance (AED)<input name="housing" type="number" min="0" step="0.01" value="0"></label><label>Transport Allowance (AED)<input name="transport" type="number" min="0" step="0.01" value="0"></label><label>Other Allowances (AED)<input name="otherAllowance" type="number" min="0" step="0.01" value="0"></label><label>Overtime (AED)<input name="overtime" type="number" min="0" step="0.01" value="0"></label><label>Tax / Other Deduction (AED)<input name="tax" type="number" min="0" step="0.01" value="0"></label><label>Loan Deduction (AED)<input name="loan" type="number" min="0" step="0.01" value="0"></label><label>Other Deduction (AED)<input name="otherDeduction" type="number" min="0" step="0.01" value="0"></label><label>Payroll Status<select name="status"><option>Pending</option><option>Processing</option><option>Paid</option></select></label></div><div class="payroll-calculation"><div><span>Gross Salary</span><strong data-payroll-preview="gross">AED 0.00</strong></div><div><span>Total Deductions</span><strong data-payroll-preview="deductions">AED 0.00</strong></div><div><span>Net Salary</span><strong data-payroll-preview="net">AED 0.00</strong></div></div><div class="payroll-form-actions"><button class="btn-secondary" type="button" data-payroll-close-form>Cancel</button><button class="btn-primary" type="submit">Save Payroll</button></div></form></div></div><div class="payroll-overlay hidden" data-payroll-preview-overlay><div class="payroll-modal payroll-preview-modal"><div class="payroll-modal-header"><div><h3>Payroll Preview</h3><p>Preview and print employee payslip</p></div><button class="payroll-close" type="button" data-payroll-close-preview aria-label="Close"><i class="fas fa-times"></i></button></div><div class="payroll-preview-body" data-payroll-preview-content></div><div class="payroll-preview-actions"><button class="btn-secondary" type="button" data-payroll-close-preview>Close</button><button class="btn-primary" type="button" data-payroll-print><i class="fas fa-print"></i> Print Payslip</button></div></div></div>`;
-        const key = 'schoolPayroll'; const seed = [{ id: 1, employeeName: 'Sarah Johnson', employeeId: 'EMP-001', department: 'Academic', payPeriod: '2026-08', basicSalary: 12000, housing: 2500, transport: 800, otherAllowance: 300, overtime: 500, tax: 0, loan: 300, otherDeduction: 100, status: 'Paid' }, { id: 2, employeeName: 'Michael Brown', employeeId: 'EMP-002', department: 'IT', payPeriod: '2026-08', basicSalary: 13500, housing: 2800, transport: 900, otherAllowance: 200, overtime: 750, tax: 0, loan: 500, otherDeduction: 150, status: 'Processing' }, { id: 3, employeeName: 'Emma Wilson', employeeId: 'EMP-003', department: 'Academic', payPeriod: '2026-08', basicSalary: 9500, housing: 1800, transport: 600, otherAllowance: 200, overtime: 250, tax: 0, loan: 200, otherDeduction: 50, status: 'Pending' }, { id: 4, employeeName: 'David Miller', employeeId: 'EMP-004', department: 'Administration', payPeriod: '2026-08', basicSalary: 10500, housing: 2200, transport: 700, otherAllowance: 150, overtime: 300, tax: 0, loan: 250, otherDeduction: 100, status: 'Paid' }]; let records; try { records = JSON.parse(localStorage.getItem(key)) || seed; } catch (error) { records = seed; }
+        const key = 'schoolPayroll';  let records; try { records = JSON.parse(localStorage.getItem(key)) || []; } catch (error) { records = []; }
         const money = value => `AED ${Number(value || 0).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; const allowance = item => ['housing', 'transport', 'otherAllowance', 'overtime'].reduce((sum, field) => sum + Number(item[field] || 0), 0); const gross = item => Number(item.basicSalary || 0) + allowance(item); const deductions = item => ['tax', 'loan', 'otherDeduction'].reduce((sum, field) => sum + Number(item[field] || 0), 0); const net = item => Math.max(0, gross(item) - deductions(item)); const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char])); const period = value => { if (!value) return '-'; const [year, month] = value.split('-'); return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); };
         const formOverlay = sec.querySelector('[data-payroll-form-overlay]'); const previewOverlay = sec.querySelector('[data-payroll-preview-overlay]'); const form = sec.querySelector('[data-payroll-form]'); const save = () => localStorage.setItem(key, JSON.stringify(records)); const calculate = () => { const item = Object.fromEntries(new FormData(form).entries()); sec.querySelector('[data-payroll-preview="gross"]').textContent = money(gross(item)); sec.querySelector('[data-payroll-preview="deductions"]').textContent = money(deductions(item)); sec.querySelector('[data-payroll-preview="net"]').textContent = money(net(item)); }; const setDefaults = () => { form.reset(); form.elements.id.value = ''; form.elements.payPeriod.value = new Date().toISOString().slice(0, 7); ['housing', 'transport', 'otherAllowance', 'overtime', 'tax', 'loan', 'otherDeduction'].forEach(field => { form.elements[field].value = 0; }); sec.querySelector('[data-payroll-form-title]').textContent = 'Run Payroll'; calculate(); };
         const render = () => { const query = sec.querySelector('[data-payroll-search]').value.toLowerCase(); const filter = sec.querySelector('[data-payroll-filter]').value; const found = records.filter(item => (!filter || item.status === filter) && [item.employeeName, item.employeeId, item.department].join(' ').toLowerCase().includes(query)); sec.querySelector('[data-payroll-table]').innerHTML = found.map(item => `<tr><td><div class="payroll-employee"><span>${escape(item.employeeName.split(' ').map(word => word[0]).join('').slice(0, 2))}</span><div><strong>${escape(item.employeeName)}</strong><small>${escape(item.employeeId || 'No ID')}</small></div></div></td><td>${escape(item.department)}</td><td>${period(item.payPeriod)}</td><td>${money(item.basicSalary)}</td><td>${money(allowance(item))}</td><td>${money(deductions(item))}</td><td class="payroll-net">${money(net(item))}</td><td><span class="payroll-status ${item.status.toLowerCase()}">${escape(item.status)}</span></td><td><div class="payroll-actions"><button type="button" title="Preview" data-payroll-action="preview" data-id="${item.id}"><i class="fas fa-eye"></i></button><button type="button" title="Edit" data-payroll-action="edit" data-id="${item.id}"><i class="fas fa-pen"></i></button><button type="button" title="Delete" data-payroll-action="delete" data-id="${item.id}"><i class="fas fa-trash"></i></button></div></td></tr>`).join(''); sec.querySelector('[data-payroll-empty]').classList.toggle('hidden', found.length > 0); sec.querySelector('[data-payroll-stat="employees"]').textContent = records.length; sec.querySelector('[data-payroll-stat="gross"]').textContent = money(records.reduce((sum, item) => sum + gross(item), 0)); sec.querySelector('[data-payroll-stat="pending"]').textContent = records.filter(item => item.status === 'Pending').length; sec.querySelector('[data-payroll-stat="net"]').textContent = money(records.reduce((sum, item) => sum + net(item), 0)); };
@@ -7200,7 +7196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sec.className = 'module payslips-module hidden';
         sec.id = 'payslipsModule';
         sec.innerHTML = `<div class="payslips-header"><div class="payslips-title"><div class="payslips-icon"><i class="fas fa-file-invoice-dollar"></i></div><div><h2>Pay Slips</h2><p>Generate, manage and print employee salary slips</p></div></div><div class="payslips-actions"><button class="btn-secondary" type="button" data-slip-export><i class="fas fa-download"></i> Export CSV</button><button class="btn-primary" type="button" data-slip-new><i class="fas fa-plus"></i> Generate Pay Slip</button></div></div><div class="payslips-stats"><div><i class="fas fa-file-invoice"></i><span>Total Pay Slips</span><strong data-slip-stat="total">0</strong><small>All generated slips</small></div><div><i class="fas fa-check-circle"></i><span>Generated</span><strong data-slip-stat="generated">0</strong><small>Completed pay slips</small></div><div><i class="fas fa-hourglass-half"></i><span>Draft Slips</span><strong data-slip-stat="draft">0</strong><small>Awaiting completion</small></div><div><i class="fas fa-money-bill-wave"></i><span>Total Net Pay</span><strong data-slip-stat="net">AED 0</strong><small>Current pay slips</small></div></div><div class="payslips-card"><div class="payslips-toolbar"><div><h3>Employee Pay Slips</h3><p>View, print and manage employee salary slips</p></div><div class="payslips-filters"><label><i class="fas fa-search"></i><input data-slip-search type="search" placeholder="Search employee..."></label><select data-slip-filter><option value="">All Status</option><option>Generated</option><option>Draft</option></select></div></div><div class="payslips-table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Pay Slip No.</th><th>Pay Period</th><th>Gross Salary</th><th>Deductions</th><th>Net Salary</th><th>Status</th><th>Actions</th></tr></thead><tbody data-slip-table></tbody></table><div class="payslips-empty hidden" data-slip-empty><i class="fas fa-file-invoice"></i><strong>No pay slips found</strong><span>Try changing your search or generate a new pay slip.</span></div></div></div><div class="slips-overlay hidden" data-slip-form-overlay><div class="slips-modal"><div class="slips-modal-header"><div><h3 data-slip-form-title>Generate Pay Slip</h3><p>Enter employee salary information</p></div><button class="slips-close" type="button" data-slip-close-form aria-label="Close"><i class="fas fa-times"></i></button></div><form data-slip-form><input type="hidden" name="id"><div class="slips-form-grid"><label>Employee Name *<input name="employeeName" required placeholder="e.g. Sarah Johnson"></label><label>Employee ID<input name="employeeId" placeholder="EMP-001"></label><label>Department *<select name="department" required><option value="">Select department</option><option>Academic</option><option>Administration</option><option>Finance</option><option>IT</option><option>Human Resources</option><option>Student Services</option></select></label><label>Pay Period *<input name="payPeriod" type="month" required></label><label>Basic Salary (AED) *<input name="basicSalary" type="number" min="0" step="0.01" required></label><label>Allowances (AED)<input name="allowances" type="number" min="0" step="0.01" value="0"></label><label>Overtime (AED)<input name="overtime" type="number" min="0" step="0.01" value="0"></label><label>Deductions (AED)<input name="deductions" type="number" min="0" step="0.01" value="0"></label><label>Slip Status<select name="status"><option>Generated</option><option>Draft</option></select></label></div><div class="slips-form-actions"><button class="btn-secondary" type="button" data-slip-close-form>Cancel</button><button class="btn-primary" type="submit">Save Pay Slip</button></div></form></div></div><div class="slips-overlay hidden" data-slip-preview-overlay><div class="slips-modal slips-preview-modal"><div class="slips-modal-header"><div><h3>Pay Slip Preview</h3><p>Review and print employee pay slip</p></div><button class="slips-close" type="button" data-slip-close-preview aria-label="Close"><i class="fas fa-times"></i></button></div><div class="slips-preview-body" data-slip-preview-content></div><div class="slips-preview-actions"><button class="btn-secondary" type="button" data-slip-close-preview>Close</button><button class="btn-primary" type="button" data-slip-print><i class="fas fa-print"></i> Print Pay Slip</button></div></div></div>`;
-        const key = 'schoolPaySlips'; const seed = [{ id: 1, slipNo: 'PS-2026-001', employeeName: 'Sarah Johnson', employeeId: 'EMP-001', department: 'Academic', payPeriod: '2026-08', basicSalary: 12000, allowances: 3300, overtime: 500, deductions: 400, status: 'Generated' }, { id: 2, slipNo: 'PS-2026-002', employeeName: 'Michael Brown', employeeId: 'EMP-002', department: 'IT', payPeriod: '2026-08', basicSalary: 13500, allowances: 3900, overtime: 750, deductions: 650, status: 'Generated' }, { id: 3, slipNo: 'PS-2026-003', employeeName: 'Emma Wilson', employeeId: 'EMP-003', department: 'Academic', payPeriod: '2026-08', basicSalary: 9500, allowances: 2600, overtime: 250, deductions: 250, status: 'Draft' }, { id: 4, slipNo: 'PS-2026-004', employeeName: 'David Miller', employeeId: 'EMP-004', department: 'Administration', payPeriod: '2026-08', basicSalary: 10500, allowances: 3050, overtime: 300, deductions: 350, status: 'Generated' }]; let slips; try { slips = JSON.parse(localStorage.getItem(key)) || seed; } catch (error) { slips = seed; }
+        const key = 'schoolPaySlips';  let slips; try { slips = JSON.parse(localStorage.getItem(key)) || []; } catch (error) { slips = []; }
         const money = value => `AED ${Number(value || 0).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; const gross = slip => Number(slip.basicSalary || 0) + Number(slip.allowances || 0) + Number(slip.overtime || 0); const net = slip => Math.max(0, gross(slip) - Number(slip.deductions || 0)); const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char])); const period = value => { if (!value) return '-'; const [year, month] = value.split('-'); return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); }; const formOverlay = sec.querySelector('[data-slip-form-overlay]'); const previewOverlay = sec.querySelector('[data-slip-preview-overlay]'); const form = sec.querySelector('[data-slip-form]'); const save = () => localStorage.setItem(key, JSON.stringify(slips));
         const render = () => { const query = sec.querySelector('[data-slip-search]').value.toLowerCase(); const filter = sec.querySelector('[data-slip-filter]').value; const found = slips.filter(slip => (!filter || slip.status === filter) && [slip.employeeName, slip.employeeId, slip.slipNo, slip.department].join(' ').toLowerCase().includes(query)); sec.querySelector('[data-slip-table]').innerHTML = found.map(slip => `<tr><td><div class="payslip-employee"><span>${escape(slip.employeeName.split(' ').map(word => word[0]).join('').slice(0, 2))}</span><div><strong>${escape(slip.employeeName)}</strong><small>${escape(slip.employeeId || '-')}</small></div></div></td><td>${escape(slip.department)}</td><td><strong>${escape(slip.slipNo)}</strong></td><td>${period(slip.payPeriod)}</td><td>${money(gross(slip))}</td><td>${money(slip.deductions)}</td><td class="payslip-net">${money(net(slip))}</td><td><span class="payslip-badge ${slip.status.toLowerCase()}">${escape(slip.status)}</span></td><td><div class="payslip-row-actions"><button type="button" title="Preview" data-slip-action="preview" data-id="${slip.id}"><i class="fas fa-eye"></i></button><button type="button" title="Edit" data-slip-action="edit" data-id="${slip.id}"><i class="fas fa-pen"></i></button><button type="button" title="Delete" data-slip-action="delete" data-id="${slip.id}"><i class="fas fa-trash"></i></button></div></td></tr>`).join(''); sec.querySelector('[data-slip-empty]').classList.toggle('hidden', found.length > 0); sec.querySelector('[data-slip-stat="total"]').textContent = slips.length; sec.querySelector('[data-slip-stat="generated"]').textContent = slips.filter(slip => slip.status === 'Generated').length; sec.querySelector('[data-slip-stat="draft"]').textContent = slips.filter(slip => slip.status === 'Draft').length; sec.querySelector('[data-slip-stat="net"]').textContent = money(slips.reduce((sum, slip) => sum + net(slip), 0)); };
         const reset = () => { form.reset(); form.elements.id.value = ''; form.elements.payPeriod.value = new Date().toISOString().slice(0, 7); ['allowances', 'overtime', 'deductions'].forEach(field => { form.elements[field].value = 0; }); sec.querySelector('[data-slip-form-title]').textContent = 'Generate Pay Slip'; }; const openForm = slip => { if (!slip) reset(); else { Object.keys(slip).forEach(field => { if (form.elements[field]) form.elements[field].value = slip[field]; }); sec.querySelector('[data-slip-form-title]').textContent = 'Edit Pay Slip'; } formOverlay.classList.remove('hidden'); form.elements.employeeName.focus(); }; const openPreview = slip => { const rows = [['Basic Salary', slip.basicSalary], ['Allowances', slip.allowances], ['Overtime', slip.overtime], ['Gross Salary', gross(slip)], ['Deductions', -Number(slip.deductions || 0)]]; const salaryRows = rows.map(row => '<tr><td>' + row[0] + '</td><td>' + money(row[1]) + '</td></tr>').join(''); sec.querySelector('[data-slip-preview-content]').innerHTML = `<div class="payslip-document"><div class="payslip-document-header"><strong>GREEN VALLEY INTERNATIONAL SCHOOL</strong><span>School Management & Administration Department</span><b>EMPLOYEE PAY SLIP</b><small>Pay Period: ${period(slip.payPeriod)}</small></div><h4>Employee Information</h4><div class="payslip-info-grid"><div><small>Employee Name</small>${escape(slip.employeeName)}</div><div><small>Employee ID</small>${escape(slip.employeeId || '-')}</div><div><small>Department</small>${escape(slip.department)}</div><div><small>Pay Slip Number</small>${escape(slip.slipNo)}</div></div><h4>Salary Details</h4><table><tbody>${salaryRows}<tr class="payslip-net-row"><td>NET SALARY</td><td>${money(net(slip))}</td></tr></tbody></table><div class="payslip-signatures"><span>Payroll / HR Officer</span><span>Employee Signature</span></div></div>`; previewOverlay.classList.remove('hidden'); };
@@ -7213,7 +7209,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sec.className = 'module statutory-returns-module hidden';
         sec.id = 'statutoryReturnsModule';
         sec.innerHTML = `<div class="statutory-header"><div class="statutory-title"><div class="statutory-icon"><i class="fas fa-scale-balanced"></i></div><div><h2>Statutory Returns</h2><p>Manage, track and monitor statutory payroll returns</p></div></div><div class="statutory-actions"><button class="btn-secondary" type="button" data-return-export><i class="fas fa-download"></i> Export CSV</button><button class="btn-primary" type="button" data-return-new><i class="fas fa-plus"></i> Add Statutory Return</button></div></div><div class="statutory-stats"><div><i class="fas fa-scale-balanced"></i><span>Total Returns</span><strong data-return-stat="total">0</strong><small>All statutory records</small></div><div><i class="fas fa-check-circle"></i><span>Submitted</span><strong data-return-stat="submitted">0</strong><small>Successfully submitted</small></div><div><i class="fas fa-hourglass-half"></i><span>Pending</span><strong data-return-stat="pending">0</strong><small>Awaiting submission</small></div><div><i class="fas fa-money-bill-wave"></i><span>Total Amount</span><strong data-return-stat="amount">AED 0</strong><small>Recorded return amounts</small></div></div><div class="statutory-card"><div class="statutory-toolbar"><div><h3>Statutory Return Records</h3><p>View and manage statutory submissions and deadlines</p></div><div class="statutory-filters"><label><i class="fas fa-search"></i><input data-return-search type="search" placeholder="Search return..."></label><select data-return-filter><option value="">All Status</option><option>Submitted</option><option>Pending</option><option>Overdue</option><option>Draft</option></select></div></div><div class="statutory-table-wrap"><table><thead><tr><th>Return</th><th>Authority</th><th>Period</th><th>Due Date</th><th>Submission Date</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody data-return-table></tbody></table><div class="statutory-empty hidden" data-return-empty><i class="fas fa-scale-balanced"></i><strong>No statutory returns found</strong><span>Try changing your search or add a new statutory return.</span></div></div></div><div class="returns-overlay hidden" data-return-form-overlay><div class="returns-modal"><div class="returns-modal-header"><div><h3 data-return-form-title>Add Statutory Return</h3><p>Enter statutory return information</p></div><button class="returns-close" type="button" data-return-close-form aria-label="Close"><i class="fas fa-times"></i></button></div><form data-return-form><input type="hidden" name="id"><div class="returns-form-grid"><label>Return Type *<select name="returnType" required><option value="">Select return type</option><option>Pension Contribution</option><option>Social Security</option><option>Income Tax</option><option>Labour Return</option><option>Education Authority Return</option><option>Other Statutory Return</option></select></label><label>Authority *<input name="authority" required placeholder="e.g. Government Authority"></label><label>Reporting Period *<input name="period" type="month" required></label><label>Due Date *<input name="dueDate" type="date" required></label><label>Submission Date<input name="submissionDate" type="date"></label><label>Amount (AED)<input name="amount" type="number" min="0" step="0.01" value="0"></label><label>Reference Number<input name="referenceNumber" placeholder="e.g. REF-2026-001"></label><label>Status<select name="status"><option>Pending</option><option>Submitted</option><option>Overdue</option><option>Draft</option></select></label><label class="returns-full">Notes<textarea name="notes" placeholder="Additional notes or comments..."></textarea></label></div><div class="returns-form-actions"><button class="btn-secondary" type="button" data-return-close-form>Cancel</button><button class="btn-primary" type="submit">Save Return</button></div></form></div></div><div class="returns-overlay hidden" data-return-preview-overlay><div class="returns-modal returns-preview-modal"><div class="returns-modal-header"><div><h3>Statutory Return Preview</h3><p>Review return information before printing</p></div><button class="returns-close" type="button" data-return-close-preview aria-label="Close"><i class="fas fa-times"></i></button></div><div class="returns-preview-body" data-return-preview-content></div><div class="returns-preview-actions"><button class="btn-secondary" type="button" data-return-close-preview>Close</button><button class="btn-primary" type="button" data-return-print><i class="fas fa-print"></i> Print Return</button></div></div></div>`;
-        const key = 'schoolStatutoryReturns'; const seed = [{ id: 1, returnNo: 'SR-2026-001', returnType: 'Pension Contribution', authority: 'Government Pension Authority', period: '2026-08', dueDate: '2026-08-20', submissionDate: '2026-08-18', amount: 18450, referenceNumber: 'PEN-45821', status: 'Submitted', notes: 'August pension contribution submitted successfully.' }, { id: 2, returnNo: 'SR-2026-002', returnType: 'Income Tax', authority: 'Tax Authority', period: '2026-08', dueDate: '2026-08-31', submissionDate: '', amount: 27680, referenceNumber: '', status: 'Pending', notes: 'Awaiting payroll reconciliation.' }, { id: 3, returnNo: 'SR-2026-003', returnType: 'Social Security', authority: 'Social Security Authority', period: '2026-07', dueDate: '2026-08-10', submissionDate: '', amount: 12950, referenceNumber: '', status: 'Overdue', notes: 'Submission requires immediate attention.' }, { id: 4, returnNo: 'SR-2026-004', returnType: 'Labour Return', authority: 'Labour Department', period: '2026-08', dueDate: '2026-09-05', submissionDate: '', amount: 0, referenceNumber: '', status: 'Draft', notes: 'Draft prepared for review.' }]; let returns; try { returns = JSON.parse(localStorage.getItem(key)) || seed; } catch (error) { returns = seed; }
+        const key = 'schoolStatutoryReturns';  let returns; try { returns = JSON.parse(localStorage.getItem(key)) || []; } catch (error) { returns = []; }
         const money = value => `AED ${Number(value || 0).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char])); const period = value => { if (!value) return '-'; const [year, month] = value.split('-'); return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); }; const date = value => { if (!value) return '—'; const parsed = new Date(`${value}T00:00:00`); return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }); }; const formOverlay = sec.querySelector('[data-return-form-overlay]'); const previewOverlay = sec.querySelector('[data-return-preview-overlay]'); const form = sec.querySelector('[data-return-form]'); const save = () => localStorage.setItem(key, JSON.stringify(returns));
         const render = () => { const query = sec.querySelector('[data-return-search]').value.toLowerCase(); const filter = sec.querySelector('[data-return-filter]').value; const found = returns.filter(item => (!filter || item.status === filter) && [item.returnType, item.authority, item.returnNo, item.referenceNumber].join(' ').toLowerCase().includes(query)); sec.querySelector('[data-return-table]').innerHTML = found.map(item => `<tr><td><div class="return-employee"><span><i class="fas fa-scale-balanced"></i></span><div><strong>${escape(item.returnType)}</strong><small>${escape(item.returnNo)}</small></div></div></td><td>${escape(item.authority)}</td><td>${period(item.period)}</td><td>${date(item.dueDate)}</td><td>${date(item.submissionDate)}</td><td><strong>${money(item.amount)}</strong></td><td><span class="return-badge ${item.status.toLowerCase()}">${escape(item.status)}</span></td><td><div class="return-row-actions"><button type="button" title="Preview" data-return-action="preview" data-id="${item.id}"><i class="fas fa-eye"></i></button><button type="button" title="Edit" data-return-action="edit" data-id="${item.id}"><i class="fas fa-pen"></i></button><button type="button" title="Delete" data-return-action="delete" data-id="${item.id}"><i class="fas fa-trash"></i></button></div></td></tr>`).join(''); sec.querySelector('[data-return-empty]').classList.toggle('hidden', found.length > 0); sec.querySelector('[data-return-stat="total"]').textContent = returns.length; sec.querySelector('[data-return-stat="submitted"]').textContent = returns.filter(item => item.status === 'Submitted').length; sec.querySelector('[data-return-stat="pending"]').textContent = returns.filter(item => item.status === 'Pending').length; sec.querySelector('[data-return-stat="amount"]').textContent = money(returns.reduce((sum, item) => sum + Number(item.amount || 0), 0)); };
         const reset = () => { form.reset(); form.elements.id.value = ''; form.elements.period.value = new Date().toISOString().slice(0, 7); form.elements.amount.value = 0; sec.querySelector('[data-return-form-title]').textContent = 'Add Statutory Return'; }; const openForm = item => { if (!item) reset(); else { Object.keys(item).forEach(field => { if (form.elements[field]) form.elements[field].value = item[field]; }); sec.querySelector('[data-return-form-title]').textContent = 'Edit Statutory Return'; } formOverlay.classList.remove('hidden'); form.elements.returnType.focus(); }; const openPreview = item => { sec.querySelector('[data-return-preview-content]').innerHTML = `<div class="return-document"><div class="return-document-header"><strong>GREEN VALLEY INTERNATIONAL SCHOOL</strong><span>Finance & Administration Department</span><b>STATUTORY RETURN RECORD</b></div><h4>Return Information</h4><div class="return-info-grid"><div><small>Return Number</small>${escape(item.returnNo)}</div><div><small>Return Type</small>${escape(item.returnType)}</div><div><small>Authority</small>${escape(item.authority)}</div><div><small>Reporting Period</small>${period(item.period)}</div><div><small>Due Date</small>${date(item.dueDate)}</div><div><small>Submission Date</small>${item.submissionDate ? date(item.submissionDate) : 'Not submitted'}</div><div><small>Reference Number</small>${escape(item.referenceNumber || '—')}</div><div><small>Status</small>${escape(item.status)}</div></div><h4>Financial Information</h4><div class="return-info-grid"><div><small>Return Amount</small>${money(item.amount)}</div></div><h4>Notes</h4><div class="return-notes">${escape(item.notes || 'No additional notes.')}</div><div class="return-signatures"><span>Finance Officer</span><span>Authorized Signatory</span></div></div>`; previewOverlay.classList.remove('hidden'); };
@@ -7226,7 +7222,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sec.className = 'module payroll-reports-module hidden';
         sec.id = 'payrollReportsModule';
         sec.innerHTML = `<div class="reports-header"><div class="reports-title"><div class="reports-icon"><i class="fas fa-chart-column"></i></div><div><h2>Payroll Reports</h2><p>Generate, review and manage school payroll reports</p></div></div><div class="reports-actions"><button class="btn-secondary" type="button" data-report-export><i class="fas fa-download"></i> Export CSV</button><button class="btn-primary" type="button" data-report-new><i class="fas fa-plus"></i> Create Payroll Report</button></div></div><div class="reports-stats"><div><i class="fas fa-chart-column"></i><span>Total Reports</span><strong data-report-stat="total">0</strong><small>Payroll reports generated</small></div><div><i class="fas fa-check-circle"></i><span>Completed</span><strong data-report-stat="completed">0</strong><small>Ready for review</small></div><div><i class="fas fa-hourglass-half"></i><span>Processing</span><strong data-report-stat="processing">0</strong><small>Reports in progress</small></div><div><i class="fas fa-money-bill-wave"></i><span>Total Payroll</span><strong data-report-stat="totalPayroll">AED 0</strong><small>Reported payroll value</small></div></div><div class="reports-card"><div class="reports-toolbar"><div><h3>Payroll Report Records</h3><p>Review payroll summaries, deductions and net salary information</p></div><div class="reports-filters"><label><i class="fas fa-search"></i><input data-report-search type="search" placeholder="Search report..."></label><select data-report-period><option value="">All Periods</option><option value="2026-08">August 2026</option><option value="2026-07">July 2026</option><option value="2026-06">June 2026</option></select><select data-report-status><option value="">All Status</option><option>Completed</option><option>Processing</option><option>Draft</option></select></div></div><div class="reports-table-wrap"><table><thead><tr><th>Report</th><th>Period</th><th>Employees</th><th>Gross Salary</th><th>Deductions</th><th>Net Salary</th><th>Generated</th><th>Status</th><th>Actions</th></tr></thead><tbody data-report-table></tbody></table><div class="reports-empty hidden" data-report-empty><i class="fas fa-chart-column"></i><strong>No payroll reports found</strong><span>Try changing your search or create a new payroll report.</span></div></div></div><div class="report-overlay hidden" data-report-form-overlay><div class="report-modal"><div class="report-modal-header"><div><h3 data-report-form-title>Create Payroll Report</h3><p>Enter payroll report information</p></div><button class="report-close" type="button" data-report-close-form aria-label="Close"><i class="fas fa-times"></i></button></div><form data-report-form><input type="hidden" name="id"><div class="report-form-grid"><label>Report Name *<input name="reportName" required placeholder="e.g. Monthly Payroll Summary"></label><label>Report Type *<select name="reportType" required><option value="">Select report type</option><option>Monthly Payroll Summary</option><option>Salary & Deductions Report</option><option>Department Payroll Report</option><option>Employee Payroll Report</option><option>Bank Payment Report</option><option>Payroll Tax Report</option></select></label><label>Payroll Period *<input name="period" type="month" required></label><label>Generated Date *<input name="generatedDate" type="date" required></label><label>Number of Employees *<input name="employees" type="number" min="0" required value="0"></label><label>Gross Salary (AED)<input name="grossSalary" type="number" min="0" step="0.01" value="0"></label><label>Total Deductions (AED)<input name="deductions" type="number" min="0" step="0.01" value="0"></label><label>Net Salary (AED)<input name="netSalary" type="number" readonly value="0"></label><label>Status<select name="status"><option>Completed</option><option>Processing</option><option>Draft</option></select></label><label>Prepared By<input name="preparedBy" placeholder="e.g. Finance Officer"></label><label class="report-full">Notes<textarea name="notes" placeholder="Additional report notes..."></textarea></label></div><div class="report-form-actions"><button class="btn-secondary" type="button" data-report-close-form>Cancel</button><button class="btn-primary" type="submit">Save Report</button></div></form></div></div><div class="report-overlay hidden" data-report-preview-overlay><div class="report-modal report-preview-modal"><div class="report-modal-header"><div><h3>Payroll Report Preview</h3><p>Review the report before printing</p></div><button class="report-close" type="button" data-report-close-preview aria-label="Close"><i class="fas fa-times"></i></button></div><div class="report-preview-body" data-report-preview-content></div><div class="report-preview-actions"><button class="btn-secondary" type="button" data-report-close-preview>Close</button><button class="btn-primary" type="button" data-report-print><i class="fas fa-print"></i> Print Report</button></div></div></div>`;
-        const key = 'schoolPayrollReports'; const seed = [{ id: 1, reportNo: 'PR-2026-001', reportName: 'August Monthly Payroll', reportType: 'Monthly Payroll Summary', period: '2026-08', employees: 86, grossSalary: 428500, deductions: 68400, netSalary: 360100, generatedDate: '2026-08-25', status: 'Completed', preparedBy: 'Finance Officer', notes: 'August payroll report completed and approved.' }, { id: 2, reportNo: 'PR-2026-002', reportName: 'July Monthly Payroll', reportType: 'Monthly Payroll Summary', period: '2026-07', employees: 84, grossSalary: 416800, deductions: 65900, netSalary: 350900, generatedDate: '2026-07-26', status: 'Completed', preparedBy: 'Finance Officer', notes: 'July payroll report.' }, { id: 3, reportNo: 'PR-2026-003', reportName: 'August Bank Payment Report', reportType: 'Bank Payment Report', period: '2026-08', employees: 86, grossSalary: 428500, deductions: 68400, netSalary: 360100, generatedDate: '2026-08-26', status: 'Processing', preparedBy: 'Payroll Administrator', notes: 'Awaiting final bank reconciliation.' }, { id: 4, reportNo: 'PR-2026-004', reportName: 'June Payroll Summary', reportType: 'Monthly Payroll Summary', period: '2026-06', employees: 82, grossSalary: 402600, deductions: 63200, netSalary: 339400, generatedDate: '2026-06-25', status: 'Draft', preparedBy: 'Payroll Administrator', notes: 'Draft payroll report.' }]; let reports; try { reports = JSON.parse(localStorage.getItem(key)) || seed; } catch (error) { reports = seed; }
+        const key = 'schoolPayrollReports';  let reports; try { reports = JSON.parse(localStorage.getItem(key)) || []; } catch (error) { reports = []; }
         const money = value => `AED ${Number(value || 0).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char])); const period = value => { if (!value) return '-'; const [year, month] = value.split('-'); return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); }; const date = value => { if (!value) return '—'; const parsed = new Date(`${value}T00:00:00`); return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }); }; const formOverlay = sec.querySelector('[data-report-form-overlay]'); const previewOverlay = sec.querySelector('[data-report-preview-overlay]'); const form = sec.querySelector('[data-report-form]'); const save = () => localStorage.setItem(key, JSON.stringify(reports)); const calculate = () => { form.elements.netSalary.value = Math.max(0, Number(form.elements.grossSalary.value || 0) - Number(form.elements.deductions.value || 0)); }; const reset = () => { form.reset(); form.elements.id.value = ''; form.elements.period.value = new Date().toISOString().slice(0, 7); form.elements.generatedDate.value = new Date().toISOString().slice(0, 10); form.elements.grossSalary.value = 0; form.elements.deductions.value = 0; form.elements.netSalary.value = 0; form.elements.employees.value = 0; sec.querySelector('[data-report-form-title]').textContent = 'Create Payroll Report'; };
         const render = () => { const query = sec.querySelector('[data-report-search]').value.toLowerCase(); const selectedPeriod = sec.querySelector('[data-report-period]').value; const selectedStatus = sec.querySelector('[data-report-status]').value; const found = reports.filter(item => (!selectedPeriod || item.period === selectedPeriod) && (!selectedStatus || item.status === selectedStatus) && [item.reportName, item.reportType, item.reportNo, item.preparedBy].join(' ').toLowerCase().includes(query)); sec.querySelector('[data-report-table]').innerHTML = found.map(item => `<tr><td><div class="report-employee"><span><i class="fas fa-chart-column"></i></span><div><strong>${escape(item.reportName)}</strong><small>${escape(item.reportNo)}</small></div></div></td><td>${period(item.period)}</td><td>${Number(item.employees || 0).toLocaleString()}</td><td>${money(item.grossSalary)}</td><td>${money(item.deductions)}</td><td class="report-net">${money(item.netSalary)}</td><td>${date(item.generatedDate)}</td><td><span class="report-badge ${item.status.toLowerCase()}">${escape(item.status)}</span></td><td><div class="report-row-actions"><button type="button" title="Preview" data-report-action="preview" data-id="${item.id}"><i class="fas fa-eye"></i></button><button type="button" title="Edit" data-report-action="edit" data-id="${item.id}"><i class="fas fa-pen"></i></button><button type="button" title="Delete" data-report-action="delete" data-id="${item.id}"><i class="fas fa-trash"></i></button></div></td></tr>`).join(''); sec.querySelector('[data-report-empty]').classList.toggle('hidden', found.length > 0); sec.querySelector('[data-report-stat="total"]').textContent = reports.length; sec.querySelector('[data-report-stat="completed"]').textContent = reports.filter(item => item.status === 'Completed').length; sec.querySelector('[data-report-stat="processing"]').textContent = reports.filter(item => item.status === 'Processing').length; sec.querySelector('[data-report-stat="totalPayroll"]').textContent = money(reports.reduce((sum, item) => sum + Number(item.netSalary || 0), 0)); };
         const openPreview = item => { sec.querySelector('[data-report-preview-content]').innerHTML = `<div class="report-document"><div class="report-document-header"><strong>GREEN VALLEY INTERNATIONAL SCHOOL</strong><span>Finance & Payroll Department</span><b>PAYROLL REPORT</b></div><h4>Report Information</h4><div class="report-info-grid"><div><small>Report Number</small>${escape(item.reportNo)}</div><div><small>Report Name</small>${escape(item.reportName)}</div><div><small>Report Type</small>${escape(item.reportType)}</div><div><small>Payroll Period</small>${period(item.period)}</div><div><small>Generated Date</small>${date(item.generatedDate)}</div><div><small>Prepared By</small>${escape(item.preparedBy || '—')}</div><div><small>Number of Employees</small>${Number(item.employees || 0).toLocaleString()}</div><div><small>Status</small>${escape(item.status)}</div></div><h4>Payroll Summary</h4><table><thead><tr><th>Description</th><th>Amount</th></tr></thead><tbody><tr><td>Gross Salary</td><td>${money(item.grossSalary)}</td></tr><tr><td>Total Deductions</td><td>${money(item.deductions)}</td></tr><tr class="report-net-row"><td>Net Salary</td><td>${money(item.netSalary)}</td></tr></tbody></table><h4>Notes</h4><div class="report-notes">${escape(item.notes || 'No additional notes.')}</div><div class="report-signatures"><span>Payroll Officer</span><span>Finance Manager</span></div></div>`; previewOverlay.classList.remove('hidden'); };
@@ -7345,13 +7341,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <option value="Overdue">Overdue</option>
                                 <option value="Partial">Partial</option>
                             </select>
-                            <select id="invoiceClass" class="filter" onchange="filterInvoices()">
-                                <option value="">All Classes</option>
-                                <option value="Grade 10">Grade 10</option>
-                                <option value="Grade 9">Grade 9</option>
-                                <option value="Grade 8">Grade 8</option>
-                                <option value="Grade 7">Grade 7</option>
-                            </select>
+                            <select id="invoiceClass" class="filter" onchange="filterInvoices()"><option value="">All Classes</option></select>
                         </div>
                         <div class="filter-right">
                             <input type="date" id="invoiceDate" class="filter" onchange="filterInvoices()">
@@ -7373,114 +7363,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr data-status="Paid" data-class="Grade 10" data-date="2026-08-20">
-                                    <td><span class="invoice-number">INV-2026-00125</span></td>
-                                    <td>
-                                        <div class="student">
-                                            <div class="student-avatar">AK</div>
-                                            <div>
-                                                <div class="student-name">Ahmed Khan</div>
-                                                <div class="student-id">STU-10245</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td><span class="class-name">Grade 10 - A</span></td>
-                                    <td>20 Aug 2026</td>
-                                    <td>30 Aug 2026</td>
-                                    <td class="amount">$2,450.00</td>
-                                    <td><span class="status paid">Paid</span></td>
-                                    <td>
-                                        <div class="actions">
-                                            <button class="action-btn" type="button" title="View" onclick="viewInvoice('INV-2026-00125')">👁</button>
-                                            <button class="action-btn print" type="button" title="Print" onclick="printInvoice('INV-2026-00125')">🖨</button>
-                                            <button class="action-btn download" type="button" title="Download" onclick="downloadInvoice('INV-2026-00125')">↓</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr data-status="Pending" data-class="Grade 9" data-date="2026-08-18">
-                                    <td><span class="invoice-number">INV-2026-00124</span></td>
-                                    <td>
-                                        <div class="student">
-                                            <div class="student-avatar">SA</div>
-                                            <div>
-                                                <div class="student-name">Sara Ali</div>
-                                                <div class="student-id">STU-10231</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td><span class="class-name">Grade 9 - B</span></td>
-                                    <td>18 Aug 2026</td>
-                                    <td>28 Aug 2026</td>
-                                    <td class="amount">$2,150.00</td>
-                                    <td><span class="status pending">Pending</span></td>
-                                    <td>
-                                        <div class="actions">
-                                            <button class="action-btn" type="button" onclick="viewInvoice('INV-2026-00124')">👁</button>
-                                            <button class="action-btn print" type="button" onclick="printInvoice('INV-2026-00124')">🖨</button>
-                                            <button class="action-btn download" type="button" onclick="downloadInvoice('INV-2026-00124')">↓</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr data-status="Overdue" data-class="Grade 8" data-date="2026-08-10">
-                                    <td><span class="invoice-number">INV-2026-00123</span></td>
-                                    <td>
-                                        <div class="student">
-                                            <div class="student-avatar">OM</div>
-                                            <div>
-                                                <div class="student-name">Omar Mohammed</div>
-                                                <div class="student-id">STU-10198</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td><span class="class-name">Grade 8 - A</span></td>
-                                    <td>10 Aug 2026</td>
-                                    <td>20 Aug 2026</td>
-                                    <td class="amount">$1,850.00</td>
-                                    <td><span class="status overdue">Overdue</span></td>
-                                    <td>
-                                        <div class="actions">
-                                            <button class="action-btn" type="button" onclick="viewInvoice('INV-2026-00123')">👁</button>
-                                            <button class="action-btn print" type="button" onclick="printInvoice('INV-2026-00123')">🖨</button>
-                                            <button class="action-btn download" type="button" onclick="downloadInvoice('INV-2026-00123')">↓</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr data-status="Partial" data-class="Grade 7" data-date="2026-08-05">
-                                    <td><span class="invoice-number">INV-2026-00122</span></td>
-                                    <td>
-                                        <div class="student">
-                                            <div class="student-avatar">LN</div>
-                                            <div>
-                                                <div class="student-name">Lina Noor</div>
-                                                <div class="student-id">STU-10176</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td><span class="class-name">Grade 7 - A</span></td>
-                                    <td>05 Aug 2026</td>
-                                    <td>15 Aug 2026</td>
-                                    <td class="amount">$1,650.00</td>
-                                    <td><span class="status partial">Partial</span></td>
-                                    <td>
-                                        <div class="actions">
-                                            <button class="action-btn" type="button" onclick="viewInvoice('INV-2026-00122')">👁</button>
-                                            <button class="action-btn print" type="button" onclick="printInvoice('INV-2026-00122')">🖨</button>
-                                            <button class="action-btn download" type="button" onclick="downloadInvoice('INV-2026-00122')">↓</button>
-                                        </div>
-                                    </td>
-                                </tr>
+                                <tr class="empty-state"><td colspan="8">No invoices found.</td></tr>
                             </tbody>
                         </table>
                     </div>
                     <div class="table-footer">
-                        <span>Showing <strong id="invoiceCount">4</strong> invoices</span>
-                        <div class="pagination">
-                            <button class="page" type="button">‹</button>
-                            <button class="page active" type="button">1</button>
-                            <button class="page" type="button">2</button>
-                            <button class="page" type="button">3</button>
-                            <button class="page" type="button">›</button>
-                        </div>
+                        <span>Showing <strong id="invoiceCount">0</strong> invoices</span>
                     </div>
                 </div>
             </div>
@@ -7497,25 +7385,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="invoice-document">
                             <div class="invoice-top">
                                 <div class="school-info">
-                                    <div class="school-logo">GV</div>
+                                    <div class="school-logo">S</div>
                                     <div>
-                                        <h2>Green Valley International School</h2>
+                                        <h2>School Name</h2>
                                         <p>Finance & Accounts Department</p>
-                                        <p>Abu Dhabi, UAE</p>
+                                        <p>School Address</p>
                                     </div>
                                 </div>
                                 <div class="invoice-heading">
                                     <h1>FEE INVOICE</h1>
-                                    <span id="previewInvoiceNumber">INV-2026-00125</span>
+                                    <span id="previewInvoiceNumber">—</span>
                                 </div>
                             </div>
                             <div class="invoice-info-grid">
-                                <div class="info-box"><label>Student</label><strong id="previewStudent">Ahmed Khan</strong></div>
-                                <div class="info-box"><label>Student ID</label><strong id="previewStudentId">STU-10245</strong></div>
-                                <div class="info-box"><label>Class</label><strong id="previewClass">Grade 10 - A</strong></div>
-                                <div class="info-box"><label>Invoice Date</label><strong id="previewInvoiceDate">20 Aug 2026</strong></div>
-                                <div class="info-box"><label>Due Date</label><strong id="previewDueDate">30 Aug 2026</strong></div>
-                                <div class="info-box"><label>Status</label><strong id="previewStatus" style="color:#15803d">Paid</strong></div>
+                                <div class="info-box"><label>Student</label><strong id="previewStudent">—</strong></div>
+                                <div class="info-box"><label>Student ID</label><strong id="previewStudentId">—</strong></div>
+                                <div class="info-box"><label>Class</label><strong id="previewClass">—</strong></div>
+                                <div class="info-box"><label>Invoice Date</label><strong id="previewInvoiceDate">—</strong></div>
+                                <div class="info-box"><label>Due Date</label><strong id="previewDueDate">—</strong></div>
+                                <div class="info-box"><label>Status</label><strong id="previewStatus">—</strong></div>
                             </div>
                             <table class="fee-table">
                                 <thead>
@@ -7527,17 +7415,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr><td>1</td><td>Tuition Fee</td><td>Term 1</td><td>$1,800.00</td></tr>
-                                    <tr><td>2</td><td>Transportation Fee</td><td>Term 1</td><td>$400.00</td></tr>
-                                    <tr><td>3</td><td>Activity Fee</td><td>Term 1</td><td>$250.00</td></tr>
-                                </tbody>
+                                <tr class="empty-state"><td colspan="4">No invoice line items available.</td></tr>
+                            </tbody>
                             </table>
                             <div class="invoice-totals">
-                                <div class="total-row"><span>Subtotal</span><strong>$2,450.00</strong></div>
-                                <div class="total-row"><span>Discount</span><strong>$0.00</strong></div>
-                                <div class="total-row final"><span>Total Due</span><strong>$2,450.00</strong></div>
+                                <div class="total-row"><span>Subtotal</span><strong>—</strong></div>
+                                <div class="total-row"><span>Discount</span><strong>—</strong></div>
+                                <div class="total-row final"><span>Total Due</span><strong>—</strong></div>
                             </div>
-                            <div class="payment-note">✓ Payment status: <strong id="previewPaymentStatus">Paid</strong> — Thank you for keeping your school fee account up to date.</div>
+                            <div class="payment-note">✓ Payment status: <strong id="previewPaymentStatus">—</strong> — Thank you for keeping your school fee account up to date.</div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -7548,12 +7434,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        const invoiceData = {
-            'INV-2026-00125': { number: 'INV-2026-00125', student: 'Ahmed Khan', studentId: 'STU-10245', className: 'Grade 10 - A', invoiceDate: '20 Aug 2026', dueDate: '30 Aug 2026', status: 'Paid' },
-            'INV-2026-00124': { number: 'INV-2026-00124', student: 'Sara Ali', studentId: 'STU-10231', className: 'Grade 9 - B', invoiceDate: '18 Aug 2026', dueDate: '28 Aug 2026', status: 'Pending' },
-            'INV-2026-00123': { number: 'INV-2026-00123', student: 'Omar Mohammed', studentId: 'STU-10198', className: 'Grade 8 - A', invoiceDate: '10 Aug 2026', dueDate: '20 Aug 2026', status: 'Overdue' },
-            'INV-2026-00122': { number: 'INV-2026-00122', student: 'Lina Noor', studentId: 'STU-10176', className: 'Grade 7 - A', invoiceDate: '05 Aug 2026', dueDate: '15 Aug 2026', status: 'Partial' }
-        };
+        const invoiceData = {};
 
         window.openInvoices = function () {
             const section = document.getElementById('feeInvoicesModule');
@@ -7590,7 +7471,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const invoice = invoiceData[invoiceNumber];
             if (!invoice) return;
             const invoiceText = `
-GREEN VALLEY INTERNATIONAL SCHOOL
+SCHOOL NAME
 ========================================
 FEE INVOICE
 Invoice Number: ${invoice.number}
@@ -7603,14 +7484,14 @@ Status: ${invoice.status}
 ----------------------------------------
 FEE DETAILS
 ----------------------------------------
-Tuition Fee              $1,800.00
-Transportation Fee       $400.00
-Activity Fee             $250.00
+Tuition Fee              —
+Transportation Fee       —
+Activity Fee             —
 ----------------------------------------
-TOTAL DUE                $2,450.00
+TOTAL DUE                —
 ----------------------------------------
 Thank you.
-Green Valley International School
+School Name
 Finance & Accounts Department
 `;
             const blob = new Blob([invoiceText], { type: 'text/plain;charset=utf-8' });
@@ -7634,7 +7515,7 @@ Finance & Accounts Department
             const classInput = sec.querySelector('#invoiceClass');
             const dateInput = sec.querySelector('#invoiceDate');
             const countEl = sec.querySelector('#invoiceCount');
-            const rows = sec.querySelectorAll('#invoiceTable tbody tr');
+            const rows = sec.querySelectorAll('#invoiceTable tbody tr:not(.empty-state)');
 
             if (!searchInput || !statusInput || !classInput || !dateInput || !countEl) {
                 return;
@@ -7659,6 +7540,7 @@ Finance & Accounts Department
                 row.style.display = show ? '' : 'none';
                 if (show) visibleCount++;
             });
+            sec.querySelector('#invoiceTable .empty-state').hidden = visibleCount > 0;
             countEl.textContent = visibleCount;
         };
 
@@ -7791,7 +7673,7 @@ Finance & Accounts Department
                     <div class="filter-bar">
                         <div class="filter-left">
                             <div class="search-box"><span>⌕</span><input id="search" class="search" type="text" placeholder="Search PO or supplier..." oninput="filterPOs()"></div>
-                            <select id="supplier" class="filter" onchange="filterPOs()"><option value="">All Suppliers</option><option>Gulf Office Supplies</option><option>Bright Learning</option><option>TechWorld Solutions</option><option>Campus Furniture</option></select>
+                            <select id="supplier" class="filter" onchange="filterPOs()"><option value="">All Suppliers</option></select>
                             <select id="payment" class="filter" onchange="filterPOs()"><option value="">All Payments</option><option>Paid</option><option>Partially Paid</option></select>
                         </div>
                         <div class="filter-right">
@@ -7803,31 +7685,25 @@ Finance & Accounts Department
                         <table id="poTable">
                             <thead><tr><th>PO Number</th><th>Supplier</th><th>PO Date</th><th>Closed Date</th><th>Amount</th><th>Payment</th><th>Closed By</th><th>Actions</th></tr></thead>
                             <tbody>
-                                <tr data-supplier="Gulf Office Supplies" data-payment="Paid" data-date="2026-08-21"><td><span class="po-number">PO-2026-0089</span></td><td><div class="supplier"><div class="supplier-logo">GO</div><div><div class="supplier-name">Gulf Office Supplies</div><div class="supplier-type">Office & Stationery</div></div></div></td><td>12 Aug 2026</td><td>21 Aug 2026</td><td class="amount">$4,820.00</td><td><span class="status paid">Paid</span></td><td>Ahmed Khan</td><td><div class="actions"><button class="action-btn" type="button" title="Preview" onclick="viewPO('PO-2026-0089')">👁</button><button class="action-btn print" type="button" title="Print" onclick="printPO('PO-2026-0089')">🖨</button><button class="action-btn download" type="button" title="Download" onclick="downloadPO('PO-2026-0089')">↓</button></div></td></tr>
-                                <tr data-supplier="Bright Learning" data-payment="Paid" data-date="2026-08-18"><td><span class="po-number">PO-2026-0088</span></td><td><div class="supplier"><div class="supplier-logo">BL</div><div><div class="supplier-name">Bright Learning</div><div class="supplier-type">Educational Materials</div></div></div></td><td>08 Aug 2026</td><td>18 Aug 2026</td><td class="amount">$7,250.00</td><td><span class="status paid">Paid</span></td><td>Sarah Wilson</td><td><div class="actions"><button class="action-btn" type="button" onclick="viewPO('PO-2026-0088')">👁</button><button class="action-btn print" type="button" onclick="printPO('PO-2026-0088')">🖨</button><button class="action-btn download" type="button" onclick="downloadPO('PO-2026-0088')">↓</button></div></td></tr>
-                                <tr data-supplier="TechWorld Solutions" data-payment="Partially Paid" data-date="2026-08-15"><td><span class="po-number">PO-2026-0087</span></td><td><div class="supplier"><div class="supplier-logo">TS</div><div><div class="supplier-name">TechWorld Solutions</div><div class="supplier-type">IT Equipment</div></div></div></td><td>02 Aug 2026</td><td>15 Aug 2026</td><td class="amount">$18,450.00</td><td><span class="status partial">Partially Paid</span></td><td>Michael Lee</td><td><div class="actions"><button class="action-btn" type="button" onclick="viewPO('PO-2026-0087')">👁</button><button class="action-btn print" type="button" onclick="printPO('PO-2026-0087')">🖨</button><button class="action-btn download" type="button" onclick="downloadPO('PO-2026-0087')">↓</button></div></td></tr>
-                                <tr data-supplier="Campus Furniture" data-payment="Paid" data-date="2026-08-12"><td><span class="po-number">PO-2026-0086</span></td><td><div class="supplier"><div class="supplier-logo">CF</div><div><div class="supplier-name">Campus Furniture</div><div class="supplier-type">Furniture & Fixtures</div></div></div></td><td>29 Jul 2026</td><td>12 Aug 2026</td><td class="amount">$12,680.00</td><td><span class="status paid">Paid</span></td><td>Ahmed Khan</td><td><div class="actions"><button class="action-btn" type="button" onclick="viewPO('PO-2026-0086')">👁</button><button class="action-btn print" type="button" onclick="printPO('PO-2026-0086')">🖨</button><button class="action-btn download" type="button" onclick="downloadPO('PO-2026-0086')">↓</button></div></td></tr>
+                                <tr class="empty-state"><td colspan="8">No closed purchase orders found.</td></tr>
                             </tbody>
                         </table>
                     </div>
-                    <div class="table-footer"><span>Showing <strong id="count">4</strong> closed POs</span><div class="pagination"><button class="page" type="button">‹</button><button class="page active" type="button">1</button><button class="page" type="button">2</button><button class="page" type="button">3</button><button class="page" type="button">›</button></div></div>
+                    <div class="table-footer"><span>Showing <strong id="count">0</strong> closed POs</span></div>
                 </div>
             </div>
-            <div class="modal" id="previewModal"><div class="modal-box"><div class="modal-header"><div><h3>Purchase Order Preview</h3><p>Closed purchase order document</p></div><button class="close" type="button" onclick="closePreview()">×</button></div><div class="modal-body"><div class="po-print"><div class="po-heading"><div class="school"><div class="school-logo">S</div><div><h2>Green Valley International School</h2><p>School Procurement Department</p><p>Abu Dhabi, UAE</p></div></div><div class="po-title"><h1>PURCHASE ORDER</h1><span id="previewNumber">PO-2026-0089</span></div></div><div class="po-info"><div class="info"><label>PO Date</label><strong id="previewDate">12 Aug 2026</strong></div><div class="info"><label>Closed Date</label><strong id="previewClosed">21 Aug 2026</strong></div><div class="info"><label>Status</label><strong style="color:#15803d">✓ Closed</strong></div><div class="info"><label>Supplier</label><strong id="previewSupplier">Gulf Office Supplies</strong></div><div class="info"><label>Payment</label><strong id="previewPayment">Paid</strong></div><div class="info"><label>Closed By</label><strong id="previewClosedBy">Ahmed Khan</strong></div></div><table class="item-table"><thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody><tr><td>1</td><td>A4 Copy Paper — 80 GSM</td><td>100</td><td>$25.00</td><td>$2,500.00</td></tr><tr><td>2</td><td>Blue Ballpoint Pens</td><td>500</td><td>$1.20</td><td>$600.00</td></tr><tr><td>3</td><td>Whiteboard Markers</td><td>100</td><td>$7.20</td><td>$720.00</td></tr></tbody></table><div class="totals"><div class="total-row"><span>Subtotal</span><strong>$3,820.00</strong></div><div class="total-row"><span>VAT</span><strong>$1,000.00</strong></div><div class="total-row final"><span>Total</span><strong>$4,820.00</strong></div></div></div></div><div class="modal-footer"><button class="btn btn-light" type="button" onclick="closePreview()">Close</button><button class="btn btn-primary" type="button" onclick="window.print()">🖨 Print</button></div></div></div>
+            <div class="modal" id="previewModal"><div class="modal-box"><div class="modal-header"><div><h3>Purchase Order Preview</h3><p>Closed purchase order document</p></div><button class="close" type="button" onclick="closePreview()">×</button></div><div class="modal-body"><div class="po-print"><div class="po-heading"><div class="school"><div class="school-logo">S</div><div><h2>School Name</h2><p>School Procurement Department</p><p>School Address</p></div></div><div class="po-title"><h1>PURCHASE ORDER</h1><span id="previewNumber">—</span></div></div><div class="po-info"><div class="info"><label>PO Date</label><strong id="previewDate">—</strong></div><div class="info"><label>Closed Date</label><strong id="previewClosed">—</strong></div><div class="info"><label>Status</label><strong>—</strong></div><div class="info"><label>Supplier</label><strong id="previewSupplier">—</strong></div><div class="info"><label>Payment</label><strong id="previewPayment">—</strong></div><div class="info"><label>Closed By</label><strong id="previewClosedBy">—</strong></div></div><table class="item-table"><thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>
+                                <tr class="empty-state"><td colspan="5">No purchase order line items available.</td></tr>
+                            </tbody></table><div class="totals"><div class="total-row"><span>Subtotal</span><strong>—</strong></div><div class="total-row"><span>VAT</span><strong>—</strong></div><div class="total-row final"><span>Total</span><strong>—</strong></div></div></div></div><div class="modal-footer"><button class="btn btn-light" type="button" onclick="closePreview()">Close</button><button class="btn btn-primary" type="button" onclick="window.print()">🖨 Print</button></div></div></div>
         `;
 
-        const poData = {
-            'PO-2026-0089': { number: 'PO-2026-0089', date: '12 Aug 2026', closed: '21 Aug 2026', supplier: 'Gulf Office Supplies', payment: 'Paid', closedBy: 'Ahmed Khan' },
-            'PO-2026-0088': { number: 'PO-2026-0088', date: '08 Aug 2026', closed: '18 Aug 2026', supplier: 'Bright Learning', payment: 'Paid', closedBy: 'Sarah Wilson' },
-            'PO-2026-0087': { number: 'PO-2026-0087', date: '02 Aug 2026', closed: '15 Aug 2026', supplier: 'TechWorld Solutions', payment: 'Partially Paid', closedBy: 'Michael Lee' },
-            'PO-2026-0086': { number: 'PO-2026-0086', date: '29 Jul 2026', closed: '12 Aug 2026', supplier: 'Campus Furniture', payment: 'Paid', closedBy: 'Ahmed Khan' }
-        };
+        const poData = {};
 
         window.openClosedPO = function () { const container = sec.querySelector('#closedPOContent'); if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
         window.viewPO = function (number) { const po = poData[number]; if (!po) return; sec.querySelector('#previewNumber').textContent = po.number; sec.querySelector('#previewDate').textContent = po.date; sec.querySelector('#previewClosed').textContent = po.closed; sec.querySelector('#previewSupplier').textContent = po.supplier; sec.querySelector('#previewPayment').textContent = po.payment; sec.querySelector('#previewClosedBy').textContent = po.closedBy; sec.querySelector('#previewModal').classList.add('show'); };
         window.printPO = function (number) { window.viewPO(number); setTimeout(() => window.print(), 300); };
         window.downloadPO = function (number) { const po = poData[number]; if (!po) return; const text = `
-GREEN VALLEY INTERNATIONAL SCHOOL
+SCHOOL NAME
 PURCHASE ORDER
 
 PO Number: ${po.number}
@@ -7841,11 +7717,11 @@ Closed By: ${po.closedBy}
 Status: CLOSED
 
 ------------------------------------
-Total Amount: $4,820.00
+Total Amount: —
 ------------------------------------
         `; const blob = new Blob([text], { type: 'text/plain' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${po.number}.txt`; link.click(); URL.revokeObjectURL(url); };
         window.closePreview = function () { sec.querySelector('#previewModal').classList.remove('show'); };
-        window.filterPOs = function () { const search = (sec.querySelector('#search').value || '').toLowerCase(); const supplier = sec.querySelector('#supplier').value; const payment = sec.querySelector('#payment').value; const date = sec.querySelector('#date').value; const rows = sec.querySelectorAll('#poTable tbody tr'); let count = 0; rows.forEach(row => { const text = row.innerText.toLowerCase(); const rowSupplier = row.dataset.supplier; const rowPayment = row.dataset.payment; const rowDate = row.dataset.date; const visible = (!search || text.includes(search)) && (!supplier || rowSupplier === supplier) && (!payment || rowPayment === payment) && (!date || rowDate === date); row.style.display = visible ? '' : 'none'; if (visible) count++; }); sec.querySelector('#count').textContent = count; };
+        window.filterPOs = function () { const search = (sec.querySelector('#search').value || '').toLowerCase(); const supplier = sec.querySelector('#supplier').value; const payment = sec.querySelector('#payment').value; const date = sec.querySelector('#date').value; const rows = sec.querySelectorAll('#poTable tbody tr:not(.empty-state)'); let count = 0; rows.forEach(row => { const text = row.innerText.toLowerCase(); const rowSupplier = row.dataset.supplier; const rowPayment = row.dataset.payment; const rowDate = row.dataset.date; const visible = (!search || text.includes(search)) && (!supplier || rowSupplier === supplier) && (!payment || rowPayment === payment) && (!date || rowDate === date); row.style.display = visible ? '' : 'none'; if (visible) count++; }); sec.querySelector('#poTable .empty-state').hidden = count > 0; sec.querySelector('#count').textContent = count; };
         window.resetFilters = function () { sec.querySelector('#search').value = ''; sec.querySelector('#supplier').value = ''; sec.querySelector('#payment').value = ''; sec.querySelector('#date').value = ''; window.filterPOs(); };
         const modal = sec.querySelector('#previewModal'); modal.addEventListener('click', function (event) { if (event.target === this) { window.closePreview(); } });
         document.addEventListener('keydown', function (event) { if (event.key === 'Escape') { window.closePreview(); } });
@@ -8787,7 +8663,7 @@ Total Amount: $4,820.00
                 const sec = document.createElement('section');
                 sec.className = 'module';
                 sec.id = moduleId;
-                
+
                 const headers = linkText === 'Staff Directory' ? ['Staff', 'Record ID', 'Category', 'Status', 'Actions'] : ['Record ID', 'Description', 'Category', 'Status'];
                 const rows = [
                     ...(linkText === 'Staff Directory' ? [
@@ -9071,7 +8947,7 @@ Total Amount: $4,820.00
     if (addBtn && modal) {
         addBtn.onclick = () => {
             const currentSection = addBtn.getAttribute('data-section') || 'Dashboard';
-            
+
             // Branch functionality based on the current section context
             if (currentSection === 'Dashboard' || currentSection === 'Students') {
                 if (currentSection === 'Students' && typeof window.openStudentsModal === 'function') {
@@ -9232,7 +9108,7 @@ Total Amount: $4,820.00
     // Form 019 Submission and Handling
     const saveStudentBtn = document.getElementById('saveStudentBtn');
     const studentRegForm = document.getElementById('addStudentForm');
-    
+
     if (saveStudentBtn && studentRegForm) {
         saveStudentBtn.onclick = () => {
             studentRegForm.requestSubmit();
@@ -9255,10 +9131,10 @@ Total Amount: $4,820.00
         darkToggle.addEventListener('click', (e) => {
             e.preventDefault();
             document.body.classList.toggle('dark');
-            
+
             const isDark = document.body.classList.contains('dark');
             darkToggle.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
-            
+
             // Update Chart Colors for Dark Mode
             const newTextColor = isDark ? '#e2e8f0' : '#64748b';
             Chart.instances.forEach(chart => {

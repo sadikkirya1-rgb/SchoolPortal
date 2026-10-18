@@ -1,16 +1,11 @@
 (() => {
-    const defaults = [
-        { id:1, fullName:'Sarah Johnson', email:'sarah.johnson@email.com', phone:'+971 50 123 4567', position:'Mathematics Teacher', department:'Academic', experience:'4 - 6 Years', applicationDate:'2026-08-18', status:'Interview', notes:'Strong mathematics background.' },
-        { id:2, fullName:'Michael Brown', email:'michael.brown@email.com', phone:'+971 55 321 7654', position:'ICT Teacher', department:'IT', experience:'7 - 10 Years', applicationDate:'2026-08-16', status:'Shortlisted', notes:'Excellent ICT teaching experience.' },
-        { id:3, fullName:'Emma Wilson', email:'emma.wilson@email.com', phone:'+971 52 987 1234', position:'Primary Teacher', department:'Academic', experience:'2 - 3 Years', applicationDate:'2026-08-12', status:'Applied', notes:'' },
-        { id:4, fullName:'David Miller', email:'david.miller@email.com', phone:'+971 54 444 1111', position:'School Administrator', department:'Administration', experience:'10+ Years', applicationDate:'2026-08-08', status:'Hired', notes:'Selected after final interview.' }
-    ];
+
     const positions = ['Mathematics Teacher','English Teacher','Science Teacher','ICT Teacher','Primary Teacher','School Administrator','Accountant','Receptionist','Teaching Assistant'];
     const departments = ['Academic','Administration','Finance','IT','Student Services'];
     const experiences = ['0 - 1 Years','2 - 3 Years','4 - 6 Years','7 - 10 Years','10+ Years'];
     const statuses = ['Applied','Shortlisted','Interview','Hired','Rejected'];
     const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[character]));
-    const read = () => { try { return JSON.parse(localStorage.getItem('schoolRecruitment')) || defaults; } catch { return defaults; } };
+    const read = () => { try { return JSON.parse(localStorage.getItem('schoolRecruitment')) || []; } catch { return []; } };
     const date = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '-';
     const initials = name => name.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase();
     const statusClass = status => `recruitment-status-${status.toLowerCase()}`;

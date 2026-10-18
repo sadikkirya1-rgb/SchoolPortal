@@ -26,18 +26,13 @@ function createQuotationsModule() {
         <div class="qt-toast" role="status" aria-live="polite" data-qt-toast></div>`;
 
     const storageKey = 'schoolQuotations';
-    const seed = [
-        { id: 'QT-2026-001', supplier: 'Gulf Technology LLC', supplierRef: 'GTL-Q-2488', request: 'PR-2026-014', date: '2026-09-22', validUntil: '2026-10-22', currency: 'USD', paymentTerms: '30 Days Credit', deliveryTerms: '7 Days', tax: 5, discount: 500, status: 'Received', contact: 'Ahmed Khalid', contactInfo: 'sales@gulftech.example', deliveryLocation: 'Main Office', notes: 'Includes 3-year warranty and installation.', items: [{ description: 'Business Laptop', qty: 10, price: 1850, discount: 0 }, { description: 'Laptop Carry Bag', qty: 10, price: 45, discount: 0 }] },
-        { id: 'QT-2026-002', supplier: 'Al Noor Office Supplies', supplierRef: 'AN-9045', request: 'PR-2026-018', date: '2026-09-27', validUntil: '2026-10-15', currency: 'USD', paymentTerms: '15 Days Credit', deliveryTerms: '14 Days', tax: 5, discount: 250, status: 'Accepted', contact: 'Sara Ahmed', contactInfo: '+971 50 000 0000', deliveryLocation: 'Administration Building', notes: 'Quotation accepted based on price and delivery.', items: [{ description: 'Executive Office Chair', qty: 10, price: 250, discount: 0 }, { description: 'Office Desk', qty: 5, price: 950, discount: 100 }] },
-        { id: 'QT-2026-003', supplier: 'Smart Business Solutions', supplierRef: 'SBS-7754', request: 'PR-2026-021', date: '2026-10-01', validUntil: '2026-10-20', currency: 'USD', paymentTerms: '30 Days Credit', deliveryTerms: '7 Days', tax: 5, discount: 0, status: 'Pending', contact: 'John Mathew', contactInfo: 'john@sbs.example', deliveryLocation: 'Finance Department', notes: 'Awaiting final technical evaluation.', items: [{ description: 'Laser Printer', qty: 8, price: 550, discount: 0 }, { description: 'Toner Cartridge', qty: 24, price: 65, discount: 20 }] },
-        { id: 'QT-2026-004', supplier: 'Prime Industrial Trading', supplierRef: 'PIT-1208', request: 'PR-2026-025', date: '2026-10-02', validUntil: '2026-10-12', currency: 'USD', paymentTerms: 'Cash on Delivery', deliveryTerms: 'Immediate', tax: 5, discount: 0, status: 'Draft', contact: 'Michael George', contactInfo: '+971 50 111 2222', deliveryLocation: 'Warehouse', notes: 'Supplier quotation received for review.', items: [{ description: 'Safety Helmet', qty: 100, price: 18, discount: 0 }, { description: 'Safety Vest', qty: 100, price: 12, discount: 0 }] }
-    ];
+
     let quotations;
     try {
         const stored = JSON.parse(localStorage.getItem(storageKey));
-        quotations = Array.isArray(stored) ? stored : seed;
+        quotations = Array.isArray(stored) ? stored : [];
     } catch (error) {
-        quotations = seed;
+        quotations = [];
     }
     let editingId = null;
     let viewingId = null;

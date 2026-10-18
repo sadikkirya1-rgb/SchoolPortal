@@ -2,8 +2,8 @@
     const fields = ['staffName','staffId','department','designation','leaveType','startDate','endDate','totalDays','applicationDate','status','reason','contactNumber','emergencyContact','leaveAddress','notes'];
     const leaveTypes = ['Annual Leave','Sick Leave','Casual Leave','Emergency Leave','Maternity Leave','Paternity Leave','Unpaid Leave','Other'];
     const statuses = ['Pending','Approved','Rejected','Cancelled'];
-    const defaultRecords = [{ id:1, staffName:'Ahmed Hassan', staffId:'STF-001', department:'Mathematics', designation:'Teacher', leaveType:'Annual Leave', startDate:'2026-08-28', endDate:'2026-09-02', totalDays:6, applicationDate:'2026-08-20', status:'Pending', reason:'Family vacation.', contactNumber:'+971 50 111 1111', emergencyContact:'+971 50 222 2222', leaveAddress:'Abu Dhabi, UAE', notes:'Will resume duty after the approved leave period.' }, { id:2, staffName:'Sara Ali', staffId:'STF-002', department:'English', designation:'Teacher', leaveType:'Sick Leave', startDate:'2026-08-25', endDate:'2026-08-26', totalDays:2, applicationDate:'2026-08-24', status:'Approved', reason:'Medical rest.', contactNumber:'+971 55 333 3333', emergencyContact:'+971 55 444 4444', leaveAddress:'Abu Dhabi, UAE', notes:'Medical certificate submitted.' }];
-    const read = () => { try { const stored = localStorage.getItem('school_leaves'); return stored === null ? defaultRecords : JSON.parse(stored); } catch (error) { return defaultRecords; } };
+
+    const read = () => { try { const stored = localStorage.getItem('school_leaves'); return stored === null ? [] : JSON.parse(stored); } catch (error) { return []; } };
     const save = records => localStorage.setItem('school_leaves', JSON.stringify(records));
     const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[character]));
     const date = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '-';
