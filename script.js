@@ -1107,6 +1107,7 @@ document.addEventListener('DOMContentLoaded', () => {
             documentPreviewTitle.textContent = title;
             if (documentPreviewSubtitle) documentPreviewSubtitle.textContent = subtitle;
             documentPreviewModal.classList.toggle('parent-report-card-preview', title === 'Report Card');
+            documentPreviewModal.classList.toggle('parent-fee-statement-preview', title === 'Fee Statement');
             documentPreviewPaper.innerHTML = title === 'Report Card' ? prepareParentReportPreview(markup) : markup;
             documentPreviewModal.classList.remove('hidden');
             container.querySelector('[data-parent-document-close]')?.focus();
@@ -1136,7 +1137,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<div class="report-preview-sheet parent-report-preview-sheet"><div class="report-sheet-header"></div><div class="report-sheet-title"><h2>Student Report Card</h2><p>Academic Year <strong>${dashboardEscape(year)}</strong> • ${dashboardEscape(period)}</p></div><div class="report-detail-grid">${details.map(([label, value]) => `<div><span>${dashboardEscape(label)}</span><strong>${dashboardEscape(value)}</strong></div>`).join('')}</div>${rows ? `<div class="report-marks-table-wrap"><table class="report-marks-table"><thead><tr><th>Subject</th><th>Score / max</th><th>Percentage</th><th>Remark</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}<div class="report-remarks parent-teacher-remark"><div><h4>Teacher&apos;s Remarks</h4><p>${dashboardEscape(teacherRemarks)}</p></div></div><div class="report-sheet-summary">${summary.map(([label, value]) => `<div><span>${dashboardEscape(label)}</span><strong>${dashboardEscape(value)}</strong></div>`).join('')}</div><div class="report-remarks"><div><h4>Principal&apos;s Remarks</h4><p>${dashboardEscape(principalRemarks)}</p></div></div><div class="report-signatures"><span>Class Teacher</span><span>Head Teacher</span><span>Parent / Guardian</span></div></div>`;
         };
         const feeStatementPreviewMarkup = fees => {
-            if (!fees.length) return '<div class="parent-document-sheet-heading"><h3>Fee Statement</h3></div><p class="parent-document-empty">No fee records are available for the selected child scope.</p>';
+            const schoolName = dashboardEscape(parentPortalRecordValue(fees[0], ['schoolName'])
+                || currentSchool?.schoolName || 'School');
+            const documentHeader = `<header class="fee-document-header"><div class="fee-document-brand"><span class="fee-document-brand-mark"><i class="fas fa-graduation-cap" aria-hidden="true"></i></span><div><strong>${schoolName}</strong><span>Finance Department · Student Accounts</span></div></div><div class="fee-document-title"><span>Account overview</span><h2>Fee Statement</h2><p>Prepared ${dashboardEscape(new Date().toLocaleDateString())} · ${dashboardEscape(selectedChild === 'all' ? 'All linked students' : 'Selected student')}</p></div></header>`;
+            if (!fees.length) return `<article class="fee-document fee-document-statement">${documentHeader}<p class="parent-document-empty">Fee records will appear here when the school adds them to the cloud.</p></article>`;
             const billedTotal = fees.reduce((sum, fee) => sum + feeBilledAmount(fee), 0);
             const paidTotal = fees.reduce((sum, fee) => sum + feePaidAmount(fee), 0);
             const outstandingTotal = fees.reduce((sum, fee) => sum + feeOutstandingAmount(fee), 0);
@@ -1144,29 +1148,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 const child = parentRecordStudent(fee);
                 const title = parentPortalRecordValue(fee, ['feeName', 'feeType', 'name']) || 'Fee item';
                 const details = [
-                    ['Student', child?.fullName || child?.name || child?.studentName || 'Linked student'],
+                    ['Student', child?.fullName || child?.name || child?.studentName || fee.studentName || 'Linked student'],
+                    ['Student ID', fee.studentAdmissionNo || fee.studentId || child?.admissionNo || child?.admissionNumber || child?.studentCode || '—'],
+                    ['Class', fee.studentClass || child?.className || child?.class || '—'],
+                    ['Academic year', parentPortalRecordValue(fee, ['academicYear', 'year']) || '—']
+                ];
+                const columns = [
+                    ['Fee description', title],
+                    ['Due date', parentRecordDate(fee, ['dueDate', 'paymentDueDate', 'deadline']) || '—'],
                     ['Billed', dashboardMoney(feeBilledAmount(fee))],
                     ['Paid', dashboardMoney(feePaidAmount(fee))],
                     ['Balance', dashboardMoney(feeOutstandingAmount(fee))],
-                    ['Due', parentRecordDate(fee, ['dueDate', 'paymentDueDate', 'deadline']) || '—'],
                     ['Status', parentPortalRecordValue(fee, ['status']) || '—']
                 ];
-                return `<article class="parent-document-line-item"><h5>${dashboardEscape(title)}<span>${dashboardEscape(parentPortalRecordValue(fee, ['academicYear', 'year']))}</span></h5><dl class="parent-document-detail">${details.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl></article>`;
+                return `<tr>${columns.map(([label, value]) => `<td data-label="${dashboardEscape(label)}">${label === 'Status' ? `<span class="fee-document-status">${dashboardEscape(value)}</span>` : dashboardEscape(value)}</td>`).join('')}</tr><tr class="fee-document-statement-student"><td colspan="6"><dl>${details.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl></td></tr>`;
             }).join('');
-            return `<div class="parent-document-sheet-heading"><h3>Fee Statement</h3><p>Prepared ${dashboardEscape(new Date().toLocaleDateString())}</p></div><dl class="parent-document-summary-grid"><div><dt>Total billed</dt><dd>${dashboardEscape(dashboardMoney(billedTotal))}</dd></div><div><dt>Total paid</dt><dd>${dashboardEscape(dashboardMoney(paidTotal))}</dd></div><div><dt>Outstanding</dt><dd>${dashboardEscape(dashboardMoney(outstandingTotal))}</dd></div></dl><section class="parent-document-section"><h4>Fee items</h4>${lines}</section>`;
+            return `<article class="fee-document fee-document-statement">${documentHeader}<dl class="fee-document-summary"><div><dt>Total billed</dt><dd>${dashboardEscape(dashboardMoney(billedTotal))}</dd></div><div><dt>Total paid</dt><dd>${dashboardEscape(dashboardMoney(paidTotal))}</dd></div><div><dt>Outstanding balance</dt><dd>${dashboardEscape(dashboardMoney(outstandingTotal))}</dd></div></dl><section class="fee-document-section"><h3>Fee account details</h3><div class="fee-document-table-wrap"><table class="fee-document-table"><thead><tr><th>Fee description</th><th>Due date</th><th>Billed</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody>${lines}</tbody></table></div></section><footer class="fee-document-footer"><span>Statement generated from the school fee records.</span></footer></article>`;
         };
         const feeReceiptPreviewMarkup = fee => {
             const child = parentRecordStudent(fee);
-            const receiptNumber = parentPortalRecordValue(fee, ['receiptNo', 'receiptNumber', 'receiptId']);
+            const schoolName = parentPortalRecordValue(fee, ['schoolName']) || currentSchool?.schoolName || 'School';
+            const studentName = child?.fullName || child?.name || child?.studentName || fee.studentName || 'Linked student';
+            const studentId = fee.studentAdmissionNo || fee.studentId || child?.admissionNo
+                || child?.admissionNumber || child?.studentCode || '—';
             const details = [
-                ['Student', child?.fullName || child?.name || child?.studentName || 'Linked student'],
-                ['Fee', parentPortalRecordValue(fee, ['feeName', 'feeType', 'name']) || 'Fee payment'],
-                ['Receipt number', receiptNumber || 'Not provided'],
-                ['Payment date', parentRecordDate(fee, ['paymentDate', 'paidDate', 'updatedAt']) || '—'],
-                ['Amount received', dashboardMoney(feePaidAmount(fee))],
-                ['Payment status', 'Paid']
+                ['Student name', studentName],
+                ['Student ID', studentId],
+                ['Class', fee.studentClass || child?.className || child?.class || '—'],
+                ['Academic year', parentPortalRecordValue(fee, ['academicYear', 'year']) || '—']
             ];
-            return `<div class="parent-document-sheet-heading"><h3>Fee Payment Receipt</h3><p>${dashboardEscape(parentPortalRecordValue(fee, ['schoolName']) || 'School')}</p></div><dl class="parent-document-summary-grid">${details.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl><p class="parent-document-empty">Payment is shown as paid based on the school fee record.</p>`;
+            return `<article class="fee-document fee-document-receipt"><header class="fee-document-header"><div class="fee-document-brand"><span class="fee-document-brand-mark"><i class="fas fa-graduation-cap" aria-hidden="true"></i></span><div><strong>${dashboardEscape(schoolName)}</strong><span>Finance Department · Student Accounts</span></div></div><div class="fee-document-title"><span>Official payment record</span><h2>Fee Payment Receipt</h2><p>Receipt No. <strong>${dashboardEscape(parentPortalRecordValue(fee, ['receiptNo', 'receiptNumber', 'receiptId']) || '—')}</strong></p></div></header><section class="fee-document-section"><h3>Student information</h3><dl class="fee-document-grid">${details.map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl></section><section class="fee-document-section"><h3>Fee details</h3><table class="fee-document-table"><thead><tr><th>Description</th><th>Due date</th><th>Amount billed</th></tr></thead><tbody><tr><td>${dashboardEscape(parentPortalRecordValue(fee, ['feeName', 'feeType', 'name']) || 'Fee payment')}</td><td>${dashboardEscape(parentRecordDate(fee, ['dueDate', 'paymentDueDate', 'deadline']) || '—')}</td><td>${dashboardEscape(dashboardMoney(feeBilledAmount(fee)))}</td></tr></tbody></table><div class="fee-document-totals"><div><span>Amount paid</span><strong>${dashboardEscape(dashboardMoney(feePaidAmount(fee)))}</strong></div><div><span>Outstanding balance</span><strong>${dashboardEscape(dashboardMoney(feeOutstandingAmount(fee)))}</strong></div></div></section><section class="fee-document-section"><h3>Payment information</h3><dl class="fee-document-grid">${[['Payment date', parentRecordDate(fee, ['paymentDate', 'paidDate', 'updatedAt']) || '—'], ['Payment method', parentPortalRecordValue(fee, ['paymentMethod']) || '—'], ['Payment status', parentPortalRecordValue(fee, ['status']) || 'Paid']].map(([label, value]) => `<div><dt>${dashboardEscape(label)}</dt><dd>${dashboardEscape(value)}</dd></div>`).join('')}</dl></section>${fee.notes ? `<section class="fee-document-section"><h3>Notes</h3><p class="fee-document-notes">${dashboardEscape(fee.notes)}</p></section>` : ''}<footer class="fee-document-footer"><span>This receipt was generated from the school fee record.</span><div><span>Accounts officer</span><span>Authorized signature</span></div></footer></article>`;
         };
         const attendanceSummaryPreviewMarkup = records => {
             if (!selectedChildren.length || !records.length) return '<div class="parent-document-sheet-heading"><h3>Attendance Summary</h3></div><p class="parent-document-empty">No attendance records are available for the selected child scope.</p>';

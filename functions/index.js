@@ -557,7 +557,7 @@ exports.getLinkedSchoolRecords = onCall(async request => {
             collectionName === 'attendance'
                 ? recordsRef.where('data.memberId', 'in', studentIds).get()
                 : Promise.resolve({ docs: [] }),
-            collectionName === 'attendance' && admissionNumbers.length
+            ['attendance', 'fees'].includes(collectionName) && admissionNumbers.length
                 ? recordsRef.where('data.studentId', 'in', admissionNumbers).get()
                 : Promise.resolve({ docs: [] }),
             collectionName === 'attendance' && admissionNumbers.length
@@ -581,7 +581,7 @@ exports.getLinkedSchoolRecords = onCall(async request => {
                 || isPublishedRecord(snapshot.data().data || {}))
             .map(snapshot => {
                 const data = snapshot.data().data || {};
-                const linkedChild = collectionName === 'attendance'
+                const linkedChild = ['attendance', 'fees'].includes(collectionName)
                     ? linkedChildren.find(child => [data.studentId, data.memberId, snapshot.id]
                         .some(identifier => identifier
                             && (String(identifier) === child.id

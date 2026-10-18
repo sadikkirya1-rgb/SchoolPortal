@@ -110,10 +110,12 @@ service cloud.firestore {
     function canReadPersonalRecord(schoolId, collectionName, recordId, record) {
       let data = recordData(record);
       let studentId = data.get('studentId', recordId);
+      let role = member(schoolId).role;
       let isPublishedExamResult = data.get('isPublished', false) == true
         || data.get('published', false) == true
         || data.get('status', '') in ['Published', 'published', 'Released', 'released'];
-      return isSchoolAdmin(schoolId)
+      return role in ['schoolAdmin', 'superAdmin', 'director', 'headTeacher']
+        || (collectionName == 'fees' && role == 'bursar')
         || (data.keys().hasAny(['classId']) && isAssignedStaff(schoolId, data.classId))
         || ((isLinkedStudent(schoolId, studentId) || isLinkedParent(schoolId, studentId))
           && (collectionName != 'examResults' || isPublishedExamResult));
@@ -129,7 +131,8 @@ service cloud.firestore {
       let data = recordData(record);
       return isSchoolAdmin(schoolId)
         || (canEdit(schoolId, collectionName)
-          && (!isPersonalCollection(collectionName)
+          && (collectionName == 'fees'
+            || !isPersonalCollection(collectionName)
             || (data.keys().hasAll(['classId']) && isAssignedStaff(schoolId, data.classId))));
     }
 
@@ -243,6 +246,7 @@ service cloud.firestore {
           && request.resource.data.version == resource.data.version + 1
           && request.resource.data.updatedBy == request.auth.uid
           && (!isPersonalCollection(collectionName)
+            || (collectionName == 'fees' && request.resource.data.data.get('deleted', false) == true)
             || request.resource.data.data.get('studentId', recordId)
               == resource.data.data.get('studentId', recordId));
         allow delete: if collectionName != 'auditEvents'

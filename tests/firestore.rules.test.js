@@ -63,6 +63,11 @@ before(async () => {
                 notices: { view: true }
             }
         });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/bursar-1'), {
+            role: 'bursar',
+            status: 'active',
+            permissions: { fees: { view: true, edit: true } }
+        });
         await setDoc(doc(firestore, 'schools/SCH-TEST/members/temporary-password-user'), {
             role: 'student',
             status: 'active',
@@ -123,6 +128,12 @@ before(async () => {
         });
         await setDoc(doc(firestore, 'schools/SCH-TEST/fees/FEE-B'), {
             data: { studentId: 'STUDENT-B', balance: 100 },
+            version: 1,
+            updatedBy: 'admin-1',
+            updatedAt: '2026-01-02T00:00:00.000Z'
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/fees/FEE-EDIT'), {
+            data: { studentId: 'STUDENT-A', balance: 100 },
             version: 1,
             updatedBy: 'admin-1',
             updatedAt: '2026-01-02T00:00:00.000Z'
@@ -317,6 +328,25 @@ test('parent data access is read-only and limited to recommended linked-child co
     await assertFails(getDoc(doc(firestore, 'schools/SCH-TEST/studyMaterials/MATERIAL-A')));
     await assertFails(updateDoc(doc(firestore, 'schools/SCH-TEST/attendance/ATTENDANCE-A'), {
         'data.status': 'Absent'
+    }));
+});
+
+test('bursars can update and remove fee records', async () => {
+    const firestore = testEnvironment.authenticatedContext('bursar-1').firestore();
+    const feeRef = doc(firestore, 'schools/SCH-TEST/fees/FEE-EDIT');
+    await assertSucceeds(getDoc(doc(firestore, 'schools/SCH-TEST/fees/FEE-B')));
+    await assertSucceeds(getDocs(collection(firestore, 'schools/SCH-TEST/fees')));
+    await assertSucceeds(updateDoc(feeRef, {
+        data: { studentId: 'STUDENT-A', balance: 75 },
+        version: 2,
+        updatedBy: 'bursar-1',
+        updatedAt: new Date('2026-01-03T00:00:00.000Z')
+    }));
+    await assertSucceeds(updateDoc(feeRef, {
+        data: { deleted: true },
+        version: 3,
+        updatedBy: 'bursar-1',
+        updatedAt: new Date('2026-01-04T00:00:00.000Z')
     }));
 });
 
