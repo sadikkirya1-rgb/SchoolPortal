@@ -253,6 +253,7 @@ async function processMutation(mutation) {
     window.dispatchEvent(new CustomEvent('school-portal-sync-update', {
         detail: { collection: mutation.collection, recordId: mutation.recordId, mutationId: mutation.mutationId, state: result.state }
     }));
+    return result.current?.data ?? cloudData;
 }
 
 async function syncOutbox() {
@@ -421,7 +422,7 @@ async function saveRecord(collectionName, recordId, data) {
         detail: { collection: collectionName, recordId, state: 'pending' }
     }));
     try {
-        await processMutation({
+        const savedData = await processMutation({
             mutationId,
             schoolId: owner.schoolId,
             uid: owner.uid,
@@ -430,6 +431,7 @@ async function saveRecord(collectionName, recordId, data) {
             data: cleanData
         });
         cloudWriteErrors = 0;
+        return savedData;
     } catch (error) {
         cloudWriteErrors += 1;
         throw error;

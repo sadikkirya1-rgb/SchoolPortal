@@ -1043,17 +1043,20 @@ function createIDCardsModule(category) {
                     createdAt: existing?.createdAt || data.createdAt
                 };
                 try {
-                    await api.saveRecord('idCards', recordId, savedRecord);
-                    records = [savedRecord, ...records.filter(record => record.id !== recordId)];
+                    const cloudRecord = await api.saveRecord('idCards', recordId, savedRecord);
+                    const confirmedRecord = { ...savedRecord, ...(cloudRecord || {}), id: recordId };
+                    records = [confirmedRecord, ...records.filter(record => record.id !== recordId)];
                     render();
                     editingRecordId = '';
                     sec.querySelector('[data-idc-editing]').textContent = 'New Record';
-                    toast('ID card saved on this device; cloud sync is pending.');
+                    toast(savedRecord.photo
+                        ? 'ID card and photo saved to the school cloud.'
+                        : 'ID card saved to the school cloud.');
                 } catch (error) {
                     console.error('Unable to save the ID card.', error);
                     toast(error?.code === 'permission-denied'
                         ? 'Firestore denied this save. Deploy the latest Firestore rules and confirm your account has ID Cards edit access.'
-                        : 'ID card could not be saved. Please try again.');
+                        : `ID card could not be saved: ${error?.message || 'check your connection and try again.'}`);
                 }
             })();
             return;
