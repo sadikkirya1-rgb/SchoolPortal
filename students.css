@@ -21,6 +21,7 @@
 .students-modal-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;flex:1;min-height:0;align-items:start;overflow-y:auto;overscroll-behavior:contain}
 .students-modal-layout .students-form-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:0 18px;min-width:0;max-height:none;overflow:visible}
 .students-modal .students-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.students-photo-upload-top{grid-column:1/-1;margin:0 0 18px}
 .students-live-summary{align-self:start;position:static;overflow:visible}
 @media(max-width:900px){
     .students-modal-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto}
