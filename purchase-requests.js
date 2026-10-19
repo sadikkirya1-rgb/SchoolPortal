@@ -66,6 +66,16 @@ function createPurchaseRequestsModule() {
     const q = selector => sec.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
     const money = value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value) || 0);
+    const form = q('[data-pr-form]');
+    const formMain = document.createElement('div');
+    formMain.className = 'pr-form-main';
+    const formFooter = form.querySelector('.pr-modal-actions');
+    const summaryPanel = document.createElement('aside');
+    summaryPanel.className = 'pr-live-summary';
+    summaryPanel.innerHTML = '<h4>Request Summary</h4><p>Review requester, items, and total before saving.</p><div data-pr-live-fields></div><div class="pr-summary-row"><span>Status</span><strong data-pr-live-status>Draft</strong></div><h5>Items</h5><div data-pr-live-items></div><div class="pr-live-total"><span>Estimated total</span><strong data-pr-live-total>$0.00</strong></div>';
+    formMain.append(form.querySelector('.pr-grid'), form.querySelector('.pr-items'));
+    form.insertBefore(formMain, formFooter);
+    form.insertBefore(summaryPanel, formFooter);
     const subtotal = request => request.items.reduce((sum, item) => sum + Number(item[1]) * Number(item[2]), 0);
     const total = request => subtotal(request) * 1.05;
     const formatDate = value => {
@@ -97,6 +107,33 @@ function createPurchaseRequestsModule() {
         }).join('') : '<tr><td colspan="8"><div class="pr-empty">No purchase requests found.</div></td></tr>';
         updateStats();
     };
+    const updateRequestSummary = () => {
+        const fields = summaryPanel.querySelector('[data-pr-live-fields]');
+        fields.replaceChildren(...Array.from(formMain.querySelectorAll('.pr-grid input, .pr-grid select, .pr-grid textarea'), field => {
+            const label = field.closest('label');
+            const row = document.createElement('div');
+            const name = document.createElement('span');
+            const value = document.createElement('strong');
+            row.className = 'pr-summary-row';
+            name.textContent = label?.childNodes[0].textContent.trim() || field.name;
+            value.textContent = field.value || '-';
+            row.append(name, value);
+            return row;
+        }));
+        summaryPanel.querySelector('[data-pr-live-status]').textContent = requests.find(request => request.id === editId)?.status || 'Draft';
+        const itemList = summaryPanel.querySelector('[data-pr-live-items]');
+        itemList.replaceChildren(...Array.from(form.querySelectorAll('.pr-item-row'), itemRow => {
+            const item = document.createElement('div');
+            const name = document.createElement('span');
+            const details = document.createElement('strong');
+            item.className = 'pr-summary-item';
+            name.textContent = itemRow.querySelector('[name="itemName"]').value || 'Item';
+            details.textContent = `Qty ${itemRow.querySelector('[name="quantity"]').value || '0'} · ${money(itemRow.querySelector('[name="price"]').value)} each · ${money(itemRow.querySelector('[name="lineTotal"]').value.replace(/[^0-9.-]/g, ''))} total`;
+            item.append(name, details);
+            return item;
+        }));
+        summaryPanel.querySelector('[data-pr-live-total]').textContent = q('[data-pr-total]').textContent;
+    };
     const calculate = () => {
         let sum = 0;
         sec.querySelectorAll('.pr-item-row').forEach(row => {
@@ -109,6 +146,7 @@ function createPurchaseRequestsModule() {
         q('[data-pr-subtotal]').textContent = money(sum);
         q('[data-pr-tax]').textContent = money(sum * 0.05);
         q('[data-pr-total]').textContent = money(sum * 1.05);
+        updateRequestSummary();
     };
     const addItem = (item = ['', 1, 0]) => {
         const row = document.createElement('div');
@@ -121,7 +159,6 @@ function createPurchaseRequestsModule() {
     const closeForm = () => q('[data-pr-form-overlay]').classList.remove('is-open');
     const closeView = () => q('[data-pr-view-overlay]').classList.remove('is-open');
     const openForm = request => {
-        const form = q('[data-pr-form]');
         form.reset();
         q('[data-pr-items]').replaceChildren();
         editId = request?.id ?? null;
@@ -138,6 +175,7 @@ function createPurchaseRequestsModule() {
         }
         calculate();
         q('[data-pr-form-overlay]').classList.add('is-open');
+        updateRequestSummary();
         form.elements.requester.focus();
     };
     const requestDetails = request => `
@@ -166,6 +204,8 @@ function createPurchaseRequestsModule() {
     q('[data-pr-add-item]').addEventListener('click', () => addItem());
     q('[data-pr-search]').addEventListener('input', render);
     q('[data-pr-filter]').addEventListener('change', render);
+    form.addEventListener('input', updateRequestSummary);
+    form.addEventListener('change', updateRequestSummary);
     q('[data-pr-print-list]').addEventListener('click', () => {
         const rows = requests.map(request => `<tr><td>${escape(request.id)}</td><td>${escape(request.requester)}</td><td>${escape(request.department)}</td><td>${request.items.reduce((sum, item) => sum + Number(item[1]), 0)}</td><td>${money(total(request))}</td><td>${formatDate(request.date)}</td><td>${escape(request.status)}</td></tr>`).join('');
         printDocument('Purchase Request List', `<header class="head"><div><h1>Purchase Requests</h1><p>Procurement Request Summary</p></div><div>${new Date().toLocaleDateString('en-US')}</div></header><table><thead><tr><th>Request ID</th><th>Requester</th><th>Department</th><th>Items</th><th>Amount</th><th>Date</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`);

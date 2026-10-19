@@ -55,6 +55,27 @@ function createFeesModule(){
         updateStats();
     };
     const form=q('[data-fee-form]'),formOverlay=q('[data-fee-form-overlay]'),previewOverlay=q('[data-fee-preview-overlay]');
+    const feeSummaryLayout=document.createElement('div');
+    feeSummaryLayout.className='fee-live-layout';
+    const feeSummary=document.createElement('aside');
+    feeSummary.className='fee-live-summary';
+    feeSummary.innerHTML='<h4>Fee Summary</h4><p>Review the student, amounts, and payment status.</p><div data-fee-live-fields></div>';
+    const feeFormGrid=form.querySelector('.fee-form-grid');
+    feeSummaryLayout.append(feeFormGrid,feeSummary);
+    form.insertBefore(feeSummaryLayout,form.querySelector('.fee-form-actions'));
+    const updateFeeSummary=()=>{
+        const target=feeSummary.querySelector('[data-fee-live-fields]');
+        target.replaceChildren(...Array.from(form.querySelectorAll('input[name],select[name],textarea[name]')).filter(field=>field.type!=='hidden').map(field=>{
+            const row=document.createElement('div');
+            const label=document.createElement('span');
+            const value=document.createElement('strong');
+            row.className='fee-summary-row';
+            label.textContent=field.closest('.fee-form-group')?.querySelector('label')?.textContent.trim()||field.name;
+            value.textContent=['totalFee','amountPaid','balance'].includes(field.name)?money(field.value):field.value||'-';
+            row.append(label,value);
+            return row;
+        }));
+    };
     let studentRecords=[];
     const studentDisplayId=student=>String(student.admissionNo||student.admissionNumber||student.studentCode||student.studentId||student.id||'').trim();
     const studentRecordId=student=>String(student.id||studentDisplayId(student)).trim();
@@ -136,7 +157,7 @@ function createFeesModule(){
         yearField.value=academicYear;
         setStatus();
     });
-    const setStatus=()=>{const total=num(form.elements.totalFee.value),paid=Math.min(total,num(form.elements.amountPaid.value)),balance=Math.max(0,total-paid);form.elements.balance.value=balance;form.elements.status.value=paid>=total&&total>0?'Paid':paid>0?'Partial':form.elements.dueDate.value&&new Date(`${form.elements.dueDate.value}T00:00:00`)<new Date()?'Overdue':'Pending'};
+    const setStatus=()=>{const total=num(form.elements.totalFee.value),paid=Math.min(total,num(form.elements.amountPaid.value)),balance=Math.max(0,total-paid);form.elements.balance.value=balance;form.elements.status.value=paid>=total&&total>0?'Paid':paid>0?'Partial':form.elements.dueDate.value&&new Date(`${form.elements.dueDate.value}T00:00:00`)<new Date()?'Overdue':'Pending';updateFeeSummary()};
     const reset=()=>{form.reset();refreshStudentOptions();form.elements.id.value='';form.elements.totalFee.value=0;form.elements.amountPaid.value=0;form.elements.balance.value=0;form.elements.dueDate.value=new Date().toISOString().slice(0,10);q('[data-fee-form-title]').textContent='Add Fee Record';setStatus()};
     const openForm=item=>{if(!item)reset();else{refreshStudentOptions();Object.keys(item).forEach(name=>{if(form.elements[name])form.elements[name].value=item[name]});const savedStudentId=String(item.studentId||'');if(savedStudentId&&!Array.from(studentSelect.options).some(option=>option.value===savedStudentId)){const student=studentForId(savedStudentId);studentSelect.add(new Option(`${student?studentDisplayId(student):savedStudentId} — ${student?studentName(student):item.studentName||'Student record unavailable'}`,savedStudentId))}studentSelect.value=savedStudentId;studentSelect.disabled=!studentRecords.length&&!savedStudentId;q('[data-fee-form-title]').textContent='Edit Fee Record';setStatus()}formOverlay.classList.add('is-open');studentSelect.focus()};
     const receipt=item=>`<article class="fee-document fee-document-receipt"><header class="fee-document-header"><div class="fee-document-brand"><span class="fee-document-brand-mark"><i class="fas fa-graduation-cap" aria-hidden="true"></i></span><div><strong>${esc(item.schoolName||'School')}</strong><span>Finance Department · Student Accounts</span></div></div><div class="fee-document-title"><span>Official payment record</span><h2>Fee Payment Receipt</h2><p>Receipt No. <strong>${esc(item.receiptNo||'—')}</strong></p></div></header><section class="fee-document-section"><h3>Student information</h3><dl class="fee-document-grid">${[['Student name',item.studentName],['Student ID',item.studentAdmissionNo||item.studentId],['Class',item.studentClass],['Academic year',item.academicYear]].map(([label,value])=>`<div><dt>${label}</dt><dd>${esc(value||'—')}</dd></div>`).join('')}</dl></section><section class="fee-document-section"><h3>Fee details</h3><table class="fee-document-table"><thead><tr><th>Description</th><th>Due date</th><th>Amount billed</th></tr></thead><tbody><tr><td>${esc(item.feeType||'Fee')}</td><td>${date(item.dueDate)}</td><td>${money(item.totalFee)}</td></tr></tbody></table><div class="fee-document-totals"><div><span>Amount paid</span><strong>${money(item.amountPaid)}</strong></div><div><span>Outstanding balance</span><strong>${money(item.balance)}</strong></div></div></section><section class="fee-document-section"><h3>Payment information</h3><dl class="fee-document-grid">${[['Payment date',item.paymentDate?date(item.paymentDate):'—'],['Payment method',item.paymentMethod||'—'],['Payment status',item.status||'Pending']].map(([label,value])=>`<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl></section>${item.notes?`<section class="fee-document-section"><h3>Notes</h3><p class="fee-document-notes">${esc(item.notes)}</p></section>`:''}<footer class="fee-document-footer"><span>This receipt was generated from the school fee record.</span><div><span>Accounts officer</span><span>Authorized signature</span></div></footer></article>`;
