@@ -4780,6 +4780,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.classList.remove('hidden');
     }
 
+    window.openSchoolPortalQrAttendanceScanner = () => {
+        const idCardsLink = Array.from(document.querySelectorAll('.nav-links a'))
+            .find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'ID Cards');
+        if (idCardsLink) {
+            idCardsLink.click();
+        } else {
+            let idCardsModule = document.getElementById('idCardsModule');
+            if (!idCardsModule) {
+                idCardsModule = createIDCardsModule('Academic Department');
+                const dashboardEl = document.querySelector('.main > .dashboard-shell');
+                if (dashboardEl) dashboardEl.parentNode.insertBefore(idCardsModule, dashboardEl);
+            }
+            showSection('idCardsModule');
+            updateBreadcrumb(['Academic Department', 'ID Cards']);
+        }
+        document.querySelector('#idCardsModule [data-idc-open-scanner]')?.click();
+    };
+
     function showParentPortalHome({ persist = true, preview = false } = {}) {
         activeParentPortalView = '';
         hideAllContentAreas();
@@ -8703,6 +8721,11 @@ Total Amount: —
                 }
                 showSection('settingsModule');
                 updateBreadcrumb([category, 'Settings']);
+                return;
+            }
+
+            if (linkText === 'QR Attendance Scanner') {
+                window.openSchoolPortalQrAttendanceScanner?.();
                 return;
             }
 

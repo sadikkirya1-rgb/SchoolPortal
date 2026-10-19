@@ -35,9 +35,12 @@
 #idCardsModule [data-idc-camera]{display:block;width:100%;height:100%;object-fit:cover}
 #idCardsModule .idc-camera-guide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff;text-align:center;pointer-events:none}
 #idCardsModule .idc-camera-guide-label,#idCardsModule .idc-camera-guide-hint{padding:5px 9px;border-radius:20px;background:#0f172acc;font-size:11px;font-weight:800}
-#idCardsModule .idc-camera-guide-box{position:relative;width:min(62%,240px);aspect-ratio:1;border:3px solid #38f8c2;border-radius:14px;box-shadow:0 0 0 999px #0f172a40,0 0 16px #38f8c299}
-#idCardsModule .idc-camera-scan-line{position:absolute;top:0;right:0;left:0;height:2px;opacity:0;background:#38f8c2;box-shadow:0 0 8px 2px #38f8c299}
+#idCardsModule .idc-camera-guide-box{position:relative;width:min(62%,240px);aspect-ratio:1;border:3px solid #ef4444;border-radius:14px;box-shadow:0 0 0 999px #0f172a40,0 0 16px #ef444499;transition:border-color .15s,box-shadow .15s}
+#idCardsModule .idc-camera-frame.is-qr-detected .idc-camera-guide-box{border-color:#22c55e;box-shadow:0 0 0 999px #0f172a40,0 0 16px #22c55e99}
+#idCardsModule .idc-camera-scan-line{position:absolute;top:0;right:0;left:0;height:2px;opacity:0;background:#ef4444;box-shadow:0 0 8px 2px #ef444499}
+#idCardsModule .idc-camera-frame.is-qr-detected .idc-camera-scan-line{background:#22c55e;box-shadow:0 0 8px 2px #22c55e99}
 #idCardsModule .idc-camera-frame.is-scanning .idc-camera-scan-line{opacity:1;animation:idc-scan-sweep 2.4s ease-in-out infinite alternate}
+#idCardsModule .idc-camera-message{position:absolute;z-index:3;top:50%;left:50%;width:max-content;max-width:calc(100% - 24px);padding:12px 18px;border:1px solid #86efac;border-radius:10px;background:#166534eF;color:#fff;font-size:14px;font-weight:800;text-align:center;box-shadow:0 8px 24px #0005;transform:translate(-50%,-50%)}
 @keyframes idc-scan-sweep{from{top:2%}to{top:98%}}
 #idCardsModule .idc-scan-result{display:grid;justify-items:center;gap:5px;max-width:520px;margin:12px auto 0;padding:14px;border:1px solid #86efac;border-radius:10px;background:#f0fdf4;color:#166534;font-size:13px;text-align:center}
 #idCardsModule .idc-scan-result [data-idc-result-action]{font-size:16px;font-weight:900}
@@ -54,3 +57,21 @@
 #idCardsModule .idc-export-btn{justify-self:end;white-space:nowrap}
 @media(max-width:900px){#idCardsModule .idc-record-toolbar{grid-template-columns:1fr auto}#idCardsModule .idc-record-filters{grid-column:1/-1;grid-row:2}#idCardsModule .idc-search{grid-column:1/-1;grid-row:1;justify-self:center;max-width:420px}#idCardsModule .idc-export-btn{grid-column:2;grid-row:2}}
 @media(max-width:600px){#idCardsModule .idc-record-toolbar{grid-template-columns:1fr;padding:0 14px 14px}#idCardsModule .idc-record-filters{grid-column:auto;grid-row:auto}#idCardsModule .idc-filter{flex:1;min-width:0}#idCardsModule .idc-search{grid-column:auto;grid-row:auto;max-width:none}#idCardsModule .idc-export-btn{grid-column:auto;grid-row:auto;justify-self:stretch}}
+#idCardsModule .idc-camera-frame{height:auto;aspect-ratio:4/3;max-height:560px}
+#idCardsModule .idc-scan-status{line-height:1.5}
+#idCardsModule .idc-scan-controls .idc-btn{min-height:42px}
+#idCardsModule .idc-scan-controls .idc-btn:disabled{cursor:not-allowed;opacity:.55;transform:none}
+@media(max-width:600px){
+    #idCardsModule .idc-scan-panel{padding:14px}
+    #idCardsModule .idc-scan-heading{align-items:center;gap:8px}
+    #idCardsModule .idc-scan-heading>div{min-width:0}
+    #idCardsModule .idc-scan-heading p{line-height:1.45}
+    #idCardsModule .idc-scan-controls{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    #idCardsModule .idc-scan-controls label{grid-column:1/-1;min-width:0}
+    #idCardsModule .idc-scan-controls select{width:100%;min-height:44px}
+    #idCardsModule .idc-scan-controls .idc-btn{min-height:46px;padding:10px 8px}
+    #idCardsModule .idc-camera-frame{width:100%;min-height:0;aspect-ratio:4/3}
+    #idCardsModule .idc-camera-guide{gap:8px;padding:8px}
+    #idCardsModule .idc-camera-guide-label,#idCardsModule .idc-camera-guide-hint{font-size:10px}
+    #idCardsModule .idc-scan-result{font-size:12px}
+}

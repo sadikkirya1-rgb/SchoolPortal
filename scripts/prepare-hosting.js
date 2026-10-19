@@ -49,13 +49,19 @@ if (!fs.existsSync(path.join(publicDirectory, 'index.html'))) {
 }
 
 [
-    'node_modules/qrcode-generator/dist/qrcode.js',
-    'node_modules/jsqr/dist/jsQR.js'
-].forEach(relativePath => {
-    const sourcePath = path.join(projectDirectory, relativePath);
-    const targetPath = path.join(publicDirectory, relativePath);
+    ['node_modules/qrcode-generator/dist/qrcode.js', 'vendor/qrcode.js'],
+    ['node_modules/jsqr/dist/jsQR.js', 'vendor/jsQR.js']
+].forEach(([sourceRelativePath, targetRelativePath]) => {
+    const sourcePath = path.join(projectDirectory, sourceRelativePath);
+    const targetPath = path.join(publicDirectory, targetRelativePath);
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     fs.copyFileSync(sourcePath, targetPath);
 });
+
+const hostedIndexPath = path.join(publicDirectory, 'index.html');
+const hostedIndex = fs.readFileSync(hostedIndexPath, 'utf8')
+    .replace('./node_modules/qrcode-generator/dist/qrcode.js', './vendor/qrcode.js')
+    .replace('./node_modules/jsqr/dist/jsQR.js', './vendor/jsQR.js');
+fs.writeFileSync(hostedIndexPath, hostedIndex);
 
 console.log('Prepared Firebase Hosting files in public/.');
