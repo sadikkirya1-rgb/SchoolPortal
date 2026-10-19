@@ -39,6 +39,9 @@ function createIDCardsModule(category) {
     const scanMethodControl = document.createElement('label');
     scanMethodControl.innerHTML = '<span>Identify member</span><select data-idc-scan-method aria-label="Identify member using"><option value="qr">QR code</option><option value="face">Face</option><option value="either">QR code or face</option></select>';
     scannerPanel.querySelector('.idc-scan-controls').prepend(scanMethodControl);
+    const cameraFacingControl = document.createElement('label');
+    cameraFacingControl.innerHTML = '<span>Camera</span><select data-idc-camera-facing aria-label="Choose camera"><option value="environment">Rear camera</option><option value="user">Front selfie camera</option></select>';
+    scannerPanel.querySelector('.idc-scan-controls').prepend(cameraFacingControl);
     scannerPanel.querySelector('.idc-scan-heading p').textContent = 'Use a member QR code or an enrolled face to record attendance.';
     sec.querySelector('.idc-header').after(scannerPanel);
 
@@ -579,6 +582,8 @@ function createIDCardsModule(category) {
     const stopCamera = () => {
         clearTimeout(cameraTimer);
         cameraTimer = null;
+        lastScannedToken = '';
+        lastQrSeenAt = 0;
         frameScanInProgress = false;
         cameraStream?.getTracks().forEach(track => track.stop());
         cameraStream = null;
@@ -770,7 +775,11 @@ function createIDCardsModule(category) {
             return;
         }
         lastScannedToken = token;
-        scanStatus('QR code detected. Registering attendance…');
+        const scanAction = sec.querySelector('[data-idc-scan-mode]').value;
+        const memberName = matchedCard.memberName || 'Member';
+        scanStatus(scanAction === 'check-in'
+            ? `${memberName} is signing in…`
+            : `${memberName} is signing out…`);
         scanInProgress = true;
         void recordAttendanceScan(decodedText).then(recorded => {
             if (recorded?.recorded) {
@@ -876,6 +885,7 @@ function createIDCardsModule(category) {
                 }
                 if (decodedText) handleCameraQr(decodedText);
                 else if (scanMethod === 'either') await scanFaceFrame();
+                else handleCameraQr('');
             }
         } catch (error) {
             console.error('Unable to read a frame from the attendance camera.', error);
@@ -918,7 +928,7 @@ function createIDCardsModule(category) {
             cameraStream = await navigator.mediaDevices.getUserMedia({
                 audio: false,
                 video: {
-                    facingMode: { ideal: scanMethod === 'qr' ? 'environment' : 'user' },
+                    facingMode: { ideal: sec.querySelector('[data-idc-camera-facing]').value },
                     width: { ideal: 1920 },
                     height: { ideal: 1080 }
                 }
@@ -952,6 +962,12 @@ function createIDCardsModule(category) {
         }
     };
     sec.querySelector('[data-idc-camera-start]').addEventListener('click', startCamera);
+    sec.querySelector('[data-idc-camera-facing]').addEventListener('change', () => {
+        const wasScanning = Boolean(cameraStream);
+        stopCamera();
+        if (wasScanning) void startCamera();
+        else scanStatus('Camera selection saved. Start the camera to scan.');
+    });
     sec.querySelector('[data-idc-scan-method]').addEventListener('change', () => {
         stopCamera();
         const scanMethod = sec.querySelector('[data-idc-scan-method]').value;
