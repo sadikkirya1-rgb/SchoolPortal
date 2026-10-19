@@ -4,6 +4,7 @@
     "test": "firebase emulators:exec --only firestore,functions,storage,pubsub --project demo-school-portal \"node --test tests/*.test.js\""
   },
   "dependencies": {
+    "@vladmandic/face-api": "^1.7.15",
     "firebase": "^13.0.0",
     "jsqr": "^1.4.0",
     "qrcode-generator": "^2.0.4"

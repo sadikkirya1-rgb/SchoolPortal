@@ -36,7 +36,137 @@ function createIDCardsModule(category) {
     cameraZoomControl.className = 'idc-camera-zoom hidden';
     cameraZoomControl.innerHTML = '<span>Camera zoom <output data-idc-zoom-value>1×</output></span><input type="range" min="1" max="1" step="0.1" value="1" aria-label="Camera zoom" data-idc-camera-zoom>';
     scannerPanel.querySelector('.idc-scan-controls').append(cameraZoomControl);
+    const scanMethodControl = document.createElement('label');
+    scanMethodControl.innerHTML = '<span>Identify member</span><select data-idc-scan-method aria-label="Identify member using"><option value="qr">QR code</option><option value="face">Face</option><option value="either">QR code or face</option></select>';
+    scannerPanel.querySelector('.idc-scan-controls').prepend(scanMethodControl);
+    scannerPanel.querySelector('.idc-scan-heading p').textContent = 'Use a member QR code or an enrolled face to record attendance.';
     sec.querySelector('.idc-header').after(scannerPanel);
+
+    const faceEnrollmentControl = document.createElement('div');
+    faceEnrollmentControl.className = 'idc-field idc-face-enrollment-control';
+    faceEnrollmentControl.innerHTML = '<label>Optional face sign-in</label><button class="idc-btn idc-btn-light" type="button" data-idc-face-open><i class="fas fa-camera" aria-hidden="true"></i> Capture face</button><span data-idc-face-status role="status">Not enrolled</span>';
+    sec.querySelector('.idc-fields').append(faceEnrollmentControl);
+    const idCardsTableHeader = sec.querySelector('[data-idc-table]').closest('table').querySelector('thead tr');
+    const faceStatusHeading = document.createElement('th');
+    faceStatusHeading.textContent = 'Face sign-in';
+    idCardsTableHeader.insertBefore(faceStatusHeading, idCardsTableHeader.children[5] || null);
+    const faceEnrollmentModal = document.createElement('section');
+    faceEnrollmentModal.className = 'idc-view-modal hidden';
+    faceEnrollmentModal.dataset.idcFaceModal = '';
+    faceEnrollmentModal.setAttribute('role', 'dialog');
+    faceEnrollmentModal.setAttribute('aria-modal', 'true');
+    faceEnrollmentModal.setAttribute('aria-label', 'Optional face enrollment');
+    faceEnrollmentModal.innerHTML = '<div class="idc-view-dialog idc-face-dialog"><header><div><h3>Optional face sign-in</h3><p>Face capture is optional; QR attendance stays available.</p></div><button class="idc-btn idc-btn-light" type="button" data-idc-face-close>Close</button></header><p class="idc-face-privacy">The face photo and template are saved with this member’s school ID record. Matching runs in this browser; camera video is not uploaded. Face matching does not verify liveness and can be fooled by a photo.</p><label class="idc-face-consent"><input type="checkbox" data-idc-face-consent> I have permission to capture and use this member’s face for attendance.</label><video data-idc-face-video playsinline muted aria-label="Camera preview for face enrollment"></video><p data-idc-face-message role="status" aria-live="polite">Confirm permission to start the camera.</p><div class="idc-face-actions"><button class="idc-btn idc-btn-primary" type="button" data-idc-face-start disabled>Start camera</button><button class="idc-btn idc-btn-primary" type="button" data-idc-face-capture disabled>Capture and enroll</button><button class="idc-btn idc-btn-light" type="button" data-idc-face-remove>Remove enrolled face</button></div></div>';
+    sec.append(faceEnrollmentModal);
+    const faceVideo = faceEnrollmentModal.querySelector('[data-idc-face-video]');
+    const faceMessage = faceEnrollmentModal.querySelector('[data-idc-face-message]');
+    const faceConsent = faceEnrollmentModal.querySelector('[data-idc-face-consent]');
+    let faceEnrollmentStream = null;
+    let faceDescriptor = null;
+    let faceModelsLoaded = false;
+    const faceModelPath = './node_modules/@vladmandic/face-api/model';
+    const loadFaceModels = async () => {
+        const faceApi = window.faceapi;
+        if (!faceApi) throw new Error('Face matching is unavailable. Reload the app and try again.');
+        if (faceModelsLoaded) return faceApi;
+        faceMessage.textContent = 'Loading face recognition models…';
+        await Promise.all([
+            faceApi.nets.tinyFaceDetector.loadFromUri(faceModelPath),
+            faceApi.nets.faceLandmark68TinyNet.loadFromUri(faceModelPath),
+            faceApi.nets.faceRecognitionNet.loadFromUri(faceModelPath)
+        ]);
+        faceModelsLoaded = true;
+        return faceApi;
+    };
+    const updateFaceStatus = () => {
+        sec.querySelector('[data-idc-face-status]').textContent = faceDescriptor?.length === 128
+            ? 'Enrolled for optional face sign-in'
+            : 'Not enrolled';
+    };
+    const stopFaceEnrollmentCamera = () => {
+        faceEnrollmentStream?.getTracks().forEach(track => track.stop());
+        faceEnrollmentStream = null;
+        faceVideo.srcObject = null;
+        faceEnrollmentModal.querySelector('[data-idc-face-start]').disabled = !faceConsent.checked;
+        faceEnrollmentModal.querySelector('[data-idc-face-capture]').disabled = true;
+    };
+    faceEnrollmentControl.querySelector('[data-idc-face-open]').addEventListener('click', () => {
+        stopCamera();
+        faceEnrollmentModal.classList.remove('hidden');
+    });
+    faceEnrollmentModal.querySelector('[data-idc-face-close]').addEventListener('click', () => {
+        stopFaceEnrollmentCamera();
+        faceEnrollmentModal.classList.add('hidden');
+    });
+    faceConsent.addEventListener('change', () => {
+        faceEnrollmentModal.querySelector('[data-idc-face-start]').disabled = !faceConsent.checked;
+        if (!faceConsent.checked) stopFaceEnrollmentCamera();
+    });
+    faceEnrollmentModal.querySelector('[data-idc-face-start]').addEventListener('click', async () => {
+        if (!faceConsent.checked) return;
+        try {
+            await loadFaceModels();
+            faceEnrollmentStream = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: { facingMode: { ideal: 'user' }, width: { ideal: 640 }, height: { ideal: 480 } }
+            });
+            faceVideo.srcObject = faceEnrollmentStream;
+            await faceVideo.play();
+            faceEnrollmentModal.querySelector('[data-idc-face-start]').disabled = true;
+            faceEnrollmentModal.querySelector('[data-idc-face-capture]').disabled = false;
+            faceMessage.textContent = 'Look at the camera in good lighting, then capture.';
+        } catch (error) {
+            faceMessage.textContent = error.message || 'The camera could not start. Check permissions and try again.';
+        }
+    });
+    faceEnrollmentModal.querySelector('[data-idc-face-capture]').addEventListener('click', async () => {
+        const captureButton = faceEnrollmentModal.querySelector('[data-idc-face-capture]');
+        captureButton.disabled = true;
+        try {
+            const faceApi = await loadFaceModels();
+            const detections = await faceApi.detectAllFaces(faceVideo, new faceApi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.55 }))
+                .withFaceLandmarks(true)
+                .withFaceDescriptors();
+            if (detections.length !== 1) throw new Error(detections.length ? 'Only one face should be visible at a time.' : 'No clear face found. Improve the lighting and try again.');
+            faceDescriptor = Array.from(detections[0].descriptor);
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            let facePhoto = '';
+            for (const maximumSize of [256, 192, 160, 128, 96]) {
+                const scale = Math.min(1, maximumSize / Math.max(faceVideo.videoWidth, faceVideo.videoHeight));
+                canvas.width = Math.round(faceVideo.videoWidth * scale);
+                canvas.height = Math.round(faceVideo.videoHeight * scale);
+                context.drawImage(faceVideo, 0, 0, canvas.width, canvas.height);
+                for (const quality of [0.72, 0.58, 0.44]) {
+                    facePhoto = canvas.toDataURL('image/jpeg', quality);
+                    if (facePhoto.length <= 3800) break;
+                }
+                if (facePhoto.length <= 3800) break;
+            }
+            if (facePhoto.length > 3800) throw new Error('The face photo could not be compressed for the ID card. Try again in better lighting.');
+            photo = facePhoto;
+            sec.querySelector('[data-idc-photo-preview]').innerHTML = `<img src="${photo}" alt="Member face photo">`;
+            updateFaceStatus();
+            faceMessage.textContent = 'Face captured. Save the member ID card to store the face enrollment.';
+            stopFaceEnrollmentCamera();
+        } catch (error) {
+            faceMessage.textContent = error.message || 'Face capture failed. Try again.';
+            captureButton.disabled = false;
+        }
+    });
+    faceEnrollmentModal.querySelector('[data-idc-face-remove]').addEventListener('click', () => {
+        faceDescriptor = null;
+        photo = '';
+        sec.querySelector('[data-idc-photo-preview]').textContent = '👤';
+        updateFaceStatus();
+        faceMessage.textContent = 'Face enrollment removed. Save the member ID card to apply this change.';
+    });
+    faceEnrollmentModal.addEventListener('click', event => {
+        if (event.target === faceEnrollmentModal) {
+            stopFaceEnrollmentCamera();
+            faceEnrollmentModal.classList.add('hidden');
+        }
+    });
 
     sec.querySelector('[data-idc-open-scanner]')?.addEventListener('click', () => {
         scannerPanel.classList.remove('hidden');
@@ -53,7 +183,7 @@ function createIDCardsModule(category) {
     qrTokenField.name = 'qrToken';
     qrTokenField.dataset.idcField = '';
     sec.querySelector('.idc-fields').append(qrTokenField);
-    const getRecord = () => ({...fields(), memberRecordId: selectedMemberRecordId, ...(fields().memberType === 'Student' && selectedMemberRecordId ? { studentId: selectedMemberRecordId } : {}), photo, logo, createdAt: new Date().toISOString()}); const toast = message => { const el = sec.querySelector('[data-idc-toast]'); el.textContent = message; el.classList.add('show'); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove('show'), 2400); };
+    const getRecord = () => ({...fields(), memberRecordId: selectedMemberRecordId, ...(fields().memberType === 'Student' && selectedMemberRecordId ? { studentId: selectedMemberRecordId } : {}), photo, faceDescriptor, logo, createdAt: new Date().toISOString()}); const toast = message => { const el = sec.querySelector('[data-idc-toast]'); el.textContent = message; el.classList.add('show'); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove('show'), 2400); };
     const renderQr = (canvas, token) => {
         const identity = window.schoolPortalData?.getIdentity?.();
         if (!canvas || !identity?.schoolId || !token || typeof window.qrcode !== 'function') return;
@@ -95,7 +225,7 @@ function createIDCardsModule(category) {
                 .some(value => String(value || '').toLowerCase().includes(query))
         );
         const table = sec.querySelector('[data-idc-table]');
-        table.innerHTML = filtered.map(({ record, index }, row) => `<tr><td>${row + 1}</td><td><div class="idc-member-cell">${record.photo ? `<img class="idc-table-photo" src="${record.photo}" alt="">` : '<span class="idc-table-photo">👤</span>'}<strong>${escape(record.memberName)}</strong></div></td><td>${escape(record.memberId)}</td><td><span class="idc-badge">${escape(record.memberType)}</span></td><td>${escape(record.designation)}</td><td>${escape(record.department)}</td><td>${escape(record.division)}</td><td>${escape(record.validUntil || '—')}</td><td><span class="idc-badge idc-status">${escape(record.status)}</span></td><td><div class="idc-actions"><button class="idc-action idc-view" data-action="view" data-index="${index}">View</button><button class="idc-action idc-edit" data-action="edit" data-index="${index}">Edit</button><button class="idc-action idc-delete" data-action="delete" data-index="${index}">Delete</button></div></td></tr>`).join('');
+        table.innerHTML = filtered.map(({ record, index }, row) => `<tr><td>${row + 1}</td><td><div class="idc-member-cell">${record.photo ? `<img class="idc-table-photo" src="${record.photo}" alt="">` : '<span class="idc-table-photo">👤</span>'}<strong>${escape(record.memberName)}</strong></div></td><td>${escape(record.memberId)}</td><td><span class="idc-badge">${escape(record.memberType)}</span></td><td>${escape(record.designation)}</td><td><span class="idc-badge ${Array.isArray(record.faceDescriptor) && record.faceDescriptor.length === 128 ? 'idc-face-enrolled' : ''}">${Array.isArray(record.faceDescriptor) && record.faceDescriptor.length === 128 ? 'Face enrolled' : 'QR only'}</span></td><td>${escape(record.department)}</td><td>${escape(record.division)}</td><td>${escape(record.validUntil || '—')}</td><td><span class="idc-badge idc-status">${escape(record.status)}</span></td><td><div class="idc-actions"><button class="idc-action idc-view" data-action="view" data-index="${index}">View</button><button class="idc-action idc-edit" data-action="edit" data-index="${index}">Edit</button><button class="idc-action idc-delete" data-action="delete" data-index="${index}">Delete</button></div></td></tr>`).join('');
         sec.querySelector('[data-idc-empty]').classList.toggle('hidden', filtered.length > 0);
     };
     const showCardPreview = record => {
@@ -142,8 +272,8 @@ function createIDCardsModule(category) {
         renderQr(back.querySelector('[data-idc-qr]'), record.qrToken);
         modal.classList.remove('hidden');
     };
-    const setForm = record => { sec.querySelectorAll('[data-idc-field]').forEach(field => { if (record[field.name] !== undefined) field.value = record[field.name]; }); qrTokenField.value = record.qrToken || crypto.randomUUID(); renderQr(sec.querySelector('[data-idc-qr]'), qrTokenField.value); const type = sec.querySelector('[name="memberType"]').value; const matchedMember = memberRecords[memberCollection(type)]?.find(item => memberRecordNumber(item, type) === String(record.memberId || '') && memberRecordName(item) === String(record.memberName || '')); selectedMemberRecordId = String(record.memberRecordId || record.studentId || memberRecordKey(matchedMember || {})); photo = record.photo || ''; logo = record.logo || schoolBrandLogo; sec.querySelector('[data-idc-photo-preview]').innerHTML = photo ? `<img src="${photo}" alt="Member photo">` : '👤'; sec.querySelector('[data-idc-front-logo]').src = logo; refreshMemberOptions(); update(); };
-    const clear = () => { editingRecordId = ''; selectedMemberRecordId = ''; setForm({memberType:'Student',memberName:'',memberId:'',designation:'',department:'',division:'',validUntil:'',emergency:'',status:'Active',primary:'#071b3a',secondary:'#1459d9',schoolName:schoolBrandName,schoolAddress:''}); sec.querySelector('[data-idc-editing]').textContent='New Record'; };
+    const setForm = record => { sec.querySelectorAll('[data-idc-field]').forEach(field => { if (record[field.name] !== undefined) field.value = record[field.name]; }); qrTokenField.value = record.qrToken || crypto.randomUUID(); renderQr(sec.querySelector('[data-idc-qr]'), qrTokenField.value); const type = sec.querySelector('[name="memberType"]').value; const matchedMember = memberRecords[memberCollection(type)]?.find(item => memberRecordNumber(item, type) === String(record.memberId || '') && memberRecordName(item) === String(record.memberName || '')); selectedMemberRecordId = String(record.memberRecordId || record.studentId || memberRecordKey(matchedMember || {})); photo = record.photo || ''; faceDescriptor = Array.isArray(record.faceDescriptor) ? record.faceDescriptor : null; updateFaceStatus(); logo = record.logo || schoolBrandLogo; sec.querySelector('[data-idc-photo-preview]').innerHTML = photo ? `<img src="${photo}" alt="Member photo">` : '👤'; sec.querySelector('[data-idc-front-logo]').src = logo; refreshMemberOptions(); update(); };
+    const clear = () => { editingRecordId = ''; selectedMemberRecordId = ''; faceDescriptor = null; updateFaceStatus(); setForm({memberType:'Student',memberName:'',memberId:'',designation:'',department:'',division:'',validUntil:'',emergency:'',status:'Active',primary:'#071b3a',secondary:'#1459d9',schoolName:schoolBrandName,schoolAddress:''}); sec.querySelector('[data-idc-editing]').textContent='New Record'; };
     const memberTypeSelect = sec.querySelector('[name="memberType"]');
     const memberRecordSelect = sec.querySelector('[data-idc-member-record]');
     const memberCollection = type => type === 'Student' ? 'students' : type === 'Teacher' ? 'teachers' : 'staff';
@@ -198,6 +328,8 @@ function createIDCardsModule(category) {
             return;
         }
         selectedMemberRecordId = memberRecordKey(record);
+        faceDescriptor = null;
+        updateFaceStatus();
         const type = memberTypeSelect.value;
         const name = memberRecordName(record);
         const memberId = memberRecordNumber(record, type);
@@ -229,6 +361,8 @@ function createIDCardsModule(category) {
             if (field) field.value = '';
         });
         photo = '';
+        faceDescriptor = null;
+        updateFaceStatus();
         sec.querySelector('[data-idc-photo-preview]').textContent = '👤';
         update();
     });
@@ -327,8 +461,29 @@ function createIDCardsModule(category) {
         cameraMessageTimer = setTimeout(() => {
             scannerMessage.classList.add('hidden');
             scannerMessage.textContent = '';
-        }, 2000);
+        }, 4500);
     };
+    const speakScanMessage = message => {
+        if (!('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance !== 'function') return;
+        window.speechSynthesis.cancel();
+        const utterance = new window.SpeechSynthesisUtterance(message);
+        const femaleVoice = window.speechSynthesis.getVoices().find(voice =>
+            /female|woman|samantha|victoria|karen|moira|tessa|fiona|serena|susan|zira|jenny|aria|ava/i.test(voice.name)
+        );
+        if (femaleVoice) utterance.voice = femaleVoice;
+        utterance.pitch = 1.15;
+        window.speechSynthesis.speak(utterance);
+    };
+    const timeOfDay = date => {
+        const hour = date.getHours();
+        if (hour >= 5 && hour < 12) return 'morning';
+        if (hour >= 12 && hour < 17) return 'afternoon';
+        if (hour >= 17 && hour < 21) return 'evening';
+        return 'night';
+    };
+    const formatAnnouncementTime = date => date.toLocaleTimeString([], {
+        hour: 'numeric', minute: '2-digit', hour12: true
+    });
     cameraZoomInput.addEventListener('input', () => {
         cameraZoomValue.value = `${Number(cameraZoomInput.value).toFixed(1).replace(/\.0$/, '')}×`;
     });
@@ -522,10 +677,17 @@ function createIDCardsModule(category) {
             && String(record.memberId || record.studentId || '') === memberId
             && (!record.memberType || record.memberType === memberType));
         const action = sec.querySelector('[data-idc-scan-mode]').value;
+        const designation = card.designation || card.memberType || memberType;
         if (action === 'check-in' && existing?.checkInAt) {
+            const scannedAt = new Date();
+            const alreadySignedInAt = new Date(existing.checkInAt);
+            const signedInPeriod = ['morning', 'afternoon'].includes(timeOfDay(alreadySignedInAt))
+                ? ` in the ${timeOfDay(alreadySignedInAt)}`
+                : '';
             return {
                 recorded: false,
-                message: `${card.memberName || memberRecordName(rosterRecord)} already signed in at ${formatScanTime(existing.checkInAt)}.`
+                message: `Good ${timeOfDay(scannedAt)}, ${designation}. Already signed in at ${formatAnnouncementTime(alreadySignedInAt)}.`,
+                speechMessage: `${designation}. Already signed in at ${formatAnnouncementTime(alreadySignedInAt)}${signedInPeriod}.`
             };
         }
         if (action === 'check-in' && existing?.checkOutAt) {
@@ -568,10 +730,18 @@ function createIDCardsModule(category) {
         void api.sync?.();
         attendanceRecords = attendanceRecords.filter(item => item.id !== record.id);
         attendanceRecords.unshift(record);
-        const label = action === 'check-in' ? 'Checked in' : 'Checked out';
+        const label = action === 'check-in' ? 'Signed in' : 'Signed out';
         scanStatus(`${label}: ${record.memberName}.`);
         showScanResult(record, action, timestamp);
-        return true;
+        const scannedAt = new Date(timestamp);
+        const greeting = `Good ${timeOfDay(scannedAt)}, ${designation}.`;
+        const message = action === 'check-in'
+            ? `${greeting} Welcome! Signed in at ${formatAnnouncementTime(scannedAt)}.`
+            : `${greeting} Signed out at ${formatAnnouncementTime(scannedAt)}.`;
+        const speechMessage = action === 'check-in'
+            ? `${designation}. Welcome. Signed in.`
+            : `${designation}. Signed out.`;
+        return { recorded: true, message, speechMessage };
     };
     const handleCameraQr = decodedText => {
         if (!decodedText) {
@@ -604,17 +774,72 @@ function createIDCardsModule(category) {
         scanInProgress = true;
         void recordAttendanceScan(decodedText).then(recorded => {
             if (recorded?.recorded) {
-                showCameraMessage('Attendance recorded successfully');
+                showCameraMessage(recorded.message);
+                speakScanMessage(recorded.speechMessage);
                 void playScanSuccessSound();
             } else if (recorded?.message) {
                 scanStatus(recorded.message);
                 showCameraMessage(recorded.message);
+                speakScanMessage(recorded.speechMessage);
                 void playScanSuccessSound();
             }
         }).catch(error => {
             console.error('Unable to save QR attendance.', error);
             scanStatus(error.message || 'Attendance could not be saved. Check your access and try again.');
         }).finally(() => { scanInProgress = false; });
+    };
+    const nearestEnrolledFace = descriptor => {
+        const candidates = records.filter(record => Array.isArray(record.faceDescriptor)
+            && record.faceDescriptor.length === 128
+            && String(record.status || 'Active').toLowerCase() === 'active'
+            && (!record.validUntil || record.validUntil >= localDate()))
+            .map(record => {
+                const distance = Math.sqrt(record.faceDescriptor.reduce((total, value, index) =>
+                    total + (value - descriptor[index]) ** 2, 0));
+                return { record, distance };
+            })
+            .sort((left, right) => left.distance - right.distance);
+        if (!candidates.length || candidates[0].distance > 0.48) return null;
+        if (candidates[1] && candidates[1].distance - candidates[0].distance < 0.08) {
+            return { ambiguous: true };
+        }
+        return candidates[0];
+    };
+    const scanFaceFrame = async () => {
+        const faceApi = await loadFaceModels();
+        const detections = await faceApi.detectAllFaces(scannerVideo,
+            new faceApi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.55 }))
+            .withFaceLandmarks(true)
+            .withFaceDescriptors();
+        if (!detections.length) {
+            if (Date.now() - lastQrSeenAt > 1600) {
+                lastScannedToken = '';
+                scannerFrame.classList.remove('is-qr-detected');
+            }
+            return;
+        }
+        lastQrSeenAt = Date.now();
+        if (detections.length !== 1) {
+            scanStatus('Only one face should be visible to sign in.');
+            return;
+        }
+        const match = nearestEnrolledFace(detections[0].descriptor);
+        if (match?.ambiguous) {
+            scanStatus('Face match is unclear. Use the member QR code instead.');
+            return;
+        }
+        if (!match) {
+            scanStatus('No enrolled member matched that face. Try QR sign-in or enroll the member first.');
+            return;
+        }
+        if (!match.record.qrToken) {
+            scanStatus('This member card needs a QR token before it can record attendance.');
+            return;
+        }
+        const schoolId = window.schoolPortalData?.getIdentity?.()?.schoolId;
+        if (!schoolId) return;
+        scannerFrame.classList.add('is-qr-detected');
+        handleCameraQr(`EDU1|${encodeURIComponent(schoolId)}|${match.record.qrToken}`);
     };
     const scanCameraFrame = async () => {
         if (frameScanInProgress || scanInProgress || scannerVideo.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA
@@ -624,38 +849,47 @@ function createIDCardsModule(category) {
         }
         frameScanInProgress = true;
         try {
-            let decodedText = '';
-            if (qrDetector) {
-                try {
-                    const detections = await qrDetector.detect(scannerVideo);
-                    decodedText = detections[0]?.rawValue || '';
-                } catch (error) {
-                    console.warn('Native QR detection failed; switching to the compatibility decoder.', error);
-                    qrDetector = null;
+            const scanMethod = sec.querySelector('[data-idc-scan-method]').value;
+            if (scanMethod === 'face') {
+                await scanFaceFrame();
+            } else {
+                let decodedText = '';
+                if (qrDetector) {
+                    try {
+                        const detections = await qrDetector.detect(scannerVideo);
+                        decodedText = detections[0]?.rawValue || '';
+                    } catch (error) {
+                        console.warn('Native QR detection failed; switching to the compatibility decoder.', error);
+                        qrDetector = null;
+                    }
                 }
-            }
-            if (!qrDetector && typeof window.jsQR === 'function') {
-                const width = Math.min(scannerVideo.videoWidth, 1280);
-                const height = Math.round(scannerVideo.videoHeight * width / scannerVideo.videoWidth);
-                if (scannerCanvas.width !== width || scannerCanvas.height !== height) {
-                    scannerCanvas.width = width;
-                    scannerCanvas.height = height;
+                if (!qrDetector && typeof window.jsQR === 'function') {
+                    const width = Math.min(scannerVideo.videoWidth, 1280);
+                    const height = Math.round(scannerVideo.videoHeight * width / scannerVideo.videoWidth);
+                    if (scannerCanvas.width !== width || scannerCanvas.height !== height) {
+                        scannerCanvas.width = width;
+                        scannerCanvas.height = height;
+                    }
+                    scannerContext.drawImage(scannerVideo, 0, 0, width, height);
+                    const image = scannerContext.getImageData(0, 0, width, height);
+                    decodedText = window.jsQR(image.data, width, height, { inversionAttempts: 'dontInvert' })?.data || '';
                 }
-                scannerContext.drawImage(scannerVideo, 0, 0, width, height);
-                const image = scannerContext.getImageData(0, 0, width, height);
-                decodedText = window.jsQR(image.data, width, height, { inversionAttempts: 'dontInvert' })?.data || '';
+                if (decodedText) handleCameraQr(decodedText);
+                else if (scanMethod === 'either') await scanFaceFrame();
             }
-            handleCameraQr(decodedText);
         } catch (error) {
             console.error('Unable to read a frame from the attendance camera.', error);
             scanStatus('The camera image could not be read. Stop and restart the camera.');
             stopCamera();
         } finally {
             frameScanInProgress = false;
-            if (cameraStream) cameraTimer = setTimeout(scanCameraFrame, qrDetector ? 80 : 120);
+            if (cameraStream) cameraTimer = setTimeout(scanCameraFrame,
+                sec.querySelector('[data-idc-scan-method]').value !== 'qr' ? 220 : qrDetector ? 80 : 120);
         }
     };
     const startCamera = async () => {
+        stopFaceEnrollmentCamera();
+        faceEnrollmentModal.classList.add('hidden');
         const identity = window.schoolPortalData?.getIdentity?.();
         if (!attendanceAccess(identity)) {
             scanStatus('Your account needs attendance view and edit access to use this scanner.');
@@ -665,9 +899,18 @@ function createIDCardsModule(category) {
             scanStatus('Camera access requires HTTPS. Open this portal using its secure HTTPS address.');
             return;
         }
-        if (!navigator.mediaDevices?.getUserMedia || (!qrDetector && typeof window.jsQR !== 'function')) {
+        const scanMethod = sec.querySelector('[data-idc-scan-method]').value;
+        if (!navigator.mediaDevices?.getUserMedia || (scanMethod === 'qr' && !qrDetector && typeof window.jsQR !== 'function')) {
             scanStatus('Camera scanning is unavailable in this browser. Use an up-to-date browser with camera access.');
             return;
+        }
+        if (scanMethod !== 'qr') {
+            try {
+                await loadFaceModels();
+            } catch (error) {
+                scanStatus(error.message || 'Face matching is unavailable.');
+                return;
+            }
         }
         void prepareScannerAudio();
         if (!attendanceRecordsLoaded) await connectAttendanceRecords();
@@ -675,7 +918,7 @@ function createIDCardsModule(category) {
             cameraStream = await navigator.mediaDevices.getUserMedia({
                 audio: false,
                 video: {
-                    facingMode: { ideal: 'environment' },
+                    facingMode: { ideal: scanMethod === 'qr' ? 'environment' : 'user' },
                     width: { ideal: 1920 },
                     height: { ideal: 1080 }
                 }
@@ -686,7 +929,13 @@ function createIDCardsModule(category) {
             scannerFrame.classList.add('is-scanning');
             sec.querySelector('[data-idc-camera-start]').disabled = true;
             sec.querySelector('[data-idc-camera-stop]').disabled = false;
-            scanStatus('Looking for a QR code. Align it inside the box to scan automatically.');
+            const guideLabel = scannerFrame.querySelector('.idc-camera-guide-label');
+            const guideHint = scannerFrame.querySelector('.idc-camera-guide-hint');
+            guideLabel.textContent = scanMethod === 'qr' ? 'Keep the full QR code visible' : 'Center one enrolled face';
+            guideHint.textContent = scanMethod === 'qr' ? 'Hold the phone steady; scanning is automatic' : 'Face matching runs only in this browser';
+            scanStatus(scanMethod === 'qr'
+                ? 'Looking for a QR code. Align it inside the box to scan automatically.'
+                : scanMethod === 'face' ? 'Looking for an enrolled face.' : 'Looking for a QR code or enrolled face.');
             cameraTimer = setTimeout(scanCameraFrame, 0);
         } catch (error) {
             stopCamera();
@@ -703,18 +952,30 @@ function createIDCardsModule(category) {
         }
     };
     sec.querySelector('[data-idc-camera-start]').addEventListener('click', startCamera);
+    sec.querySelector('[data-idc-scan-method]').addEventListener('change', () => {
+        stopCamera();
+        const scanMethod = sec.querySelector('[data-idc-scan-method]').value;
+        scanStatus(scanMethod === 'face' ? 'Select check-in or check-out, then start face scanning.' : 'Select check-in or check-out, then start QR scanning.');
+    });
     sec.querySelector('[data-idc-camera-stop]').addEventListener('click', stopCamera);
     sec.querySelector('[data-idc-close-scanner]').addEventListener('click', stopCamera);
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) stopCamera();
+        if (document.hidden) {
+            stopCamera();
+            stopFaceEnrollmentCamera();
+        }
     });
-    window.addEventListener('pagehide', stopCamera);
+    window.addEventListener('pagehide', () => {
+        stopCamera();
+        stopFaceEnrollmentCamera();
+    });
     window.addEventListener('school-portal-identity-ready', () => {
         renderQr(sec.querySelector('[data-idc-qr]'), qrTokenField.value);
         void connectAttendanceRecords();
     });
     window.addEventListener('school-portal-identity-cleared', () => {
         stopCamera();
+        stopFaceEnrollmentCamera();
         attendanceSubscription?.();
         attendanceSubscription = null;
         attendanceIdentityKey = '';
