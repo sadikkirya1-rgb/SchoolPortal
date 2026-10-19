@@ -774,7 +774,9 @@ function createIDCardsModule(category) {
                     toast('ID card saved on this device; cloud sync is pending.');
                 } catch (error) {
                     console.error('Unable to save the ID card.', error);
-                    toast('ID card could not be saved. Please try again.');
+                    toast(error?.code === 'permission-denied'
+                        ? 'Firestore denied this save. Deploy the latest Firestore rules and confirm your account has ID Cards edit access.'
+                        : 'ID card could not be saved. Please try again.');
                 }
             })();
             return;
