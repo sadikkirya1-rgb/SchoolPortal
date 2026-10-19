@@ -36,6 +36,11 @@ before(async () => {
             assignedClassIds: ['CLASS-A'],
             permissions: { students: { view: true, edit: true } }
         });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/id-card-editor'), {
+            role: 'teacher',
+            status: 'active',
+            permissions: { idCards: { view: true, edit: true } }
+        });
         await setDoc(doc(firestore, 'schools/SCH-TEST/members/teacher-results-1'), {
             role: 'teacher',
             status: 'active',
@@ -280,6 +285,32 @@ test('teachers can save results only for their assigned classes', async () => {
     await assertFails(setDoc(doc(firestore, 'schools/SCH-TEST/reportCards/RESULT-B'), {
         ...reportCard,
         data: { ...reportCard.data, studentId: 'STUDENT-B', classId: 'CLASS-B' }
+    }));
+});
+
+test('ID-card editors can view and reassign ID cards without changing student-record permissions', async () => {
+    const adminFirestore = administratorContext().firestore();
+    const cardPath = 'schools/SCH-TEST/idCards/CARD-1';
+    await assertSucceeds(setDoc(doc(adminFirestore, cardPath), {
+        data: { studentId: 'STUDENT-A', memberRecordId: 'STUDENT-A', memberName: 'Student A' },
+        version: 1,
+        updatedBy: 'admin-1',
+        updatedAt: '2026-10-17T00:00:00.000Z'
+    }));
+    const firestore = testEnvironment.authenticatedContext('id-card-editor').firestore();
+    const cardRef = doc(firestore, cardPath);
+    await assertSucceeds(getDoc(cardRef));
+    await assertSucceeds(updateDoc(cardRef, {
+        data: { studentId: 'STUDENT-B', memberRecordId: 'STUDENT-B', memberName: 'Student B' },
+        version: 2,
+        updatedBy: 'id-card-editor',
+        updatedAt: '2026-10-18T00:00:00.000Z'
+    }));
+    await assertFails(updateDoc(doc(firestore, 'schools/SCH-TEST/students/STUDENT-A'), {
+        data: { studentId: 'STUDENT-B', classId: 'CLASS-A', fullName: 'Test Student' },
+        version: 2,
+        updatedBy: 'id-card-editor',
+        updatedAt: '2026-10-18T00:00:00.000Z'
     }));
 });
 

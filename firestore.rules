@@ -115,6 +115,7 @@ service cloud.firestore {
         || data.get('published', false) == true
         || data.get('status', '') in ['Published', 'published', 'Released', 'released'];
       return role in ['schoolAdmin', 'superAdmin', 'director', 'headTeacher']
+        || (collectionName == 'idCards' && canView(schoolId, collectionName))
         || (collectionName == 'fees' && role == 'bursar')
         || (data.keys().hasAny(['classId']) && isAssignedStaff(schoolId, data.classId))
         || ((isLinkedStudent(schoolId, studentId) || isLinkedParent(schoolId, studentId))
@@ -146,6 +147,7 @@ service cloud.firestore {
     function canEditRecord(schoolId, collectionName, record) {
       let data = recordData(record);
       return isSchoolAdmin(schoolId)
+        || (collectionName == 'idCards' && canEdit(schoolId, collectionName))
         || (canEdit(schoolId, collectionName)
           && (collectionName == 'fees'
             || !isPersonalCollection(collectionName)
@@ -263,6 +265,7 @@ service cloud.firestore {
           && request.resource.data.updatedBy == request.auth.uid
           && (!isPersonalCollection(collectionName)
             || (collectionName == 'fees' && request.resource.data.data.get('deleted', false) == true)
+            || collectionName == 'idCards'
             || request.resource.data.data.get('studentId', recordId)
               == resource.data.data.get('studentId', recordId));
         allow delete: if collectionName != 'auditEvents'

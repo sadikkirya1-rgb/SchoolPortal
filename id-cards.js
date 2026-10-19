@@ -47,7 +47,7 @@ function createIDCardsModule(category) {
     });
 
     const defaultLogo = '';
-    let records = []; let editingIndex = -1; let photo = ''; let logo = defaultLogo; let schoolBrandName = ''; let schoolBrandLogo = ''; let selectedMemberRecordId = ''; const memberRecords = { students: [], teachers: [], staff: [] }; const memberRecordsLoaded = { students: false, teachers: false, staff: false }; const memberSubscriptions = []; const fields = () => Object.fromEntries([...sec.querySelectorAll('[data-idc-field]')].map(field => [field.name, field.value])); const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+    let records = []; let editingRecordId = ''; let photo = ''; let logo = defaultLogo; let schoolBrandName = ''; let schoolBrandLogo = ''; let selectedMemberRecordId = ''; const memberRecords = { students: [], teachers: [], staff: [] }; const memberRecordsLoaded = { students: false, teachers: false, staff: false }; const memberSubscriptions = []; const fields = () => Object.fromEntries([...sec.querySelectorAll('[data-idc-field]')].map(field => [field.name, field.value])); const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
     const qrTokenField = document.createElement('input');
     qrTokenField.type = 'hidden';
     qrTokenField.name = 'qrToken';
@@ -143,7 +143,7 @@ function createIDCardsModule(category) {
         modal.classList.remove('hidden');
     };
     const setForm = record => { sec.querySelectorAll('[data-idc-field]').forEach(field => { if (record[field.name] !== undefined) field.value = record[field.name]; }); qrTokenField.value = record.qrToken || crypto.randomUUID(); renderQr(sec.querySelector('[data-idc-qr]'), qrTokenField.value); const type = sec.querySelector('[name="memberType"]').value; const matchedMember = memberRecords[memberCollection(type)]?.find(item => memberRecordNumber(item, type) === String(record.memberId || '') && memberRecordName(item) === String(record.memberName || '')); selectedMemberRecordId = String(record.memberRecordId || record.studentId || memberRecordKey(matchedMember || {})); photo = record.photo || ''; logo = record.logo || schoolBrandLogo; sec.querySelector('[data-idc-photo-preview]').innerHTML = photo ? `<img src="${photo}" alt="Member photo">` : '👤'; sec.querySelector('[data-idc-front-logo]').src = logo; refreshMemberOptions(); update(); };
-    const clear = () => { editingIndex = -1; selectedMemberRecordId = ''; setForm({memberType:'Student',memberName:'',memberId:'',designation:'',department:'',division:'',validUntil:'',emergency:'',status:'Active',primary:'#071b3a',secondary:'#1459d9',schoolName:schoolBrandName,schoolAddress:''}); sec.querySelector('[data-idc-editing]').textContent='New Record'; };
+    const clear = () => { editingRecordId = ''; selectedMemberRecordId = ''; setForm({memberType:'Student',memberName:'',memberId:'',designation:'',department:'',division:'',validUntil:'',emergency:'',status:'Active',primary:'#071b3a',secondary:'#1459d9',schoolName:schoolBrandName,schoolAddress:''}); sec.querySelector('[data-idc-editing]').textContent='New Record'; };
     const memberTypeSelect = sec.querySelector('[name="memberType"]');
     const memberRecordSelect = sec.querySelector('[data-idc-member-record]');
     const memberCollection = type => type === 'Student' ? 'students' : type === 'Teacher' ? 'teachers' : 'staff';
@@ -609,6 +609,7 @@ function createIDCardsModule(category) {
             } else if (recorded?.message) {
                 scanStatus(recorded.message);
                 showCameraMessage(recorded.message);
+                void playScanSuccessSound();
             }
         }).catch(error => {
             console.error('Unable to save QR attendance.', error);
@@ -743,7 +744,21 @@ function createIDCardsModule(category) {
                     toast('ID-card storage is unavailable. Try again after reloading.');
                     return;
                 }
-                const existing = editingIndex < 0 ? null : records[editingIndex];
+                const existing = editingRecordId ? records.find(record => record.id === editingRecordId) : null;
+                if (editingRecordId && !existing) {
+                    toast('This ID card changed while you were editing. Close and reopen it before saving.');
+                    return;
+                }
+                const duplicate = records.find(record => record.id !== existing?.id
+                    && record.memberType === data.memberType
+                    && (String(record.memberRecordId || record.studentId || '') === selectedMemberRecordId
+                        || (!record.memberRecordId && !record.studentId
+                            && String(record.memberId || '').trim() === data.memberId.trim()
+                            && String(record.memberName || '').trim().toLowerCase() === data.memberName.trim().toLowerCase())));
+                if (duplicate) {
+                    toast(`${data.memberName} already has an ID card. Edit that card instead.`);
+                    return;
+                }
                 const recordId = existing?.id || crypto.randomUUID();
                 const savedRecord = {
                     ...data,
@@ -754,7 +769,7 @@ function createIDCardsModule(category) {
                     await api.saveRecord('idCards', recordId, savedRecord);
                     records = [savedRecord, ...records.filter(record => record.id !== recordId)];
                     render();
-                    editingIndex = -1;
+                    editingRecordId = '';
                     sec.querySelector('[data-idc-editing]').textContent = 'New Record';
                     toast('ID card saved on this device; cloud sync is pending.');
                 } catch (error) {
@@ -821,7 +836,7 @@ function createIDCardsModule(category) {
             showCardPreview(records[index]);
             return;
         }
-        editingIndex = index;
+        editingRecordId = records[index].id;
         setForm(records[index]);
         sec.querySelector('[data-idc-editor]').classList.remove('hidden');
         sec.querySelector('[data-idc-editing]').textContent = 'Editing Record';
