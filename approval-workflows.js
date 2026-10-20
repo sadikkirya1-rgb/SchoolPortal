@@ -24,22 +24,11 @@
     const pendingKey = item => `${item.workflow.key}:${String(item.record.id ?? item.workflow.reference(item.record) ?? item.index)}`;
 
     const init = () => {
-        const topActions = document.querySelector('.top-actions');
-        if (!topActions) return;
-
-        const root = document.createElement('div');
-        root.className = 'approval-center';
-        root.innerHTML = `<button class="approval-trigger" type="button" aria-label="Pending approvals" aria-expanded="false" title="Pending approvals"><i class="fas fa-bell" aria-hidden="true"></i><span class="approval-trigger-count" hidden>0</span></button><section class="approval-popover" aria-label="Pending department approvals" hidden><header class="approval-popover-header"><div><strong>Approvals</strong><span data-approval-summary>Pending items for review</span></div><button class="approval-close" type="button" aria-label="Close approvals"><i class="fas fa-xmark"></i></button></header><div class="approval-notification-setting"><span data-approval-permission>In-app alerts are active</span><button type="button" data-approval-enable>Enable browser alerts</button></div><div class="approval-department-list" data-approval-list></div></section><div class="approval-toast-stack" aria-live="polite" aria-atomic="false"></div>`;
-        const profile = topActions.querySelector('.profile');
-        if (profile) topActions.insertBefore(root, profile);
-        else topActions.appendChild(root);
-
-        const trigger = root.querySelector('.approval-trigger');
-        const popover = root.querySelector('.approval-popover');
-        const list = root.querySelector('[data-approval-list]');
-        const summary = root.querySelector('[data-approval-summary]');
-        const permissionStatus = root.querySelector('[data-approval-permission]');
-        const notificationButton = root.querySelector('[data-approval-enable]');
+        const toastStack = document.createElement('div');
+        toastStack.className = 'approval-toast-stack';
+        toastStack.setAttribute('aria-live', 'polite');
+        toastStack.setAttribute('aria-atomic', 'false');
+        document.body.appendChild(toastStack);
         const knownPending = new Set(getPending().map(pendingKey));
         const departmentTitles = {
             'human resources': 'Human Resources Department',
@@ -111,7 +100,7 @@
             const toast = document.createElement('div');
             toast.className = 'approval-toast';
             toast.innerHTML = `<i class="fas fa-bell" aria-hidden="true"></i><div><strong>Approval needed · ${escape(item.workflow.department(item.record))}</strong><span>${escape(item.workflow.title(item.record))}</span></div>`;
-            root.querySelector('.approval-toast-stack').appendChild(toast);
+            toastStack.appendChild(toast);
             window.setTimeout(() => toast.remove(), 6500);
         };
         const sendBrowserAlert = item => {
@@ -143,86 +132,8 @@
         const render = () => {
             const pending = getPending();
             notifyNewApprovals(pending);
-            const countBadge = root.querySelector('.approval-trigger-count');
-            countBadge.textContent = pending.length > 99 ? '99+' : pending.length;
-            countBadge.hidden = pending.length === 0;
-            permissionStatus.textContent = !('Notification' in window) ? 'Browser alerts unavailable; in-app alerts are active' : Notification.permission === 'granted' ? 'Browser alerts are enabled' : Notification.permission === 'denied' ? 'Browser alerts are blocked; in-app alerts are active' : 'In-app alerts are active';
-            notificationButton.disabled = !('Notification' in window) || Notification.permission !== 'default';
-            notificationButton.textContent = !('Notification' in window) ? 'Unavailable' : Notification.permission === 'granted' ? 'Enabled' : Notification.permission === 'denied' ? 'Blocked in browser' : 'Enable browser alerts';
-            trigger.setAttribute('aria-label', `${pending.length} pending approval${pending.length === 1 ? '' : 's'}`);
-            summary.textContent = pending.length ? `${pending.length} item${pending.length === 1 ? '' : 's'} need review` : 'No approvals are waiting';
             refreshBadges(pending);
-            list.innerHTML = pending.length ? pending.map(({ workflow, record, index }) => {
-                const reference = workflow.reference(record) || `${workflow.key}-${index + 1}`;
-                return `<article class="approval-item"><div class="approval-item-heading"><span class="approval-department">${escape(workflow.department(record))}</span><strong>${escape(reference)}</strong></div><h3>${escape(workflow.title(record))}</h3><p>${escape(workflow.detail(record))}</p><div class="approval-item-actions"><button type="button" class="approval-review" data-approval-action="review" data-approval-key="${workflow.key}" data-approval-index="${index}">Review</button><button type="button" class="approval-approve" data-approval-action="approve" data-approval-key="${workflow.key}" data-approval-index="${index}">Approve</button><button type="button" class="approval-reject" data-approval-action="reject" data-approval-key="${workflow.key}" data-approval-index="${index}">Reject</button></div></article>`;
-            }).join('') : '<div class="approval-empty"><i class="fas fa-circle-check" aria-hidden="true"></i><strong>All caught up</strong><span>New approval requests will appear here automatically.</span></div>';
         };
-        const close = () => {
-            popover.hidden = true;
-            trigger.setAttribute('aria-expanded', 'false');
-        };
-
-        trigger.addEventListener('click', () => {
-            const isOpening = popover.hidden;
-            render();
-            popover.hidden = !isOpening;
-            trigger.setAttribute('aria-expanded', String(isOpening));
-        });
-        root.querySelector('.approval-close').addEventListener('click', close);
-        root.querySelector('[data-approval-enable]').addEventListener('click', async () => {
-            if (!('Notification' in window)) {
-                permissionStatus.textContent = 'This browser does not support browser alerts';
-                return;
-            }
-            const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
-            if (permission === 'granted') {
-                getPending().forEach(sendBrowserAlert);
-                permissionStatus.textContent = 'Browser alerts are enabled';
-            } else {
-                permissionStatus.textContent = 'Browser alerts were not enabled; in-app alerts remain active';
-            }
-        });
-        document.addEventListener('click', event => {
-            if (!root.contains(event.target)) close();
-        });
-        document.addEventListener('keydown', event => {
-            if (event.key === 'Escape') close();
-        });
-        list.addEventListener('click', event => {
-            const button = event.target.closest('[data-approval-action]');
-            if (!button) return;
-            const workflow = workflows.find(item => item.key === button.dataset.approvalKey);
-            if (!workflow) return;
-            const index = Number(button.dataset.approvalIndex);
-            const records = read(workflow.storage);
-            const record = records[index];
-            if (!record || !workflow.isPending(record)) {
-                render();
-                return;
-            }
-            if (button.dataset.approvalAction === 'review') {
-                close();
-                navigationLink(workflow)?.click();
-                return;
-            }
-            const decision = button.dataset.approvalAction === 'approve' ? 'Approved' : 'Rejected';
-            if (!window.confirm(`${decision} ${workflow.title(record)}?`)) return;
-            const session = (() => { try { return JSON.parse(localStorage.getItem('edumasterAdminSession')) || {}; } catch (error) { return {}; } })();
-            const timestamp = new Date().toISOString();
-            record.status = decision === 'Approved' ? workflow.approve : workflow.reject;
-            record.approvalHistory = Array.isArray(record.approvalHistory) ? record.approvalHistory : [];
-            record.approvalHistory.push({ decision, by: session.name || session.userId || session.role || 'Department reviewer', at: timestamp });
-            record.statusHistory = Array.isArray(record.statusHistory) ? record.statusHistory : [];
-            record.statusHistory.push({ status: record.status, by: session.name || session.userId || session.role || 'Department reviewer', at: timestamp });
-            if (decision === 'Approved') record.approvedAt = timestamp;
-            else record.rejectedAt = timestamp;
-            records[index] = record;
-            localStorage.setItem(workflow.storage, JSON.stringify(records));
-            const section = document.getElementById(workflow.section);
-            if (section) section.remove();
-            navigationLink(workflow)?.click();
-            render();
-        });
 
         render();
         window.addEventListener('storage', render);
