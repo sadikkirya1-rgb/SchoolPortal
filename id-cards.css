@@ -98,8 +98,8 @@
 #idCardsModule .idc-export-btn{flex:0 0 auto;margin-left:auto}
 #idCardsModule .idc-scan-controls{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;gap:12px;margin-bottom:14px}
 #idCardsModule .idc-scan-option{display:grid;gap:5px;color:#475569;font-size:11px;font-weight:700}
-#idCardsModule .idc-scan-option:not(:first-child){justify-items:center}
-#idCardsModule .idc-scan-option>strong{display:flex;min-height:38px;align-items:center;padding:0 12px;border:1px solid #dce4ef;border-radius:8px;background:#f8fafc;color:#1459d9}
+#idCardsModule .idc-scan-controls .idc-scan-option{justify-items:center}
+#idCardsModule .idc-scan-option>strong{display:flex;width:max-content;min-height:38px;align-items:center;padding:0 9px;border:1px solid #dce4ef;border-radius:8px;background:#f8fafc;color:#1459d9}
 #idCardsModule .idc-scan-button-group{display:flex;gap:6px}
 #idCardsModule .idc-scan-controls .idc-scan-button-group .idc-btn{min-height:38px}
 #idCardsModule .idc-scan-controls .idc-scan-button-group .idc-btn{min-height:32px;padding:6px 9px;font-size:10px;white-space:nowrap}
