@@ -4228,6 +4228,8 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .enquiry-form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .appointments-module .enquiry-form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 .incoming-mail-module .enquiry-form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.follow-ups-module .enquiry-form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.follow-ups-module .enquiry-form-grid textarea:not([name="notes"]){min-height:38px;height:38px;resize:vertical}
 .incoming-mail-module [name="senderAddress"]{min-height:38px;height:38px;resize:vertical}
 .incoming-mail-module [name="description"]{min-height:38px;height:38px;resize:vertical}
 .enquiry-form-group{display:flex;flex-direction:column;gap:5px}
