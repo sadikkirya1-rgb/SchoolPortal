@@ -4220,6 +4220,7 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .enquiry-card-header p{font-size:11px;color:#64748b;margin-top:2px}
 .enquiry-card-body{padding:16px}
 .enquiry-form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.appointments-module .enquiry-form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 .enquiry-form-group{display:flex;flex-direction:column;gap:5px}
 .enquiry-form-group.full{grid-column:1/-1}
 .enquiry-form-group label{font-size:11px;font-weight:600;color:#475569}

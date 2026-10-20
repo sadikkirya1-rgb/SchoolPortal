@@ -6275,7 +6275,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="enquiry-form-group"><label>Appointment Date</label><input name="appointmentDate" type="date" required></div><div class="enquiry-form-group"><label>Appointment Time</label><input name="appointmentTime" type="time" required></div><div class="enquiry-form-group"><label>Duration</label><select name="duration"><option>15 minutes</option><option selected>30 minutes</option><option>45 minutes</option><option>1 hour</option><option>1.5 hours</option><option>2 hours</option></select></div><div class="enquiry-form-group"><label>Priority</label><select name="priority"><option>Normal</option><option>Important</option><option>High</option><option>VIP</option></select></div>
                         <div class="enquiry-form-group"><label>Visitor / Guest Name</label><input name="guestName" placeholder="Enter full name" required></div><div class="enquiry-form-group"><label>Visitor Type</label><select name="visitorType" required><option value="">Select visitor type</option><option>Parent / Guardian</option><option>Prospective Parent</option><option>Student</option><option>Staff</option><option>Supplier / Vendor</option><option>Contractor</option><option>Government Official</option><option>Guest / VIP</option><option>Alumni</option><option>Other</option></select></div>
                         <div class="enquiry-form-group"><label>Phone Number</label><input name="phone" type="tel" placeholder="+256 700 000000" required></div><div class="enquiry-form-group"><label>Email Address</label><input name="email" type="email" placeholder="guest@example.com"></div><div class="enquiry-form-group"><label>Organization / Company</label><input name="organization" placeholder="Organization name"></div><div class="enquiry-form-group"><label>Student / Employee ID</label><input name="relatedId" placeholder="If applicable"></div>
-                        <div class="enquiry-form-group"><label>Person to Visit</label><input name="personToVisit" placeholder="Principal, teacher, staff" required></div><div class="enquiry-form-group"><label>Department</label><select name="department" required><option value="">Select department</option><option>Principal's Office</option><option>Administration</option><option>Admissions</option><option>Accounts / Finance</option><option>Human Resources</option><option>Academic</option><option>Student Affairs</option><option>Transport</option><option>IT</option><option>Reception</option><option>Other</option></select></div><div class="enquiry-form-group"><label>Meeting Location</label><input name="location" placeholder="Office / Meeting Room"></div><div class="enquiry-form-group"><label>Number of Guests</label><input name="guestCount" type="number" min="1" value="1"></div>
+                        <div class="enquiry-form-group"><label>Person to Visit</label><select name="personToVisit" required disabled><option value="">Select department first</option></select></div><div class="enquiry-form-group"><label>Department</label><select name="department" required><option value="">Select department</option></select></div><div class="enquiry-form-group"><label>Meeting Location</label><input name="location" placeholder="Office / Meeting Room"></div><div class="enquiry-form-group"><label>Number of Guests</label><input name="guestCount" type="number" min="1" value="1"></div>
                         <div class="enquiry-form-group full"><label>Purpose / Meeting Agenda</label><textarea name="purpose" placeholder="Describe the purpose or agenda" required></textarea></div><div class="enquiry-form-group full"><label>Special Requirements</label><textarea name="requirements" placeholder="Accessibility, documents, room setup, equipment"></textarea></div>
                         <div class="enquiry-form-group"><label>Appointment Status</label><select name="status"><option>Scheduled</option><option>Confirmed</option><option>Checked In</option><option>In Progress</option><option>Completed</option><option>Cancelled</option><option>No Show</option><option>Rescheduled</option></select></div><div class="enquiry-form-group"><label>Confirmation Method</label><select name="confirmationMethod"><option>Phone</option><option>Email</option><option>SMS</option><option>WhatsApp</option><option>In Person</option><option>Not Confirmed</option></select></div><div class="enquiry-form-group"><label>Reminder Date</label><input name="reminderDate" type="date"></div><div class="enquiry-form-group"><label>Created By</label><input name="createdBy" placeholder="Signed-in account owner" readonly required></div><div class="enquiry-form-group"><label>Host Contact</label><input name="hostPhone" type="tel" placeholder="Host contact number"></div><div class="enquiry-form-group"><label>Visitor ID</label><input name="visitorId" placeholder="Linked visitor ID"></div><div class="enquiry-form-group full"><label>Notes</label><textarea name="notes" placeholder="Additional appointment notes"></textarea></div>
                     </div><div class="enquiry-form-actions"><button class="btn-secondary" type="reset" data-enquiry-clear>Clear</button><button class="btn-secondary" type="button" data-enquiry-cancel>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Save Appointment</button></div>
@@ -6286,6 +6286,117 @@ document.addEventListener('DOMContentLoaded', () => {
         const form = sec.querySelector('[data-enquiry-form]'); const table = sec.querySelector('[data-enquiry-table]'); const entryCard = sec.querySelector('.enquiry-entry-card'); const summaryCard = sec.querySelector('.enquiry-summary-card'); const storageKey = 'edumasterAppointments'; let editingIndex = null;
         const readEntries = () => { try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; } }; const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); const today = () => new Date().toISOString().slice(0, 10); const nextId = () => `APT-${new Date().getFullYear()}-${String(readEntries().length + 1).padStart(5, '0')}`; const appointmentStatuses = ['Requested','Confirmed','Checked In','In Progress','Completed','Cancelled','No Show','Rescheduled'];
         form.elements.status.innerHTML = appointmentStatuses.map(status => `<option>${status}</option>`).join('');
+        const departmentSelect = form.elements.department;
+        const departmentGroups = [...document.querySelectorAll('.sidebar > .menu-title[data-access-section]')].map(title => {
+            const labelElement = title.cloneNode(true);
+            labelElement.querySelectorAll('i, .approval-group-count').forEach(element => element.remove());
+            return {
+                value: title.dataset.accessSection,
+                label: labelElement.textContent.trim(),
+                links: [...(title.nextElementSibling?.querySelectorAll('a span') || [])].map(span => span.textContent.trim())
+            };
+        });
+        const resetDepartmentOptions = () => departmentSelect.replaceChildren(
+            new Option('Select department', ''),
+            ...departmentGroups.map(group => new Option(group.label, group.value))
+        );
+        resetDepartmentOptions();
+        const findDepartmentGroup = value => {
+            const normalizedValue = String(value || '').trim().toLowerCase();
+            return departmentGroups.find(group =>
+                group.value.toLowerCase() === normalizedValue
+                || group.label.toLowerCase() === normalizedValue
+                || group.links.some(label => label.toLowerCase() === normalizedValue)
+            );
+        };
+        const personToVisitSelect = form.elements.personToVisit;
+        const normalizedDepartment = value => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const departmentAliases = {
+            frontofficedepartment: ['front desk', 'front office', 'reception', 'receptionist', 'administration', 'admissions'],
+            academicdepartment: ['academic', 'academics', 'teaching', 'mathematics', 'science', 'english', 'arabic', 'social studies', 'ict', 'ict / computer', 'languages', 'physical education', 'islamic studies', 'library'],
+            elearningdepartment: ['e-learning', 'elearning', 'online learning'],
+            operationsdepartment: ['operations', 'transport', 'health', 'health / infirmary', 'infirmary', 'boarding', 'inventory'],
+            studentlifedepartment: ['student life', 'student affairs', 'sports', 'clubs', 'clubs & societies', 'counseling', 'discipline'],
+            humanresourcesdepartment: ['human resources', 'hr', 'hr department'],
+            payrolldepartment: ['payroll'],
+            financedepartment: ['finance', 'accounts', 'accounts / finance', 'accounting'],
+            procurementdepartment: ['procurement', 'suppliers', 'purchasing'],
+            assetssecuritydepartment: ['assets & security', 'assets', 'security', 'maintenance', 'visitor logs'],
+            communicationdepartment: ['communication', 'communications', 'parents', 'sms alerts', 'notice board']
+        };
+        const groupForStaffDepartment = value => {
+            const normalizedValue = normalizedDepartment(value);
+            if (!normalizedValue) return null;
+            return departmentGroups.find(group => {
+                const groupKey = normalizedDepartment(group.value);
+                return groupKey === normalizedValue
+                    || normalizedDepartment(group.label) === normalizedValue
+                    || (departmentAliases[groupKey] || []).some(alias => normalizedDepartment(alias) === normalizedValue);
+            }) || null;
+        };
+        const readStaffRecords = key => {
+            try {
+                const records = JSON.parse(localStorage.getItem(key) || '[]');
+                return Array.isArray(records) ? records.filter(record => record && typeof record === 'object') : [];
+            } catch (error) {
+                return [];
+            }
+        };
+        const getPeopleForDepartment = department => {
+            const group = departmentGroups.find(item => item.value === department);
+            if (!group) return [];
+            const staff = [
+                ...readStaffRecords('school_staff').map(record => ({ record, isTeacher: false })),
+                ...readStaffRecords('school_staff_directory').map(record => ({ record, isTeacher: false })),
+                ...readStaffRecords('school_teachers').map(record => ({ record, isTeacher: true }))
+            ];
+            const seenNames = new Set();
+            return staff.flatMap(({ record, isTeacher }) => {
+                if (['inactive', 'resigned', 'retired'].includes(String(record.status || '').toLowerCase())) return [];
+                const name = String(record.fullName || record.name || record.staffName
+                    || [record.firstName, record.lastName].filter(Boolean).join(' ') || '').trim();
+                if (!name) return [];
+                const belongsToGroup = isTeacher
+                    ? group.value === 'Academic Department'
+                    : groupForStaffDepartment(record.department)?.value === group.value;
+                const nameKey = name.toLowerCase();
+                if (!belongsToGroup || seenNames.has(nameKey)) return [];
+                seenNames.add(nameKey);
+                return [{
+                    name,
+                    detail: record.designation || record.role || record.subject || ''
+                }];
+            });
+        };
+        const updatePeopleToVisitOptions = (selectedPerson = '') => {
+            const people = getPeopleForDepartment(departmentSelect.value);
+            personToVisitSelect.replaceChildren(new Option(
+                people.length ? 'Select a person' : departmentSelect.value ? 'No active people found in this department' : 'Select department first',
+                ''
+            ));
+            people.forEach(person => {
+                const label = person.detail ? `${person.name} · ${person.detail}` : person.name;
+                personToVisitSelect.add(new Option(label, person.name));
+            });
+            if (selectedPerson && !people.some(person => person.name === selectedPerson)) {
+                personToVisitSelect.add(new Option(`${selectedPerson} (existing appointment)`, selectedPerson));
+            }
+            personToVisitSelect.disabled = !departmentSelect.value;
+            personToVisitSelect.value = selectedPerson || '';
+        };
+        departmentSelect.addEventListener('change', () => updatePeopleToVisitOptions());
+        const selectDepartment = (value, preserveUnknown = false) => {
+            const group = findDepartmentGroup(value);
+            if (group) {
+                departmentSelect.value = group.value;
+            } else if (preserveUnknown && value) {
+                const legacyValue = String(value);
+                if (![...departmentSelect.options].some(option => option.value === legacyValue)) {
+                    departmentSelect.add(new Option(`${legacyValue} (existing appointment)`, legacyValue));
+                }
+                departmentSelect.value = legacyValue;
+            }
+        };
         const currentActor = () => {
             try {
                 const session = JSON.parse(localStorage.getItem('edumasterAdminSession')) || {};
@@ -6349,6 +6460,7 @@ document.addEventListener('DOMContentLoaded', () => {
             summaryCard.classList.remove('hidden');
             if (editingIndex === null) {
                 form.reset();
+                resetDepartmentOptions();
                 form.elements.appointmentId.value = nextId();
                 form.elements.appointmentDate.value = today();
                 form.elements.appointmentTime.value = '09:00';
@@ -6357,6 +6469,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 form.elements.status.value = 'Requested';
                 form.elements.confirmationMethod.value = 'Not Confirmed';
                 form.elements.createdBy.value = currentActor();
+                updatePeopleToVisitOptions();
                 const request = window.pendingAppointmentRequest;
                 if (request) {
                     form.elements.enquiryId.value = request.enquiryId || '';
@@ -6368,8 +6481,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     form.elements.visitorType.value = visitorTypes.includes(requestedVisitorType) ? requestedVisitorType : requestedVisitorType.toLowerCase().includes('parent') ? 'Parent / Guardian' : requestedVisitorType.toLowerCase().includes('staff') ? 'Staff' : requestedVisitorType.toLowerCase().includes('guest') ? 'Guest / VIP' : 'Other';
                     form.elements.phone.value = request.mobile || '';
                     form.elements.relatedId.value = request.studentId || '';
-                    form.elements.personToVisit.value = request.department || 'Principal';
-                    form.elements.department.value = request.department || 'Reception';
+                    selectDepartment(request.department);
+                    updatePeopleToVisitOptions();
                     form.elements.purpose.value = request.purpose || 'Follow-up from enquiry';
                     form.elements.notes.value = request.notes || '';
                     form.elements.priority.value = request.priority === 'Urgent' ? 'VIP' : request.priority === 'Important' ? 'High' : 'Normal';
@@ -6432,7 +6545,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (action === 'edit' || action === 'reschedule') {
+                resetDepartmentOptions();
                 Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; });
+                selectDepartment(entry.department, true);
+                updatePeopleToVisitOptions(entry.personToVisit);
                 editingIndex = index;
                 if (action === 'reschedule') form.elements.status.value = 'Rescheduled';
                 openForm();
