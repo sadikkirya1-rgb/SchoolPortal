@@ -2398,22 +2398,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 : `<p class="dashboard-empty">${dashboardData.calendarEvents.loaded ? `No events on ${dashboardEscape(dashboardDateLabel(selectedDay))}.` : 'Event data unavailable for this account.'}</p>`;
         }
 
-        const recentFees = document.getElementById('dashboardRecentFees');
-        if (recentFees) {
-            const payments = fees.map(fee => ({
-                fee,
-                amount: feePaidAmount(fee),
-                date: fee.paymentDate ? parseDashboardDate(fee.paymentDate) : null
-            })).filter(item => item.amount > 0 && !range.invalid
-                && dashboardDateInRange(item.date && !Number.isNaN(item.date.getTime()) ? item.date : null, range, true))
-                .sort((left, right) => (right.date?.getTime() || 0) - (left.date?.getTime() || 0))
-                .slice(0, 5);
-            recentFees.innerHTML = payments.length
-                ? payments.map(({ fee, amount, date }) => `<tr><td>${dashboardEscape(fee.studentName || fee.name || 'Student')}</td><td>${dashboardEscape(fee.studentClass || fee.className || '—')}</td><td>UGX ${amount.toLocaleString('en-UG', { maximumFractionDigits: 0 })}</td><td><span class="badge ${String(fee.status || '').toLowerCase() === 'paid' ? 'paid' : 'pending'}">${dashboardEscape(fee.status || 'Received')}</span></td><td>${dashboardEscape(dashboardDateLabel(date))}</td></tr>`).join('')
-                : `<tr><td colspan="5" class="dashboard-empty">${!dashboardData.fees.loaded ? 'Fee data unavailable for this account.' : range.invalid ? 'Choose a valid date range.' : 'No fee payments recorded in this period.'}</td></tr>`;
-            const tableTitle = document.querySelector('.table-title');
-            if (tableTitle) tableTitle.textContent = `Recent Fee Payments · ${periodLabel}`;
-        }
     }
 
     const reportingPeriodSelect = document.getElementById('dashboardPeriod');
@@ -6282,10 +6266,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </form></div></div>
                 <aside class="enquiry-card enquiry-summary-card hidden"><div class="enquiry-card-header"><h3>Appointment Summary</h3><p>Review before saving.</p></div><div class="enquiry-card-body enquiry-summary"></div></aside>
             </div>
-            <div class="enquiries-table"><div class="table-card"><h3 class="table-title">Appointment Register</h3><table><thead><tr><th>Appointment ID</th><th>Guest</th><th>Type</th><th>Date</th><th>Time</th><th>Visiting</th><th>Department</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
+            <div class="enquiries-table"><div class="table-card"><div class="appointment-table-toolbar"><h3 class="table-title">Appointment Register</h3><div class="appointment-table-controls"><label class="appointment-table-search"><span class="sr-only">Search appointments</span><input type="search" data-appointment-search placeholder="Search appointments"></label><label class="appointment-table-filter"><span class="sr-only">Filter appointments by status</span><select data-appointment-status-filter><option value="">All statuses</option></select></label></div></div><table><thead><tr><th>Appointment ID</th><th>Guest</th><th>Type</th><th>Date</th><th>Time</th><th>Visiting</th><th>Department</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
         const form = sec.querySelector('[data-enquiry-form]'); const table = sec.querySelector('[data-enquiry-table]'); const entryCard = sec.querySelector('.enquiry-entry-card'); const summaryCard = sec.querySelector('.enquiry-summary-card'); const storageKey = 'edumasterAppointments'; let editingIndex = null;
-        const readEntries = () => { try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; } }; const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); const today = () => new Date().toISOString().slice(0, 10); const nextId = () => `APT-${new Date().getFullYear()}-${String(readEntries().length + 1).padStart(5, '0')}`; const appointmentStatuses = ['Requested','Confirmed','Checked In','In Progress','Completed','Cancelled','No Show','Rescheduled'];
+        const readEntries = () => { try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; } }; const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); const today = () => new Date().toISOString().slice(0, 10); const nextId = () => { const year = new Date().getFullYear(); const prefix = `APT-${year}-`; const sequence = readEntries().reduce((highest, entry) => { const match = String(entry.appointmentId || '').match(/^APT-\d{4}-(\d+)$/); return match && String(entry.appointmentId).startsWith(prefix) ? Math.max(highest, Number(match[1])) : highest; }, 0) + 1; return `${prefix}${String(sequence).padStart(5, '0')}`; }; const appointmentStatuses = ['Requested','Confirmed','Checked In','In Progress','Completed','Cancelled','No Show','Rescheduled'];
         form.elements.status.innerHTML = appointmentStatuses.map(status => `<option>${status}</option>`).join('');
+        const statusFilter = sec.querySelector('[data-appointment-status-filter]');
+        appointmentStatuses.forEach(status => statusFilter.add(new Option(status, status)));
         const departmentSelect = form.elements.department;
         const departmentGroups = [...document.querySelectorAll('.sidebar > .menu-title[data-access-section]')].map(title => {
             const labelElement = title.cloneNode(true);
@@ -6437,7 +6423,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const entries = readEntries();
             updateStats();
             const actionButton = (index, action, icon, label) => `<button class="enquiry-action appointment-action" type="button" data-enquiry-action="${action}" data-enquiry-index="${index}" title="${label}" aria-label="${label} appointment"><i class="fas ${icon}"></i></button>`;
-            table.innerHTML = entries.length ? entries.map((entry, index) => {
+            const query = sec.querySelector('[data-appointment-search]').value.trim().toLowerCase();
+            const selectedStatus = statusFilter.value;
+            const visibleEntries = entries.map((entry, index) => ({ entry, index })).filter(({ entry }) => {
+                const searchableText = [
+                    entry.appointmentId, entry.guestName, entry.phone, entry.email, entry.appointmentType,
+                    entry.appointmentDate, entry.appointmentTime, entry.personToVisit, entry.department,
+                    entry.priority, entry.status, entry.organization, entry.purpose
+                ].join(' ').toLowerCase();
+                return (!selectedStatus || entry.status === selectedStatus)
+                    && (!query || searchableText.includes(query));
+            });
+            table.innerHTML = visibleEntries.length ? visibleEntries.map(({ entry, index }) => {
                 const history = Array.isArray(entry.statusHistory) ? entry.statusHistory : [];
                 const lastChange = history[history.length - 1];
                 const historyLabel = lastChange ? `${escape(lastChange.by || 'Staff')} · ${escape(lastChange.at ? new Date(lastChange.at).toLocaleString() : '')}` : '';
@@ -6451,8 +6448,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!['Completed', 'Cancelled', 'No Show'].includes(entry.status)) actions += actionButton(index, 'cancel', 'fa-xmark', 'Cancel');
                 actions += actionButton(index, 'edit', 'fa-pen', 'Edit') + actionButton(index, 'delete', 'fa-trash', 'Delete') + actionButton(index, 'print', 'fa-print', 'Print');
                 return `<tr><td>${escape(entry.appointmentId)}${entry.enquiryId ? `<br><small>Enquiry ${escape(entry.enquiryId)}</small>` : ''}</td><td>${escape(entry.guestName)}<br><small>${escape(entry.phone)}</small></td><td>${escape(entry.appointmentType)}</td><td>${escape(entry.appointmentDate)}</td><td>${escape(entry.appointmentTime)}</td><td>${escape(entry.personToVisit)}</td><td>${escape(entry.department)}</td><td>${escape(entry.priority)}</td><td><span class="appointment-status-badge status-${escape(String(entry.status || 'Requested').toLowerCase().replace(/[^a-z]+/g, '-'))}">${escape(entry.status || 'Requested')}</span><small class="enquiry-status-meta">${historyLabel}</small></td><td><div class="enquiry-actions">${actions}</div></td></tr>`;
-            }).join('') : '<tr><td colspan="10" style="text-align:center;padding:25px;color:#94a3b8;">No appointments yet. Open New Appointment to create a request.</td></tr>';
+            }).join('') : `<tr><td colspan="10" style="text-align:center;padding:25px;color:#94a3b8;">${entries.length ? 'No appointments match your search or filter.' : 'No appointments yet. Open New Appointment to create a request.'}</td></tr>`;
         };
+        sec.querySelector('[data-appointment-search]').addEventListener('input', render);
+        statusFilter.addEventListener('change', render);
         const updateSummary = () => renderNamedFormSummary(form, summaryCard.querySelector('.enquiry-summary'));
         const closeForm = () => { entryCard.classList.add('hidden'); summaryCard.classList.add('hidden'); form.reset(); editingIndex = null; updateSummary(); };
         const openForm = () => {
