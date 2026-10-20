@@ -4229,6 +4229,10 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .appointments-module .enquiry-form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 .incoming-mail-module .enquiry-form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 .follow-ups-module .enquiry-form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.call-logs-module .enquiry-form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dispatch-module .enquiry-form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dispatch-module .enquiry-form-grid textarea:not([name="notes"]){min-height:38px;height:38px;resize:vertical}
+.call-logs-module .enquiry-form-grid textarea:not([name="notes"]){min-height:38px;height:38px;resize:vertical}
 .follow-ups-module .enquiry-form-grid textarea:not([name="notes"]){min-height:38px;height:38px;resize:vertical}
 .incoming-mail-module [name="senderAddress"]{min-height:38px;height:38px;resize:vertical}
 .incoming-mail-module [name="description"]{min-height:38px;height:38px;resize:vertical}
@@ -4238,6 +4242,9 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .enquiry-form-group input,.enquiry-form-group select,.enquiry-form-group textarea{padding:9px;border:1px solid #e2e8f0;border-radius:8px;font:inherit;font-size:12px}
 .enquiry-form-group textarea{min-height:75px;resize:vertical}
 .enquiry-form-actions{display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #e2e8f0;margin-top:14px;padding-top:14px}
+.utility-module .enquiry-form-actions button{display:inline-flex;align-items:center;justify-content:center;width:auto;max-width:none;margin-top:0}
+.utility-module .enquiry-form-actions .btn-secondary{background:#f1f5f9;color:#334155;border:1px solid #cbd5e1}
+.utility-module .enquiry-form-actions .btn-secondary:hover{background:#e2e8f0;color:#172033}
 .enquiry-form-actions [data-enquiry-clear],
 .enquiry-form-actions [data-enquiry-cancel]{
     margin-top:0;

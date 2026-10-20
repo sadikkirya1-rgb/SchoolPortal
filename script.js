@@ -6670,7 +6670,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div class="enquiry-form-group"><label>Email Address</label><input name="recipientEmail" type="email" placeholder="recipient@example.com"></div>
                                 <div class="enquiry-form-group"><label>Organization / Institution</label><input name="organization" placeholder="Organization name"></div>
                                 <div class="enquiry-form-group"><label>Student ID</label><input name="studentId" placeholder="Optional student reference"></div>
-                                <div class="enquiry-form-group full"><label>Delivery Address</label><textarea name="address" placeholder="Enter complete delivery address" required></textarea></div>
+                                <div class="enquiry-form-group"><label>Delivery Address</label><textarea name="address" placeholder="Enter complete delivery address" required></textarea></div>
                                 <div class="enquiry-form-group"><label>Delivery Method</label><select name="deliveryMethod" required><option value="">Select delivery method</option><option>Hand Delivery</option><option>School Messenger</option><option>Courier</option><option>Registered Mail</option><option>Regular Mail</option><option>Email</option><option>Pickup</option><option>Other</option></select></div>
                                 <div class="enquiry-form-group"><label>Courier / Delivery Company</label><input name="courier" placeholder="e.g. DHL, FedEx"></div>
                                 <div class="enquiry-form-group"><label>Tracking Number</label><input name="trackingNo" placeholder="Enter tracking number"></div>
@@ -6681,7 +6681,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div class="enquiry-form-group"><label>Approved By</label><input name="approvedBy" placeholder="Approving officer"></div>
                                 <div class="enquiry-form-group"><label>Actual Delivery Date</label><input name="deliveryDate" type="date"></div>
                                 <div class="enquiry-form-group"><label>Received By</label><input name="receivedBy" placeholder="Name of receiver"></div>
-                                <div class="enquiry-form-group full"><label>Proof of Delivery / Reference</label><input name="proof" placeholder="Receipt or delivery confirmation"></div>
+                                <div class="enquiry-form-group"><label>Proof of Delivery / Reference</label><input name="proof" placeholder="Receipt or delivery confirmation"></div>
                                 <div class="enquiry-form-group full"><label>Notes</label><textarea name="notes" placeholder="Additional dispatch notes"></textarea></div>
                             </div>
                             <div class="enquiry-form-actions"><button class="btn-secondary" type="reset" data-enquiry-clear>Clear</button><button class="btn-secondary" type="button" data-enquiry-cancel>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Save Dispatch</button></div>
