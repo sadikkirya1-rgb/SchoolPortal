@@ -10,9 +10,9 @@ function createVisitorLogsModule() {
         <div class="vl-overlay" data-vl-form-overlay><section class="vl-modal vl-form-modal" role="dialog" aria-modal="true" aria-labelledby="vl-form-title"><header class="vl-modal-head"><h3 id="vl-form-title">Add Visitor</h3><button class="vl-close" type="button" data-vl-close-form aria-label="Close">&times;</button></header>
             <form class="vl-form" data-vl-form><div class="vl-form-layout"><div class="vl-form-fields">
                 <h4 class="vl-section-title">Visitor Information</h4><div class="vl-grid">
-                    <label>Visitor ID<input name="visitorId" required placeholder="VIS-2026-001"></label><label>Full Name<input name="visitorName" required placeholder="Visitor full name"></label><label>Visitor Type<select name="visitorType"><option>Client</option><option>Vendor</option><option>Contractor</option><option>Interview</option><option>Delivery</option><option>Employee</option></select></label>
+                    <label>Visitor ID<input name="visitorId" required placeholder="VIS-2026-001" readonly></label><label>Full Name<input name="visitorName" required placeholder="Visitor full name"></label><label>Visitor Type<select name="visitorType"><option>Client</option><option>Vendor</option><option>Contractor</option><option>Interview</option><option>Delivery</option><option>Employee</option></select></label>
                     <label>Company / Organization<input name="company" required placeholder="Company name"></label><label>Job Title<input name="jobTitle" placeholder="Position / designation"></label><label>Phone Number<input name="phone" type="tel" placeholder="+971 XX XXX XXXX"></label>
-                    <label>Email Address<input name="email" type="email" placeholder="visitor@example.com"></label><label>Identification Type<select name="idType"><option>Emirates ID</option><option>Passport</option><option>Driving License</option><option>Company ID</option><option>Other</option></select></label><label>ID / Document Number<input name="idNumber" placeholder="Identification number"></label>
+                    <label>Email Address<input name="email" type="email" placeholder="visitor@example.com"></label><label>Identification Type<select name="idType"><option>National ID</option><option>Passport</option><option>Driving License</option><option>Company ID</option><option>Other</option></select></label><label>ID / Document Number<input name="idNumber" placeholder="Identification number"></label>
                 </div>
                 <h4 class="vl-section-title">Visit Details</h4><div class="vl-grid">
                     <label>Visit Date<input name="visitDate" type="date" required></label><label>Expected Arrival Time<input name="arrivalTime" type="time" required></label><label>Expected Departure Time<input name="departureTime" type="time"></label>
@@ -20,7 +20,7 @@ function createVisitorLogsModule() {
                 </div>
                 <h4 class="vl-section-title">Host &amp; Access</h4><div class="vl-grid">
                     <label>Host Name<input name="host" required placeholder="Employee / host name"></label><label>Host Department<input name="department" placeholder="Department"></label><label>Host Contact<input name="hostContact" type="tel" placeholder="Host phone number"></label>
-                    <label>Badge Number<input name="badge" placeholder="V-001"></label><label>Access Level<select name="accessLevel"><option>General</option><option>Restricted</option><option>Warehouse</option><option>Office Only</option><option>Meeting Area</option></select></label><label>Parking Required<select name="parking"><option>No</option><option>Yes</option></select></label>
+                    <label>Badge Number<input name="badge" placeholder="V-001" readonly></label><label>Access Level<select name="accessLevel"><option>General</option><option>Restricted</option><option>Warehouse</option><option>Office Only</option><option>Meeting Area</option></select></label><label>Parking Required<select name="parking"><option>No</option><option>Yes</option></select></label>
                     <label>Vehicle Plate No.<input name="vehicle" placeholder="ABC 12345"></label><label>Security Officer<input name="securityOfficer" placeholder="Security staff"></label><label>Appointment Reference<input name="appointment" placeholder="Appointment / booking number"></label>
                 </div>
                 <h4 class="vl-section-title">Security &amp; Notes</h4><div class="vl-grid">
@@ -119,6 +119,23 @@ function createVisitorLogsModule() {
     };
     const statusClass = value => String(value || '').toLowerCase().replace(/\s+/g, '-');
     const initials = name => String(name || '').split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase();
+    const displayIdType = value => value === 'Emirates ID' ? 'National ID' : value;
+    const nextSequentialId = (field, prefix) => {
+        const used = new Set(visitors.map(visitor => String(visitor?.[field] || '').toLowerCase()));
+        const lastNumber = visitors.reduce((maximum, visitor) => {
+            const value = String(visitor?.[field] || '');
+            const suffix = value.slice(prefix.length);
+            return value.toLowerCase().startsWith(prefix.toLowerCase()) && /^\d+$/.test(suffix)
+                ? Math.max(maximum, Number(suffix))
+                : maximum;
+        }, 0);
+        let number = lastNumber + 1;
+        let id;
+        do {
+            id = `${prefix}${String(number++).padStart(3, '0')}`;
+        } while (used.has(id.toLowerCase()));
+        return id;
+    };
     const save = () => localStorage.setItem(storageKey, JSON.stringify(visitors));
     const saveAudit = () => localStorage.setItem(auditStorageKey, JSON.stringify(auditEvents));
     const currentActor = () => ({
@@ -251,12 +268,16 @@ function createVisitorLogsModule() {
         const form = q('[data-vl-form]');
         form.reset();
         editingId = visitor?.visitorId ?? null;
-        form.elements.visitorId.readOnly = Boolean(visitor);
+        form.elements.visitorId.readOnly = true;
+        form.elements.badge.readOnly = true;
         q('#vl-form-title').textContent = visitor ? 'Edit Visitor' : 'Add Visitor';
         if (visitor) {
-            ['visitorId', 'visitorName', 'visitorType', 'company', 'jobTitle', 'phone', 'email', 'idType', 'idNumber', 'visitDate', 'arrivalTime', 'departureTime', 'location', 'purpose', 'guests', 'host', 'department', 'hostContact', 'badge', 'accessLevel', 'parking', 'vehicle', 'securityOfficer', 'appointment', 'photoCaptured', 'idVerified', 'escort', 'notes', 'remarks'].forEach(field => { form.elements[field].value = visitor[field] ?? ''; });
+            ['visitorId', 'visitorName', 'visitorType', 'company', 'jobTitle', 'phone', 'email', 'idType', 'idNumber', 'visitDate', 'arrivalTime', 'departureTime', 'location', 'purpose', 'guests', 'host', 'department', 'hostContact', 'badge', 'accessLevel', 'parking', 'vehicle', 'securityOfficer', 'appointment', 'photoCaptured', 'idVerified', 'escort', 'notes', 'remarks'].forEach(field => { form.elements[field].value = field === 'idType' ? displayIdType(visitor[field] ?? '') : visitor[field] ?? ''; });
             currentVisitStatus = getStatus(visitor);
         } else {
+            const year = new Date().getFullYear();
+            form.elements.visitorId.value = nextSequentialId('visitorId', `VIS-${year}-`);
+            form.elements.badge.value = nextSequentialId('badge', 'V-');
             form.elements.visitDate.value = localDate();
             currentVisitStatus = 'Expected';
         }
@@ -287,7 +308,7 @@ function createVisitorLogsModule() {
             : '<p class="vl-audit-empty">No activity has been recorded yet.</p>';
         return `<header class="vl-detail-header"><div class="vl-profile"><span class="vl-avatar">${escape(initials(visitor.visitorName))}</span><div><h2>${escape(visitor.visitorName)}</h2><p>${escape(visitor.company)} · ${escape(visitor.visitorType)} · ${escape(visitor.purpose)}</p></div></div><span class="vl-badge ${escape(statusClass(status))}">${escape(status)}</span></header>
         <div class="vl-summary-grid">${[['Visitor ID', visitor.visitorId], ['Visit Type', visitor.visitorType], ['Visit Date', formatDate(visitor.visitDate)], ['Status', status], ['Host', visitor.host], ['Department', visitor.department || '—'], ['Check In', visitor.checkIn || '—'], ['Check Out', visitor.checkOut || '—'], ['Badge', visitor.badge || 'Not Issued'], ['Location', visitor.location], ['Guests', visitor.guests], ['Access Level', visitor.accessLevel]].map(([label, value]) => `<div class="vl-summary-box"><span>${escape(label)}</span><strong>${escape(value)}</strong></div>`).join('')}</div>
-        <h4 class="vl-section-title">Visitor Information</h4><table class="vl-info-table"><tbody>${[['Full Name', visitor.visitorName], ['Company / Organization', visitor.company], ['Job Title', visitor.jobTitle], ['Phone', visitor.phone], ['Email', visitor.email], ['Identification', `${visitor.idType} · ${visitor.idNumber || '—'}`], ['Purpose', visitor.purpose], ['Expected Arrival', visitor.arrivalTime], ['Expected Departure', visitor.departureTime], ['Host Contact', visitor.hostContact], ['Parking Required', visitor.parking], ['Vehicle Plate', visitor.vehicle], ['Security Officer', visitor.securityOfficer], ['Appointment Reference', visitor.appointment], ['Photo Captured', visitor.photoCaptured], ['ID Verified', visitor.idVerified], ['Escort Required', visitor.escort]].map(([label, value]) => `<tr><th>${escape(label)}</th><td>${escape(value || '—')}</td></tr>`).join('')}</tbody></table><div class="vl-notes"><strong>Visit Notes</strong><p>${escape(visitor.notes || 'No additional notes.')}</p></div><div class="vl-notes"><strong>Internal Remarks</strong><p>${escape(visitor.remarks || 'No internal remarks.')}</p></div><h4 class="vl-section-title">Activity History</h4>${historyMarkup}`;
+        <h4 class="vl-section-title">Visitor Information</h4><table class="vl-info-table"><tbody>${[['Full Name', visitor.visitorName], ['Company / Organization', visitor.company], ['Job Title', visitor.jobTitle], ['Phone', visitor.phone], ['Email', visitor.email], ['Identification', `${displayIdType(visitor.idType)} · ${visitor.idNumber || '—'}`], ['Purpose', visitor.purpose], ['Expected Arrival', visitor.arrivalTime], ['Expected Departure', visitor.departureTime], ['Host Contact', visitor.hostContact], ['Parking Required', visitor.parking], ['Vehicle Plate', visitor.vehicle], ['Security Officer', visitor.securityOfficer], ['Appointment Reference', visitor.appointment], ['Photo Captured', visitor.photoCaptured], ['ID Verified', visitor.idVerified], ['Escort Required', visitor.escort]].map(([label, value]) => `<tr><th>${escape(label)}</th><td>${escape(value || '—')}</td></tr>`).join('')}</tbody></table><div class="vl-notes"><strong>Visit Notes</strong><p>${escape(visitor.notes || 'No additional notes.')}</p></div><div class="vl-notes"><strong>Internal Remarks</strong><p>${escape(visitor.remarks || 'No internal remarks.')}</p></div><h4 class="vl-section-title">Activity History</h4>${historyMarkup}`;
     };
     const printDocument = (title, html) => {
         const printWindow = window.open('', '_blank');
@@ -300,7 +321,7 @@ function createVisitorLogsModule() {
     const printVisitor = visitor => {
         visitor = { ...visitor, status: getStatus(visitor) };
         const fields = [['Visitor', visitor.visitorName], ['Company', visitor.company], ['Visitor Type', visitor.visitorType], ['Visit Date', formatDate(visitor.visitDate)], ['Expected Arrival', visitor.arrivalTime], ['Expected Departure', visitor.departureTime], ['Check In', visitor.checkIn], ['Check Out', visitor.checkOut], ['Host', visitor.host], ['Department', visitor.department], ['Location', visitor.location], ['Purpose', visitor.purpose], ['Badge', visitor.badge || 'Not Issued'], ['Access Level', visitor.accessLevel], ['ID Verified', visitor.idVerified], ['Security Officer', visitor.securityOfficer]];
-        const html = `<header class="head"><div><h1>Visitor Pass / Visit Record</h1><p>Security &amp; Reception Department</p></div><div><strong>${escape(visitor.visitorId)}</strong><br>Status: ${escape(visitor.status)}</div></header><div class="meta">${fields.map(([label, value]) => `<div><strong>${escape(label)}</strong>${escape(value || '—')}</div>`).join('')}</div><table><thead><tr><th>Visitor Detail</th><th>Information</th></tr></thead><tbody>${[['Phone', visitor.phone], ['Email', visitor.email], ['Identification', `${visitor.idType} · ${visitor.idNumber || '—'}`], ['Job Title', visitor.jobTitle], ['Guests', visitor.guests], ['Parking', visitor.parking], ['Vehicle', visitor.vehicle], ['Photo Captured', visitor.photoCaptured], ['Escort Required', visitor.escort], ['Appointment Reference', visitor.appointment], ['Notes', visitor.notes], ['Remarks', visitor.remarks]].map(([label, value]) => `<tr><td>${escape(label)}</td><td>${escape(value || '—')}</td></tr>`).join('')}</tbody></table><div class="signatures"><span>Visitor Signature</span><span>Host / Employee Signature</span><span>Security Verification</span></div>`;
+        const html = `<header class="head"><div><h1>Visitor Pass / Visit Record</h1><p>Security &amp; Reception Department</p></div><div><strong>${escape(visitor.visitorId)}</strong><br>Status: ${escape(visitor.status)}</div></header><div class="meta">${fields.map(([label, value]) => `<div><strong>${escape(label)}</strong>${escape(value || '—')}</div>`).join('')}</div><table><thead><tr><th>Visitor Detail</th><th>Information</th></tr></thead><tbody>${[['Phone', visitor.phone], ['Email', visitor.email], ['Identification', `${displayIdType(visitor.idType)} · ${visitor.idNumber || '—'}`], ['Job Title', visitor.jobTitle], ['Guests', visitor.guests], ['Parking', visitor.parking], ['Vehicle', visitor.vehicle], ['Photo Captured', visitor.photoCaptured], ['Escort Required', visitor.escort], ['Appointment Reference', visitor.appointment], ['Notes', visitor.notes], ['Remarks', visitor.remarks]].map(([label, value]) => `<tr><td>${escape(label)}</td><td>${escape(value || '—')}</td></tr>`).join('')}</tbody></table><div class="signatures"><span>Visitor Signature</span><span>Host / Employee Signature</span><span>Security Verification</span></div>`;
         printDocument(visitor.visitorId, html);
     };
 

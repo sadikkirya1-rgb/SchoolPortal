@@ -11,7 +11,7 @@ function createParentsModule() {
             <form class="pa-form" data-pa-form>
                 <h4 class="pa-section-title">Parent Information</h4><div class="pa-grid">
                     <label>Parent ID<input name="parentId" required placeholder="PAR-2026-001"></label><label>Full Name<input name="parentName" required placeholder="Parent full name"></label><label>Relationship<select name="relationship"><option>Father</option><option>Mother</option><option>Guardian</option><option>Other</option></select></label>
-                    <label>National ID / Emirates ID<input name="nationalId" placeholder="Identification number"></label><label>Occupation<input name="occupation" placeholder="Occupation / designation"></label><label>Company<input name="company" placeholder="Company name"></label>
+                    <label>National ID<input name="nationalId" placeholder="Identification number"></label><label>Occupation<input name="occupation" placeholder="Occupation / designation"></label><label>Company<input name="company" placeholder="Company name"></label>
                 </div>
                 <h4 class="pa-section-title">Student / Family Details</h4><div class="pa-grid">
                     <label>Student Name<input name="studentName" required placeholder="Student name"></label><label>Student ID<input name="studentId" placeholder="Student ID"></label><label>Grade / Class<input name="className" placeholder="Grade 8 - A"></label>
