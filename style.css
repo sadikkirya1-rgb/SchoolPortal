@@ -5610,6 +5610,12 @@ input:checked + .slider:before {
     display:none;
 }
 
+@media(max-width:768px){
+    #mobileRoleNav.mobile-role-nav-idcards .mobile-role-nav-new-id{
+        display:flex!important;
+    }
+}
+
 .notification-menu{
     position:relative;
 }

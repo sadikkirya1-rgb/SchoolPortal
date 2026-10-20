@@ -81,6 +81,10 @@
     #idCardsModule .idc-camera-guide-label,#idCardsModule .idc-camera-guide-hint{font-size:10px}
     #idCardsModule .idc-scan-result{font-size:12px}
 }
+@media(max-width:768px){
+    #idCardsModule.idc-scanner-open .idc-header [data-idc-new],
+    #idCardsModule.idc-scanner-open .idc-header [data-idc-open-scanner]{display:none!important}
+}
 #idCardsModule .idc-face-enrollment-control{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:10px;border:1px solid #dce4ef;border-radius:8px;background:#f8fafc}
 #idCardsModule .idc-face-enrollment-control>[data-idc-face-status]{color:#64748b;font-size:10px}
 #idCardsModule .idc-badge.idc-face-enrolled{background:#dcfce7;color:#166534}

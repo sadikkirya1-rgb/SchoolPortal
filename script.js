@@ -3179,12 +3179,64 @@ document.addEventListener('DOMContentLoaded', () => {
         updateParentPortalNavActive(null);
         renderParentPortalDashboard();
         setApplicationPage('Parent Documents');
+        const session = loadSession();
+        if (session?.user) renderMobileRoleNav(session.user);
     }
 
     function renderMobileRoleNav(userData) {
         const nav = document.getElementById('mobileRoleNav');
         if (!nav) return;
         const role = String(userData.role || '').toLowerCase().replace(/[\s_-]+/g, '');
+        const idCardsModule = document.getElementById('idCardsModule');
+        if (idCardsModule && !idCardsModule.classList.contains('hidden')) {
+            nav.replaceChildren();
+            nav.classList.remove('mobile-role-nav-parent', 'mobile-role-nav-actions');
+            nav.classList.add('mobile-role-nav-idcards');
+            nav.setAttribute('aria-label', 'ID Cards navigation');
+            const actions = [
+                {
+                    label: 'Home',
+                    icon: 'fa-house',
+                    run: () => {
+                        const homeLink = role.includes('parent')
+                            ? document.querySelector('.parent-sidebar-navigation [data-parent-home]')
+                            : document.getElementById('dashboardBtn');
+                        homeLink?.click();
+                    }
+                },
+                {
+                    label: 'New ID',
+                    icon: 'fa-plus',
+                    run: () => {
+                        idCardsModule.querySelector('[data-idc-close-scanner]')?.click();
+                        idCardsModule.querySelector('[data-idc-new]')?.click();
+                    }
+                },
+                {
+                    label: 'ID Records',
+                    icon: 'fa-id-card',
+                    run: () => {
+                        idCardsModule.querySelector('[data-idc-close-scanner]')?.click();
+                        idCardsModule.querySelector('.idc-record-heading')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            ];
+            actions.forEach(({ label, icon, run }) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'mobile-role-nav-item';
+                if (label === 'New ID') button.classList.add('mobile-role-nav-new-id');
+                button.setAttribute('aria-label', label);
+                button.dataset.mobileIdcardsAction = label === 'New ID' ? 'new' : label.toLowerCase().replace(/\s+/g, '-');
+                button.innerHTML = `<i class="fas ${icon}" aria-hidden="true"></i><span>${label}</span>`;
+                button.addEventListener('click', run);
+                nav.append(button);
+            });
+            nav.hidden = false;
+            return;
+        }
+        nav.classList.remove('mobile-role-nav-idcards');
+        nav.setAttribute('aria-label', 'Quick navigation');
         if (role.includes('parent')) {
                 const parentActions = [
                     { label: 'Home', icon: 'fa-house', source: document.querySelector('.parent-sidebar-navigation [data-parent-home]') },
@@ -4778,6 +4830,8 @@ document.addEventListener('DOMContentLoaded', () => {
         hideAllContentAreas();
         const el = document.getElementById(sectionId);
         if (el) el.classList.remove('hidden');
+        const session = loadSession();
+        if (session?.user) renderMobileRoleNav(session.user);
     }
 
     window.openSchoolPortalQrAttendanceScanner = () => {
@@ -4811,6 +4865,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setApplicationPage(preview ? 'Parent Portal Preview' : 'Parent Home');
         updateBreadcrumb(preview ? ['Portals', 'Parent Portal Preview'] : ['Parent Portal', 'Home']);
         if (persist) persistDashboardSection();
+        const session = loadSession();
+        if (session?.user) renderMobileRoleNav(session.user);
     }
 
     function showDashboard({ persist = true } = {}){
@@ -4821,6 +4877,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setApplicationPage('Dashboard');
         updateBreadcrumb(['Main', 'Dashboard']);
         if (persist) persistDashboardSection();
+        const session = loadSession();
+        if (session?.user) renderMobileRoleNav(session.user);
     }
 
     function createFrontOfficeDashboard(category) {
