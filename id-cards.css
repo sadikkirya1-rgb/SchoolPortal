@@ -91,3 +91,39 @@
 #idCardsModule [data-idc-face-video]{display:block;width:100%;max-height:360px;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:#0f172a}
 #idCardsModule [data-idc-face-message]{min-height:20px;margin-top:8px;color:#475569;font-size:12px}
 #idCardsModule .idc-face-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+#idCardsModule .idc-record-toolbar{display:flex;flex-wrap:nowrap;align-items:center;gap:8px 12px;overflow-x:auto}
+#idCardsModule .idc-record-filters{display:flex;flex:0 0 auto;flex-wrap:nowrap}
+#idCardsModule .idc-filter{flex:0 0 150px}
+#idCardsModule .idc-search{flex:1 0 240px;width:auto;min-width:180px}
+#idCardsModule .idc-export-btn{flex:0 0 auto;margin-left:auto}
+#idCardsModule .idc-scan-controls{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;gap:12px;margin-bottom:14px}
+#idCardsModule .idc-scan-option{display:grid;gap:5px;color:#475569;font-size:11px;font-weight:700}
+#idCardsModule .idc-scan-option:not(:first-child){justify-items:center}
+#idCardsModule .idc-scan-option>strong{display:flex;min-height:38px;align-items:center;padding:0 12px;border:1px solid #dce4ef;border-radius:8px;background:#f8fafc;color:#1459d9}
+#idCardsModule .idc-scan-button-group{display:flex;gap:6px}
+#idCardsModule .idc-scan-controls .idc-scan-button-group .idc-btn{min-height:38px}
+#idCardsModule .idc-scan-controls .idc-scan-button-group .idc-btn{min-height:32px;padding:6px 9px;font-size:10px;white-space:nowrap}
+#idCardsModule .idc-scan-button-group .idc-btn i{margin-right:4px;font-size:10px}
+#idCardsModule .idc-scan-controls .idc-scan-button-group .is-selected{background:#1459d9;color:#fff}
+#idCardsModule .idc-scan-controls .idc-camera-zoom{min-width:150px}
+#idCardsModule .idc-camera-actions{display:flex;justify-content:center;gap:10px;width:min(100%,520px);margin:12px auto}
+#idCardsModule .idc-camera-actions .idc-btn{flex:1;min-height:44px}
+#idCardsModule .idc-camera-actions .idc-btn:disabled{cursor:not-allowed;opacity:.55;transform:none}
+@media(max-width:900px){
+    #idCardsModule .idc-record-toolbar{display:flex}
+    #idCardsModule .idc-record-filters{grid-column:auto;grid-row:auto}
+    #idCardsModule .idc-search{grid-column:auto;grid-row:auto;justify-self:auto;max-width:none}
+    #idCardsModule .idc-export-btn{grid-column:auto;grid-row:auto}
+}
+@media(max-width:600px){
+    #idCardsModule .idc-record-toolbar{display:flex;flex-wrap:nowrap;padding:0 14px 14px}
+    #idCardsModule .idc-record-filters{width:auto}
+    #idCardsModule .idc-filter{flex-basis:130px;min-width:0}
+    #idCardsModule .idc-search{flex-basis:180px;min-width:150px}
+    #idCardsModule .idc-export-btn{justify-self:auto;margin-left:0}
+    #idCardsModule .idc-scan-controls{display:flex}
+    #idCardsModule .idc-scan-option{width:100%}
+    #idCardsModule .idc-scan-option>strong{min-height:44px}
+    #idCardsModule .idc-scan-button-group .idc-btn{flex:1;min-height:32px;padding:6px 7px;font-size:10px}
+    #idCardsModule .idc-scan-controls .idc-camera-zoom{grid-column:auto;width:100%}
+}
