@@ -4258,8 +4258,6 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
     color:#172033;
 }
 .enquiry-summary{display:flex;flex-direction:column;gap:9px}
-.visitors-module .enquiries-grid{align-items:stretch}
-.visitors-module .enquiry-summary{padding-right:0}
 .enquiry-summary-row{display:flex;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px dashed #e2e8f0;font-size:11px}
 .enquiry-summary-row:last-child{border-bottom:0;padding-bottom:0}
 .enquiry-summary-row span{color:#64748b}.enquiry-summary-row strong{text-align:right;color:#172033;max-width:70%;overflow-wrap:anywhere;white-space:pre-wrap}

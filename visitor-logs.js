@@ -4,11 +4,11 @@ function createVisitorLogsModule() {
     section.id = 'visitorLogsModule';
     section.innerHTML = `
         <header class="vl-header"><div><h2>Visitor Logs</h2><p>Manage visitor registrations, check-ins, check-outs, appointments and access records</p></div><button class="vl-button vl-primary" type="button" data-vl-new><i class="fas fa-plus"></i> Add Visitor</button></header>
-        <section class="vl-stats" aria-label="Visitor log summary"><article class="vl-stat"><div><span>Total Visitors</span><strong data-vl-stat="total">0</strong></div><i class="fas fa-users"></i></article><article class="vl-stat"><div><span>Currently Inside</span><strong data-vl-stat="inside">0</strong></div><i class="fas fa-person-circle-check"></i></article><article class="vl-stat"><div><span>Expected Today</span><strong data-vl-stat="expected">0</strong></div><i class="fas fa-calendar-check"></i></article><article class="vl-stat"><div><span>Checked Out</span><strong data-vl-stat="checkedOut">0</strong></div><i class="fas fa-right-from-bracket"></i></article><article class="vl-stat"><div><span>Overdue</span><strong data-vl-stat="overdue">0</strong></div><i class="fas fa-triangle-exclamation"></i></article><article class="vl-stat"><div><span>No-show</span><strong data-vl-stat="noShow">0</strong></div><i class="fas fa-user-clock"></i></article><article class="vl-stat"><div><span>Companies</span><strong data-vl-stat="companies">0</strong></div><i class="fas fa-building"></i></article></section>
+        <section class="vl-stats" aria-label="Visitor log summary"><article class="vl-stat"><div><span>Total Visitors</span><strong data-vl-stat="total">0</strong></div><i class="fas fa-users"></i></article><article class="vl-stat"><div><span>Currently Inside</span><strong data-vl-stat="inside">0</strong></div><i class="fas fa-person-circle-check"></i></article><article class="vl-stat"><div><span>Expected Today</span><strong data-vl-stat="expected">0</strong></div><i class="fas fa-calendar-check"></i></article><article class="vl-stat"><div><span>Checked Out</span><strong data-vl-stat="checkedOut">0</strong></div><i class="fas fa-right-from-bracket"></i></article><article class="vl-stat"><div><span>Overdue</span><strong data-vl-stat="overdue">0</strong></div><i class="fas fa-triangle-exclamation"></i></article><article class="vl-stat"><div><span>No-show</span><strong data-vl-stat="noShow">0</strong></div><i class="fas fa-user-clock"></i></article></section>
         <section class="vl-content" aria-label="Visitor records"><div class="vl-toolbar"><label class="vl-search"><i class="fas fa-search" aria-hidden="true"></i><span class="vl-sr-only">Search visitor records</span><input type="search" data-vl-search placeholder="Search visitor, company, host, badge..."></label><select class="vl-filter" data-vl-status aria-label="Filter by status"><option value="">All Statuses</option><option>Expected</option><option>Checked In</option><option>Checked Out</option><option>Overdue</option><option>No-show</option><option>Cancelled</option></select><select class="vl-filter" data-vl-type aria-label="Filter by visitor type"><option value="">All Visitor Types</option><option>Client</option><option>Vendor</option><option>Contractor</option><option>Interview</option><option>Delivery</option><option>Employee</option></select><select class="vl-filter" data-vl-location aria-label="Filter by location"><option value="">All Locations</option><option>Head Office</option><option>Warehouse</option><option>Branch Office</option><option>Meeting Room</option><option>Reception</option></select><button class="vl-button vl-light" type="button" data-vl-print-report><i class="fas fa-print"></i> Print / PDF</button></div>
             <div class="vl-table-wrap"><table class="vl-table"><thead><tr><th>Visitor</th><th>Company</th><th>Visit Type</th><th>Host / Department</th><th>Visit Date</th><th>Check In</th><th>Check Out</th><th>Badge</th><th>Status</th><th>Actions</th></tr></thead><tbody data-vl-rows></tbody></table></div></section>
-        <div class="vl-overlay" data-vl-form-overlay><section class="vl-modal" role="dialog" aria-modal="true" aria-labelledby="vl-form-title"><header class="vl-modal-head"><h3 id="vl-form-title">Add Visitor</h3><button class="vl-close" type="button" data-vl-close-form aria-label="Close">&times;</button></header>
-            <form class="vl-form" data-vl-form>
+        <div class="vl-overlay" data-vl-form-overlay><section class="vl-modal vl-form-modal" role="dialog" aria-modal="true" aria-labelledby="vl-form-title"><header class="vl-modal-head"><h3 id="vl-form-title">Add Visitor</h3><button class="vl-close" type="button" data-vl-close-form aria-label="Close">&times;</button></header>
+            <form class="vl-form" data-vl-form><div class="vl-form-layout"><div class="vl-form-fields">
                 <h4 class="vl-section-title">Visitor Information</h4><div class="vl-grid">
                     <label>Visitor ID<input name="visitorId" required placeholder="VIS-2026-001"></label><label>Full Name<input name="visitorName" required placeholder="Visitor full name"></label><label>Visitor Type<select name="visitorType"><option>Client</option><option>Vendor</option><option>Contractor</option><option>Interview</option><option>Delivery</option><option>Employee</option></select></label>
                     <label>Company / Organization<input name="company" required placeholder="Company name"></label><label>Job Title<input name="jobTitle" placeholder="Position / designation"></label><label>Phone Number<input name="phone" type="tel" placeholder="+971 XX XXX XXXX"></label>
@@ -16,7 +16,6 @@ function createVisitorLogsModule() {
                 </div>
                 <h4 class="vl-section-title">Visit Details</h4><div class="vl-grid">
                     <label>Visit Date<input name="visitDate" type="date" required></label><label>Expected Arrival Time<input name="arrivalTime" type="time" required></label><label>Expected Departure Time<input name="departureTime" type="time"></label>
-                    <div class="vl-status-readonly"><span>Current Visit Status</span><strong data-vl-current-status>Expected</strong><small>Use Check In or Check Out actions to update visit status.</small></div>
                     <label>Location<select name="location"><option>Head Office</option><option>Warehouse</option><option>Branch Office</option><option>Meeting Room</option><option>Reception</option></select></label><label>Purpose of Visit<input name="purpose" required placeholder="Meeting, delivery, interview..."></label><label>Number of Guests<input name="guests" type="number" min="1" value="1"></label>
                 </div>
                 <h4 class="vl-section-title">Host &amp; Access</h4><div class="vl-grid">
@@ -28,7 +27,7 @@ function createVisitorLogsModule() {
                     <label>Photo Captured<select name="photoCaptured"><option>Yes</option><option>No</option></select></label><label>ID Verified<select name="idVerified"><option>Yes</option><option>No</option><option>Pending</option></select></label><label>Escort Required<select name="escort"><option>No</option><option>Yes</option></select></label>
                     <label class="vl-full">Visit Notes<textarea name="notes" placeholder="Additional visitor information, security notes or instructions..."></textarea></label><label class="vl-full">Internal Remarks<textarea name="remarks" placeholder="Internal remarks..."></textarea></label>
                 </div><footer class="vl-modal-actions"><button class="vl-button vl-light" type="button" data-vl-cancel>Cancel</button><button class="vl-button vl-primary" type="submit">Save Visitor</button></footer>
-            </form>
+            </div><aside class="vl-live-summary" aria-label="Live visitor summary"><h4>Live Visitor Summary</h4><p>Updates as you complete the form.</p><div class="vl-live-summary-list" data-vl-summary aria-live="polite"></div></aside></div></form>
         </section></div>
         <div class="vl-overlay" data-vl-correction-overlay><section class="vl-modal vl-correction-modal" role="dialog" aria-modal="true" aria-labelledby="vl-correction-title"><header class="vl-modal-head"><h3 id="vl-correction-title">Correct Visitor Status</h3><button class="vl-close" type="button" data-vl-close-correction aria-label="Close">&times;</button></header><form class="vl-form" data-vl-correction-form><p class="vl-correction-context" data-vl-correction-context></p><div class="vl-grid"><label>Status<select name="status" required><option>Expected</option><option>Checked In</option><option>Checked Out</option><option>Cancelled</option></select></label><label class="vl-full">Reason<textarea name="reason" required placeholder="Enter why this status is being changed..."></textarea></label></div><footer class="vl-modal-actions"><button class="vl-button vl-light" type="button" data-vl-cancel-correction>Cancel</button><button class="vl-button vl-primary" type="submit">Save Status</button></footer></form></section></div>
         <div class="vl-overlay" data-vl-view-overlay><section class="vl-modal" role="dialog" aria-modal="true" aria-labelledby="vl-view-title"><header class="vl-modal-head"><h3 id="vl-view-title">Visitor Details</h3><button class="vl-close" type="button" data-vl-close-view aria-label="Close">&times;</button></header><div class="vl-view" data-vl-view-content></div><footer class="vl-modal-actions"><button class="vl-button vl-light" type="button" data-vl-close-view>Close</button><button class="vl-button vl-primary" type="button" data-vl-print-current><i class="fas fa-print"></i> Print / PDF</button></footer></section></div>
@@ -44,6 +43,60 @@ function createVisitorLogsModule() {
     } catch (error) {
         visitors = [];
     }
+    try {
+        const legacyEntries = JSON.parse(localStorage.getItem('edumasterVisitors') || '[]');
+        if (Array.isArray(legacyEntries)) {
+            const existingIds = new Set(visitors.map(visitor => String(visitor?.visitorId || '').toLowerCase()));
+            const migratedEntries = legacyEntries.flatMap((entry, index) => {
+                if (!entry || typeof entry !== 'object') return [];
+                const visitorId = String(entry.visitorId || entry.id || `LEGACY-${String(index + 1).padStart(5, '0')}`);
+                if (existingIds.has(visitorId.toLowerCase())) return [];
+                existingIds.add(visitorId.toLowerCase());
+                const legacyType = String(entry.visitorType || '');
+                const visitorType = ['Client', 'Vendor', 'Contractor', 'Interview', 'Delivery', 'Employee'].includes(legacyType)
+                    ? legacyType
+                    : /vendor|supplier/i.test(legacyType) ? 'Vendor'
+                        : /contractor/i.test(legacyType) ? 'Contractor'
+                            : /staff/i.test(legacyType) ? 'Employee'
+                                : 'Client';
+                const legacyStatus = String(entry.status || 'Expected');
+                return [{
+                    ...entry,
+                    visitorId,
+                    visitorName: entry.visitorName || entry.name || '',
+                    visitorType,
+                    legacyVisitorType: legacyType,
+                    company: entry.organization || entry.company || '',
+                    visitDate: entry.visitDate || '',
+                    arrivalTime: entry.expectedTime || entry.arrivalTime || '',
+                    departureTime: entry.departureTime || '',
+                    location: entry.entryGate || entry.location || 'Reception',
+                    purpose: entry.purpose || '',
+                    guests: Math.max(1, Number(entry.companions ?? entry.guests) || 1),
+                    host: entry.personToVisit || entry.host || '',
+                    hostContact: entry.hostPhone || entry.hostContact || '',
+                    badge: entry.badgeNo || entry.badge || '',
+                    accessLevel: entry.securityClearance || entry.accessLevel || 'General',
+                    vehicle: entry.vehicleNo || entry.vehicle || '',
+                    appointment: entry.appointmentRef || entry.appointment || '',
+                    checkIn: entry.checkInTime || entry.checkIn || '',
+                    checkOut: entry.checkOutTime || entry.checkOut || '',
+                    notes: entry.notes || entry.itemsCarried || entry.securityNotes || '',
+                    remarks: entry.remarks || '',
+                    status: ['Expected', 'Checked In', 'Checked Out', 'Cancelled'].includes(legacyStatus)
+                        ? legacyStatus
+                        : legacyStatus === 'In Meeting' ? 'Checked In' : 'Expected',
+                    legacyStatus
+                }];
+            });
+            if (migratedEntries.length) {
+                visitors.push(...migratedEntries);
+                localStorage.setItem(storageKey, JSON.stringify(visitors));
+            }
+        }
+    } catch (error) {
+        console.error('Unable to migrate saved visitor records into Visitor Logs.', error);
+    }
     let auditEvents;
     try {
         const storedAudit = JSON.parse(localStorage.getItem(auditStorageKey));
@@ -55,6 +108,7 @@ function createVisitorLogsModule() {
     let viewingId = null;
     let correctingId = null;
     let correctionMode = null;
+    let currentVisitStatus = 'Expected';
     let toastTimer;
     const q = selector => section.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
@@ -131,7 +185,6 @@ function createVisitorLogsModule() {
         q('[data-vl-stat="checkedOut"]').textContent = visitors.filter(visitor => getStatus(visitor) === 'Checked Out').length;
         q('[data-vl-stat="overdue"]').textContent = visitors.filter(visitor => getStatus(visitor) === 'Overdue').length;
         q('[data-vl-stat="noShow"]').textContent = visitors.filter(visitor => getStatus(visitor) === 'No-show').length;
-        q('[data-vl-stat="companies"]').textContent = new Set(visitors.map(visitor => visitor.company).filter(Boolean)).size;
     };
     const renderVisitorRow = visitor => {
         const status = getStatus(visitor);
@@ -164,6 +217,36 @@ function createVisitorLogsModule() {
         correctingId = null;
         correctionMode = null;
     };
+    const updateFormSummary = () => {
+        const form = q('[data-vl-form]');
+        const summary = q('[data-vl-summary]');
+        const rows = Array.from(form.querySelectorAll('input[name], select[name], textarea[name]')).map(field => {
+            const row = document.createElement('div');
+            const label = document.createElement('span');
+            const value = document.createElement('strong');
+            const fieldLabel = field.closest('label');
+            const labelText = Array.from(fieldLabel?.childNodes || [])
+                .filter(node => node.nodeType === Node.TEXT_NODE)
+                .map(node => node.textContent.trim())
+                .filter(Boolean)
+                .join(' ');
+            label.textContent = labelText || field.name;
+            value.textContent = field instanceof HTMLSelectElement
+                ? Array.from(field.selectedOptions, option => option.textContent.trim()).join(', ') || '—'
+                : field.value.trim() || '—';
+            row.className = 'vl-live-summary-row';
+            row.append(label, value);
+            return row;
+        });
+        const statusRow = document.createElement('div');
+        statusRow.className = 'vl-live-summary-row';
+        const statusLabel = document.createElement('span');
+        const statusValue = document.createElement('strong');
+        statusLabel.textContent = 'Current Visit Status';
+        statusValue.textContent = currentVisitStatus;
+        statusRow.append(statusLabel, statusValue);
+        summary.replaceChildren(...rows, statusRow);
+    };
     const openForm = visitor => {
         const form = q('[data-vl-form]');
         form.reset();
@@ -172,12 +255,13 @@ function createVisitorLogsModule() {
         q('#vl-form-title').textContent = visitor ? 'Edit Visitor' : 'Add Visitor';
         if (visitor) {
             ['visitorId', 'visitorName', 'visitorType', 'company', 'jobTitle', 'phone', 'email', 'idType', 'idNumber', 'visitDate', 'arrivalTime', 'departureTime', 'location', 'purpose', 'guests', 'host', 'department', 'hostContact', 'badge', 'accessLevel', 'parking', 'vehicle', 'securityOfficer', 'appointment', 'photoCaptured', 'idVerified', 'escort', 'notes', 'remarks'].forEach(field => { form.elements[field].value = visitor[field] ?? ''; });
-            q('[data-vl-current-status]').textContent = getStatus(visitor);
+            currentVisitStatus = getStatus(visitor);
         } else {
             form.elements.visitDate.value = localDate();
-            q('[data-vl-current-status]').textContent = 'Expected';
+            currentVisitStatus = 'Expected';
         }
         q('[data-vl-form-overlay]').classList.add('is-open');
+        updateFormSummary();
         form.elements.visitorId.focus();
     };
     const openCorrection = (visitor, mode) => {
@@ -221,6 +305,8 @@ function createVisitorLogsModule() {
     };
 
     q('[data-vl-new]').addEventListener('click', () => openForm());
+    q('[data-vl-form]').addEventListener('input', updateFormSummary);
+    q('[data-vl-form]').addEventListener('change', updateFormSummary);
     q('[data-vl-search]').addEventListener('input', render);
     q('[data-vl-status]').addEventListener('change', render);
     q('[data-vl-type]').addEventListener('change', render);
