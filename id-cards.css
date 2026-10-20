@@ -106,12 +106,12 @@
 #idCardsModule .idc-scan-option>strong{display:flex;width:max-content;min-height:38px;align-items:center;padding:0 9px;border:1px solid #dce4ef;border-radius:8px;background:#f8fafc;color:#1459d9}
 #idCardsModule .idc-scan-button-group{display:flex;gap:6px}
 #idCardsModule .idc-scan-controls .idc-scan-button-group .idc-btn{min-height:38px}
-#idCardsModule .idc-scan-controls .idc-scan-button-group .idc-btn{min-height:32px;padding:6px 9px;font-size:10px;white-space:nowrap}
-#idCardsModule .idc-scan-button-group .idc-btn i{margin-right:4px;font-size:10px}
+#idCardsModule .idc-scan-controls .idc-scan-button-group .idc-btn{min-height:26px;padding:3px 6px;font-size:8px;white-space:nowrap}
+#idCardsModule .idc-scan-button-group .idc-btn i{margin-right:3px;font-size:8px}
 #idCardsModule .idc-scan-controls .idc-scan-button-group .is-selected{background:#1459d9;color:#fff}
 #idCardsModule .idc-scan-controls .idc-camera-zoom{min-width:150px}
 #idCardsModule .idc-camera-actions{display:flex;justify-content:center;gap:10px;width:min(100%,520px);margin:12px auto}
-#idCardsModule .idc-camera-actions .idc-btn{flex:1;min-height:44px}
+#idCardsModule .idc-camera-actions .idc-btn{flex:1;min-height:36px;padding:7px 10px;font-size:10px}
 #idCardsModule .idc-camera-actions .idc-btn:disabled{cursor:not-allowed;opacity:.55;transform:none}
 @media(max-width:900px){
     #idCardsModule .idc-record-toolbar{display:flex}
@@ -125,9 +125,14 @@
     #idCardsModule .idc-filter{flex-basis:130px;min-width:0}
     #idCardsModule .idc-search{flex-basis:180px;min-width:150px}
     #idCardsModule .idc-export-btn{justify-self:auto;margin-left:0}
-    #idCardsModule .idc-scan-controls{display:flex}
-    #idCardsModule .idc-scan-option{width:100%}
+    #idCardsModule .idc-scan-controls{display:flex;gap:6px}
+    #idCardsModule .idc-scan-option{width:calc(50% - 3px);min-width:0}
+    #idCardsModule .idc-scan-controls .idc-scan-option{justify-items:stretch}
+    #idCardsModule .idc-scan-option>span{text-align:center;font-size:9px}
+    #idCardsModule .idc-scan-button-group{width:100%;gap:4px}
     #idCardsModule .idc-scan-option>strong{min-height:44px}
-    #idCardsModule .idc-scan-button-group .idc-btn{flex:1;min-height:32px;padding:6px 7px;font-size:10px}
+    #idCardsModule .idc-scan-button-group .idc-btn{flex:1;min-width:0;min-height:24px;padding:3px 2px;font-size:7px}
+    #idCardsModule .idc-scan-button-group .idc-btn i{margin-right:2px;font-size:7px}
+    #idCardsModule .idc-camera-actions .idc-btn{min-height:32px;padding:6px;font-size:9px}
     #idCardsModule .idc-scan-controls .idc-camera-zoom{grid-column:auto;width:100%}
 }
