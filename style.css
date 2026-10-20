@@ -4145,6 +4145,8 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .utility-module .table-card{box-shadow:none;border:1px solid #e2e8f0}
 .utility-module .table-card table{width:100%;min-width:650px}
 .utility-module .table-card small{color:#64748b}
+.utility-module .utility-register-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 16px;padding:11px 15px;background:#fff7ed;border-bottom:1px solid #fed7aa;border-left:4px solid var(--warning)}
+.utility-module .utility-register-heading .table-title{margin:0;padding:0;border:0;background:transparent}
 .enquiries-stats{
     display:grid;
     grid-template-columns:repeat(4,1fr);
