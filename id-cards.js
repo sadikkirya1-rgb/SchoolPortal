@@ -168,6 +168,7 @@ function createIDCardsModule(category) {
 
     sec.querySelector('[data-idc-open-scanner]')?.addEventListener('click', () => {
         sec.classList.add('idc-scanner-open');
+        document.documentElement.classList.add('idc-attendance-scanner-open');
         idRecordsPanel?.classList.add('hidden');
         scannerPanel.classList.remove('hidden');
         scannerPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -175,6 +176,7 @@ function createIDCardsModule(category) {
     sec.querySelector('[data-idc-close-scanner]').addEventListener('click', () => {
         scannerPanel.classList.add('hidden');
         sec.classList.remove('idc-scanner-open');
+        document.documentElement.classList.remove('idc-attendance-scanner-open');
         idRecordsPanel?.classList.remove('hidden');
     });
 

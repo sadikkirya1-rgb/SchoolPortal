@@ -136,3 +136,50 @@
     #idCardsModule .idc-camera-actions .idc-btn{min-height:32px;padding:6px;font-size:9px}
     #idCardsModule .idc-scan-controls .idc-camera-zoom{grid-column:auto;width:100%}
 }
+@media(max-width:768px){
+    html.idc-attendance-scanner-open,
+    html.idc-attendance-scanner-open body{height:100%;overflow:hidden}
+    html.idc-attendance-scanner-open .topbar,
+    html.idc-attendance-scanner-open #mobileRoleNav,
+    html.idc-attendance-scanner-open #breadcrumb,
+    html.idc-attendance-scanner-open .footer{display:none!important}
+    html.idc-attendance-scanner-open .main,
+    html.idc-attendance-scanner-open .main.expanded{height:100dvh;min-height:100dvh;padding:0!important;overflow:hidden}
+    #idCardsModule.idc-scanner-open .idc-header{display:none!important}
+    #idCardsModule.idc-scanner-open .idc-scan-panel:not(.hidden){
+        position:fixed;
+        z-index:1200;
+        inset:0;
+        display:flex;
+        width:100%;
+        height:100vh;
+        height:100dvh;
+        max-height:none;
+        flex-direction:column;
+        gap:0;
+        margin:0;
+        padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));
+        overflow-y:auto;
+        border:0;
+        border-radius:0;
+    }
+    #idCardsModule.idc-scanner-open .idc-scan-heading,
+    #idCardsModule.idc-scanner-open .idc-scan-controls,
+    #idCardsModule.idc-scanner-open .idc-camera-actions,
+    #idCardsModule.idc-scanner-open .idc-scan-status,
+    #idCardsModule.idc-scanner-open .idc-scan-result{flex:none}
+    #idCardsModule.idc-scanner-open .idc-scan-heading,
+    #idCardsModule.idc-scanner-open .idc-scan-status,
+    #idCardsModule.idc-scanner-open .idc-scan-result,
+    #idCardsModule.idc-scanner-open .idc-camera-zoom,
+    #idCardsModule.idc-scanner-open .idc-scan-option>span,
+    #idCardsModule.idc-scanner-open .idc-camera-guide-label,
+    #idCardsModule.idc-scanner-open .idc-camera-guide-hint{display:none!important}
+    #idCardsModule.idc-scanner-open .idc-camera-frame{
+        flex:1 0 38dvh;
+        width:100%;
+        min-height:220px;
+        max-height:none;
+        aspect-ratio:auto;
+    }
+}
