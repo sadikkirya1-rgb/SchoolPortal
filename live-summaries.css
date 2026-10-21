@@ -70,6 +70,24 @@
     .curriculum-module .cm-live-summary{margin:0 24px 12px}
     .curriculum-module .cm-modal-box{width:min(100%,760px)}
 }
+.timetables-module .tm-modal-box{display:flex;flex-direction:column;width:min(1200px,100%);height:calc(100vh - 50px);max-height:calc(100vh - 50px)}
+.timetables-module .tm-modal-head{flex-shrink:0}
+.timetables-module .tm-modal form{display:grid;flex:1;min-height:0;grid-template-columns:minmax(0,1fr) 260px;grid-template-rows:auto auto;grid-template-areas:"body summary" "actions actions";align-content:start;overflow-y:auto;overflow-x:hidden}
+.timetables-module .tm-form-body{grid-area:body;min-width:0}
+.timetables-module .tm-modal-foot{grid-area:actions;display:flex;flex-shrink:0;justify-content:flex-end;gap:10px;min-height:68px;border-top:1px solid var(--tm-border);background:var(--tm-card);position:sticky;bottom:0;z-index:2}
+.timetables-module .tm-live-summary{grid-area:summary;align-self:start;margin:24px 24px 24px 0;padding:16px;border:1px solid var(--tm-border);border-radius:11px;background:var(--tm-card);color:var(--tm-text)}
+.timetables-module .tm-live-summary h3{margin:0;color:var(--tm-primary);font-size:14px}
+.timetables-module .tm-live-summary p{margin:4px 0 12px;color:var(--tm-muted);font-size:11px}
+.timetables-module .tm-summary-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px dashed var(--tm-border);font-size:11px}
+.timetables-module .tm-summary-row:last-child{border-bottom:0}
+.timetables-module .tm-summary-row span,.timetables-module .tm-summary-row strong{display:block;overflow-wrap:anywhere;white-space:pre-wrap}
+.timetables-module .tm-summary-row span{flex:0 1 42%;color:var(--tm-muted);font-size:10px}
+.timetables-module .tm-summary-row strong{flex:1;text-align:right}
+@media(max-width:900px){
+    .timetables-module .tm-modal-box{width:min(100%,760px)}
+    .timetables-module .tm-modal form{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto;grid-template-areas:"body" "summary" "actions"}
+    .timetables-module .tm-live-summary{margin:0 24px 12px}
+}
 .teachers-module .teacher-modal-box{width:min(1240px,100%)}
 .teachers-module .teacher-modal form{display:grid;grid-template-columns:minmax(0,1fr) 260px;align-items:start}
 .teachers-module .teacher-form-body{min-width:0}
