@@ -49,3 +49,20 @@
     .health-module .health-live-summary [data-health-live-fields]{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:560px){.discipline-cases-module .dc-preview-all-grid,.health-module .health-live-summary [data-health-live-fields]{grid-template-columns:1fr}}
+.teachers-module .teacher-modal-box{width:min(1240px,100%)}
+.teachers-module .teacher-modal form{display:grid;grid-template-columns:minmax(0,1fr) 260px;align-items:start}
+.teachers-module .teacher-form-body{min-width:0}
+.teachers-module .teacher-modal-foot{grid-column:1/-1}
+.teachers-module .teacher-live-summary{align-self:start;position:sticky;top:0;margin:24px 24px 24px 0;padding:16px;border:1px solid var(--teacher-border);border-radius:11px;background:var(--teacher-card);color:inherit}
+.teachers-module .teacher-live-summary h3{margin:0;color:var(--teacher-primary);font-size:14px}
+.teachers-module .teacher-live-summary p{margin:4px 0 12px;color:var(--teacher-muted);font-size:11px}
+.teachers-module .teacher-summary-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px dashed var(--teacher-border);font-size:11px}
+.teachers-module .teacher-summary-row:last-child{border-bottom:0}
+.teachers-module .teacher-summary-row span,.teachers-module .teacher-summary-row strong{display:block;overflow-wrap:anywhere;white-space:pre-wrap}
+.teachers-module .teacher-summary-row span{flex:0 1 42%;color:var(--teacher-muted);font-size:10px}
+.teachers-module .teacher-summary-row strong{flex:1;margin-top:0;color:inherit;text-align:right}
+@media(max-width:900px){
+    .teachers-module .teacher-modal form{grid-template-columns:minmax(0,1fr)}
+    .teachers-module .teacher-live-summary{position:static;margin:0 24px 20px}
+    .teachers-module .teacher-modal-box{width:min(100%,760px)}
+}

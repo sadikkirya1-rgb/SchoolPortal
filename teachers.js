@@ -22,15 +22,42 @@
 
         let teachers = readTeachers(); let editingId = null; let selectedTeacher = null;
         const $ = selector => sec.querySelector(selector); const form = $('[data-form]'); const modal = $('[data-modal]');
+        const liveSummary = document.createElement('aside');
+        liveSummary.className = 'teacher-live-summary';
+        liveSummary.innerHTML = '<h3>Teacher Summary</h3><p>Review key details before saving.</p><div data-teacher-summary></div>';
+        form.insertBefore(liveSummary, form.querySelector('.teacher-modal-foot'));
+        const updateSummary = () => {
+            const target = liveSummary.querySelector('[data-teacher-summary]');
+            target.replaceChildren(...fields.map(name => {
+                const field = form.elements[name];
+                const row = document.createElement('div');
+                const label = document.createElement('span');
+                const value = document.createElement('strong');
+                row.className = 'teacher-summary-row';
+                label.textContent = field.closest('label')?.childNodes[0].textContent.trim() || name;
+                value.textContent = field.value || '-';
+                row.append(label, value);
+                return row;
+            }));
+            const photoRow = document.createElement('div');
+            const photoLabel = document.createElement('span');
+            const photoValue = document.createElement('strong');
+            photoRow.className = 'teacher-summary-row';
+            photoLabel.textContent = 'Teacher Photo';
+            photoValue.textContent = $('[data-preview]').dataset.photo ? 'Uploaded' : 'Not added';
+            photoRow.append(photoLabel, photoValue);
+            target.append(photoRow);
+        };
         const render = () => { const query = $('[data-search]').value.toLowerCase().trim(); const filtered = teachers.filter(t => Object.values(t).join(' ').toLowerCase().includes(query)); $('[data-table]').innerHTML = filtered.length ? filtered.map(t => { const badge = ['Inactive','Resigned','Retired'].includes(t.status) ? 'teacher-badge-red' : t.status === 'On Leave' ? 'teacher-badge-orange' : 'teacher-badge-green'; return `<tr><td><div class="teacher-person"><img class="teacher-img" src="${avatar(t)}" alt="${escape(t.firstName)}"><div><strong>${escape(t.firstName)} ${escape(t.lastName)}</strong></div></div></td><td>${escape(t.email || 'No email')}</td><td><strong>${escape(t.employeeNo)}</strong></td><td>${escape(t.department)}</td><td>${escape(t.subject)}</td><td>${escape(t.phone || '-')}</td><td>${escape(t.address || '-')}</td><td><span class="teacher-badge ${badge}">${escape(t.status)}</span></td><td><div class="teacher-row-actions"><button class="teacher-action-btn" type="button" data-action="preview" data-id="${t.id}" title="Preview / Print">👁️</button><button class="teacher-action-btn" type="button" data-action="edit" data-id="${t.id}" title="Edit">✏️</button><button class="teacher-action-btn" type="button" data-action="delete" data-id="${t.id}" title="Delete">🗑️</button></div></td></tr>`; }).join('') : '<tr><td colspan="9"><div class="teacher-empty"><div style="font-size:40px">👨‍🏫</div><h3>No teachers found</h3><p>Add a new teacher or change your search.</p></div></td></tr>'; $('[data-stat="total"]').textContent = teachers.length; $('[data-stat="male"]').textContent = teachers.filter(t => t.gender === 'Male').length; $('[data-stat="female"]').textContent = teachers.filter(t => t.gender === 'Female').length; $('[data-stat="active"]').textContent = teachers.filter(t => t.status === 'Active').length; };
         const resetForm = () => { form.reset(); form.elements.academicYear.value = '2026 - 2027'; $('[data-preview]').src = 'https://ui-avatars.com/api/?name=Teacher&background=e5e7eb&color=64748b'; $('[data-preview]').dataset.photo = ''; };
-        const openForm = teacher => { editingId = teacher?.id || null; $('[data-modal-title]').textContent = teacher ? 'Edit Teacher' : 'Add New Teacher'; resetForm(); if (teacher) { fields.forEach(field => { if (form.elements[field]) form.elements[field].value = teacher[field] || ''; }); $('[data-preview]').src = avatar(teacher); $('[data-preview]').dataset.photo = teacher.photo || ''; } modal.classList.add('show'); };
+        const openForm = teacher => { editingId = teacher?.id || null; $('[data-modal-title]').textContent = teacher ? 'Edit Teacher' : 'Add New Teacher'; resetForm(); if (teacher) { fields.forEach(field => { if (form.elements[field]) form.elements[field].value = teacher[field] || ''; }); $('[data-preview]').src = avatar(teacher); $('[data-preview]').dataset.photo = teacher.photo || ''; } modal.classList.add('show'); updateSummary(); };
         const closeForm = () => { modal.classList.remove('show'); editingId = null; };
         const printTeacher = teacher => { selectedTeacher = teacher; $('[data-print-logo]').src = localStorage.getItem('school_logo') || logo; $('[data-print-photo]').src = avatar(teacher); const values = { ...teacher, name: `${teacher.firstName || ''} ${teacher.lastName || ''}`, dob: date(teacher.dob), joiningDate: date(teacher.joiningDate) }; sec.querySelectorAll('[data-p]').forEach(el => { el.textContent = values[el.dataset.p] || '-'; }); window.print(); };
         $('[data-add]').addEventListener('click', () => openForm()); $('[data-search]').addEventListener('input', render); $('[data-close]').addEventListener('click', closeForm); $('[data-cancel]').addEventListener('click', closeForm); modal.addEventListener('click', event => { if (event.target === modal) closeForm(); });
         $('[data-theme]').addEventListener('click', () => { sec.classList.toggle('dark'); localStorage.setItem('school_teachers_dark', sec.classList.contains('dark')); }); $('[data-print-all]').addEventListener('click', () => { if (teachers[0]) printTeacher(teachers[0]); }); $('[data-export]').addEventListener('click', () => { if (!teachers.length) return alert('No teacher records to export.'); const headers = ['Employee No','First Name','Last Name','Gender','Department','Subject','Designation','Joining Date','Employment Type','Phone','Email','Status']; const rows = teachers.map(t => [t.employeeNo,t.firstName,t.lastName,t.gender,t.department,t.subject,t.designation,t.joiningDate,t.employmentType,t.phone,t.email,t.status]); const csv = [headers, ...rows].map(row => row.map(value => `"${String(value || '').replace(/"/g, '""')}"`).join(',')).join('\n'); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'teachers.csv'; link.click(); URL.revokeObjectURL(link.href); });
         $('[data-table]').addEventListener('click', event => { const button = event.target.closest('[data-action]'); if (!button) return; const teacher = teachers.find(t => String(t.id) === button.dataset.id); if (!teacher) return; if (button.dataset.action === 'edit') openForm(teacher); if (button.dataset.action === 'preview') printTeacher(teacher); if (button.dataset.action === 'delete' && confirm(`Delete ${teacher.firstName} ${teacher.lastName}?`)) { teachers = teachers.filter(t => t.id !== teacher.id); saveTeachers(teachers); render(); } });
-        $('[name="photo"]').addEventListener('change', event => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { $('[data-preview]').src = reader.result; $('[data-preview]').dataset.photo = reader.result; }; reader.readAsDataURL(file); });
+        $('[name="photo"]').addEventListener('change', event => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { $('[data-preview]').src = reader.result; $('[data-preview]').dataset.photo = reader.result; updateSummary(); }; reader.readAsDataURL(file); });
+        form.addEventListener('input', updateSummary); form.addEventListener('change', updateSummary);
         form.addEventListener('submit', event => { event.preventDefault(); const data = Object.fromEntries(new FormData(form).entries()); data.id = editingId || Date.now(); data.photo = $('[data-preview]').dataset.photo || ''; if (editingId) teachers[teachers.findIndex(t => t.id === editingId)] = data; else teachers.push(data); saveTeachers(teachers); render(); closeForm(); });
         if (localStorage.getItem('school_teachers_dark') === 'true') sec.classList.add('dark'); render(); return sec;
     };
