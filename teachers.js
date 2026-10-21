@@ -6,6 +6,20 @@
     const avatar = teacher => teacher.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(`${teacher.firstName} ${teacher.lastName}`)}&background=4f46e5&color=fff`;
     const readTeachers = () => { try { return JSON.parse(localStorage.getItem('school_teachers')) || []; } catch { return []; } };
     const saveTeachers = teachers => localStorage.setItem('school_teachers', JSON.stringify(teachers));
+    const nextEmployeeNo = teachers => {
+        const usedNumbers = new Set(teachers.map(teacher => teacher.employeeNo));
+        const highestNumber = teachers.reduce((highest, teacher) => {
+            const match = /^TCH-(\d+)$/.exec(teacher.employeeNo || '');
+            return match ? Math.max(highest, Number(match[1])) : highest;
+        }, 0);
+        let number = highestNumber + 1;
+        let employeeNo = `TCH-${String(number).padStart(4, '0')}`;
+        while (usedNumbers.has(employeeNo)) {
+            number += 1;
+            employeeNo = `TCH-${String(number).padStart(4, '0')}`;
+        }
+        return employeeNo;
+    };
     const date = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 
     window.createTeachersModule = function createTeachersModule() {
@@ -22,6 +36,12 @@
 
         let teachers = readTeachers(); let editingId = null; let selectedTeacher = null;
         const $ = selector => sec.querySelector(selector); const form = $('[data-form]'); const modal = $('[data-modal]');
+        const employeeNoField = form.elements.employeeNo;
+        employeeNoField.readOnly = true;
+        employeeNoField.closest('label').childNodes[0].textContent = 'Employee Number (auto-generated)';
+        const photoField = form.elements.photo.closest('.teacher-form-group');
+        photoField.classList.add('teacher-photo-field');
+        form.querySelector('.teacher-form-body').prepend(photoField);
         const liveSummary = document.createElement('aside');
         liveSummary.className = 'teacher-live-summary';
         liveSummary.innerHTML = '<h3>Teacher Summary</h3><p>Review key details before saving.</p><div data-teacher-summary></div>';
@@ -50,7 +70,7 @@
         };
         const render = () => { const query = $('[data-search]').value.toLowerCase().trim(); const filtered = teachers.filter(t => Object.values(t).join(' ').toLowerCase().includes(query)); $('[data-table]').innerHTML = filtered.length ? filtered.map(t => { const badge = ['Inactive','Resigned','Retired'].includes(t.status) ? 'teacher-badge-red' : t.status === 'On Leave' ? 'teacher-badge-orange' : 'teacher-badge-green'; return `<tr><td><div class="teacher-person"><img class="teacher-img" src="${avatar(t)}" alt="${escape(t.firstName)}"><div><strong>${escape(t.firstName)} ${escape(t.lastName)}</strong></div></div></td><td>${escape(t.email || 'No email')}</td><td><strong>${escape(t.employeeNo)}</strong></td><td>${escape(t.department)}</td><td>${escape(t.subject)}</td><td>${escape(t.phone || '-')}</td><td>${escape(t.address || '-')}</td><td><span class="teacher-badge ${badge}">${escape(t.status)}</span></td><td><div class="teacher-row-actions"><button class="teacher-action-btn" type="button" data-action="preview" data-id="${t.id}" title="Preview / Print">👁️</button><button class="teacher-action-btn" type="button" data-action="edit" data-id="${t.id}" title="Edit">✏️</button><button class="teacher-action-btn" type="button" data-action="delete" data-id="${t.id}" title="Delete">🗑️</button></div></td></tr>`; }).join('') : '<tr><td colspan="9"><div class="teacher-empty"><div style="font-size:40px">👨‍🏫</div><h3>No teachers found</h3><p>Add a new teacher or change your search.</p></div></td></tr>'; $('[data-stat="total"]').textContent = teachers.length; $('[data-stat="male"]').textContent = teachers.filter(t => t.gender === 'Male').length; $('[data-stat="female"]').textContent = teachers.filter(t => t.gender === 'Female').length; $('[data-stat="active"]').textContent = teachers.filter(t => t.status === 'Active').length; };
         const resetForm = () => { form.reset(); form.elements.academicYear.value = '2026 - 2027'; $('[data-preview]').src = 'https://ui-avatars.com/api/?name=Teacher&background=e5e7eb&color=64748b'; $('[data-preview]').dataset.photo = ''; };
-        const openForm = teacher => { editingId = teacher?.id || null; $('[data-modal-title]').textContent = teacher ? 'Edit Teacher' : 'Add New Teacher'; resetForm(); if (teacher) { fields.forEach(field => { if (form.elements[field]) form.elements[field].value = teacher[field] || ''; }); $('[data-preview]').src = avatar(teacher); $('[data-preview]').dataset.photo = teacher.photo || ''; } modal.classList.add('show'); updateSummary(); };
+        const openForm = teacher => { editingId = teacher?.id || null; $('[data-modal-title]').textContent = teacher ? 'Edit Teacher' : 'Add New Teacher'; resetForm(); if (teacher) { fields.forEach(field => { if (form.elements[field]) form.elements[field].value = teacher[field] || ''; }); $('[data-preview]').src = avatar(teacher); $('[data-preview]').dataset.photo = teacher.photo || ''; } else { employeeNoField.value = nextEmployeeNo(teachers); } modal.classList.add('show'); updateSummary(); };
         const closeForm = () => { modal.classList.remove('show'); editingId = null; };
         const printTeacher = teacher => { selectedTeacher = teacher; $('[data-print-logo]').src = localStorage.getItem('school_logo') || logo; $('[data-print-photo]').src = avatar(teacher); const values = { ...teacher, name: `${teacher.firstName || ''} ${teacher.lastName || ''}`, dob: date(teacher.dob), joiningDate: date(teacher.joiningDate) }; sec.querySelectorAll('[data-p]').forEach(el => { el.textContent = values[el.dataset.p] || '-'; }); window.print(); };
         $('[data-add]').addEventListener('click', () => openForm()); $('[data-search]').addEventListener('input', render); $('[data-close]').addEventListener('click', closeForm); $('[data-cancel]').addEventListener('click', closeForm); modal.addEventListener('click', event => { if (event.target === modal) closeForm(); });
