@@ -40,6 +40,78 @@
     gap: 12px;
 }
 
+:root {
+    --app-button-muted-bg: #eef2f7;
+    --app-button-muted-hover: #e2e8f0;
+    --app-button-muted-border: #cbd5e1;
+    --app-button-muted-ink: #334155;
+}
+
+.dark,
+body.dark-mode,
+.counseling-module.co-dark,
+.curriculum-module.cm-dark,
+.leave-management-module.lm-dark,
+.sports-activities-module.sa-dark,
+.staff-directory-module.sd-dark,
+.timetables-module.tm-dark,
+.teachers-module.dark {
+    --app-button-muted-bg: #263244;
+    --app-button-muted-hover: #334155;
+    --app-button-muted-border: #475569;
+    --app-button-muted-ink: #f1f5f9;
+}
+
+:is(.counseling-module .co-btn-light,
+    .counseling-module .co-icon-btn,
+    .counseling-module .co-action-btn,
+    .curriculum-module .cm-btn-light,
+    .curriculum-module .cm-icon-btn,
+    .curriculum-module .cm-action-btn,
+    .leave-management-module .lm-btn-light,
+    .sports-activities-module .sa-btn-light,
+    .sports-activities-module .sa-icon-btn,
+    .sports-activities-module .sa-action-btn,
+    .staff-attendance-module .sa-btn-light,
+    .staff-directory-module .sd-btn-light,
+    .staff-directory-module .sd-icon-btn,
+    .staff-directory-module .sd-action-btn,
+    .timetables-module .tm-btn-light,
+    .timetables-module .tm-icon-btn,
+    .timetables-module .tm-action-btn,
+    .teachers-module .teacher-btn-light,
+    .teachers-module .teacher-icon-btn,
+    .teachers-module .teacher-action-btn) {
+    background: var(--app-button-muted-bg);
+    border-color: var(--app-button-muted-border);
+    color: var(--app-button-muted-ink);
+}
+
+:is(.counseling-module .co-btn-light,
+    .counseling-module .co-icon-btn,
+    .counseling-module .co-action-btn,
+    .curriculum-module .cm-btn-light,
+    .curriculum-module .cm-icon-btn,
+    .curriculum-module .cm-action-btn,
+    .leave-management-module .lm-btn-light,
+    .sports-activities-module .sa-btn-light,
+    .sports-activities-module .sa-icon-btn,
+    .sports-activities-module .sa-action-btn,
+    .staff-attendance-module .sa-btn-light,
+    .staff-directory-module .sd-btn-light,
+    .staff-directory-module .sd-icon-btn,
+    .staff-directory-module .sd-action-btn,
+    .timetables-module .tm-btn-light,
+    .timetables-module .tm-icon-btn,
+    .timetables-module .tm-action-btn,
+    .teachers-module .teacher-btn-light,
+    .teachers-module .teacher-icon-btn,
+    .teachers-module .teacher-action-btn):hover {
+    background: var(--app-button-muted-hover);
+    border-color: var(--app-button-muted-border);
+    color: var(--app-button-muted-ink);
+}
+
 .main .dashboard-shell .stats-strip {
     grid-template-columns: repeat(6, minmax(0, 1fr));
 }
