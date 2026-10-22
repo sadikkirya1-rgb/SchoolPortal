@@ -170,7 +170,7 @@
     #idCardsModule.idc-scanner-open .idc-scan-result{flex:none}
     #idCardsModule.idc-scanner-open .idc-scan-heading,
     #idCardsModule.idc-scanner-open .idc-scan-status,
-    #idCardsModule.idc-scanner-open .idc-scan-result,
+    #idCardsModule.idc-scanner-open .idc-scan-result:not(.is-visible),
     #idCardsModule.idc-scanner-open .idc-camera-zoom,
     #idCardsModule.idc-scanner-open .idc-scan-option>span,
     #idCardsModule.idc-scanner-open .idc-camera-guide-label,
@@ -182,4 +182,26 @@
         max-height:none;
         aspect-ratio:auto;
     }
+    #idCardsModule.idc-scanner-open .idc-camera-guide-box{width:min(84%,340px)}
+    #idCardsModule.idc-scanner-open .idc-scan-result.is-visible{
+        display:flex!important;
+        width:min(100%,520px);
+        align-items:center;
+        justify-content:center;
+        gap:12px;
+        margin:8px auto;
+        padding:8px;
+    }
+    #idCardsModule.idc-scanner-open .idc-scan-result-face{
+        width:56px;
+        height:64px;
+        flex:none;
+        border-radius:6px;
+        object-fit:cover;
+    }
+    #idCardsModule.idc-scanner-open .idc-scan-result-face[hidden]{display:none}
+    #idCardsModule.idc-scanner-open .idc-scan-result-table{width:100%;border-collapse:collapse;text-align:left}
+    #idCardsModule.idc-scanner-open .idc-scan-result-table th,
+    #idCardsModule.idc-scanner-open .idc-scan-result-table td{padding:2px 6px;font-size:11px;line-height:1.25}
+    #idCardsModule.idc-scanner-open .idc-scan-result-table th{color:#475569;font-weight:700}
 }

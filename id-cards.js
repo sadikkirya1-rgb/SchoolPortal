@@ -444,6 +444,16 @@ function createIDCardsModule(category) {
     const scannerStatus = sec.querySelector('[data-idc-scan-status]');
     const scannerResult = sec.querySelector('[data-idc-scan-result]');
     const scannerFrame = sec.querySelector('[data-idc-camera-frame]');
+    const scannerResultPhoto = document.createElement('img');
+    scannerResultPhoto.className = 'idc-scan-result-face';
+    scannerResultPhoto.alt = '';
+    const scannerResultTable = document.createElement('table');
+    scannerResultTable.className = 'idc-scan-result-table';
+    const scannerResultTableBody = document.createElement('tbody');
+    scannerResultTable.append(scannerResultTableBody);
+    scannerResult.replaceChildren(scannerResultPhoto, scannerResultTable);
+    scannerFrame.after(scannerResult);
+    let scannerResultTimer = null;
     const scannerMessage = sec.querySelector('[data-idc-camera-message]');
     const cameraZoomInput = sec.querySelector('[data-idc-camera-zoom]');
     const cameraZoomValue = sec.querySelector('[data-idc-zoom-value]');
@@ -573,17 +583,39 @@ function createIDCardsModule(category) {
             console.warn('Unable to play QR attendance success sound.', error);
         }
     };
-    const showScanResult = (record, action, timestamp) => {
+    const showScanResult = (record, action, timestamp, card, rosterRecord) => {
         const date = new Date(timestamp);
-        sec.querySelector('[data-idc-result-action]').textContent = action === 'check-in' ? 'Signed in successfully' : 'Signed out successfully';
-        sec.querySelector('[data-idc-result-name]').textContent = record.memberName;
-        sec.querySelector('[data-idc-result-date]').textContent = date.toLocaleDateString(undefined, {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-        });
-        sec.querySelector('[data-idc-result-time]').textContent = date.toLocaleTimeString([], {
-            hour: '2-digit', minute: '2-digit', second: '2-digit'
-        });
+        const memberPhoto = card.photo || rosterRecord.photo || rosterRecord.photoUrl || '';
+        scannerResultPhoto.hidden = !memberPhoto;
+        if (memberPhoto) {
+            scannerResultPhoto.src = memberPhoto;
+            scannerResultPhoto.alt = `${record.memberName} photo`;
+        } else {
+            scannerResultPhoto.removeAttribute('src');
+        }
+        const rows = [
+            ['Name', record.memberName],
+            ['ID number', record.memberDisplayId || record.memberId],
+            ['Time', date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })],
+            ['Period', `Good ${timeOfDay(date)}`]
+        ];
+        scannerResultTableBody.replaceChildren(...rows.map(([label, value]) => {
+            const row = document.createElement('tr');
+            const heading = document.createElement('th');
+            heading.scope = 'row';
+            heading.textContent = label;
+            const cell = document.createElement('td');
+            cell.textContent = value || '—';
+            row.append(heading, cell);
+            return row;
+        }));
+        clearTimeout(scannerResultTimer);
         scannerResult.classList.remove('hidden');
+        scannerResult.classList.add('is-visible');
+        scannerResultTimer = setTimeout(() => {
+            scannerResult.classList.add('hidden');
+            scannerResult.classList.remove('is-visible');
+        }, 2000);
     };
     const stopCamera = () => {
         clearTimeout(cameraTimer);
@@ -743,7 +775,7 @@ function createIDCardsModule(category) {
         attendanceRecords.unshift(record);
         const label = action === 'check-in' ? 'Signed in' : 'Signed out';
         scanStatus(`${label}: ${record.memberName}.`);
-        showScanResult(record, action, timestamp);
+        showScanResult(record, action, timestamp, card, rosterRecord);
         const scannedAt = new Date(timestamp);
         const greeting = `Good ${timeOfDay(scannedAt)}, ${designation}.`;
         const message = action === 'check-in'
