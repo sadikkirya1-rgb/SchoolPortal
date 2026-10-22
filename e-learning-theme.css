@@ -1,38 +1,42 @@
 .assessment-module .assessment-header,
 .study-materials-module .sm-header,
 .online-quizzes-module .oq-header {
-    background: linear-gradient(135deg, var(--primary, #4f46e5) 0%, var(--secondary, #06b6d4) 100%);
-    box-shadow: 0 12px 35px rgba(79, 70, 229, 0.16);
+    background: #fff;
+    color: #1e293b;
+    box-shadow: 0 12px 35px rgba(15, 23, 42, 0.08);
 }
 
 .assessment-module .assessment-header p,
 .study-materials-module .sm-header p,
 .online-quizzes-module .oq-header p {
-    opacity: 0.9;
+    color: #64748b;
+    opacity: 1;
 }
 
 .assessment-module .assessment-header .assessment-btn,
 .study-materials-module .sm-header .sm-btn,
 .online-quizzes-module .oq-header .oq-btn {
     min-height: 42px;
-    border: 1px solid rgba(255, 255, 255, 0.9);
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #1d4ed8;
     transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .assessment-module .assessment-header .assessment-btn-primary,
 .study-materials-module .sm-header .sm-btn-primary,
 .online-quizzes-module .oq-header .oq-primary {
-    background: #fff;
-    color: var(--primary, #4f46e5);
+    background: #eff6ff;
+    color: #1d4ed8;
     box-shadow: 0 4px 14px rgba(15, 23, 42, 0.16);
 }
 
 .assessment-module .assessment-header .assessment-btn-light,
 .study-materials-module .sm-header .sm-btn-light,
 .online-quizzes-module .oq-header .oq-light {
-    border-color: rgba(255, 255, 255, 0.78);
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff;
+    border-color: #cbd5e1;
+    background: #fff;
+    color: #334155;
 }
 
 .assessment-module .assessment-header .assessment-btn-primary:hover,
@@ -46,13 +50,13 @@
 .assessment-module .assessment-header .assessment-btn-light:hover,
 .study-materials-module .sm-header .sm-btn-light:hover,
 .online-quizzes-module .oq-header .oq-light:hover {
-    background: rgba(255, 255, 255, 0.24);
-    color: #fff;
+    background: #f8fafc;
+    color: #1e293b;
 }
 
 .assessment-module .assessment-header .assessment-btn:focus-visible,
 .study-materials-module .sm-header .sm-btn:focus-visible,
 .online-quizzes-module .oq-header .oq-btn:focus-visible {
-    outline: 3px solid #fff;
+    outline: 3px solid #60a5fa;
     outline-offset: 3px;
 }
