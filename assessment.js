@@ -27,6 +27,42 @@ function createAssessmentModule(category) {
 
     const form = section.querySelector('[data-assessment-entry]');
     const field = name => form.elements[name];
+    const summaryFields = [
+        ['title', 'Assignment'],
+        ['subject', 'Subject'],
+        ['className', 'Class'],
+        ['section', 'Section'],
+        ['teacher', 'Teacher'],
+        ['period', 'Academic Period'],
+        ['assignedDate', 'Assigned Date'],
+        ['dueDate', 'Due Date'],
+        ['marks', 'Maximum Marks'],
+        ['priority', 'Priority'],
+        ['status', 'Status']
+    ];
+    const liveSummary = document.createElement('aside');
+    liveSummary.className = 'assessment-live-summary';
+    liveSummary.setAttribute('aria-label', 'Assignment live summary');
+    liveSummary.innerHTML = '<h3>Live Summary</h3><p>Review the assignment details before saving.</p><div data-assessment-summary></div>';
+    form.insertBefore(liveSummary, form.querySelector('.assessment-form-actions'));
+    const updateSummary = () => {
+        const target = liveSummary.querySelector('[data-assessment-summary]');
+        target.replaceChildren(...summaryFields.map(([name, label]) => {
+            const row = document.createElement('div');
+            const rowLabel = document.createElement('span');
+            const value = document.createElement('strong');
+            row.className = 'assessment-summary-row';
+            rowLabel.textContent = label;
+            const input = field(name);
+            value.textContent = input.value === '__other__'
+                ? field(`${name}Other`)?.value || 'Other'
+                : input.value || 'Not set';
+            row.append(rowLabel, value);
+            return row;
+        }));
+    };
+    form.addEventListener('input', updateSummary);
+    form.addEventListener('change', updateSummary);
     const key = 'schoolAssignments';
     const identity = window.schoolPortalData?.getIdentity?.();
     const administratorRoles = new Set(['schoolAdmin', 'superAdmin', 'director', 'headTeacher']);
@@ -199,7 +235,7 @@ function createAssessmentModule(category) {
             ? field(`${element.name}Other`).value.trim()
             : element.value]));
     let resetting = false;
-    const reset = () => { resetting = true; form.reset(); resetting = false; refreshAssignmentOptions(); subjectOther.value = ''; teacherOther.value = ''; const today = new Date(); const due = new Date(today); due.setDate(today.getDate() + 7); field('assignedDate').value = today.toISOString().slice(0,10); field('dueDate').value = due.toISOString().slice(0,10); field('academicYear').value = '2026/27'; field('marks').value = '100'; };
+    const reset = () => { resetting = true; form.reset(); resetting = false; refreshAssignmentOptions(); subjectOther.value = ''; teacherOther.value = ''; const today = new Date(); const due = new Date(today); due.setDate(today.getDate() + 7); field('assignedDate').value = today.toISOString().slice(0,10); field('dueDate').value = due.toISOString().slice(0,10); field('academicYear').value = '2026/27'; field('marks').value = '100'; updateSummary(); };
     section.querySelector('[data-assessment-new]').addEventListener('click', () => { reset(); section.querySelector('[data-assessment-form]').classList.add('is-open'); section.querySelector('[data-assessment-form]').scrollIntoView({behavior:'smooth'}); field('title').focus(); });
     section.querySelectorAll('[data-assessment-close]').forEach(button => button.addEventListener('click', () => section.querySelector('[data-assessment-form]').classList.remove('is-open')));
     subjectSelect.addEventListener('change', () => {
@@ -223,6 +259,6 @@ function createAssessmentModule(category) {
     section.querySelector('[data-assessment-search]').addEventListener('input', render);
     form.addEventListener('reset', () => { if (!resetting) setTimeout(reset, 0); });
     form.addEventListener('submit', event => { event.preventDefault(); const data = formValues(); const id = `ASG-2026-${String(counter++).padStart(3,'0')}`; records.unshift({...data,id,marks:Number(data.marks || 100),submissions:'0 / 0'}); localStorage.setItem(key,JSON.stringify(records)); render(); section.querySelector('[data-assessment-form]').classList.remove('is-open'); alert('Assignment saved successfully.'); });
-    section.querySelector('[data-assessment-table]').addEventListener('click', event => { const button = event.target.closest('[data-action]'); if (!button) return; const record = records.find(item => item.id === button.dataset.id); if (!record) return; if (button.dataset.action === 'delete') { if (confirm('Are you sure you want to delete this assignment?')) { records = records.filter(item => item.id !== record.id); localStorage.setItem(key,JSON.stringify(records)); render(); } return; } if (button.dataset.action === 'view') { alert(`Assignment Details\n\nAssignment: ${record.title}\nSubject: ${record.subject}\nClass: ${record.className} - ${record.section}\nTeacher: ${record.teacher}\nDue Date: ${formatDate(record.dueDate)}`); return; } Object.entries(record).forEach(([name,value]) => { if (field(name) && !['subjectOther', 'teacherOther'].includes(name)) field(name).value = value; }); refreshAssignmentOptions(); section.querySelector('[data-assessment-form]').classList.add('is-open'); });
+    section.querySelector('[data-assessment-table]').addEventListener('click', event => { const button = event.target.closest('[data-action]'); if (!button) return; const record = records.find(item => item.id === button.dataset.id); if (!record) return; if (button.dataset.action === 'delete') { if (confirm('Are you sure you want to delete this assignment?')) { records = records.filter(item => item.id !== record.id); localStorage.setItem(key,JSON.stringify(records)); render(); } return; } if (button.dataset.action === 'view') { alert(`Assignment Details\n\nAssignment: ${record.title}\nSubject: ${record.subject}\nClass: ${record.className} - ${record.section}\nTeacher: ${record.teacher}\nDue Date: ${formatDate(record.dueDate)}`); return; } Object.entries(record).forEach(([name,value]) => { if (field(name) && !['subjectOther', 'teacherOther'].includes(name)) field(name).value = value; }); refreshAssignmentOptions(); updateSummary(); section.querySelector('[data-assessment-form]').classList.add('is-open'); });
     reset(); render(); return section;
 }

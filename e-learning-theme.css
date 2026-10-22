@@ -60,3 +60,90 @@
     outline: 3px solid #60a5fa;
     outline-offset: 3px;
 }
+
+.assessment-module .assessment-form-actions .assessment-btn-light,
+.study-materials-module .sm-form-actions .sm-btn-light,
+.online-quizzes-module .oq-form-actions .oq-light {
+    border: 1px solid #cbd5e1;
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.assessment-module .assessment-form-actions .assessment-btn-light:hover,
+.study-materials-module .sm-form-actions .sm-btn-light:hover,
+.online-quizzes-module .oq-form-actions .oq-light:hover {
+    background: #e2e8f0;
+}
+
+.assessment-module .assessment-live-summary,
+.study-materials-module .sm-live-summary,
+.online-quizzes-module .oq-live-summary {
+    margin: 20px 0;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 11px;
+    background: #f8fafc;
+    color: #1e293b;
+}
+
+.assessment-module .assessment-live-summary h3,
+.study-materials-module .sm-live-summary h3,
+.online-quizzes-module .oq-live-summary h3 {
+    margin: 0;
+    color: #1d4ed8;
+    font-size: 14px;
+}
+
+.assessment-module .assessment-live-summary p,
+.study-materials-module .sm-live-summary p,
+.online-quizzes-module .oq-live-summary p {
+    margin: 4px 0 12px;
+    color: #64748b;
+    font-size: 11px;
+}
+
+.assessment-module .assessment-summary-row,
+.study-materials-module .sm-summary-row,
+.online-quizzes-module .oq-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px dashed #dbe2ea;
+    font-size: 11px;
+}
+
+.assessment-module .assessment-summary-row:last-child,
+.study-materials-module .sm-summary-row:last-child,
+.online-quizzes-module .oq-summary-row:last-child {
+    border-bottom: 0;
+}
+
+.assessment-module .assessment-summary-row span,
+.assessment-module .assessment-summary-row strong,
+.study-materials-module .sm-summary-row span,
+.study-materials-module .sm-summary-row strong,
+.online-quizzes-module .oq-summary-row span,
+.online-quizzes-module .oq-summary-row strong {
+    display: block;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.assessment-module .assessment-summary-row span,
+.study-materials-module .sm-summary-row span,
+.online-quizzes-module .oq-summary-row span {
+    flex: 0 1 42%;
+    color: #64748b;
+    font-size: 10px;
+}
+
+.assessment-module .assessment-summary-row strong,
+.study-materials-module .sm-summary-row strong,
+.online-quizzes-module .oq-summary-row strong {
+    flex: 1;
+    margin-top: 0;
+    color: #1e293b;
+    text-align: right;
+}
