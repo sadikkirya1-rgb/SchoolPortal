@@ -56,9 +56,94 @@ service cloud.firestore {
           || account.permissions.examResults.get(permission, false) == true);
     }
 
+    function hasLegacyDepartmentHeadPurchaseRequestAccess(schoolId) {
+      let account = member(schoolId);
+      return isMember(schoolId)
+        && account.role == 'deputyHeadTeacher'
+        && (!account.keys().hasAny(['permissions'])
+          || !(account.permissions is map)
+          || !account.permissions.keys().hasAny(['purchaseRequests']));
+    }
+
+    function isPurchaseRequestApprover(schoolId, stageIndex) {
+      let role = member(schoolId).role;
+      return (stageIndex == 0 && role == 'deputyHeadTeacher')
+          || (stageIndex == 1 && role == 'storeManager')
+          || (stageIndex == 2 && role == 'bursar')
+          || (stageIndex == 3 && role == 'headTeacher')
+          || (stageIndex == 4 && role == 'director');
+    }
+
+    function validInitialPurchaseRequestStages(data) {
+      let stages = data.get('approvalStages', []);
+      return data.status == 'Pending'
+        && data.get('currentApprovalStage', -1) == 0
+        && stages is list
+        && stages.size() == 5
+        && stages[0].status == 'Pending'
+        && stages[1].status == 'Waiting'
+        && stages[2].status == 'Waiting'
+        && stages[3].status == 'Waiting'
+        && stages[4].status == 'Waiting';
+    }
+
+    function validPurchaseRequestApprovalTransition(schoolId) {
+      let oldData = resource.data.data;
+      let nextData = request.resource.data.data;
+      let oldStages = oldData.get('approvalStages', []);
+      let nextStages = nextData.get('approvalStages', []);
+      let stageIndex = oldData.get('currentApprovalStage', 0);
+      let decision = nextStages[stageIndex].status;
+      return oldData.status == 'Pending'
+        && oldStages is list
+        && (oldStages.size() == 0 || oldStages.size() == 5)
+        && nextStages is list
+        && nextStages.size() == 5
+        && stageIndex >= 0
+        && stageIndex < 5
+        && (oldStages.size() == 0
+          ? stageIndex == 0
+          : oldStages[stageIndex].status == 'Pending')
+        && isPurchaseRequestApprover(schoolId, stageIndex)
+        && decision in ['Approved', 'Rejected']
+        && (decision == 'Rejected' || stageIndex == 4
+          || nextStages[stageIndex + 1].status == 'Pending')
+        && nextStages[stageIndex].decidedByUid == request.auth.uid
+        && nextData.currentApprovalStage == (decision == 'Approved' ? stageIndex + 1 : stageIndex)
+        && nextData.status == (decision == 'Rejected'
+          ? 'Rejected' : stageIndex == 4 ? 'Approved' : 'Pending')
+        && (decision != 'Rejected'
+          || nextStages[stageIndex].rejectionReason is string
+            && nextStages[stageIndex].rejectionReason.size() > 0)
+        && nextData.diff(oldData).affectedKeys().hasOnly([
+          'approvalStages', 'currentApprovalStage', 'status', 'decisionAt',
+          'decisionBy', 'rejectionReason'
+        ]);
+    }
+
+    function validPurchaseRequestRecordCreate(data) {
+      return data.status == 'Draft' || validInitialPurchaseRequestStages(data);
+    }
+
+    function validPurchaseRequestRecordUpdate(schoolId) {
+      let oldData = resource.data.data;
+      let nextData = request.resource.data.data;
+      return oldData.status == 'Pending'
+        ? validPurchaseRequestApprovalTransition(schoolId)
+        : nextData.status == 'Pending'
+          ? validInitialPurchaseRequestStages(nextData)
+            && oldData.status in ['Draft', 'Rejected']
+          : oldData.status == 'Approved'
+            ? nextData == oldData
+            : nextData.status in ['Draft', 'Rejected']
+              && nextData.get('approvalStages', []) == oldData.get('approvalStages', []);
+    }
+
     function canView(schoolId, collectionName) {
       return isSchoolAdmin(schoolId)
         || hasPermission(schoolId, collectionName, 'view')
+        || (collectionName == 'purchaseRequests'
+          && hasLegacyDepartmentHeadPurchaseRequestAccess(schoolId))
         || (collectionName == 'inventorySettings' && hasPermission(schoolId, 'inventory', 'view'))
         || (collectionName == 'examResults'
           && hasLegacyTeachingExamResultsPermission(schoolId, 'view'));
@@ -67,6 +152,8 @@ service cloud.firestore {
     function canEdit(schoolId, collectionName) {
       return isSchoolAdmin(schoolId)
         || hasPermission(schoolId, collectionName, 'edit')
+        || (collectionName == 'purchaseRequests'
+          && hasLegacyDepartmentHeadPurchaseRequestAccess(schoolId))
         || (collectionName == 'inventorySettings' && hasPermission(schoolId, 'inventory', 'edit'))
         || (collectionName == 'examResults'
           && hasLegacyTeachingExamResultsPermission(schoolId, 'edit'));
@@ -258,11 +345,15 @@ service cloud.firestore {
           && isAppCollection(collectionName)
           && canEditRecord(schoolId, collectionName, request.resource.data)
           && validVersionedRecord()
+          && (collectionName != 'purchaseRequests'
+            || validPurchaseRequestRecordCreate(request.resource.data.data))
           && request.resource.data.version == 1;
         allow update: if collectionName != 'auditEvents'
           && isAppCollection(collectionName)
           && canEditRecord(schoolId, collectionName, resource.data)
           && validVersionedRecord()
+          && (collectionName != 'purchaseRequests'
+            || validPurchaseRequestRecordUpdate(schoolId))
           && request.resource.data.version == resource.data.version + 1
           && request.resource.data.updatedBy == request.auth.uid
           && (!isPersonalCollection(collectionName)

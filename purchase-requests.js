@@ -51,6 +51,13 @@ function createPurchaseRequestsModule() {
         <div class="pr-toast" role="status" aria-live="polite" data-pr-toast></div>`;
 
     const storageKey = 'schoolPurchaseRequests';
+    const approvalStages = [
+        { title: 'Department Head', role: 'deputyHeadTeacher' },
+        { title: 'Procurement Officer', role: 'storeManager' },
+        { title: 'Finance Manager', role: 'bursar' },
+        { title: 'Principal', role: 'headTeacher' },
+        { title: 'Director', role: 'director' }
+    ];
 
     let requests;
     try {
@@ -66,6 +73,64 @@ function createPurchaseRequestsModule() {
     const q = selector => sec.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
     const money = value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value) || 0);
+    const identity = () => window.schoolPortalData?.getIdentity?.();
+    const roleKey = role => String(role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const administratorRoles = new Set(['schooladmin', 'superadmin', 'director', 'headteacher']);
+    const canEditRequests = () => {
+        const user = identity();
+        return administratorRoles.has(roleKey(user?.role))
+            || user?.permissions?.purchaseRequests?.edit === true
+            || (roleKey(user?.role) === 'deputyheadteacher' && user?.permissions?.purchaseRequests === undefined);
+    };
+    const currentSignerName = () => {
+        const user = identity();
+        return window.schoolPortalFirebase?.auth?.currentUser?.displayName
+            || user?.displayName || user?.fullName || user?.name || user?.uid || 'Approver';
+    };
+    const createApprovalStages = () => approvalStages.map((stage, index) => ({
+        ...stage,
+        status: index === 0 ? 'Pending' : 'Waiting',
+        decidedBy: '',
+        decidedByUid: '',
+        approvedAt: '',
+        rejectionReason: ''
+    }));
+    const archiveApprovalRound = request => {
+        const history = Array.isArray(request.approvalHistory) ? [...request.approvalHistory] : [];
+        if (request.approvalStages?.some(stage => stage.status === 'Rejected')) {
+            history.push({
+                submittedAt: request.submittedAt || '',
+                status: request.status,
+                approvalStages: request.approvalStages.map(stage => ({ ...stage })),
+                rejectionReason: request.rejectionReason || '',
+                decisionAt: request.decisionAt || '',
+                decisionBy: request.decisionBy || ''
+            });
+        }
+        return history;
+    };
+    const currentStageIndex = request => Number.isInteger(request.currentApprovalStage)
+        ? request.currentApprovalStage
+        : (request.approvalStages || []).findIndex(stage => stage.status === 'Pending');
+    const canDecideCurrentStage = request => {
+        const stage = request.approvalStages?.[currentStageIndex(request)];
+        return request.status === 'Pending'
+            && stage?.status === 'Pending'
+            && canEditRequests()
+            && roleKey(identity()?.role) === roleKey(stage.role);
+    };
+    const approvalProgress = request => {
+        const stages = request.approvalStages || [];
+        if (request.status === 'Draft') return 'Not submitted';
+        if (!stages.length) return request.status === 'Approved' ? 'Legacy approval' : 'Approval stages not recorded';
+        if (request.status === 'Rejected') {
+            const rejectedIndex = stages.findIndex(stage => stage.status === 'Rejected');
+            return rejectedIndex >= 0 ? `Rejected at ${rejectedIndex + 1}/5 · ${stages[rejectedIndex].title}` : 'Rejected';
+        }
+        if (request.status === 'Approved') return '5/5 approvals';
+        const index = currentStageIndex(request);
+        return index >= 0 ? `${index + 1}/5 · ${stages[index].title}` : 'Approval complete';
+    };
     const form = q('[data-pr-form]');
     const departmentSelect = form.elements.department;
     const requesterSelect = form.elements.requester;
@@ -155,6 +220,12 @@ function createPurchaseRequestsModule() {
         return Number.isNaN(date.getTime()) ? escape(value) : date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
     };
     const save = () => localStorage.setItem(storageKey, JSON.stringify(requests));
+    requests.forEach(request => {
+        if (request.status === 'Pending' && !Array.isArray(request.approvalStages)) {
+            request.approvalStages = createApprovalStages();
+            request.currentApprovalStage = 0;
+        }
+    });
     const toast = message => {
         const element = q('[data-pr-toast]');
         element.textContent = message;
@@ -175,15 +246,15 @@ function createPurchaseRequestsModule() {
         q('[data-pr-rows]').innerHTML = found.length ? found.map(request => {
             const itemCount = request.items.reduce((sum, item) => sum + Number(item[1]), 0);
             const initials = request.requester.split(/\s+/).map(part => part[0] || '').slice(0, 2).join('').toUpperCase();
-            const workflowActions = request.status === 'Pending'
-                ? `<button class="pr-action pr-approve" type="button" title="Approve request" aria-label="Approve ${escape(request.id)}" data-pr-action="approve" data-id="${escape(request.id)}"><i class="fas fa-check"></i><span>Approve</span></button><button class="pr-action pr-reject" type="button" title="Reject request" aria-label="Reject ${escape(request.id)}" data-pr-action="reject" data-id="${escape(request.id)}"><i class="fas fa-xmark"></i><span>Reject</span></button>`
-                : ['Draft', 'Rejected'].includes(request.status)
+            const workflowActions = canDecideCurrentStage(request)
+                ? `<button class="pr-action pr-approve" type="button" title="Approve current stage" aria-label="Approve ${escape(request.id)} at ${escape(request.approvalStages[currentStageIndex(request)].title)} stage" data-pr-action="approve" data-id="${escape(request.id)}"><i class="fas fa-check"></i><span>Approve</span></button><button class="pr-action pr-reject" type="button" title="Reject request" aria-label="Reject ${escape(request.id)}" data-pr-action="reject" data-id="${escape(request.id)}"><i class="fas fa-xmark"></i><span>Reject</span></button>`
+                : ['Draft', 'Rejected'].includes(request.status) && canEditRequests()
                     ? `<button class="pr-action pr-submit" type="button" title="Submit for approval" aria-label="Submit ${escape(request.id)} for approval" data-pr-action="submit" data-id="${escape(request.id)}"><i class="fas fa-paper-plane"></i><span>Submit</span></button>`
                     : '';
-            const editAction = ['Draft', 'Rejected'].includes(request.status)
+            const editAction = ['Draft', 'Rejected'].includes(request.status) && canEditRequests()
                 ? `<button class="pr-action" type="button" title="Edit" aria-label="Edit ${escape(request.id)}" data-pr-action="edit" data-id="${escape(request.id)}"><i class="fas fa-pen"></i></button>`
                 : '';
-            return `<tr><td><strong class="pr-id">${escape(request.id)}</strong></td><td><span class="pr-requester"><span class="pr-avatar">${escape(initials)}</span><b>${escape(request.requester)}</b></span></td><td>${escape(request.department)}</td><td>${itemCount} item(s)</td><td><strong>${money(total(request))}</strong></td><td>${formatDate(request.date)}</td><td><span class="pr-badge ${escape(request.status.toLowerCase())}">${escape(request.status)}</span></td><td><div class="pr-actions"><button class="pr-action" type="button" title="View" aria-label="View ${escape(request.id)}" data-pr-action="view" data-id="${escape(request.id)}"><i class="fas fa-eye"></i></button>${editAction}<button class="pr-action" type="button" title="Print" aria-label="Print ${escape(request.id)}" data-pr-action="print" data-id="${escape(request.id)}"><i class="fas fa-print"></i></button>${workflowActions}<button class="pr-action pr-delete" type="button" title="Delete" aria-label="Delete ${escape(request.id)}" data-pr-action="delete" data-id="${escape(request.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
+            return `<tr><td><strong class="pr-id">${escape(request.id)}</strong></td><td><span class="pr-requester"><span class="pr-avatar">${escape(initials)}</span><b>${escape(request.requester)}</b></span></td><td>${escape(request.department)}</td><td>${itemCount} item(s)</td><td><strong>${money(total(request))}</strong></td><td>${formatDate(request.date)}</td><td><span class="pr-badge ${escape(request.status.toLowerCase())}">${escape(request.status)}</span><small class="pr-approval-progress">${escape(approvalProgress(request))}</small></td><td><div class="pr-actions"><button class="pr-action" type="button" title="View" aria-label="View ${escape(request.id)}" data-pr-action="view" data-id="${escape(request.id)}"><i class="fas fa-eye"></i></button>${editAction}<button class="pr-action" type="button" title="Print" aria-label="Print ${escape(request.id)}" data-pr-action="print" data-id="${escape(request.id)}"><i class="fas fa-print"></i></button>${workflowActions}<button class="pr-action pr-delete" type="button" title="Delete" aria-label="Delete ${escape(request.id)}" data-pr-action="delete" data-id="${escape(request.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
         }).join('') : '<tr><td colspan="8"><div class="pr-empty">No purchase requests found.</div></td></tr>';
         updateStats();
     };
@@ -265,16 +336,24 @@ function createPurchaseRequestsModule() {
         updateRequestSummary();
         form.elements.requester.focus();
     };
+    const approvalTracker = request => {
+        if (!request.approvalStages?.length) {
+            return `<p class="pr-legacy-approval">${request.status === 'Approved' ? 'This request was approved before five-stage tracking was enabled.' : 'No five-stage approval history is recorded.'}</p>`;
+        }
+        const history = (request.approvalHistory || []).map((round, index) => `<details class="pr-approval-history"><summary>Previous submission ${index + 1} · ${escape(round.status)}</summary><div class="pr-table-wrap"><table class="pr-table pr-approval-table"><thead><tr><th>Step</th><th>Signatory</th><th>Status</th><th>Approver</th><th>Date / Reason</th></tr></thead><tbody>${(round.approvalStages || []).map((stage, stageIndex) => `<tr><td>${stageIndex + 1}</td><td>${escape(stage.title)}</td><td>${escape(stage.status)}</td><td>${escape(stage.decidedBy || stage.approvedBy || '—')}</td><td>${stage.approvedAt ? formatDate(stage.approvedAt.slice(0, 10)) : escape(stage.rejectionReason || '—')}</td></tr>`).join('')}</tbody></table></div></details>`).join('');
+        return `<div class="pr-table-wrap"><table class="pr-table pr-approval-table"><thead><tr><th>Step</th><th>Signatory</th><th>Status</th><th>Approver</th><th>Date / Reason</th></tr></thead><tbody>${request.approvalStages.map((stage, index) => `<tr><td>${index + 1}</td><td>${escape(stage.title)}</td><td><span class="pr-stage-badge pr-stage-${roleKey(stage.status)}">${escape(stage.status)}</span></td><td>${escape(stage.decidedBy || stage.approvedBy || '—')}</td><td>${stage.approvedAt ? formatDate(stage.approvedAt.slice(0, 10)) : escape(stage.rejectionReason || '—')}</td></tr>`).join('')}</tbody></table></div>${history}`;
+    };
     const requestDetails = request => `
         <div class="pr-detail-grid">
-            <div><strong>Request ID</strong><p>${escape(request.id)}</p></div><div><strong>Status</strong><p><span class="pr-badge ${escape(request.status.toLowerCase())}">${escape(request.status)}</span></p></div>
+            <div><strong>Request ID</strong><p>${escape(request.id)}</p></div><div><strong>Overall Status</strong><p><span class="pr-badge ${escape(request.status.toLowerCase())}">${escape(request.status)}</span></p><small class="pr-approval-progress">${escape(approvalProgress(request))}</small></div>
             <div><strong>Requester</strong><p>${escape(request.requester)}</p></div><div><strong>Department</strong><p>${escape(request.department)}</p></div>
             <div><strong>Date</strong><p>${formatDate(request.date)}</p></div><div><strong>Priority</strong><p>${escape(request.priority)}</p></div>
             ${request.submittedAt ? `<div><strong>Submitted</strong><p>${formatDate(request.submittedAt.slice(0, 10))}</p></div>` : ''}
-            ${request.decisionAt ? `<div><strong>${request.status === 'Approved' ? 'Approved' : 'Rejected'} by</strong><p>${escape(request.decisionBy || 'Approver')} · ${formatDate(request.decisionAt.slice(0, 10))}</p></div>` : ''}
+            ${request.decisionAt ? `<div><strong>${request.status === 'Approved' ? 'Completed by' : 'Rejected by'}</strong><p>${escape(request.decisionBy || 'Approver')} · ${formatDate(request.decisionAt.slice(0, 10))}</p></div>` : ''}
             ${request.rejectionReason ? `<div class="pr-full"><strong>Rejection reason</strong><p>${escape(request.rejectionReason)}</p></div>` : ''}
             <div class="pr-full"><strong>Purpose</strong><p>${escape(request.purpose || 'Not provided')}</p></div>
         </div>
+        <h4>Approval Workflow</h4>${approvalTracker(request)}
         <h4>Items</h4><div class="pr-table-wrap"><table class="pr-table pr-detail-table"><thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${request.items.map(item => `<tr><td>${escape(item[0])}</td><td>${Number(item[1])}</td><td>${money(item[2])}</td><td>${money(item[1] * item[2])}</td></tr>`).join('')}</tbody></table></div>
         <div class="pr-totals"><div><span>Subtotal</span><strong>${money(subtotal(request))}</strong></div><div><span>Tax (5%)</span><strong>${money(subtotal(request) * 0.05)}</strong></div><div class="pr-grand"><span>Total</span><strong>${money(total(request))}</strong></div></div>`;
     const printDocument = (title, content) => {
@@ -286,7 +365,10 @@ function createPurchaseRequestsModule() {
         printWindow.print();
     };
     const printRequest = request => {
-        const content = `<header class="head"><div><h1>Purchase Request</h1><p>Procurement Request Document</p></div><div><strong>${escape(request.id)}</strong><br>${formatDate(request.date)}</div></header><div class="meta"><div><strong>Requester</strong>${escape(request.requester)}</div><div><strong>Department</strong>${escape(request.department)}</div><div><strong>Priority</strong>${escape(request.priority)}</div><div><strong>Status</strong>${escape(request.status)}</div><div><strong>Purpose</strong>${escape(request.purpose || 'Not provided')}</div></div><table><thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${request.items.map(item => `<tr><td>${escape(item[0])}</td><td>${Number(item[1])}</td><td>${money(item[2])}</td><td>${money(item[1] * item[2])}</td></tr>`).join('')}</tbody></table><div class="totals"><div><span>Subtotal</span><strong>${money(subtotal(request))}</strong></div><div><span>Tax (5%)</span><strong>${money(subtotal(request) * 0.05)}</strong></div><div class="grand"><span>Total</span><strong>${money(total(request))}</strong></div></div><div class="sign"><span>Requested By</span><span>Department Approval</span><span>Procurement Approval</span></div>`;
+        const stages = request.approvalStages || [];
+        const approvals = stages.map((stage, index) => `<tr><td>${index + 1}</td><td>${escape(stage.title)}</td><td>${escape(stage.status)}</td><td>${escape(stage.decidedBy || stage.approvedBy || '—')}</td><td>${stage.approvedAt ? formatDate(stage.approvedAt.slice(0, 10)) : escape(stage.rejectionReason || '—')}</td></tr>`).join('');
+        const approvalTable = `<h2>Approval Workflow</h2><table><thead><tr><th>Step</th><th>Signatory</th><th>Status</th><th>Approver</th><th>Date / Reason</th></tr></thead><tbody>${approvals || `<tr><td colspan="5">${request.status === 'Approved' ? 'Legacy approval; five-stage status was not recorded.' : 'No five-stage approval history recorded.'}</td></tr>`}</tbody></table>`;
+        const content = `<header class="head"><div><h1>Purchase Request</h1><p>Procurement Request Document</p></div><div><strong>${escape(request.id)}</strong><br>${formatDate(request.date)}</div></header><div class="meta"><div><strong>Requester</strong>${escape(request.requester)}</div><div><strong>Department</strong>${escape(request.department)}</div><div><strong>Priority</strong>${escape(request.priority)}</div><div><strong>Overall Status</strong>${escape(request.status)} · ${escape(approvalProgress(request))}</div><div><strong>Purpose</strong>${escape(request.purpose || 'Not provided')}</div></div><table><thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${request.items.map(item => `<tr><td>${escape(item[0])}</td><td>${Number(item[1])}</td><td>${money(item[2])}</td><td>${money(item[1] * item[2])}</td></tr>`).join('')}</tbody></table><div class="totals"><div><span>Subtotal</span><strong>${money(subtotal(request))}</strong></div><div><span>Tax (5%)</span><strong>${money(subtotal(request) * 0.05)}</strong></div><div class="grand"><span>Total</span><strong>${money(total(request))}</strong></div></div>${approvalTable}`;
         printDocument(request.id, content);
     };
 
@@ -302,6 +384,7 @@ function createPurchaseRequestsModule() {
     });
     q('[data-pr-form]').addEventListener('submit', event => {
         event.preventDefault();
+        if (!canEditRequests()) return toast('Your account cannot edit Purchase Requests.');
         const form = event.currentTarget;
         const items = [...sec.querySelectorAll('.pr-item-row')].map(row => [row.querySelector('[name="itemName"]').value.trim(), Number(row.querySelector('[name="quantity"]').value), Number(row.querySelector('[name="price"]').value)]);
         if (!items.length || items.some(item => !item[0] || item[1] < 1 || item[2] < 0)) return toast('Add at least one valid purchase item.');
@@ -319,7 +402,15 @@ function createPurchaseRequestsModule() {
             priority: form.elements.priority.value,
             purpose: form.elements.purpose.value.trim(),
             items,
-            ...(nextStatus === 'Pending' ? { submittedAt: existing?.submittedAt || new Date().toISOString(), rejectionReason: '' } : {})
+            ...(nextStatus === 'Pending' ? {
+                submittedAt: new Date().toISOString(),
+                approvalHistory: existing ? archiveApprovalRound(existing) : [],
+                approvalStages: createApprovalStages(),
+                currentApprovalStage: 0,
+                rejectionReason: '',
+                decisionAt: '',
+                decisionBy: ''
+            } : {})
         };
         if (existing) requests = requests.map(item => item.id === editId ? request : item);
         else requests.unshift(request);
@@ -343,35 +434,68 @@ function createPurchaseRequestsModule() {
             q('[data-pr-view-content]').innerHTML = requestDetails(request);
             q('[data-pr-view-overlay]').classList.add('is-open');
         } else if (button.dataset.prAction === 'edit') {
-            if (!['Draft', 'Rejected'].includes(request.status)) return;
+            if (!canEditRequests() || !['Draft', 'Rejected'].includes(request.status)) return;
             openForm(request);
         } else if (button.dataset.prAction === 'print') {
             printRequest(request);
         } else if (button.dataset.prAction === 'submit') {
+            if (!canEditRequests() || !['Draft', 'Rejected'].includes(request.status)) return;
             request.status = 'Pending';
             request.submittedAt = new Date().toISOString();
+            request.approvalHistory = archiveApprovalRound(request);
+            request.approvalStages = createApprovalStages();
+            request.currentApprovalStage = 0;
             request.rejectionReason = '';
+            request.decisionAt = '';
+            request.decisionBy = '';
             save();
             render();
             window.dispatchEvent(new CustomEvent('school-portal-approval-update'));
             toast('Purchase request submitted for approval.');
         } else if (button.dataset.prAction === 'approve' || button.dataset.prAction === 'reject') {
+            if (!canDecideCurrentStage(request)) return toast('Only the assigned signatory for the current approval step can decide this request.');
             const isApproval = button.dataset.prAction === 'approve';
-            const rejectionReason = isApproval ? '' : window.prompt(`Why are you rejecting ${request.id}?`);
+            const stageIndex = currentStageIndex(request);
+            const stage = request.approvalStages[stageIndex];
+            const rejectionReason = isApproval ? '' : window.prompt(`Why is ${stage.title} rejecting ${request.id}?`);
             if (!isApproval && rejectionReason === null) return;
             if (!isApproval && !rejectionReason.trim()) return toast('Enter a reason before rejecting this request.');
-            request.status = isApproval ? 'Approved' : 'Rejected';
-            request.decisionAt = new Date().toISOString();
-            request.decisionBy = window.schoolPortalData?.getIdentity?.()?.displayName
-                || window.schoolPortalData?.getIdentity?.()?.name
-                || window.schoolPortalData?.getIdentity?.()?.uid
-                || 'Approver';
-            if (!isApproval) request.rejectionReason = rejectionReason.trim();
+            const decidedAt = new Date().toISOString();
+            const signer = currentSignerName();
+            if (isApproval) {
+                stage.status = 'Approved';
+                stage.decidedBy = signer;
+                stage.decidedByUid = identity()?.uid || '';
+                stage.approvedAt = decidedAt;
+                request.currentApprovalStage = stageIndex + 1;
+                if (request.currentApprovalStage === request.approvalStages.length) {
+                    request.status = 'Approved';
+                    request.decisionAt = decidedAt;
+                    request.decisionBy = signer;
+                } else {
+                    request.approvalStages[request.currentApprovalStage].status = 'Pending';
+                }
+            } else {
+                stage.status = 'Rejected';
+                stage.decidedBy = signer;
+                stage.decidedByUid = identity()?.uid || '';
+                stage.approvedAt = decidedAt;
+                stage.rejectionReason = rejectionReason.trim();
+                request.status = 'Rejected';
+                request.decisionAt = decidedAt;
+                request.decisionBy = signer;
+                request.rejectionReason = rejectionReason.trim();
+                request.approvalStages.slice(stageIndex + 1).forEach(nextStage => { nextStage.status = 'Not required'; });
+            }
             save();
             render();
             window.dispatchEvent(new CustomEvent('school-portal-approval-update'));
-            toast(isApproval ? 'Purchase request approved.' : 'Purchase request rejected.');
-        } else if (button.dataset.prAction === 'delete' && confirm(`Delete purchase request ${request.id}?`)) {
+            toast(isApproval
+                ? request.status === 'Approved' ? 'All five approval stages are complete.' : `${stage.title} approved. The next signatory can now review this request.`
+                : `${stage.title} rejected the purchase request.`);
+        } else if (button.dataset.prAction === 'delete') {
+            if (!canEditRequests()) return toast('Your account cannot delete Purchase Requests.');
+            if (!confirm(`Delete purchase request ${request.id}?`)) return;
             requests = requests.filter(item => item.id !== request.id);
             save();
             render();

@@ -569,3 +569,121 @@ test('clients cannot create, modify, or delete audit events', async () => {
     await assertFails(updateDoc(auditRef, { data: { action: 'forged' } }));
     await assertFails(deleteDoc(auditRef));
 });
+
+test('purchase request approvals must follow the five assigned account roles in order', async () => {
+    await testEnvironment.withSecurityRulesDisabled(async context => {
+        const firestore = context.firestore();
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/department-head'), {
+            role: 'deputyHeadTeacher',
+            status: 'active'
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/procurement-approver'), {
+            role: 'storeManager',
+            status: 'active',
+            permissions: { purchaseRequests: { view: true, edit: true } }
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/finance-approver'), {
+            role: 'bursar',
+            status: 'active',
+            permissions: { purchaseRequests: { view: true, edit: true } }
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/principal-approver'), {
+            role: 'headTeacher',
+            status: 'active',
+            permissions: {}
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/director-approver'), {
+            role: 'director',
+            status: 'active',
+            permissions: {}
+        });
+    });
+
+    const requestRef = doc(administratorContext().firestore(), 'schools/SCH-TEST/purchaseRequests/PR-2026-501');
+    const stages = [
+        ['Department Head', 'deputyHeadTeacher'],
+        ['Procurement Officer', 'storeManager'],
+        ['Finance Manager', 'bursar'],
+        ['Principal', 'headTeacher'],
+        ['Director', 'director']
+    ].map(([title, role], index) => ({
+        title,
+        role,
+        status: index === 0 ? 'Pending' : 'Waiting',
+        decidedBy: '',
+        decidedByUid: '',
+        approvedAt: '',
+        rejectionReason: ''
+    }));
+    const requestData = {
+        id: 'PR-2026-501',
+        status: 'Pending',
+        currentApprovalStage: 0,
+        approvalStages: stages
+    };
+    await assertSucceeds(setDoc(requestRef, {
+        data: requestData,
+        version: 1,
+        updatedBy: 'admin-1',
+        updatedAt: '2026-10-23T00:00:00.000Z'
+    }));
+
+    const attemptApproval = async (uid, stageIndex, version, data = requestData) => {
+        const next = structuredClone(data);
+        const stage = next.approvalStages[stageIndex];
+        stage.status = 'Approved';
+        stage.decidedBy = `Signer ${stageIndex + 1}`;
+        stage.decidedByUid = uid;
+        stage.approvedAt = '2026-10-23T00:00:00.000Z';
+        next.currentApprovalStage = stageIndex + 1;
+        if (stageIndex < 4) next.approvalStages[stageIndex + 1].status = 'Pending';
+        else next.status = 'Approved';
+        await updateDoc(doc(testEnvironment.authenticatedContext(uid).firestore(), requestRef.path), {
+            data: next,
+            version: version + 1,
+            updatedBy: uid,
+            updatedAt: '2026-10-23T00:00:00.000Z'
+        });
+        return next;
+    };
+
+    await assertFails(attemptApproval('procurement-approver', 0, 1));
+    let current = requestData;
+    const approvers = ['department-head', 'procurement-approver', 'finance-approver', 'principal-approver', 'director-approver'];
+    for (const [index, uid] of approvers.entries()) {
+        current = await assertSucceeds(attemptApproval(uid, index, index + 1, current));
+    }
+    assert.equal(current.status, 'Approved');
+    assert.equal(current.approvalStages.filter(stage => stage.status === 'Approved').length, 5);
+
+    const rejectedRequestRef = doc(administratorContext().firestore(), 'schools/SCH-TEST/purchaseRequests/PR-2026-502');
+    const rejectedStages = structuredClone(stages);
+    await assertSucceeds(setDoc(rejectedRequestRef, {
+        data: { ...requestData, id: 'PR-2026-502', approvalStages: rejectedStages },
+        version: 1,
+        updatedBy: 'admin-1',
+        updatedAt: '2026-10-23T00:00:00.000Z'
+    }));
+    const rejectedData = structuredClone(requestData);
+    rejectedData.id = 'PR-2026-502';
+    rejectedData.status = 'Rejected';
+    rejectedData.rejectionReason = 'The purchase is outside the approved budget.';
+    rejectedData.decisionBy = 'Department Head';
+    rejectedData.decisionAt = '2026-10-23T00:00:00.000Z';
+    rejectedData.approvalStages[0].status = 'Rejected';
+    rejectedData.approvalStages[0].decidedBy = 'Department Head';
+    rejectedData.approvalStages[0].decidedByUid = 'department-head';
+    rejectedData.approvalStages[0].approvedAt = '2026-10-23T00:00:00.000Z';
+    rejectedData.approvalStages[0].rejectionReason = rejectedData.rejectionReason;
+    rejectedData.approvalStages.slice(1).forEach(stage => { stage.status = 'Not required'; });
+    await assertSucceeds(updateDoc(doc(
+        testEnvironment.authenticatedContext('department-head').firestore(),
+        rejectedRequestRef.path
+    ), {
+        data: rejectedData,
+        version: 2,
+        updatedBy: 'department-head',
+        updatedAt: '2026-10-23T00:00:00.000Z'
+    }));
+    assert.equal(rejectedData.approvalStages.filter(stage => stage.status === 'Not required').length, 4);
+});
