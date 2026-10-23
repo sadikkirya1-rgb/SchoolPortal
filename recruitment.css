@@ -26,3 +26,4 @@
 .recruitment-module .recruitment-icon-btn{width:38px;height:38px;font-size:15px}
 @media(max-width:900px){.recruitment-module .recruitment-modal-body form{grid-template-columns:minmax(0,1fr)}.recruitment-module .recruitment-form-grid,.recruitment-module .recruitment-live-summary,.recruitment-module .recruitment-form-actions{grid-column:1;grid-row:auto}.recruitment-module .recruitment-live-summary{margin-top:18px}}
 @media(max-width:700px){.recruitment-module .recruitment-form-actions .recruitment-btn{flex:1}.recruitment-module .recruitment-table th:last-child,.recruitment-module .recruitment-table td:last-child{min-width:145px}}
+.recruitment-module .recruitment-stat-note{display:none}

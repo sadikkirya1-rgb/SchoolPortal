@@ -21,3 +21,4 @@
 .leave-management-module .lm-action{width:38px;height:38px;font-size:15px}
 @media(max-width:900px){.leave-management-module .lm-modal form{grid-template-columns:minmax(0,1fr)}.leave-management-module .lm-form-body,.leave-management-module .lm-live-summary,.leave-management-module .lm-modal-foot{grid-column:1;grid-row:auto}.leave-management-module .lm-live-summary{margin:0 24px 18px}}
 @media(max-width:750px){.leave-management-module .lm-modal-foot .lm-btn{flex:1}.leave-management-module .lm-table-wrap th:last-child,.leave-management-module .lm-table-wrap td:last-child{min-width:145px}}
+.leave-management-module .lm-stat span{display:none}
