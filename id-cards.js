@@ -34,10 +34,6 @@ function createIDCardsModule(category) {
     scannerPanel.innerHTML = `<div class="idc-scan-heading"><div><h3>QR Attendance Scanner</h3><p>Use a member QR code or an enrolled face to record attendance.</p></div><button class="idc-btn idc-btn-light" type="button" data-idc-close-scanner aria-label="Close attendance scanner">Close</button></div><div class="idc-scan-controls"><div class="idc-scan-option"><span>Identify member</span><strong>QR or Face</strong></div><div class="idc-scan-option"><span>Camera</span><div class="idc-scan-button-group" role="group" aria-label="Choose camera"><button class="idc-btn idc-btn-light is-selected" type="button" data-idc-camera-facing="environment" aria-pressed="true"><i class="fas fa-camera" aria-hidden="true"></i> Back</button><button class="idc-btn idc-btn-light" type="button" data-idc-camera-facing="user" aria-pressed="false"><i class="fas fa-camera-rotate" aria-hidden="true"></i> Front</button></div></div><div class="idc-scan-option"><span>Attendance action</span><div class="idc-scan-button-group" role="group" aria-label="Attendance action"><button class="idc-btn idc-btn-light is-selected" type="button" data-idc-scan-mode="check-in" aria-pressed="true"><i class="fas fa-right-to-bracket" aria-hidden="true"></i> Check in</button><button class="idc-btn idc-btn-light" type="button" data-idc-scan-mode="check-out" aria-pressed="false"><i class="fas fa-right-from-bracket" aria-hidden="true"></i> Check out</button></div></div></div><div class="idc-camera-frame" data-idc-camera-frame><video data-idc-camera playsinline muted aria-label="Camera showing a member QR code or face"></video><div class="idc-camera-guide"><span class="idc-camera-guide-label">Keep the full QR code visible</span><div class="idc-camera-guide-box"><div class="idc-camera-scan-line" aria-hidden="true"></div></div><span class="idc-camera-guide-hint">Hold the phone steady; scanning is automatic</span></div><div class="idc-camera-message hidden" data-idc-camera-message role="status" aria-live="polite"></div></div><div class="idc-camera-actions"><button class="idc-btn idc-btn-primary" type="button" data-idc-camera-start><i class="fas fa-camera" aria-hidden="true"></i> Start camera</button><button class="idc-btn idc-btn-light" type="button" data-idc-camera-stop disabled><i class="fas fa-stop" aria-hidden="true"></i> Stop camera</button></div><p class="idc-scan-status" data-idc-scan-status role="status" aria-live="polite">Choose check-in or check-out, then start the camera.</p><div class="idc-scan-result hidden" data-idc-scan-result role="status" aria-live="polite"><strong data-idc-result-action></strong><span class="idc-result-name"><b>Member:</b> <span data-idc-result-name></span></span><span><b>Date:</b> <span data-idc-result-date></span></span><span><b>Time:</b> <span data-idc-result-time></span></span></div>`;
     scannerPanel.querySelector('.idc-scan-controls .idc-scan-option').remove();
     const idRecordsPanel = sec.querySelector('.idc-record-heading')?.closest('.idc-panel');
-    const cameraZoomControl = document.createElement('label');
-    cameraZoomControl.className = 'idc-camera-zoom hidden';
-    cameraZoomControl.innerHTML = '<span>Camera zoom <output data-idc-zoom-value>1×</output></span><input type="range" min="1" max="1" step="0.1" value="1" aria-label="Camera zoom" data-idc-camera-zoom>';
-    scannerPanel.querySelector('.idc-scan-controls').append(cameraZoomControl);
     sec.querySelector('.idc-header').after(scannerPanel);
 
     const faceEnrollmentControl = document.createElement('div');
@@ -172,6 +168,8 @@ function createIDCardsModule(category) {
         const scannerNav = document.getElementById('mobileRoleNav');
         scannerNav?.classList.remove('mobile-role-nav-scanner-expanded');
         if (scannerNav) scannerNav.querySelector('[data-mobile-scanner-toggle]')?.removeAttribute('hidden');
+        scannerNav?.querySelectorAll('[data-mobile-camera-control]').forEach(button => button.removeAttribute('hidden'));
+        syncScannerNavbarControls();
         idRecordsPanel?.classList.add('hidden');
         scannerPanel.classList.remove('hidden');
         scannerPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -183,6 +181,7 @@ function createIDCardsModule(category) {
         const scannerNav = document.getElementById('mobileRoleNav');
         scannerNav?.classList.remove('mobile-role-nav-scanner-expanded');
         if (scannerNav) scannerNav.querySelector('[data-mobile-scanner-toggle]')?.setAttribute('hidden', '');
+        scannerNav?.querySelectorAll('[data-mobile-camera-control]').forEach(button => button.setAttribute('hidden', ''));
         idRecordsPanel?.classList.remove('hidden');
     });
 
@@ -438,7 +437,6 @@ function createIDCardsModule(category) {
     let attendanceSubscription = null;
     let attendanceIdentityKey = '';
     let cameraStream = null;
-    let cameraTrack = null;
     let cameraTimer = null;
     let frameScanInProgress = false;
     let cameraMessageTimer = null;
@@ -461,11 +459,15 @@ function createIDCardsModule(category) {
     scannerFrame.after(scannerResult);
     let scannerResultTimer = null;
     const scannerMessage = sec.querySelector('[data-idc-camera-message]');
-    const cameraZoomInput = sec.querySelector('[data-idc-camera-zoom]');
-    const cameraZoomValue = sec.querySelector('[data-idc-zoom-value]');
-    const cameraZoomControlElement = sec.querySelector('.idc-camera-zoom');
     const scannerCanvas = document.createElement('canvas');
     const scannerContext = scannerCanvas.getContext('2d', { willReadFrequently: true });
+    const syncScannerNavbarControls = () => {
+        const nav = document.getElementById('mobileRoleNav');
+        const startButton = nav?.querySelector('[data-mobile-camera-control="start"]');
+        const stopButton = nav?.querySelector('[data-mobile-camera-control="stop"]');
+        if (startButton) startButton.disabled = sec.querySelector('[data-idc-camera-start]').disabled;
+        if (stopButton) stopButton.disabled = sec.querySelector('[data-idc-camera-stop]').disabled;
+    };
     let qrDetector = null;
     if (typeof window.BarcodeDetector === 'function') {
         try {
@@ -509,51 +511,18 @@ function createIDCardsModule(category) {
     const formatAnnouncementTime = date => date.toLocaleTimeString([], {
         hour: 'numeric', minute: '2-digit', hour12: true
     });
-    cameraZoomInput.addEventListener('input', () => {
-        cameraZoomValue.value = `${Number(cameraZoomInput.value).toFixed(1).replace(/\.0$/, '')}×`;
-    });
-    cameraZoomInput.addEventListener('change', async () => {
-        if (!cameraTrack) return;
-        try {
-            await cameraTrack.applyConstraints({ advanced: [{ zoom: Number(cameraZoomInput.value) }] });
-        } catch (error) {
-            console.warn('Unable to adjust QR scanner camera zoom.', error);
-            scanStatus('This camera could not adjust its zoom. Move closer and keep the QR code in focus.');
-        }
-    });
     const configureCamera = async stream => {
         const track = stream.getVideoTracks()[0];
-        cameraTrack = track;
         const capabilities = track.getCapabilities?.();
         const advanced = [];
         if (capabilities?.focusMode?.includes('continuous')) {
             advanced.push({ focusMode: 'continuous' });
         }
-        const zoom = capabilities?.zoom;
-        if (zoom && Number(zoom.max) > Number(zoom.min)) {
-            const preferredZoom = Math.min(Number(zoom.max), Math.max(Number(zoom.min), 1.5));
-            cameraZoomInput.min = String(zoom.min);
-            cameraZoomInput.max = String(zoom.max);
-            cameraZoomInput.step = String(zoom.step || 0.1);
-            cameraZoomInput.value = String(preferredZoom);
-            cameraZoomValue.value = `${preferredZoom.toFixed(1).replace(/\.0$/, '')}×`;
-            cameraZoomControlElement.classList.remove('hidden');
-            advanced.push({ zoom: preferredZoom });
-        } else {
-            cameraZoomControlElement.classList.add('hidden');
-        }
         if (!advanced.length) return;
         try {
             await track.applyConstraints({ advanced });
         } catch (error) {
-            console.warn('Unable to configure camera autofocus or zoom for QR scanning.', error);
-            if (advanced.length > 1) {
-                try {
-                    await track.applyConstraints({ advanced: [advanced[0]] });
-                } catch (focusError) {
-                    console.warn('Continuous autofocus is not available for QR scanning.', focusError);
-                }
-            }
+            console.warn('Continuous autofocus is not available for QR scanning.', error);
         }
     };
     const prepareScannerAudio = async () => {
@@ -631,8 +600,6 @@ function createIDCardsModule(category) {
         frameScanInProgress = false;
         cameraStream?.getTracks().forEach(track => track.stop());
         cameraStream = null;
-        cameraTrack = null;
-        cameraZoomControlElement.classList.add('hidden');
         scannerVideo.srcObject = null;
         scannerFrame.classList.remove('is-scanning');
         scannerFrame.classList.remove('is-qr-detected');
@@ -640,6 +607,7 @@ function createIDCardsModule(category) {
         scannerMessage.classList.add('hidden');
         sec.querySelector('[data-idc-camera-start]').disabled = false;
         sec.querySelector('[data-idc-camera-stop]').disabled = true;
+        syncScannerNavbarControls();
     };
     const attendanceAccess = identity => {
         const administrator = ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(identity?.role);
@@ -976,6 +944,7 @@ function createIDCardsModule(category) {
             scannerFrame.classList.add('is-scanning');
             sec.querySelector('[data-idc-camera-start]').disabled = true;
             sec.querySelector('[data-idc-camera-stop]').disabled = false;
+            syncScannerNavbarControls();
             const guideLabel = scannerFrame.querySelector('.idc-camera-guide-label');
             const guideHint = scannerFrame.querySelector('.idc-camera-guide-hint');
             guideLabel.textContent = 'Show a member QR code or center one enrolled face';

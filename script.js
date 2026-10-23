@@ -3205,13 +3205,29 @@ document.addEventListener('DOMContentLoaded', () => {
                         idCardsModule.querySelector('[data-idc-close-scanner]')?.click();
                         idCardsModule.querySelector('.idc-record-heading')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
+                },
+                {
+                    label: 'Start camera',
+                    icon: 'fa-play',
+                    scannerControl: 'start',
+                    run: () => idCardsModule.querySelector('[data-idc-camera-start]')?.click()
+                },
+                {
+                    label: 'Stop camera',
+                    icon: 'fa-stop',
+                    scannerControl: 'stop',
+                    run: () => idCardsModule.querySelector('[data-idc-camera-stop]')?.click()
                 }
             ];
-            actions.forEach(({ label, icon, run }) => {
+            actions.forEach(({ label, icon, run, scannerControl }) => {
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'mobile-role-nav-item';
                 if (label === 'New ID') button.classList.add('mobile-role-nav-new-id');
+                if (scannerControl) {
+                    button.dataset.mobileCameraControl = scannerControl;
+                    button.hidden = true;
+                }
                 button.setAttribute('aria-label', label);
                 button.dataset.mobileIdcardsAction = label === 'New ID' ? 'new' : label.toLowerCase().replace(/\s+/g, '-');
                 button.innerHTML = `<i class="fas ${icon}" aria-hidden="true"></i><span>${label}</span>`;

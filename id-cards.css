@@ -31,10 +31,6 @@
 #idCardsModule .idc-scan-controls{justify-content:flex-start;flex-wrap:wrap;margin-bottom:12px}
 #idCardsModule .idc-scan-controls label{display:grid;gap:4px;color:#475569;font-size:11px;font-weight:700}
 #idCardsModule .idc-scan-controls select{min-width:140px;height:38px;padding:0 10px;border:1px solid #dce4ef;border-radius:8px;background:#fff;color:#334155;font:inherit}
-#idCardsModule .idc-camera-zoom{display:grid;min-width:180px;gap:5px;color:#475569;font-size:11px;font-weight:700}
-#idCardsModule .idc-camera-zoom>span{display:flex;justify-content:space-between;gap:10px}
-#idCardsModule .idc-camera-zoom output{color:#1459d9;font-weight:800}
-#idCardsModule .idc-camera-zoom input{width:100%;min-height:32px;margin:0;accent-color:#1459d9}
 #idCardsModule .idc-camera-frame{position:relative;width:min(100%,520px);height:min(62vw,340px);min-height:220px;margin:0 auto;overflow:hidden;border-radius:10px;background:#0f172a}
 #idCardsModule [data-idc-camera]{display:block;width:100%;height:100%;object-fit:cover}
 #idCardsModule .idc-camera-guide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff;text-align:center;pointer-events:none}
@@ -73,8 +69,6 @@
     #idCardsModule .idc-scan-controls{display:grid;grid-template-columns:1fr 1fr;gap:9px}
     #idCardsModule .idc-scan-controls label{grid-column:1/-1;min-width:0}
     #idCardsModule .idc-scan-controls select{width:100%;min-height:44px}
-    #idCardsModule .idc-scan-controls .idc-camera-zoom{grid-column:1/-1}
-    #idCardsModule .idc-camera-zoom input{min-height:40px}
     #idCardsModule .idc-scan-controls .idc-btn{min-height:46px;padding:10px 8px}
     #idCardsModule .idc-camera-frame{width:100%;min-height:0;aspect-ratio:4/3}
     #idCardsModule .idc-camera-guide{gap:8px;padding:8px}
@@ -109,7 +103,6 @@
 #idCardsModule .idc-scan-controls .idc-scan-button-group .idc-btn{min-height:26px;padding:3px 6px;font-size:8px;white-space:nowrap}
 #idCardsModule .idc-scan-button-group .idc-btn i{margin-right:3px;font-size:8px}
 #idCardsModule .idc-scan-controls .idc-scan-button-group .is-selected{background:#1459d9;color:#fff}
-#idCardsModule .idc-scan-controls .idc-camera-zoom{min-width:150px}
 #idCardsModule .idc-camera-actions{display:flex;justify-content:center;gap:10px;width:min(100%,520px);margin:12px auto}
 #idCardsModule .idc-camera-actions .idc-btn{flex:1;min-height:36px;padding:7px 10px;font-size:10px}
 #idCardsModule .idc-camera-actions .idc-btn:disabled{cursor:not-allowed;opacity:.55;transform:none}
@@ -134,7 +127,6 @@
     #idCardsModule .idc-scan-button-group .idc-btn{flex:1;min-width:0;min-height:24px;padding:3px 2px;font-size:7px}
     #idCardsModule .idc-scan-button-group .idc-btn i{margin-right:2px;font-size:7px}
     #idCardsModule .idc-camera-actions .idc-btn{min-height:32px;padding:6px;font-size:9px}
-    #idCardsModule .idc-scan-controls .idc-camera-zoom{grid-column:auto;width:100%}
 }
 @media(max-width:768px){
     html.idc-attendance-scanner-open,
@@ -165,6 +157,7 @@
         border:0;
         border-radius:0;
     }
+    #idCardsModule.idc-scanner-open .idc-camera-actions{display:none!important}
     #idCardsModule.idc-scanner-open .idc-scan-heading,
     #idCardsModule.idc-scanner-open .idc-scan-controls,
     #idCardsModule.idc-scanner-open .idc-camera-actions,
@@ -173,7 +166,6 @@
     #idCardsModule.idc-scanner-open .idc-scan-heading,
     #idCardsModule.idc-scanner-open .idc-scan-status,
     #idCardsModule.idc-scanner-open .idc-scan-result:not(.is-visible),
-    #idCardsModule.idc-scanner-open .idc-camera-zoom,
     #idCardsModule.idc-scanner-open .idc-scan-option>span,
     #idCardsModule.idc-scanner-open .idc-camera-guide-label,
     #idCardsModule.idc-scanner-open .idc-camera-guide-hint{display:none!important}
