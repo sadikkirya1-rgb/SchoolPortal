@@ -40,6 +40,13 @@
 .purchase-requests-module .pr-action,.purchase-requests-module .pr-close{width:31px;height:31px;display:grid;place-items:center;border:1px solid transparent;border-radius:7px;background:#f1f5f9;color:#475569;cursor:pointer}
 .purchase-requests-module .pr-action:hover,.purchase-requests-module .pr-close:hover{background:#e2e8f0}
 .purchase-requests-module .pr-action.pr-delete{color:#b91c1c}
+.purchase-requests-module .pr-actions .pr-action{flex:0 0 34px;width:34px;height:34px;padding:0;border:1px solid #cbd5e1;background:#fff;color:#1f2937}
+.purchase-requests-module .pr-actions .pr-action:hover{border-color:#64748b;background:#f1f5f9;color:#111827}
+.purchase-requests-module .pr-actions .pr-action.pr-approve,.purchase-requests-module .pr-actions .pr-action.pr-reject,.purchase-requests-module .pr-actions .pr-action.pr-submit{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;gap:5px;width:auto;min-width:76px;padding:0 8px;border-color:#86efac;background:#f0fdf4;color:#166534;font-size:11px;font-weight:700}
+.purchase-requests-module .pr-actions .pr-action.pr-approve:hover,.purchase-requests-module .pr-actions .pr-action.pr-submit:hover{border-color:#16a34a;background:#dcfce7;color:#14532d}
+.purchase-requests-module .pr-actions .pr-action.pr-reject{border-color:#fecaca;background:#fef2f2;color:#b91c1c}
+.purchase-requests-module .pr-actions .pr-action.pr-reject:hover{border-color:#ef4444;background:#fee2e2;color:#7f1d1d}
+.purchase-requests-module button:focus-visible{outline:3px solid #818cf8;outline-offset:2px}
 .purchase-requests-module .pr-empty{padding:42px 18px;text-align:center;color:var(--pr-muted)}
 .purchase-requests-module .pr-overlay{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:18px;background:#0f172a99}
 .purchase-requests-module .pr-overlay.is-open{display:flex}

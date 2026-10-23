@@ -144,6 +144,7 @@
 
         render();
         window.addEventListener('storage', render);
+        window.addEventListener('school-portal-approval-update', render);
         window.setInterval(render, 5000);
         const menu = document.getElementById('mainMenu');
         if (menu) new MutationObserver(mutations => {

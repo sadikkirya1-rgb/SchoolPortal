@@ -37,7 +37,7 @@ function createPurchaseRequestsModule() {
                         <div data-pr-items></div>
                         <div class="pr-totals"><div><span>Subtotal</span><strong data-pr-subtotal>$0.00</strong></div><div><span>Tax (5%)</span><strong data-pr-tax>$0.00</strong></div><div class="pr-grand"><span>Total</span><strong data-pr-total>$0.00</strong></div></div>
                     </div>
-                    <footer class="pr-modal-actions"><button class="pr-button pr-light" type="button" data-pr-cancel>Cancel</button><button class="pr-button pr-primary" type="submit">Save Purchase Request</button></footer>
+                    <footer class="pr-modal-actions"><button class="pr-button pr-light" type="button" data-pr-cancel>Cancel</button><button class="pr-button pr-light" type="submit" data-pr-status="Draft">Save Draft</button><button class="pr-button pr-primary" type="submit" data-pr-status="Pending">Submit for Approval</button></footer>
                 </form>
             </section>
         </div>
@@ -175,7 +175,15 @@ function createPurchaseRequestsModule() {
         q('[data-pr-rows]').innerHTML = found.length ? found.map(request => {
             const itemCount = request.items.reduce((sum, item) => sum + Number(item[1]), 0);
             const initials = request.requester.split(/\s+/).map(part => part[0] || '').slice(0, 2).join('').toUpperCase();
-            return `<tr><td><strong class="pr-id">${escape(request.id)}</strong></td><td><span class="pr-requester"><span class="pr-avatar">${escape(initials)}</span><b>${escape(request.requester)}</b></span></td><td>${escape(request.department)}</td><td>${itemCount} item(s)</td><td><strong>${money(total(request))}</strong></td><td>${formatDate(request.date)}</td><td><span class="pr-badge ${escape(request.status.toLowerCase())}">${escape(request.status)}</span></td><td><div class="pr-actions"><button class="pr-action" type="button" title="View" aria-label="View ${escape(request.id)}" data-pr-action="view" data-id="${escape(request.id)}"><i class="fas fa-eye"></i></button><button class="pr-action" type="button" title="Edit" aria-label="Edit ${escape(request.id)}" data-pr-action="edit" data-id="${escape(request.id)}"><i class="fas fa-pen"></i></button><button class="pr-action" type="button" title="Print" aria-label="Print ${escape(request.id)}" data-pr-action="print" data-id="${escape(request.id)}"><i class="fas fa-print"></i></button><button class="pr-action pr-delete" type="button" title="Delete" aria-label="Delete ${escape(request.id)}" data-pr-action="delete" data-id="${escape(request.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
+            const workflowActions = request.status === 'Pending'
+                ? `<button class="pr-action pr-approve" type="button" title="Approve request" aria-label="Approve ${escape(request.id)}" data-pr-action="approve" data-id="${escape(request.id)}"><i class="fas fa-check"></i><span>Approve</span></button><button class="pr-action pr-reject" type="button" title="Reject request" aria-label="Reject ${escape(request.id)}" data-pr-action="reject" data-id="${escape(request.id)}"><i class="fas fa-xmark"></i><span>Reject</span></button>`
+                : ['Draft', 'Rejected'].includes(request.status)
+                    ? `<button class="pr-action pr-submit" type="button" title="Submit for approval" aria-label="Submit ${escape(request.id)} for approval" data-pr-action="submit" data-id="${escape(request.id)}"><i class="fas fa-paper-plane"></i><span>Submit</span></button>`
+                    : '';
+            const editAction = ['Draft', 'Rejected'].includes(request.status)
+                ? `<button class="pr-action" type="button" title="Edit" aria-label="Edit ${escape(request.id)}" data-pr-action="edit" data-id="${escape(request.id)}"><i class="fas fa-pen"></i></button>`
+                : '';
+            return `<tr><td><strong class="pr-id">${escape(request.id)}</strong></td><td><span class="pr-requester"><span class="pr-avatar">${escape(initials)}</span><b>${escape(request.requester)}</b></span></td><td>${escape(request.department)}</td><td>${itemCount} item(s)</td><td><strong>${money(total(request))}</strong></td><td>${formatDate(request.date)}</td><td><span class="pr-badge ${escape(request.status.toLowerCase())}">${escape(request.status)}</span></td><td><div class="pr-actions"><button class="pr-action" type="button" title="View" aria-label="View ${escape(request.id)}" data-pr-action="view" data-id="${escape(request.id)}"><i class="fas fa-eye"></i></button>${editAction}<button class="pr-action" type="button" title="Print" aria-label="Print ${escape(request.id)}" data-pr-action="print" data-id="${escape(request.id)}"><i class="fas fa-print"></i></button>${workflowActions}<button class="pr-action pr-delete" type="button" title="Delete" aria-label="Delete ${escape(request.id)}" data-pr-action="delete" data-id="${escape(request.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
         }).join('') : '<tr><td colspan="8"><div class="pr-empty">No purchase requests found.</div></td></tr>';
         updateStats();
     };
@@ -262,6 +270,9 @@ function createPurchaseRequestsModule() {
             <div><strong>Request ID</strong><p>${escape(request.id)}</p></div><div><strong>Status</strong><p><span class="pr-badge ${escape(request.status.toLowerCase())}">${escape(request.status)}</span></p></div>
             <div><strong>Requester</strong><p>${escape(request.requester)}</p></div><div><strong>Department</strong><p>${escape(request.department)}</p></div>
             <div><strong>Date</strong><p>${formatDate(request.date)}</p></div><div><strong>Priority</strong><p>${escape(request.priority)}</p></div>
+            ${request.submittedAt ? `<div><strong>Submitted</strong><p>${formatDate(request.submittedAt.slice(0, 10))}</p></div>` : ''}
+            ${request.decisionAt ? `<div><strong>${request.status === 'Approved' ? 'Approved' : 'Rejected'} by</strong><p>${escape(request.decisionBy || 'Approver')} · ${formatDate(request.decisionAt.slice(0, 10))}</p></div>` : ''}
+            ${request.rejectionReason ? `<div class="pr-full"><strong>Rejection reason</strong><p>${escape(request.rejectionReason)}</p></div>` : ''}
             <div class="pr-full"><strong>Purpose</strong><p>${escape(request.purpose || 'Not provided')}</p></div>
         </div>
         <h4>Items</h4><div class="pr-table-wrap"><table class="pr-table pr-detail-table"><thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${request.items.map(item => `<tr><td>${escape(item[0])}</td><td>${Number(item[1])}</td><td>${money(item[2])}</td><td>${money(item[1] * item[2])}</td></tr>`).join('')}</tbody></table></div>
@@ -297,13 +308,30 @@ function createPurchaseRequestsModule() {
         const existing = requests.find(request => request.id === editId);
         const year = new Date().getFullYear();
         const nextNumber = Math.max(0, ...requests.map(request => Number(request.id.match(/^PR-\d{4}-(\d+)$/)?.[1]) || 0)) + 1;
-        const request = { id: existing?.id || `PR-${year}-${String(nextNumber).padStart(3, '0')}`, requester: form.elements.requester.value.trim(), department: form.elements.department.value, date: form.elements.date.value, status: existing?.status || 'Draft', priority: form.elements.priority.value, purpose: form.elements.purpose.value.trim(), items };
+        const nextStatus = event.submitter?.dataset.prStatus || (existing?.status === 'Pending' ? 'Pending' : 'Draft');
+        const request = {
+            ...existing,
+            id: existing?.id || `PR-${year}-${String(nextNumber).padStart(3, '0')}`,
+            requester: form.elements.requester.value.trim(),
+            department: form.elements.department.value,
+            date: form.elements.date.value,
+            status: nextStatus,
+            priority: form.elements.priority.value,
+            purpose: form.elements.purpose.value.trim(),
+            items,
+            ...(nextStatus === 'Pending' ? { submittedAt: existing?.submittedAt || new Date().toISOString(), rejectionReason: '' } : {})
+        };
         if (existing) requests = requests.map(item => item.id === editId ? request : item);
         else requests.unshift(request);
         save();
         closeForm();
         render();
-        toast(existing ? 'Purchase request updated.' : 'Purchase request created.');
+        if (nextStatus === 'Pending' && existing?.status !== 'Pending') {
+            window.dispatchEvent(new CustomEvent('school-portal-approval-update'));
+        }
+        toast(nextStatus === 'Pending'
+            ? existing?.status === 'Pending' ? 'Purchase request updated and remains pending approval.' : 'Purchase request submitted for approval.'
+            : existing ? 'Purchase request draft saved.' : 'Purchase request draft created.');
     });
     q('[data-pr-rows]').addEventListener('click', event => {
         const button = event.target.closest('[data-pr-action]');
@@ -315,9 +343,34 @@ function createPurchaseRequestsModule() {
             q('[data-pr-view-content]').innerHTML = requestDetails(request);
             q('[data-pr-view-overlay]').classList.add('is-open');
         } else if (button.dataset.prAction === 'edit') {
+            if (!['Draft', 'Rejected'].includes(request.status)) return;
             openForm(request);
         } else if (button.dataset.prAction === 'print') {
             printRequest(request);
+        } else if (button.dataset.prAction === 'submit') {
+            request.status = 'Pending';
+            request.submittedAt = new Date().toISOString();
+            request.rejectionReason = '';
+            save();
+            render();
+            window.dispatchEvent(new CustomEvent('school-portal-approval-update'));
+            toast('Purchase request submitted for approval.');
+        } else if (button.dataset.prAction === 'approve' || button.dataset.prAction === 'reject') {
+            const isApproval = button.dataset.prAction === 'approve';
+            const rejectionReason = isApproval ? '' : window.prompt(`Why are you rejecting ${request.id}?`);
+            if (!isApproval && rejectionReason === null) return;
+            if (!isApproval && !rejectionReason.trim()) return toast('Enter a reason before rejecting this request.');
+            request.status = isApproval ? 'Approved' : 'Rejected';
+            request.decisionAt = new Date().toISOString();
+            request.decisionBy = window.schoolPortalData?.getIdentity?.()?.displayName
+                || window.schoolPortalData?.getIdentity?.()?.name
+                || window.schoolPortalData?.getIdentity?.()?.uid
+                || 'Approver';
+            if (!isApproval) request.rejectionReason = rejectionReason.trim();
+            save();
+            render();
+            window.dispatchEvent(new CustomEvent('school-portal-approval-update'));
+            toast(isApproval ? 'Purchase request approved.' : 'Purchase request rejected.');
         } else if (button.dataset.prAction === 'delete' && confirm(`Delete purchase request ${request.id}?`)) {
             requests = requests.filter(item => item.id !== request.id);
             save();
