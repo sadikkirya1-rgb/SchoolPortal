@@ -24,3 +24,33 @@
 .payroll-module .payroll-table-wrap td:last-child button{width:36px;height:36px;margin:2px}
 @media(max-width:900px){.payroll-module form[data-payroll-form]{grid-template-columns:minmax(0,1fr)}.payroll-module .payroll-form-grid,.payroll-module .payroll-calculation,.payroll-module .payroll-live-summary,.payroll-module .payroll-form-actions{grid-column:1;grid-row:auto}.payroll-module .payroll-live-summary{margin:18px 24px}}
 @media(max-width:700px){.payroll-module .payroll-form-actions button{flex:1}.payroll-module .payroll-table-wrap table th:last-child,.payroll-module .payroll-table-wrap table td:last-child{min-width:132px}}
+
+.payroll-module .payroll-stats>div{display:grid;grid-template-columns:36px minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:center;column-gap:10px;row-gap:2px;min-height:82px}
+.payroll-module .payroll-stats>div>i{grid-column:1;grid-row:1 / span 2}
+.payroll-module .payroll-stats>div>span{grid-column:2;grid-row:1;margin:0;font-weight:650;line-height:1.25}
+.payroll-module .payroll-stats>div>strong{grid-column:3;grid-row:1;color:var(--payroll-dark);font-size:clamp(15px,1.5vw,21px);text-align:right;white-space:nowrap}
+.payroll-module .payroll-stats>div>small{grid-column:2 / -1;grid-row:2}
+.payroll-module .payroll-header-actions .btn-primary,
+.payroll-module .payroll-form-actions .btn-primary,
+.payroll-module .payroll-preview-actions .btn-primary{background:#4338ca;color:#fff;border:1px solid #3730a3}
+.payroll-module .payroll-header-actions .btn-primary:hover,
+.payroll-module .payroll-form-actions .btn-primary:hover,
+.payroll-module .payroll-preview-actions .btn-primary:hover{background:#3730a3}
+.payroll-module .payroll-header-actions .btn-secondary,
+.payroll-module .payroll-form-actions .btn-secondary,
+.payroll-module .payroll-preview-actions .btn-secondary{background:#f1f5f9;color:#1e293b;border:1px solid #94a3b8}
+.payroll-module .payroll-header-actions .btn-secondary:hover,
+.payroll-module .payroll-form-actions .btn-secondary:hover,
+.payroll-module .payroll-preview-actions .btn-secondary:hover{background:#e2e8f0;color:#0f172a}
+.payroll-module .payroll-actions button,
+.payroll-module .payroll-modal .payroll-close{border-color:#94a3b8;background:#f8fafc;color:#334155}
+.payroll-module .payroll-actions button:hover,
+.payroll-module .payroll-modal .payroll-close:hover{border-color:#6366f1;background:#eef2ff;color:#3730a3}
+.payroll-module .payroll-actions button[title="Delete"]:hover{border-color:#f87171;background:#fef2f2;color:#b91c1c}
+.payroll-module button:focus-visible{outline:3px solid #4f46e5;outline-offset:2px}
+.payroll-module .payroll-form-grid input,
+.payroll-module .payroll-form-grid select,
+.payroll-module .payroll-search input,
+.payroll-module .payroll-filters select{border-color:#94a3b8}
+@media(max-width:600px){.payroll-module .payroll-stats>div{grid-template-columns:32px minmax(0,1fr) auto;column-gap:8px;padding:10px;min-height:76px}.payroll-module .payroll-stats>div>strong{font-size:15px}}
+@media(max-width:360px){.payroll-module .payroll-stats>div{grid-template-columns:30px minmax(0,1fr)}.payroll-module .payroll-stats>div>strong{grid-column:2;grid-row:2;text-align:left}.payroll-module .payroll-stats>div>small{grid-column:2;grid-row:3}}
