@@ -5905,6 +5905,7 @@ input:checked + .slider:before {
         color:#94a3b8;
         cursor:not-allowed;
     }
+    #mobileRoleNav [data-mobile-scanner-toggle][hidden]{display:none!important}
 
     .mobile-role-nav-parent .mobile-role-nav-item i{font-size:15px}
     .mobile-role-nav-parent .mobile-role-nav-item span{font-size:9px}

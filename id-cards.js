@@ -169,6 +169,9 @@ function createIDCardsModule(category) {
     sec.querySelector('[data-idc-open-scanner]')?.addEventListener('click', () => {
         sec.classList.add('idc-scanner-open');
         document.documentElement.classList.add('idc-attendance-scanner-open');
+        const scannerNav = document.getElementById('mobileRoleNav');
+        scannerNav?.classList.remove('mobile-role-nav-scanner-expanded');
+        if (scannerNav) scannerNav.querySelector('[data-mobile-scanner-toggle]')?.removeAttribute('hidden');
         idRecordsPanel?.classList.add('hidden');
         scannerPanel.classList.remove('hidden');
         scannerPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -177,6 +180,9 @@ function createIDCardsModule(category) {
         scannerPanel.classList.add('hidden');
         sec.classList.remove('idc-scanner-open');
         document.documentElement.classList.remove('idc-attendance-scanner-open');
+        const scannerNav = document.getElementById('mobileRoleNav');
+        scannerNav?.classList.remove('mobile-role-nav-scanner-expanded');
+        if (scannerNav) scannerNav.querySelector('[data-mobile-scanner-toggle]')?.setAttribute('hidden', '');
         idRecordsPanel?.classList.remove('hidden');
     });
 

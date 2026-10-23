@@ -3218,6 +3218,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.addEventListener('click', run);
                 nav.append(button);
             });
+            const scannerNavToggle = document.createElement('button');
+            scannerNavToggle.type = 'button';
+            scannerNavToggle.className = 'mobile-role-nav-item';
+            scannerNavToggle.dataset.mobileScannerToggle = '';
+            scannerNavToggle.hidden = true;
+            scannerNavToggle.setAttribute('aria-label', 'Show navigation buttons');
+            scannerNavToggle.setAttribute('aria-expanded', 'false');
+            scannerNavToggle.innerHTML = '<i class="fas fa-chevron-up" aria-hidden="true"></i><span>Show menu</span>';
+            scannerNavToggle.addEventListener('click', () => {
+                const expanded = nav.classList.toggle('mobile-role-nav-scanner-expanded');
+                scannerNavToggle.setAttribute('aria-expanded', String(expanded));
+                scannerNavToggle.setAttribute('aria-label', `${expanded ? 'Hide' : 'Show'} navigation buttons`);
+                scannerNavToggle.querySelector('i').className = `fas fa-chevron-${expanded ? 'down' : 'up'}`;
+                scannerNavToggle.querySelector('span').textContent = expanded ? 'Hide menu' : 'Show menu';
+            });
+            nav.append(scannerNavToggle);
+            nav.classList.remove('mobile-role-nav-scanner-expanded');
             nav.hidden = false;
             return;
         }
