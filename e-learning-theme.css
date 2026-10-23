@@ -176,6 +176,8 @@
     margin: 0;
 }
 
+.assessment-module .assessment-live-summary {position:static}
+
 .assessment-module .assessment-form-actions,
 .study-materials-module .sm-form-actions,
 .online-quizzes-module .oq-form-actions {

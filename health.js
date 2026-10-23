@@ -26,7 +26,7 @@ function createHealthModule(category) {
     const fields = () => Object.fromEntries([...sec.querySelectorAll('[data-field]')].map(field => [field.dataset.field, field.value]));
     const liveSummary = document.createElement('section');
     liveSummary.className = 'health-live-summary';
-    liveSummary.innerHTML = '<h3>Complete Health Record Summary</h3><div data-health-live-fields></div>';
+    liveSummary.innerHTML = '<h3>Live Health Record Summary</h3><p>Updates as you complete the form.</p><div data-health-live-fields></div>';
     q('[data-health-summary]').insertAdjacentElement('afterend', liveSummary);
     const updateLiveSummary = () => {
         const controls = Array.from(q('[data-health-editor]').querySelectorAll('[data-field], input[name="healthGuardian"], #healthEmergency'));
@@ -49,7 +49,11 @@ function createHealthModule(category) {
                 ? 'Emergency'
                 : field.type === 'radio'
                 ? groupFields.find(candidate => candidate.checked)?.value || '-'
-                : field.type === 'checkbox' ? (field.checked ? 'Yes' : 'No') : field.value || '-';
+                : field.type === 'checkbox'
+                ? (field.checked ? 'Yes' : 'No')
+                : field.dataset.field === 'memberId'
+                ? field.selectedOptions[0]?.textContent || '-'
+                : field.value || '-';
             row.append(label, value);
             rows.push(row);
         });
