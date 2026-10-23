@@ -73,7 +73,8 @@ function createPurchaseOrdersModule() {
         q('[data-po-rows]').innerHTML = filtered.length ? filtered.map(order => {
             const initials = order.vendor.split(/\s+/).map(part => part[0] || '').slice(0, 2).join('').toUpperCase();
             const itemCount = order.items.reduce((sum, item) => sum + Number(item[1]), 0);
-            return `<tr><td><strong class="po-id">${escape(order.id)}</strong></td><td><span class="po-vendor"><span class="po-vendor-logo">${escape(initials)}</span><b>${escape(order.vendor)}</b></span></td><td>${escape(order.buyer)}</td><td>${itemCount} item(s)</td><td><strong>${money(total(order), order.currency)}</strong></td><td>${formatDate(order.date)}</td><td>${formatDate(order.delivery)}</td><td><span class="po-badge ${escape(order.status.toLowerCase())}">${escape(order.status)}</span></td><td><div class="po-actions"><button class="po-action" type="button" title="View" aria-label="View ${escape(order.id)}" data-po-action="view" data-id="${escape(order.id)}"><i class="fas fa-eye"></i></button><button class="po-action" type="button" title="Edit" aria-label="Edit ${escape(order.id)}" data-po-action="edit" data-id="${escape(order.id)}"><i class="fas fa-pen"></i></button><button class="po-action" type="button" title="Print" aria-label="Print ${escape(order.id)}" data-po-action="print" data-id="${escape(order.id)}"><i class="fas fa-print"></i></button><button class="po-action po-delete" type="button" title="Delete" aria-label="Delete ${escape(order.id)}" data-po-action="delete" data-id="${escape(order.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
+            const receiveAction = order.status === 'Received' || order.status === 'Cancelled' ? '' : `<button class="po-action po-receive" type="button" title="Mark as received" aria-label="Mark ${escape(order.id)} as received" data-po-action="receive" data-id="${escape(order.id)}"><i class="fas fa-check"></i><span>Receive</span></button>`;
+            return `<tr><td><strong class="po-id">${escape(order.id)}</strong></td><td><span class="po-vendor"><span class="po-vendor-logo">${escape(initials)}</span><b>${escape(order.vendor)}</b></span></td><td>${escape(order.buyer)}</td><td>${itemCount} item(s)</td><td><strong>${money(total(order), order.currency)}</strong></td><td>${formatDate(order.date)}</td><td>${formatDate(order.delivery)}</td><td><span class="po-badge ${escape(order.status.toLowerCase())}">${escape(order.status)}</span></td><td><div class="po-actions"><button class="po-action" type="button" title="View" aria-label="View ${escape(order.id)}" data-po-action="view" data-id="${escape(order.id)}"><i class="fas fa-eye"></i></button><button class="po-action" type="button" title="Edit" aria-label="Edit ${escape(order.id)}" data-po-action="edit" data-id="${escape(order.id)}"><i class="fas fa-pen"></i></button><button class="po-action" type="button" title="Print" aria-label="Print ${escape(order.id)}" data-po-action="print" data-id="${escape(order.id)}"><i class="fas fa-print"></i></button>${receiveAction}<button class="po-action po-delete" type="button" title="Delete" aria-label="Delete ${escape(order.id)}" data-po-action="delete" data-id="${escape(order.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
         }).join('') : '<tr><td colspan="9"><div class="po-empty">No purchase orders found.</div></td></tr>';
         updateStats();
     };
@@ -174,6 +175,11 @@ function createPurchaseOrdersModule() {
             openForm(order);
         } else if (button.dataset.poAction === 'print') {
             printOrder(order);
+        } else if (button.dataset.poAction === 'receive') {
+            order.status = 'Received';
+            save();
+            render();
+            showToast(`${order.id} marked as received. Find it under Closed POs.`);
         } else if (button.dataset.poAction === 'delete' && confirm(`Delete purchase order ${order.id}?`)) {
             orders = orders.filter(item => item.id !== order.id);
             save();

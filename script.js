@@ -7636,7 +7636,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 .btn { border: 0; border-radius: 8px; padding: 9px 14px; font-size: 11px; font-weight: 700; cursor: pointer; }
                 .btn-light { background: #f1f5f9; color: #334155; }
                 .btn-primary { background: #4f46e5; color: white; }
+                .fee-invoices-module .invoice-actions { display: flex; gap: 6px; }
+                .fee-invoices-module .action-btn { display: inline-grid; place-items: center; flex: 0 0 34px; width: 34px; min-width: 34px; height: 34px; padding: 0 !important; border: 1px solid #94a3b8 !important; border-radius: 7px; background: #fff; color: #1f2937 !important; line-height: 1; }
+                .fee-invoices-module .action-btn:hover { background: #eef2ff; border-color: #4f46e5 !important; color: #3730a3 !important; }
+                .fee-invoices-module .action-btn.print:hover { background: #ecfdf5; border-color: #059669 !important; color: #047857 !important; }
+                .fee-invoices-module .action-btn.download:hover { background: #eff6ff; border-color: #2563eb !important; color: #1d4ed8 !important; }
+                .fee-invoices-module .invoice-table th:last-child, .fee-invoices-module .invoice-table td:last-child { position: sticky; right: 0; z-index: 1; min-width: 132px; background: #fff; box-shadow: -5px 0 8px rgba(15,23,42,.08); }
+                .fee-invoices-module .invoice-table th:last-child { z-index: 2; background: #fafbfc; }
+                .fee-invoices-module button:focus-visible, .closed-pos-module button:focus-visible { outline: 3px solid #818cf8; outline-offset: 2px; }
+                .fee-invoices-module .btn-light, .closed-pos-module .btn-light { padding: 9px 14px; border: 1px solid #94a3b8 !important; background: #f1f5f9; color: #1f2937 !important; }
+                .fee-invoices-module .btn-light:hover, .closed-pos-module .btn-light:hover { background: #e2e8f0; border-color: #64748b !important; color: #0f172a !important; }
+                .fee-invoices-module .btn-primary { border: 1px solid #3730a3; background: #4f46e5; color: #fff !important; }
+                .fee-invoices-module .invoice-main-btn, .closed-pos-module .closed-po-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 10px 17px; border: 1px solid #3730a3; border-radius: 9px; color: #fff !important; font-weight: 700; }
+                .fee-invoice-form { display: grid; grid-template-columns: minmax(0,1.45fr) minmax(230px,.85fr); gap: 14px; }
+                .fee-invoice-form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+                .fee-invoice-form-grid label { display: grid; gap: 5px; color: #475569; font-size: 11px; font-weight: 650; }
+                .fee-invoice-form-grid input, .fee-invoice-form-grid select { width: 100%; min-height: 39px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; color: #1f2937; background: #fff; font: inherit; }
+                .fee-invoice-live-summary { grid-column: 2; grid-row: 1 / span 2; padding: 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
+                .fee-invoice-live-summary h4 { margin: 0; color: #3730a3; font-size: 14px; }
+                .fee-invoice-live-summary p { margin: 4px 0 10px; color: #64748b; font-size: 11px; }
+                .fee-invoice-live-summary div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px dashed #dbe2ea; font-size: 11px; }
+                .fee-invoice-live-summary strong { text-align: right; overflow-wrap: anywhere; }
+                .fee-invoice-form-actions { grid-column: 1; display: flex; justify-content: flex-end; gap: 8px; }
+                .fee-invoice-form-actions .btn { min-height: 38px; padding: 9px 15px; }
+                .fee-invoice-live-summary div:last-child { border: 0; margin-top: 5px; padding: 10px; border-radius: 8px; background: #eef2ff; color: #1e1b4b; font-weight: 700; }
+                .closed-po-feedback { min-height: 18px; margin: -10px 0 14px; color: #334155; font-size: 12px; font-weight: 600; }
+                .closed-pos-module .table-wrapper th:last-child, .closed-pos-module .table-wrapper td:last-child { position: sticky; right: 0; z-index: 1; min-width: 126px; background: #fff; box-shadow: -5px 0 8px rgba(15,23,42,.08); }
+                .closed-pos-module .table-wrapper th:last-child { z-index: 2; background: #fafbfc; }
+                .closed-pos-module .action-btn { display: inline-grid; place-items: center; flex: 0 0 34px; width: 34px; min-width: 34px; height: 34px; padding: 0 !important; border: 1px solid #94a3b8 !important; border-radius: 7px; background: #fff; color: #1f2937 !important; line-height: 1; }
+                .closed-pos-module .action-btn:hover { background: #eef2ff; border-color: #4f46e5 !important; color: #3730a3 !important; }
+                .closed-pos-module .action-btn.print:hover { background: #ecfdf5; border-color: #059669 !important; color: #047857 !important; }
+                .closed-pos-module .action-btn.download:hover { background: #eff6ff; border-color: #2563eb !important; color: #1d4ed8 !important; }
+                .closed-pos-module .closed-po-btn, .fee-invoices-module .invoice-main-btn { min-height: 40px; }
                 @media(max-width:700px) { .invoice-header { flex-direction: column; align-items: flex-start; } .invoice-main-btn { width: 100%; } .filter-left, .filter-right { width: 100%; } .search { width: 100%; } .filter { flex: 1; } .invoice-info-grid { grid-template-columns: 1fr; } .invoice-top { flex-direction: column; } .invoice-heading { text-align: left; } .invoice-document { padding: 15px; } .table-footer { flex-direction: column; gap: 12px; } }
+                @media(max-width:760px) { .fee-invoice-form { grid-template-columns: minmax(0,1fr); } .fee-invoice-live-summary, .fee-invoice-form-actions { grid-column: 1; grid-row: auto; } }
+                @media(max-width:520px) { .fee-invoice-form-grid { grid-template-columns: minmax(0,1fr); } }
                 @media print { body * { visibility: hidden !important; } #invoicePreviewModal, #invoicePreviewModal * { visibility: visible !important; } #invoicePreviewModal { position: absolute; inset: 0; display: block !important; background: white; padding: 0; } .modal-box { width: 100%; max-height: none; box-shadow: none; border-radius: 0; } .modal-header, .modal-footer { display: none !important; } .modal-body { padding: 0; } .invoice-document { border: 0; } }
             </style>
             <div class="fee-invoices-section" id="invoicesSection">
@@ -7648,7 +7682,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p>Manage student fee invoices and payment records</p>
                         </div>
                     </div>
-                    <button class="invoice-main-btn" type="button" onclick="openInvoices()">+ Fee Invoices</button>
+                    <button class="invoice-main-btn" type="button">+ Fee Invoices</button>
                 </div>
                 <div class="invoice-card">
                     <div class="filter-bar">
@@ -7693,6 +7727,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="table-footer">
                         <span>Showing <strong id="invoiceCount">0</strong> invoices</span>
                     </div>
+                </div>
+            </div>
+            <div class="modal" id="invoiceFormModal" aria-hidden="true">
+                <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="invoiceFormTitle">
+                    <div class="modal-header"><div><h3 id="invoiceFormTitle">Create Fee Invoice</h3><p>Enter student and invoice details</p></div><button class="close-btn" type="button" data-invoice-form-close aria-label="Close">&times;</button></div>
+                    <div class="modal-body"><form class="fee-invoice-form" id="feeInvoiceForm">
+                        <div class="fee-invoice-form-grid">
+                            <label>Student Name *<input name="student" required placeholder="Enter student name"></label>
+                            <label>Student ID *<input name="studentId" required placeholder="e.g. STU-1001"></label>
+                            <label>Class *<input name="className" required placeholder="e.g. Grade 1"></label>
+                            <label>Invoice Date *<input name="invoiceDate" type="date" required></label>
+                            <label>Due Date *<input name="dueDate" type="date" required></label>
+                            <label>Amount (AED) *<input name="amount" type="number" min="0" step="0.01" value="0" required></label>
+                            <label>Status<select name="status"><option>Pending</option><option>Partial</option><option>Paid</option><option>Overdue</option></select></label>
+                        </div>
+                        <aside class="fee-invoice-live-summary" aria-live="polite"><h4>Live Summary</h4><p>Updates as you enter invoice details.</p><div><span>Student</span><strong data-invoice-live="student">—</strong></div><div><span>Student ID</span><strong data-invoice-live="studentId">—</strong></div><div><span>Class</span><strong data-invoice-live="className">—</strong></div><div><span>Due Date</span><strong data-invoice-live="dueDate">—</strong></div><div><span>Status</span><strong data-invoice-live="status">Pending</strong></div><div><span>Amount</span><strong data-invoice-live="amount">AED 0.00</strong></div></aside>
+                        <div class="fee-invoice-form-actions"><button class="btn btn-light" type="button" data-invoice-form-cancel>Cancel</button><button class="btn btn-primary" type="submit">Save Invoice</button></div>
+                    </form></div>
                 </div>
             </div>
             <div class="modal" id="invoicePreviewModal">
@@ -7757,14 +7809,76 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
+        const invoiceStorageKey = 'schoolFeeInvoices';
         const invoiceData = {};
-
-        window.openInvoices = function () {
-            const section = document.getElementById('feeInvoicesModule');
-            if (section) {
-                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+        try {
+            const storedInvoices = JSON.parse(localStorage.getItem(invoiceStorageKey) || '[]');
+            if (Array.isArray(storedInvoices)) storedInvoices.forEach(invoice => { invoiceData[invoice.number] = invoice; });
+        } catch (error) {
+            console.error('Unable to load saved fee invoices.', error);
+        }
+        const invoiceQuery = selector => sec.querySelector(selector);
+        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character]));
+        const invoiceMoney = amount => `AED ${Number(amount || 0).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const invoiceDate = value => {
+            if (!value) return '—';
+            const parsed = new Date(`${value}T00:00:00`);
+            return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
         };
+        const saveInvoices = () => localStorage.setItem(invoiceStorageKey, JSON.stringify(Object.values(invoiceData)));
+        const renderInvoices = () => {
+            const invoices = Object.values(invoiceData);
+            const classSelect = invoiceQuery('#invoiceClass');
+            const currentClass = classSelect.value;
+            classSelect.innerHTML = '<option value="">All Classes</option>' + [...new Set(invoices.map(invoice => invoice.className).filter(Boolean))].map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+            if ([...classSelect.options].some(option => option.value === currentClass)) classSelect.value = currentClass;
+            const body = invoiceQuery('#invoiceTable tbody');
+            body.innerHTML = invoices.length ? invoices.map(invoice => `<tr data-status="${escapeHtml(invoice.status)}" data-class="${escapeHtml(invoice.className)}" data-date="${escapeHtml(invoice.invoiceDate)}"><td><strong class="invoice-number">${escapeHtml(invoice.number)}</strong></td><td><div class="student"><span class="student-avatar">${escapeHtml(String(invoice.student || '?').split(/\s+/).slice(0,2).map(part => part[0]).join('').toUpperCase())}</span><div><strong class="student-name">${escapeHtml(invoice.student)}</strong><small class="student-id">${escapeHtml(invoice.studentId)}</small></div></div></td><td>${escapeHtml(invoice.className)}</td><td>${invoiceDate(invoice.invoiceDate)}</td><td>${invoiceDate(invoice.dueDate)}</td><td><strong class="amount">${invoiceMoney(invoice.amount)}</strong></td><td><span class="status ${escapeHtml(String(invoice.status).toLowerCase())}">${escapeHtml(invoice.status)}</span></td><td><div class="actions invoice-actions"><button class="action-btn" type="button" title="Preview invoice" aria-label="Preview ${escapeHtml(invoice.number)}" data-invoice-action="preview" data-invoice-number="${escapeHtml(invoice.number)}"><i class="fas fa-eye"></i></button><button class="action-btn print" type="button" title="Print invoice" aria-label="Print ${escapeHtml(invoice.number)}" data-invoice-action="print" data-invoice-number="${escapeHtml(invoice.number)}"><i class="fas fa-print"></i></button><button class="action-btn download" type="button" title="Download invoice" aria-label="Download ${escapeHtml(invoice.number)}" data-invoice-action="download" data-invoice-number="${escapeHtml(invoice.number)}"><i class="fas fa-download"></i></button></div></td></tr>`).join('') : '<tr class="empty-state"><td colspan="8">No invoices found. Use + Fee Invoices to create one.</td></tr>';
+            window.filterInvoices();
+        };
+        const invoiceForm = invoiceQuery('#feeInvoiceForm');
+        const invoiceFormModal = invoiceQuery('#invoiceFormModal');
+        const updateInvoiceSummary = () => {
+            const values = Object.fromEntries(new FormData(invoiceForm).entries());
+            const summary = { student: values.student || '—', studentId: values.studentId || '—', className: values.className || '—', dueDate: invoiceDate(values.dueDate), status: values.status || 'Pending', amount: invoiceMoney(values.amount) };
+            Object.entries(summary).forEach(([name, value]) => invoiceQuery(`[data-invoice-live="${name}"]`).textContent = value);
+        };
+        const openInvoiceForm = () => {
+            invoiceForm.reset();
+            invoiceForm.elements.invoiceDate.value = new Date().toISOString().slice(0, 10);
+            invoiceForm.elements.dueDate.value = invoiceForm.elements.invoiceDate.value;
+            invoiceForm.elements.amount.value = 0;
+            updateInvoiceSummary();
+            invoiceFormModal.classList.add('show');
+            invoiceFormModal.setAttribute('aria-hidden', 'false');
+            invoiceForm.elements.student.focus();
+        };
+        window.openInvoices = openInvoiceForm;
+        invoiceForm.addEventListener('input', updateInvoiceSummary);
+        invoiceForm.addEventListener('change', updateInvoiceSummary);
+        invoiceForm.addEventListener('submit', event => {
+            event.preventDefault();
+            const values = Object.fromEntries(new FormData(invoiceForm).entries());
+            const status = values.status === 'Pending' && values.dueDate && new Date(`${values.dueDate}T00:00:00`) < new Date(new Date().toDateString()) ? 'Overdue' : values.status;
+            const number = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+            invoiceData[number] = { number, ...values, amount: Number(values.amount) || 0, status };
+            saveInvoices();
+            renderInvoices();
+            invoiceFormModal.classList.remove('show');
+            invoiceFormModal.setAttribute('aria-hidden', 'true');
+        });
+        invoiceQuery('[data-invoice-form-close]').addEventListener('click', () => { invoiceFormModal.classList.remove('show'); invoiceFormModal.setAttribute('aria-hidden', 'true'); });
+        invoiceQuery('[data-invoice-form-cancel]').addEventListener('click', () => { invoiceFormModal.classList.remove('show'); invoiceFormModal.setAttribute('aria-hidden', 'true'); });
+        invoiceFormModal.addEventListener('click', event => { if (event.target === invoiceFormModal) { invoiceFormModal.classList.remove('show'); invoiceFormModal.setAttribute('aria-hidden', 'true'); } });
+        invoiceQuery('.invoice-main-btn').addEventListener('click', openInvoiceForm);
+        invoiceQuery('#invoiceTable').addEventListener('click', event => {
+            const button = event.target.closest('[data-invoice-action]');
+            if (!button) return;
+            const number = button.dataset.invoiceNumber;
+            if (button.dataset.invoiceAction === 'preview') window.viewInvoice(number);
+            else if (button.dataset.invoiceAction === 'print') window.printInvoice(number);
+            else window.downloadInvoice(number);
+        });
 
         window.viewInvoice = function (invoiceNumber) {
             const invoice = invoiceData[invoiceNumber];
@@ -7772,17 +7886,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Invoice not found:', invoiceNumber);
                 return;
             }
-            document.getElementById('previewInvoiceNumber').textContent = invoice.number;
-            document.getElementById('previewStudent').textContent = invoice.student;
-            document.getElementById('previewStudentId').textContent = invoice.studentId;
-            document.getElementById('previewClass').textContent = invoice.className;
-            document.getElementById('previewInvoiceDate').textContent = invoice.invoiceDate;
-            document.getElementById('previewDueDate').textContent = invoice.dueDate;
-            document.getElementById('previewStatus').textContent = invoice.status;
-            document.getElementById('previewPaymentStatus').textContent = invoice.status;
-            const statusEl = document.getElementById('previewStatus');
+            invoiceQuery('#previewInvoiceNumber').textContent = invoice.number;
+            invoiceQuery('#previewStudent').textContent = invoice.student;
+            invoiceQuery('#previewStudentId').textContent = invoice.studentId;
+            invoiceQuery('#previewClass').textContent = invoice.className;
+            invoiceQuery('#previewInvoiceDate').textContent = invoiceDate(invoice.invoiceDate);
+            invoiceQuery('#previewDueDate').textContent = invoiceDate(invoice.dueDate);
+            invoiceQuery('#previewStatus').textContent = invoice.status;
+            invoiceQuery('#previewPaymentStatus').textContent = invoice.status;
+            const statusEl = invoiceQuery('#previewStatus');
             statusEl.style.color = invoice.status === 'Paid' ? '#15803d' : invoice.status === 'Pending' ? '#b45309' : invoice.status === 'Overdue' ? '#dc2626' : '#0369a1';
-            document.getElementById('invoicePreviewModal').classList.add('show');
+            invoiceQuery('.fee-table tbody').innerHTML = `<tr><td>1</td><td>School Fees</td><td>${escapeHtml(invoice.className)}</td><td>${invoiceMoney(invoice.amount)}</td></tr>`;
+            const totalCells = invoiceQuery('.invoice-totals').querySelectorAll('strong');
+            totalCells[0].textContent = invoiceMoney(invoice.amount);
+            totalCells[1].textContent = invoiceMoney(0);
+            totalCells[2].textContent = invoiceMoney(invoice.amount);
+            invoiceQuery('#invoicePreviewModal').classList.add('show');
         };
 
         window.printInvoice = function (invoiceNumber) {
@@ -7811,7 +7930,7 @@ Tuition Fee              —
 Transportation Fee       —
 Activity Fee             —
 ----------------------------------------
-TOTAL DUE                —
+TOTAL DUE                ${invoiceMoney(invoice.amount)}
 ----------------------------------------
 Thank you.
 School Name
@@ -7829,7 +7948,7 @@ Finance & Accounts Department
         };
 
         window.closeInvoiceModal = function () {
-            document.getElementById('invoicePreviewModal').classList.remove('show');
+            invoiceQuery('#invoicePreviewModal').classList.remove('show');
         };
 
         window.filterInvoices = function () {
@@ -7863,7 +7982,8 @@ Finance & Accounts Department
                 row.style.display = show ? '' : 'none';
                 if (show) visibleCount++;
             });
-            sec.querySelector('#invoiceTable .empty-state').hidden = visibleCount > 0;
+            const emptyState = sec.querySelector('#invoiceTable .empty-state');
+            if (emptyState) emptyState.hidden = visibleCount > 0;
             countEl.textContent = visibleCount;
         };
 
@@ -7884,7 +8004,8 @@ Finance & Accounts Department
             window.filterInvoices();
         };
 
-        const modal = document.getElementById('invoicePreviewModal');
+        renderInvoices();
+        const modal = invoiceQuery('#invoicePreviewModal');
         if (modal) {
             modal.addEventListener('click', function (event) {
                 if (event.target === this) {
@@ -7895,6 +8016,8 @@ Finance & Accounts Department
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 window.closeInvoiceModal();
+                invoiceFormModal.classList.remove('show');
+                invoiceFormModal.setAttribute('aria-hidden', 'true');
             }
         });
         window.filterInvoices();
@@ -7990,8 +8113,9 @@ Finance & Accounts Department
                         <div class="closed-po-icon">✓</div>
                         <div><h2>Closed POs</h2><p>View and manage completed purchase orders</p></div>
                     </div>
-                    <button class="closed-po-btn" onclick="openClosedPO()">✓ Closed Purchase Orders</button>
+                    <button class="closed-po-btn" type="button" data-closed-po-refresh>✓ Closed Purchase Orders</button>
                 </div>
+                <p class="closed-po-feedback" data-closed-po-feedback role="status" aria-live="polite" tabindex="-1"></p>
                 <div class="po-card" id="closedPOContent">
                     <div class="filter-bar">
                         <div class="filter-left">
@@ -8008,7 +8132,7 @@ Finance & Accounts Department
                         <table id="poTable">
                             <thead><tr><th>PO Number</th><th>Supplier</th><th>PO Date</th><th>Closed Date</th><th>Amount</th><th>Payment</th><th>Closed By</th><th>Actions</th></tr></thead>
                             <tbody>
-                                <tr class="empty-state"><td colspan="8">No closed purchase orders found.</td></tr>
+                                <tr class="empty-state"><td colspan="8">No received purchase orders yet. Mark an order as received from Purchase Orders, then refresh this list.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -8021,9 +8145,70 @@ Finance & Accounts Department
         `;
 
         const poData = {};
+        const closedPoEscape = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character]));
+        const readPurchaseOrders = () => {
+            try {
+                const orders = JSON.parse(localStorage.getItem('schoolPurchaseOrders') || '[]');
+                return Array.isArray(orders) ? orders : [];
+            } catch (error) {
+                console.error('Unable to load purchase orders for the closed orders view.', error);
+                return [];
+            }
+        };
+        const closedOrders = () => readPurchaseOrders().filter(order => ['closed', 'received'].includes(String(order.status || '').toLowerCase()));
+        const closedOrderTotal = order => (Array.isArray(order.items) ? order.items : []).reduce((sum, item) => sum + Number(item[1] || 0) * Number(item[2] || 0), 0) * 1.05;
+        const renderClosedOrders = () => {
+            const orders = closedOrders();
+            Object.keys(poData).forEach(number => delete poData[number]);
+            const tbody = sec.querySelector('#poTable tbody');
+            orders.forEach(order => {
+                const number = order.number || order.id || '';
+                const closedDate = order.closedDate || order.delivery || order.date || '';
+                const dateText = value => {
+                    if (!value) return '—';
+                    const parsed = new Date(`${value}T00:00:00`);
+                    return Number.isNaN(parsed.getTime()) ? closedPoEscape(value) : parsed.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                };
+                poData[number] = { number, date: dateText(order.date), closed: dateText(closedDate), supplier: order.vendor || order.supplier || '—', payment: order.paymentStatus || '—', closedBy: order.closedBy || '—', items: Array.isArray(order.items) ? order.items : [], total: closedOrderTotal(order), currency: order.currency || 'AED' };
+            });
+            const suppliers = [...new Set(orders.map(order => order.vendor || order.supplier).filter(Boolean))];
+            const supplierSelect = sec.querySelector('#supplier');
+            const selectedSupplier = supplierSelect.value;
+            supplierSelect.innerHTML = '<option value="">All Suppliers</option>' + suppliers.map(supplier => `<option value="${closedPoEscape(supplier)}">${closedPoEscape(supplier)}</option>`).join('');
+            if (suppliers.includes(selectedSupplier)) supplierSelect.value = selectedSupplier;
+            tbody.innerHTML = orders.length ? orders.map(order => {
+                const number = order.number || order.id || '';
+                const supplier = order.vendor || order.supplier || '—';
+                const po = poData[number];
+                const total = po.total.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                return `<tr data-supplier="${closedPoEscape(supplier)}" data-payment="${closedPoEscape(po.payment)}" data-date="${closedPoEscape(order.date || '')}"><td><strong class="po-number">${closedPoEscape(number)}</strong></td><td><div class="supplier"><span class="supplier-logo">${closedPoEscape(String(supplier).split(/\s+/).slice(0, 2).map(part => part[0] || '').join('').toUpperCase())}</span><span class="supplier-name">${closedPoEscape(supplier)}</span></div></td><td>${po.date}</td><td>${po.closed}</td><td><strong class="amount">${closedPoEscape(po.currency)} ${total}</strong></td><td>${closedPoEscape(po.payment)}</td><td>${closedPoEscape(po.closedBy)}</td><td><div class="actions"><button class="action-btn" type="button" title="Preview" aria-label="Preview ${closedPoEscape(number)}" data-closed-po-action="preview" data-po-number="${closedPoEscape(number)}"><i class="fas fa-eye"></i></button><button class="action-btn print" type="button" title="Print" aria-label="Print ${closedPoEscape(number)}" data-closed-po-action="print" data-po-number="${closedPoEscape(number)}"><i class="fas fa-print"></i></button><button class="action-btn download" type="button" title="Download" aria-label="Download ${closedPoEscape(number)}" data-closed-po-action="download" data-po-number="${closedPoEscape(number)}"><i class="fas fa-download"></i></button></div></td></tr>`;
+            }).join('') : '<tr class="empty-state"><td colspan="8">No received purchase orders yet. Mark an order as received from Purchase Orders, then refresh this list.</td></tr>';
+            window.filterPOs();
+            sec.querySelector('[data-closed-po-feedback]').textContent = orders.length
+                ? `${orders.length} received purchase order${orders.length === 1 ? '' : 's'} available.`
+                : 'No received purchase orders found yet. Mark an order as received in Purchase Orders, then refresh this list.';
+        };
 
-        window.openClosedPO = function () { const container = sec.querySelector('#closedPOContent'); if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-        window.viewPO = function (number) { const po = poData[number]; if (!po) return; sec.querySelector('#previewNumber').textContent = po.number; sec.querySelector('#previewDate').textContent = po.date; sec.querySelector('#previewClosed').textContent = po.closed; sec.querySelector('#previewSupplier').textContent = po.supplier; sec.querySelector('#previewPayment').textContent = po.payment; sec.querySelector('#previewClosedBy').textContent = po.closedBy; sec.querySelector('#previewModal').classList.add('show'); };
+        window.openClosedPO = function () {
+            renderClosedOrders();
+            const feedback = sec.querySelector('[data-closed-po-feedback]');
+            const count = closedOrders().length;
+            feedback.textContent = count
+                ? `Closed Purchase Orders loaded: ${count} record${count === 1 ? '' : 's'}.`
+                : 'No closed purchase orders yet. Go to Purchase Orders and mark an order as Received, then click here again.';
+            feedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            feedback.focus({ preventScroll: true });
+        };
+        sec.querySelector('[data-closed-po-refresh]').addEventListener('click', window.openClosedPO);
+        sec.querySelector('#poTable').addEventListener('click', event => {
+            const button = event.target.closest('[data-closed-po-action]');
+            if (!button) return;
+            const number = button.dataset.poNumber;
+            if (button.dataset.closedPoAction === 'preview') window.viewPO(number);
+            else if (button.dataset.closedPoAction === 'print') window.printPO(number);
+            else window.downloadPO(number);
+        });
+        window.viewPO = function (number) { const po = poData[number]; if (!po) return; sec.querySelector('#previewNumber').textContent = po.number; sec.querySelector('#previewDate').textContent = po.date; sec.querySelector('#previewClosed').textContent = po.closed; sec.querySelector('#previewSupplier').textContent = po.supplier; sec.querySelector('#previewPayment').textContent = po.payment; sec.querySelector('#previewClosedBy').textContent = po.closedBy; sec.querySelector('.info:nth-child(3) strong').textContent = 'Closed'; sec.querySelector('.item-table tbody').innerHTML = po.items.length ? po.items.map((item, index) => `<tr><td>${index + 1}</td><td>${closedPoEscape(item[0])}</td><td>${Number(item[1]) || 0}</td><td>${closedPoEscape(po.currency)} ${Number(item[2] || 0).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${closedPoEscape(po.currency)} ${(Number(item[1] || 0) * Number(item[2] || 0)).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`).join('') : '<tr class="empty-state"><td colspan="5">No purchase order line items available.</td></tr>'; const totals = sec.querySelectorAll('.totals strong'); const subtotal = po.items.reduce((sum, item) => sum + Number(item[1] || 0) * Number(item[2] || 0), 0); totals[0].textContent = `${po.currency} ${subtotal.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; totals[1].textContent = `${po.currency} ${(po.total - subtotal).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; totals[2].textContent = `${po.currency} ${po.total.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; sec.querySelector('#previewModal').classList.add('show'); };
         window.printPO = function (number) { window.viewPO(number); setTimeout(() => window.print(), 300); };
         window.downloadPO = function (number) { const po = poData[number]; if (!po) return; const text = `
 SCHOOL NAME
@@ -8040,15 +8225,15 @@ Closed By: ${po.closedBy}
 Status: CLOSED
 
 ------------------------------------
-Total Amount: —
+Total Amount: ${po.currency} ${po.total.toFixed(2)}
 ------------------------------------
         `; const blob = new Blob([text], { type: 'text/plain' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${po.number}.txt`; link.click(); URL.revokeObjectURL(url); };
         window.closePreview = function () { sec.querySelector('#previewModal').classList.remove('show'); };
-        window.filterPOs = function () { const search = (sec.querySelector('#search').value || '').toLowerCase(); const supplier = sec.querySelector('#supplier').value; const payment = sec.querySelector('#payment').value; const date = sec.querySelector('#date').value; const rows = sec.querySelectorAll('#poTable tbody tr:not(.empty-state)'); let count = 0; rows.forEach(row => { const text = row.innerText.toLowerCase(); const rowSupplier = row.dataset.supplier; const rowPayment = row.dataset.payment; const rowDate = row.dataset.date; const visible = (!search || text.includes(search)) && (!supplier || rowSupplier === supplier) && (!payment || rowPayment === payment) && (!date || rowDate === date); row.style.display = visible ? '' : 'none'; if (visible) count++; }); sec.querySelector('#poTable .empty-state').hidden = count > 0; sec.querySelector('#count').textContent = count; };
+        window.filterPOs = function () { const search = (sec.querySelector('#search').value || '').toLowerCase(); const supplier = sec.querySelector('#supplier').value; const payment = sec.querySelector('#payment').value; const date = sec.querySelector('#date').value; const rows = sec.querySelectorAll('#poTable tbody tr:not(.empty-state)'); let count = 0; rows.forEach(row => { const text = row.innerText.toLowerCase(); const rowSupplier = row.dataset.supplier; const rowPayment = row.dataset.payment; const rowDate = row.dataset.date; const visible = (!search || text.includes(search)) && (!supplier || rowSupplier === supplier) && (!payment || rowPayment === payment) && (!date || rowDate === date); row.style.display = visible ? '' : 'none'; if (visible) count++; }); const empty = sec.querySelector('#poTable .empty-state'); if (empty) empty.hidden = count > 0; sec.querySelector('#count').textContent = count; };
         window.resetFilters = function () { sec.querySelector('#search').value = ''; sec.querySelector('#supplier').value = ''; sec.querySelector('#payment').value = ''; sec.querySelector('#date').value = ''; window.filterPOs(); };
         const modal = sec.querySelector('#previewModal'); modal.addEventListener('click', function (event) { if (event.target === this) { window.closePreview(); } });
         document.addEventListener('keydown', function (event) { if (event.key === 'Escape') { window.closePreview(); } });
-        window.filterPOs();
+        renderClosedOrders();
         return sec;
     }
 
