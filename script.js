@@ -3033,8 +3033,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ['curriculum', 'curriculum'], ['streams', 'streams'], ['subjects', 'subjects'], ['timetables', 'timetables'],
         ['assignments', 'assessments'], ['study materials', 'studyMaterials'], ['online quizzes', 'quizzes'],
         ['attendance', 'attendance'], ['health/infirmary', 'healthRecords'], ['boarding', 'boardingRecords'],
-        ['transport', 'transportRoutes'], ['inventory', 'inventory'], ['inventory categories', 'inventory'],
-        ['funding sources', 'inventory'], ['assignment statuses', 'inventory'],
+        ['transport', 'transportRoutes'], ['inventory', 'inventory'], ['categories', 'inventory'],
+        ['funding sources', 'inventory'], ['assignment', 'inventory'],
         ['discipline case', 'disciplineCases'],
         ['clubs & societies', 'clubs'], ['sports & activities', 'sportsActivities'], ['counseling', 'counseling'],
         ['report cards', 'reportCards'], ['analytics', 'learningAnalytics'], ['certificates', 'certificates'],
@@ -8798,9 +8798,9 @@ Total Amount: —
             }
 
             const inventorySettingTypes = {
-                'Inventory Categories': 'category',
+                Categories: 'category',
                 'Funding Sources': 'fundingSource',
-                'Assignment Statuses': 'assignmentStatus'
+                Assignment: 'assignmentStatus'
             };
             if (inventorySettingTypes[linkText]) {
                 const parentUl = link.closest('ul.nav-links');
