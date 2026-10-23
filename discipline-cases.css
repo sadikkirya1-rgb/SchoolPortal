@@ -13,6 +13,11 @@
 .discipline-cases-module .dc-live-summary-row span,.discipline-cases-module .dc-live-summary-row strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .discipline-cases-module .dc-live-summary-row span{color:var(--dc-muted);font-size:10px}
 .discipline-cases-module .dc-live-summary-row strong{text-align:right;font-size:10px}
+.discipline-cases-module .dc-header{background:transparent;color:var(--dc-text);padding:0;border-radius:0;box-shadow:none;justify-content:flex-end}
+.discipline-cases-module .dc-header>div:first-child{display:none}
+.discipline-cases-module .dc-stats,
+.discipline-cases-module .dc-actions>[data-dc-preview],
+.discipline-cases-module .dc-card:has(>.dc-preview-head){display:none!important}
 .discipline-cases-module .dc-btn{min-height:40px;border:1px solid transparent}
 .discipline-cases-module .dc-small{min-height:34px}
 .discipline-cases-module .dc-btn:focus-visible{outline:3px solid #a78bfa;outline-offset:2px}

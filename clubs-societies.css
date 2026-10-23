@@ -13,6 +13,11 @@
 .clubs-societies-module .cs-live-summary-row span,.clubs-societies-module .cs-live-summary-row strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .clubs-societies-module .cs-live-summary-row span{color:var(--cs-muted);font-size:10px}
 .clubs-societies-module .cs-live-summary-row strong{text-align:right;font-size:10px}
+.clubs-societies-module .cs-header{background:transparent;color:var(--cs-text);padding:0;border-radius:0;box-shadow:none;justify-content:flex-end;flex-direction:row;align-items:center}
+.clubs-societies-module .cs-header>div:first-child{display:none}
+.clubs-societies-module .cs-stats,
+.clubs-societies-module .cs-actions>[data-cs-preview],
+.clubs-societies-module .cs-card:has(>.cs-preview-head){display:none!important}
 .clubs-societies-module .cs-btn{min-height:40px;border:1px solid transparent}
 .clubs-societies-module .cs-small{min-height:34px}
 .clubs-societies-module .cs-btn:focus-visible{outline:3px solid #2dd4bf;outline-offset:2px}
