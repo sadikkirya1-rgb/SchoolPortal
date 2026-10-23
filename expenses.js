@@ -23,8 +23,35 @@ function createExpensesModule() {
     const form = q('[data-expense-form]');
     const formOverlay = q('[data-expense-form-overlay]');
     const previewOverlay = q('[data-expense-preview-overlay]');
+    const liveSummary = document.createElement('aside');
+    liveSummary.className = 'expense-live-summary';
+    liveSummary.setAttribute('aria-live', 'polite');
+    liveSummary.innerHTML = '<h3>Live Summary</h3><p>Updates as you enter expense details.</p><div class="expense-live-summary-fields"><div><span>Expense</span><strong data-expense-live="expenseName">—</strong></div><div><span>Expense ID</span><strong data-expense-live="expenseId">—</strong></div><div><span>Category</span><strong data-expense-live="category">—</strong></div><div><span>Vendor / Payee</span><strong data-expense-live="vendor">—</strong></div><div><span>Expense Date</span><strong data-expense-live="expenseDate">—</strong></div><div><span>Payment Method</span><strong data-expense-live="paymentMethod">—</strong></div><div><span>Status</span><strong data-expense-live="status">Pending</strong></div><div class="expense-live-total"><span>Amount</span><strong data-expense-live="amount">AED 0.00</strong></div></div>';
+    form.insertBefore(liveSummary, q('.expense-form-actions'));
+    const updateLiveSummary = () => {
+        const values = Object.fromEntries(new FormData(form).entries());
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00`) : null;
+        const status = values.paymentDate ? 'Paid' : values.status === 'Pending' && dueDate && dueDate < today ? 'Overdue' : values.status || 'Pending';
+        const summary = {
+            expenseName: values.expenseName || '—',
+            expenseId: values.expenseId || '—',
+            category: values.category || '—',
+            vendor: values.vendor || '—',
+            expenseDate: date(values.expenseDate),
+            paymentMethod: values.paymentMethod || '—',
+            status,
+            amount: money(values.amount)
+        };
+        Object.entries(summary).forEach(([name, value]) => {
+            q(`[data-expense-live="${name}"]`).textContent = value;
+        });
+    };
+    form.addEventListener('input', updateLiveSummary);
+    form.addEventListener('change', updateLiveSummary);
     const reset = () => { form.reset(); form.elements.id.value = ''; const today = new Date().toISOString().slice(0, 10); form.elements.expenseDate.value = today; form.elements.dueDate.value = today; form.elements.amount.value = 0; form.elements.status.value = 'Pending'; q('[data-expense-form-title]').textContent = 'Add Expense Record'; };
-    const openForm = item => { if (!item) reset(); else { Object.keys(item).forEach(field => { if (form.elements[field]) form.elements[field].value = item[field]; }); q('[data-expense-form-title]').textContent = 'Edit Expense Record'; } formOverlay.classList.add('is-open'); form.elements.expenseName.focus(); };
+    const openForm = item => { if (!item) reset(); else { Object.keys(item).forEach(field => { if (form.elements[field]) form.elements[field].value = item[field]; }); q('[data-expense-form-title]').textContent = 'Edit Expense Record'; } updateLiveSummary(); formOverlay.classList.add('is-open'); form.elements.expenseName.focus(); };
     const preview = item => `<div class="expense-document"><div class="expense-receipt-header"><div class="expense-school-name">GREEN VALLEY INTERNATIONAL SCHOOL</div><div class="expense-school-address">Finance Department · Accounts & Administration</div><div class="expense-receipt-title">Expense Voucher</div><div class="expense-receipt-number">Expense No: ${esc(item.expenseId)}</div></div><div class="expense-preview-section"><h4>Expense Information</h4><div class="expense-preview-grid">${[['Expense Name', item.expenseName], ['Category', item.category], ['Vendor / Payee', item.vendor], ['Expense Date', date(item.expenseDate)]].map(([label, value]) => `<div class="expense-preview-item"><strong>${label}</strong>${esc(value)}</div>`).join('')}</div></div><div class="expense-preview-section"><h4>Payment Details</h4><table class="expense-summary"><thead><tr><th>Description</th><th>Due Date</th><th>Amount</th></tr></thead><tbody><tr><td>${esc(item.expenseName)}</td><td>${date(item.dueDate)}</td><td>${money(item.amount)}</td></tr></tbody></table><div class="expense-total"><div class="expense-total-box"><small>Expense Amount</small><strong>${money(item.amount)}</strong></div></div></div><div class="expense-preview-section"><h4>Transaction Information</h4><div class="expense-preview-grid">${[['Payment Method', item.paymentMethod || '—'], ['Payment Date', item.paymentDate ? date(item.paymentDate) : '—'], ['Status', item.status]].map(([label, value]) => `<div class="expense-preview-item"><strong>${label}</strong>${esc(value)}</div>`).join('')}</div></div><div class="expense-preview-section"><h4>Description / Notes</h4><div class="expense-notes">${esc(item.notes || 'No additional notes.')}</div></div><div class="expense-signatures"><span>Prepared By</span><span>Authorized By</span></div></div>`;
     const openPreview = item => { selectedId = item.id; q('[data-expense-preview-content]').innerHTML = preview(item); previewOverlay.classList.add('is-open'); };
     const toast = message => { const target = q('[data-expense-toast]'); target.textContent = message; target.classList.add('show'); clearTimeout(sec.expenseToast); sec.expenseToast = setTimeout(() => target.classList.remove('show'), 2800); };

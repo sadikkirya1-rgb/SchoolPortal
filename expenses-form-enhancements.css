@@ -1,0 +1,163 @@
+.expenses-module .expense-modal:has(form[data-expense-form]) {
+    width: min(100%, 980px);
+    max-width: 980px;
+}
+
+.expenses-module form[data-expense-form] {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(240px, 0.85fr);
+    align-items: stretch;
+    gap: 14px;
+}
+
+.expenses-module form[data-expense-form] > .expense-form-grid {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+}
+
+.expense-live-summary {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: stretch;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.expense-live-summary h3 {
+    margin: 0;
+    color: #3730a3;
+    font-size: 14px;
+}
+
+.expense-live-summary > p {
+    margin: 4px 0 10px;
+    color: #6b7280;
+    font-size: 11px;
+}
+
+.expense-live-summary-fields {
+    display: grid;
+    gap: 2px;
+}
+
+.expense-live-summary-fields > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+    padding: 7px 0;
+    border-bottom: 1px dashed #e5e7eb;
+}
+
+.expense-live-summary-fields span,
+.expense-live-summary-fields strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 11px;
+}
+
+.expense-live-summary-fields span {
+    color: #6b7280;
+}
+
+.expense-live-summary-fields strong {
+    color: #1f2937;
+    text-align: right;
+}
+
+.expense-live-summary-fields .expense-live-total {
+    align-items: center;
+    margin-top: 5px;
+    padding: 10px;
+    border: 0;
+    border-radius: 8px;
+    background: #eef2ff;
+}
+
+.expense-live-summary-fields .expense-live-total strong {
+    color: #3730a3;
+    font-size: 15px;
+}
+
+.expenses-module form[data-expense-form] .expense-form-actions {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: end;
+}
+
+.expenses-module .expense-btn-light {
+    color: #1f2937;
+    border-color: #94a3b8 !important;
+}
+
+.expenses-module .expense-btn-light:hover {
+    background: #f1f5f9;
+    border-color: #64748b !important;
+}
+
+.expenses-module .expense-table-wrap th:last-child,
+.expenses-module .expense-table-wrap td:last-child {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    min-width: 118px;
+    background: #fff;
+    box-shadow: -5px 0 8px rgba(15, 23, 42, 0.08);
+}
+
+.expenses-module .expense-table-wrap th:last-child {
+    z-index: 2;
+    background: #f8fafc;
+}
+
+.expenses-module .expense-actions {
+    justify-content: center;
+    gap: 6px;
+}
+
+.expenses-module .expense-icon-btn {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    color: #374151;
+    border-color: #cbd5e1;
+}
+
+.expenses-module .expense-icon-btn:focus-visible,
+.expenses-module .expense-btn:focus-visible,
+.expenses-module .expense-close:focus-visible {
+    outline: 3px solid #818cf8;
+    outline-offset: 2px;
+}
+
+.expenses-module form[data-expense-form] .expense-form-actions .expense-btn {
+    min-height: 38px;
+    padding: 8px 14px;
+}
+
+@media (max-width: 760px) {
+    .expenses-module form[data-expense-form] {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .expenses-module form[data-expense-form] > .expense-form-grid,
+    .expenses-module form[data-expense-form] .expense-live-summary,
+    .expenses-module form[data-expense-form] .expense-form-actions {
+        grid-column: 1;
+        grid-row: auto;
+    }
+}
+
+@media (max-width: 520px) {
+    .expenses-module .expense-form-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .expenses-module .expense-form-group.full {
+        grid-column: 1;
+    }
+}

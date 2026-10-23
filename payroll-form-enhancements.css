@@ -207,3 +207,213 @@
     flex: 1;
   }
 }
+
+.payslips-module .payslips-stats>div,
+.statutory-returns-module .statutory-stats>div,
+.payroll-reports-module .reports-stats>div {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 2px;
+  min-height: 82px;
+}
+
+.payslips-module .payslips-stats>div>i,
+.statutory-returns-module .statutory-stats>div>i,
+.payroll-reports-module .reports-stats>div>i {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+.payslips-module .payslips-stats>div>span,
+.statutory-returns-module .statutory-stats>div>span,
+.payroll-reports-module .reports-stats>div>span {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.payslips-module .payslips-stats>div>strong,
+.statutory-returns-module .statutory-stats>div>strong,
+.payroll-reports-module .reports-stats>div>strong {
+  grid-column: 3;
+  grid-row: 1;
+  font-size: clamp(15px, 1.5vw, 21px);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.payslips-module .payslips-stats>div>small,
+.statutory-returns-module .statutory-stats>div>small,
+.payroll-reports-module .reports-stats>div>small {
+  grid-column: 2 / -1;
+  grid-row: 2;
+}
+
+.payslips-module .payslips-actions .btn-primary,
+.payslips-module .slips-form-actions .btn-primary,
+.payslips-module .slips-preview-actions .btn-primary,
+.statutory-returns-module .statutory-actions .btn-primary,
+.statutory-returns-module .returns-form-actions .btn-primary,
+.statutory-returns-module .returns-preview-actions .btn-primary,
+.payroll-reports-module .reports-actions .btn-primary,
+.payroll-reports-module .report-form-actions .btn-primary,
+.payroll-reports-module .report-preview-actions .btn-primary {
+  background: #4338ca;
+  color: #fff;
+  border: 1px solid #3730a3;
+}
+
+.payslips-module .payslips-actions .btn-primary:hover,
+.payslips-module .slips-form-actions .btn-primary:hover,
+.payslips-module .slips-preview-actions .btn-primary:hover,
+.statutory-returns-module .statutory-actions .btn-primary:hover,
+.statutory-returns-module .returns-form-actions .btn-primary:hover,
+.statutory-returns-module .returns-preview-actions .btn-primary:hover,
+.payroll-reports-module .reports-actions .btn-primary:hover,
+.payroll-reports-module .report-form-actions .btn-primary:hover,
+.payroll-reports-module .report-preview-actions .btn-primary:hover {
+  background: #3730a3;
+}
+
+.payslips-module .payslips-actions .btn-secondary,
+.payslips-module .slips-form-actions .btn-secondary,
+.payslips-module .slips-preview-actions .btn-secondary,
+.statutory-returns-module .statutory-actions .btn-secondary,
+.statutory-returns-module .returns-form-actions .btn-secondary,
+.statutory-returns-module .returns-preview-actions .btn-secondary,
+.payroll-reports-module .reports-actions .btn-secondary,
+.payroll-reports-module .report-form-actions .btn-secondary,
+.payroll-reports-module .report-preview-actions .btn-secondary {
+  background: #f1f5f9;
+  color: #1e293b;
+  border: 1px solid #94a3b8;
+}
+
+.payslips-module .payslips-actions .btn-secondary:hover,
+.payslips-module .slips-form-actions .btn-secondary:hover,
+.payslips-module .slips-preview-actions .btn-secondary:hover,
+.statutory-returns-module .statutory-actions .btn-secondary:hover,
+.statutory-returns-module .returns-form-actions .btn-secondary:hover,
+.statutory-returns-module .returns-preview-actions .btn-secondary:hover,
+.payroll-reports-module .reports-actions .btn-secondary:hover,
+.payroll-reports-module .report-form-actions .btn-secondary:hover,
+.payroll-reports-module .report-preview-actions .btn-secondary:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.payslips-module .payslips-actions button,
+.payslips-module .slips-form-actions button,
+.payslips-module .slips-preview-actions button,
+.statutory-returns-module .statutory-actions button,
+.statutory-returns-module .returns-form-actions button,
+.statutory-returns-module .returns-preview-actions button,
+.payroll-reports-module .reports-actions button,
+.payroll-reports-module .report-form-actions button,
+.payroll-reports-module .report-preview-actions button {
+  min-height: 40px;
+  padding: 9px 14px;
+  font-size: 12px;
+}
+
+.payslips-module .payslip-row-actions button,
+.payslips-module .slips-modal .slips-close,
+.statutory-returns-module .return-row-actions button,
+.statutory-returns-module .returns-modal .returns-close,
+.payroll-reports-module .report-row-actions button,
+.payroll-reports-module .report-modal .report-close {
+  width: 36px;
+  height: 36px;
+  margin: 2px;
+  border: 1px solid #94a3b8;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.payslips-module .payslip-row-actions button:hover,
+.payslips-module .slips-modal .slips-close:hover,
+.statutory-returns-module .return-row-actions button:hover,
+.statutory-returns-module .returns-modal .returns-close:hover,
+.payroll-reports-module .report-row-actions button:hover,
+.payroll-reports-module .report-modal .report-close:hover {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.payslips-module .payslip-row-actions button[title="Delete"]:hover,
+.statutory-returns-module .return-row-actions button[title="Delete"]:hover,
+.payroll-reports-module .report-row-actions button[title="Delete"]:hover {
+  border-color: #f87171;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.payslips-module button:focus-visible,
+.statutory-returns-module button:focus-visible,
+.payroll-reports-module button:focus-visible {
+  outline: 3px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+.payslips-module .slips-form-grid input,
+.payslips-module .slips-form-grid select,
+.payslips-module .payslips-filters input,
+.payslips-module .payslips-filters select,
+.statutory-returns-module .returns-form-grid input,
+.statutory-returns-module .returns-form-grid select,
+.statutory-returns-module .returns-form-grid textarea,
+.statutory-returns-module .statutory-filters input,
+.statutory-returns-module .statutory-filters select,
+.payroll-reports-module .report-form-grid input,
+.payroll-reports-module .report-form-grid select,
+.payroll-reports-module .report-form-grid textarea,
+.payroll-reports-module .reports-filters input,
+.payroll-reports-module .reports-filters select {
+  border-color: #94a3b8;
+}
+
+@media (max-width: 600px) {
+  .payslips-module .payslips-stats>div,
+  .statutory-returns-module .statutory-stats>div,
+  .payroll-reports-module .reports-stats>div {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    column-gap: 8px;
+    min-height: 76px;
+    padding: 10px;
+  }
+
+  .payslips-module .payslips-stats>div>strong,
+  .statutory-returns-module .statutory-stats>div>strong,
+  .payroll-reports-module .reports-stats>div>strong {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 360px) {
+  .payslips-module .payslips-stats>div,
+  .statutory-returns-module .statutory-stats>div,
+  .payroll-reports-module .reports-stats>div {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .payslips-module .payslips-stats>div>strong,
+  .statutory-returns-module .statutory-stats>div>strong,
+  .payroll-reports-module .reports-stats>div>strong {
+    grid-column: 2;
+    grid-row: 2;
+    text-align: left;
+  }
+
+  .payslips-module .payslips-stats>div>small,
+  .statutory-returns-module .statutory-stats>div>small,
+  .payroll-reports-module .reports-stats>div>small {
+    grid-column: 2;
+    grid-row: 3;
+  }
+}
