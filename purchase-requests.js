@@ -76,6 +76,7 @@ function createPurchaseRequestsModule() {
     const identity = () => window.schoolPortalData?.getIdentity?.();
     const roleKey = role => String(role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const administratorRoles = new Set(['schooladmin', 'superadmin', 'director', 'headteacher']);
+    const isApprovalAdmin = () => ['schooladmin', 'superadmin'].includes(roleKey(identity()?.role));
     const canEditRequests = () => {
         const user = identity();
         return administratorRoles.has(roleKey(user?.role))
@@ -117,7 +118,7 @@ function createPurchaseRequestsModule() {
         return request.status === 'Pending'
             && stage?.status === 'Pending'
             && canEditRequests()
-            && roleKey(identity()?.role) === roleKey(stage.role);
+            && (isApprovalAdmin() || roleKey(identity()?.role) === roleKey(stage.role));
     };
     const approvalProgress = request => {
         const stages = request.approvalStages || [];
@@ -461,7 +462,7 @@ function createPurchaseRequestsModule() {
             if (!isApproval && rejectionReason === null) return;
             if (!isApproval && !rejectionReason.trim()) return toast('Enter a reason before rejecting this request.');
             const decidedAt = new Date().toISOString();
-            const signer = currentSignerName();
+            const signer = isApprovalAdmin() ? 'Admin (on behalf)' : currentSignerName();
             if (isApproval) {
                 stage.status = 'Approved';
                 stage.decidedBy = signer;
@@ -491,8 +492,10 @@ function createPurchaseRequestsModule() {
             render();
             window.dispatchEvent(new CustomEvent('school-portal-approval-update'));
             toast(isApproval
-                ? request.status === 'Approved' ? 'All five approval stages are complete.' : `${stage.title} approved. The next signatory can now review this request.`
-                : `${stage.title} rejected the purchase request.`);
+                ? request.status === 'Approved'
+                    ? isApprovalAdmin() ? 'Admin completed all approvals on behalf.' : 'All five approval stages are complete.'
+                    : isApprovalAdmin() ? `Admin approved for ${stage.title} on behalf. Next stage is ready.` : `${stage.title} approved. The next signatory can now review this request.`
+                : isApprovalAdmin() ? `Admin rejected for ${stage.title} on behalf.` : `${stage.title} rejected the purchase request.`);
         } else if (button.dataset.prAction === 'delete') {
             if (!canEditRequests()) return toast('Your account cannot delete Purchase Requests.');
             if (!confirm(`Delete purchase request ${request.id}?`)) return;

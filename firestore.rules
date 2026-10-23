@@ -67,7 +67,8 @@ service cloud.firestore {
 
     function isPurchaseRequestApprover(schoolId, stageIndex) {
       let role = member(schoolId).role;
-      return (stageIndex == 0 && role == 'deputyHeadTeacher')
+      return role in ['schoolAdmin', 'superAdmin']
+          || (stageIndex == 0 && role == 'deputyHeadTeacher')
           || (stageIndex == 1 && role == 'storeManager')
           || (stageIndex == 2 && role == 'bursar')
           || (stageIndex == 3 && role == 'headTeacher')

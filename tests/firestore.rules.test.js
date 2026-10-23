@@ -628,7 +628,7 @@ test('purchase request approvals must follow the five assigned account roles in 
         updatedAt: '2026-10-23T00:00:00.000Z'
     }));
 
-    const attemptApproval = async (uid, stageIndex, version, data = requestData) => {
+    const attemptApproval = async (uid, stageIndex, version, data = requestData, targetRef = requestRef) => {
         const next = structuredClone(data);
         const stage = next.approvalStages[stageIndex];
         stage.status = 'Approved';
@@ -638,7 +638,7 @@ test('purchase request approvals must follow the five assigned account roles in 
         next.currentApprovalStage = stageIndex + 1;
         if (stageIndex < 4) next.approvalStages[stageIndex + 1].status = 'Pending';
         else next.status = 'Approved';
-        await updateDoc(doc(testEnvironment.authenticatedContext(uid).firestore(), requestRef.path), {
+        await updateDoc(doc(testEnvironment.authenticatedContext(uid).firestore(), targetRef.path), {
             data: next,
             version: version + 1,
             updatedBy: uid,
@@ -686,4 +686,18 @@ test('purchase request approvals must follow the five assigned account roles in 
         updatedAt: '2026-10-23T00:00:00.000Z'
     }));
     assert.equal(rejectedData.approvalStages.filter(stage => stage.status === 'Not required').length, 4);
+
+    const adminOverrideRef = doc(administratorContext().firestore(), 'schools/SCH-TEST/purchaseRequests/PR-2026-503');
+    await assertSucceeds(setDoc(adminOverrideRef, {
+        data: { ...requestData, id: 'PR-2026-503', approvalStages: structuredClone(stages) },
+        version: 1,
+        updatedBy: 'admin-1',
+        updatedAt: '2026-10-23T00:00:00.000Z'
+    }));
+    let adminOverrideData = { ...requestData, id: 'PR-2026-503', approvalStages: structuredClone(stages) };
+    for (let index = 0; index < 5; index += 1) {
+        adminOverrideData = await assertSucceeds(attemptApproval('admin-1', index, index + 1, adminOverrideData, adminOverrideRef));
+    }
+    assert.equal(adminOverrideData.status, 'Approved');
+    assert.deepEqual(adminOverrideData.approvalStages.map(stage => stage.decidedByUid), Array(5).fill('admin-1'));
 });
