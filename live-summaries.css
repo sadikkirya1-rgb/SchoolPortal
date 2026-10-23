@@ -17,7 +17,7 @@
 .purchase-requests-module .pr-modal{width:min(1160px,100%)}
 .purchase-requests-module .pr-form{display:grid;grid-template-columns:minmax(0,1fr) 270px;align-items:start}
 .purchase-requests-module .pr-form-main{min-width:0}
-.purchase-requests-module .pr-live-summary{margin:20px 20px 20px 0}
+.purchase-requests-module .pr-live-summary{margin:20px 0 20px 20px}
 .purchase-requests-module .pr-live-summary h5{margin:18px 0 8px;color:#334155;font-size:12px}
 .purchase-requests-module .pr-summary-item{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed #dbe2ea;color:#334155;font-size:10px;line-height:1.5;overflow-wrap:anywhere}
 .purchase-requests-module .pr-summary-item span{flex:0 1 38%;color:#64748b}

@@ -26,8 +26,8 @@ function createPurchaseRequestsModule() {
                 <header class="pr-modal-head"><h3 id="pr-form-title">New Purchase Request</h3><button class="pr-close" type="button" data-pr-close-form aria-label="Close">&times;</button></header>
                 <form class="pr-form" data-pr-form>
                     <div class="pr-grid">
-                        <label>Requester Name<input name="requester" required placeholder="e.g. Ahmed Khan"></label>
-                        <label>Department<select name="department" required><option value="">Select department</option><option>Finance</option><option>IT</option><option>HR</option><option>Operations</option><option>Procurement</option><option>Marketing</option><option>Administration</option></select></label>
+                        <label>Department<select name="department" required><option value="">Select department</option><option>Front Office Department</option><option>Academic Department</option><option>E-Learning Department</option><option>Operations Department</option><option>Student Life Department</option><option>Human Resources Department</option><option>Payroll Department</option><option>Finance Department</option><option>Procurement Department</option><option>Assets &amp; Security Department</option><option>Communication Department</option></select></label>
+                        <label class="pr-requester-field">Requester Name<select name="requester" required disabled><option value="">Select department first</option></select></label>
                         <label>Request Date<input name="date" type="date" required></label>
                         <label>Priority<select name="priority"><option>Normal</option><option>High</option><option>Urgent</option></select></label>
                         <label class="pr-full">Purpose / Justification<textarea name="purpose" placeholder="Explain why this purchase is required..."></textarea></label>
@@ -67,6 +67,78 @@ function createPurchaseRequestsModule() {
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
     const money = value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value) || 0);
     const form = q('[data-pr-form]');
+    const departmentSelect = form.elements.department;
+    const requesterSelect = form.elements.requester;
+    const staffBySource = new Map();
+    const legacyStaff = [];
+    ['school_staff_directory', 'school_staff', 'school_teachers'].forEach(key => {
+        try {
+            const records = JSON.parse(localStorage.getItem(key) || '[]');
+            if (Array.isArray(records)) legacyStaff.push(...records);
+        } catch (error) {
+            console.error(`Unable to load staff records from ${key}.`, error);
+        }
+    });
+    staffBySource.set('local', legacyStaff);
+    const normalizedDepartment = value => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const departmentMatches = {
+        'Front Office Department': ['front office', 'front desk', 'reception', 'receptionist', 'admissions', 'administration'],
+        'Academic Department': ['academic', 'academics', 'teaching', 'mathematics', 'science', 'english', 'languages', 'ict', 'it', 'sports', 'library'],
+        'E-Learning Department': ['e-learning', 'elearning', 'online learning'],
+        'Operations Department': ['operations', 'transport', 'health', 'infirmary', 'boarding', 'inventory'],
+        'Student Life Department': ['student life', 'student affairs', 'sports', 'clubs', 'counseling', 'discipline'],
+        'Human Resources Department': ['human resources', 'hr'],
+        'Payroll Department': ['payroll'],
+        'Finance Department': ['finance', 'accounts', 'accounting'],
+        'Procurement Department': ['procurement', 'purchasing', 'suppliers'],
+        'Assets & Security Department': ['assets', 'security', 'maintenance'],
+        'Communication Department': ['communication', 'communications', 'parents', 'sms', 'notice board']
+    };
+    const departmentForValue = value => {
+        const normalized = normalizedDepartment(value);
+        return Object.keys(departmentMatches).find(department =>
+            normalizedDepartment(department) === normalized
+            || departmentMatches[department].some(alias => normalizedDepartment(alias) === normalized)
+        ) || '';
+    };
+    const staffName = staff => String(staff.fullName || staff.name || staff.staffName || [staff.firstName, staff.middleName, staff.lastName].filter(Boolean).join(' ')).trim();
+    const staffDepartment = staff => String(staff.department || staff.departmentName || staff.staffDepartment || '').trim();
+    const staffForDepartment = department => {
+        const accepted = (departmentMatches[department] || []).map(normalizedDepartment);
+        return [...staffBySource.values()].flat().filter(staff => {
+            const status = normalizedDepartment(staff.status);
+            if (['inactive', 'resigned', 'terminated', 'deleted'].includes(status) || staff.deleted === true) return false;
+            const normalized = normalizedDepartment(staffDepartment(staff));
+            return normalized && (normalized === normalizedDepartment(department) || accepted.includes(normalized));
+        }).map(staff => staffName(staff)).filter(Boolean).filter((name, index, names) => names.indexOf(name) === index).sort((left, right) => left.localeCompare(right));
+    };
+    const refreshRequesterOptions = selectedName => {
+        const department = departmentSelect.value;
+        const names = staffForDepartment(department);
+        requesterSelect.replaceChildren(new Option(
+            !department ? 'Select department first' : names.length ? 'Select staff member' : 'No staff found in this department',
+            ''
+        ));
+        names.forEach(name => requesterSelect.add(new Option(name, name)));
+        if (selectedName && !names.includes(selectedName)) requesterSelect.add(new Option(`${selectedName} (saved requester)`, selectedName));
+        requesterSelect.value = selectedName || '';
+        requesterSelect.disabled = !department;
+    };
+    departmentSelect.addEventListener('change', () => {
+        refreshRequesterOptions();
+        updateRequestSummary();
+    });
+    const staffApi = window.schoolPortalData;
+    if (staffApi?.subscribe) {
+        ['staffDirectory', 'staff', 'teachers'].forEach(collection => {
+            void staffApi.subscribe(collection, records => {
+                staffBySource.set(collection, records);
+                refreshRequesterOptions(requesterSelect.value);
+            }).catch(error => {
+                console.error(`Unable to load ${collection} records for purchase requesters.`, error);
+            });
+        });
+    }
     const formMain = document.createElement('div');
     formMain.className = 'pr-form-main';
     const formFooter = form.querySelector('.pr-modal-actions');
@@ -160,13 +232,20 @@ function createPurchaseRequestsModule() {
     const closeView = () => q('[data-pr-view-overlay]').classList.remove('is-open');
     const openForm = request => {
         form.reset();
+        refreshRequesterOptions();
         q('[data-pr-items]').replaceChildren();
         editId = request?.id ?? null;
         q('#pr-form-title').textContent = request ? 'Edit Purchase Request' : 'New Purchase Request';
         form.elements.date.value = request?.date || new Date().toISOString().slice(0, 10);
         if (request) {
-            form.elements.requester.value = request.requester;
-            form.elements.department.value = request.department;
+            const department = departmentForValue(request.department);
+            if (department) {
+                form.elements.department.value = department;
+            } else if (request.department) {
+                departmentSelect.add(new Option(request.department, request.department));
+                form.elements.department.value = request.department;
+            }
+            refreshRequesterOptions(request.requester);
             form.elements.priority.value = request.priority;
             form.elements.purpose.value = request.purpose || '';
             request.items.forEach(addItem);

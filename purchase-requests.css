@@ -49,6 +49,7 @@
 .purchase-requests-module .pr-close{font-size:19px}
 .purchase-requests-module .pr-form,.purchase-requests-module .pr-view{padding:20px}
 .purchase-requests-module .pr-grid,.purchase-requests-module .pr-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.purchase-requests-module .pr-requester-field{grid-column:2}
 .purchase-requests-module .pr-form label{display:block;color:#475569;font-size:12px;font-weight:700}
 .purchase-requests-module .pr-form input,.purchase-requests-module .pr-form select,.purchase-requests-module .pr-form textarea{width:100%;min-width:0;margin-top:6px;padding:10px 11px;border:1px solid #dfe3ea;border-radius:8px;background:#fff;color:#172033;font:inherit;font-size:13px;outline:none}
 .purchase-requests-module .pr-form textarea{min-height:76px;resize:vertical}
