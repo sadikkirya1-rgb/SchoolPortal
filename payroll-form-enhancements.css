@@ -1,0 +1,209 @@
+.payslips-module .slips-modal:has(form[data-slip-form]),
+.statutory-returns-module .returns-modal:has(form[data-return-form]),
+.payroll-reports-module .report-modal:has(form[data-report-form]) {
+  width: min(100%, 980px);
+  max-width: 980px;
+}
+
+.payslips-module form[data-slip-form],
+.statutory-returns-module form[data-return-form],
+.payroll-reports-module form[data-report-form] {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(250px, 0.85fr);
+  align-items: stretch;
+  gap: 14px;
+}
+
+.payslips-module .slips-form-grid,
+.statutory-returns-module .returns-form-grid,
+.payroll-reports-module .report-form-grid {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.payslips-module .slips-live-summary,
+.statutory-returns-module .returns-live-summary,
+.payroll-reports-module .report-live-summary {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: stretch;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.slips-live-summary h3,
+.returns-live-summary h3,
+.report-live-summary h3 {
+  margin: 0;
+  color: #3730a3;
+  font-size: 13px;
+}
+
+.slips-live-summary p,
+.returns-live-summary p,
+.report-live-summary p {
+  margin: 4px 0 10px;
+  color: #6b7280;
+  font-size: 10px;
+}
+
+.slips-live-summary [data-slip-live-fields],
+.returns-live-summary [data-return-live-fields],
+.report-live-summary [data-report-live-fields] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: minmax(22px, 1fr);
+  align-content: stretch;
+}
+
+.slips-live-summary-row,
+.returns-live-summary-row,
+.report-live-summary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 0;
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+.slips-live-summary-row span,
+.slips-live-summary-row strong,
+.returns-live-summary-row span,
+.returns-live-summary-row strong,
+.report-live-summary-row span,
+.report-live-summary-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slips-live-summary-row span,
+.returns-live-summary-row span,
+.report-live-summary-row span {
+  color: #6b7280;
+  font-size: 10px;
+}
+
+.slips-live-summary-row strong,
+.returns-live-summary-row strong,
+.report-live-summary-row strong {
+  color: #1f2937;
+  text-align: right;
+  font-size: 10px;
+}
+
+.slips-live-summary-total {
+  font-weight: 700;
+}
+
+.payslips-module .slips-form-actions,
+.statutory-returns-module .returns-form-actions,
+.payroll-reports-module .report-form-actions {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: end;
+}
+
+.payslips-module .slips-modal form[data-slip-form] button,
+.statutory-returns-module .returns-modal form[data-return-form] button,
+.payroll-reports-module .report-modal form[data-report-form] button,
+.payslips-module .payslips-actions button,
+.statutory-returns-module .statutory-actions button,
+.payroll-reports-module .reports-actions button {
+  min-height: 32px;
+  padding: 6px 11px;
+  font-size: 11px;
+}
+
+.payslips-module .slips-modal form[data-slip-form] button:focus-visible,
+.statutory-returns-module .returns-modal form[data-return-form] button:focus-visible,
+.payroll-reports-module .report-modal form[data-report-form] button:focus-visible,
+.payroll-module button:focus-visible {
+  outline: 3px solid #818cf8;
+  outline-offset: 2px;
+}
+
+.payslips-module .payslips-table-wrap,
+.statutory-returns-module .statutory-table-wrap,
+.payroll-reports-module .reports-table-wrap {
+  overflow: auto;
+  scrollbar-color: #94a3b8 #e2e8f0;
+  scrollbar-width: thin;
+}
+
+.payslips-module .payslips-table-wrap th:last-child,
+.payslips-module .payslips-table-wrap td:last-child,
+.statutory-returns-module .statutory-table-wrap th:last-child,
+.statutory-returns-module .statutory-table-wrap td:last-child,
+.payroll-reports-module .reports-table-wrap th:last-child,
+.payroll-reports-module .reports-table-wrap td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: #fff;
+  box-shadow: -5px 0 8px rgba(15, 23, 42, 0.08);
+}
+
+.payslips-module .payslips-table-wrap th:last-child,
+.statutory-returns-module .statutory-table-wrap th:last-child,
+.payroll-reports-module .reports-table-wrap th:last-child {
+  z-index: 2;
+  background: #f8fafc;
+}
+
+.payslips-module .payslip-row-actions button,
+.statutory-returns-module .return-row-actions button,
+.payroll-reports-module .report-row-actions button,
+.payroll-module .payroll-table-wrap td:last-child button {
+  width: 30px;
+  height: 30px;
+  margin: 2px;
+}
+
+@media (max-width: 900px) {
+  .payslips-module form[data-slip-form],
+  .statutory-returns-module form[data-return-form],
+  .payroll-reports-module form[data-report-form] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .payslips-module .slips-form-grid,
+  .payslips-module .slips-live-summary,
+  .payslips-module .slips-form-actions,
+  .statutory-returns-module .returns-form-grid,
+  .statutory-returns-module .returns-live-summary,
+  .statutory-returns-module .returns-form-actions,
+  .payroll-reports-module .report-form-grid,
+  .payroll-reports-module .report-live-summary,
+  .payroll-reports-module .report-form-actions {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .payslips-module .slips-live-summary,
+  .statutory-returns-module .returns-live-summary,
+  .payroll-reports-module .report-live-summary {
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .payslips-module .slips-form-actions,
+  .statutory-returns-module .returns-form-actions,
+  .payroll-reports-module .report-form-actions {
+    flex-wrap: wrap;
+  }
+
+  .payslips-module .slips-form-actions button,
+  .statutory-returns-module .returns-form-actions button,
+  .payroll-reports-module .report-form-actions button {
+    flex: 1;
+  }
+}
