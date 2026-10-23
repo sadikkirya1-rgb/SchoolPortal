@@ -8216,7 +8216,19 @@ Total Amount: —
                 return;
             }
 
-            if (linkText === 'Run Payroll' || linkText === 'Pay Slips') {
+            if (linkText === 'Run Payroll') {
+                let payrollModule = document.getElementById('payrollModule');
+                if (!payrollModule) {
+                    payrollModule = createPayrollModule();
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(payrollModule, dashboardEl);
+                }
+                showSection('payrollModule');
+                updateBreadcrumb(['Payroll Department', linkText]);
+                return;
+            }
+
+            if (linkText === 'Pay Slips') {
                 let payslipsModule = document.getElementById('payslipsModule');
                 if (!payslipsModule) {
                     payslipsModule = createPayslipsModule();
