@@ -8,6 +8,12 @@ function createAssessmentModule(category) {
                 <div><h1>Assignments</h1><p>Create, manage, monitor and track school assignments.</p></div>
                 <div class="assessment-actions"><button class="assessment-btn" type="button" data-assessment-new><i class="fas fa-plus"></i> New Assignment</button></div>
             </header>
+            <div class="assessment-stats" aria-label="Assignment overview">
+                <article class="assessment-stat"><span class="assessment-stat-icon"><i class="fas fa-clipboard-list" aria-hidden="true"></i></span><div><strong data-assessment-stat="total">0</strong><span>Total Assignments</span></div></article>
+                <article class="assessment-stat is-published"><span class="assessment-stat-icon"><i class="fas fa-circle-check" aria-hidden="true"></i></span><div><strong data-assessment-stat="published">0</strong><span>Published</span></div></article>
+                <article class="assessment-stat is-draft"><span class="assessment-stat-icon"><i class="fas fa-file-pen" aria-hidden="true"></i></span><div><strong data-assessment-stat="draft">0</strong><span>Drafts</span></div></article>
+                <article class="assessment-stat is-overdue"><span class="assessment-stat-icon"><i class="fas fa-clock" aria-hidden="true"></i></span><div><strong data-assessment-stat="overdue">0</strong><span>Overdue</span></div></article>
+            </div>
             <div class="assessment-card assessment-form" data-assessment-form>
                 <div class="assessment-form-title"><div><h2>Create Assignment</h2><span>Enter assignment details below</span></div><button class="assessment-btn assessment-btn-small assessment-btn-dark" type="button" data-assessment-close><i class="fas fa-xmark"></i> Close</button></div>
                 <form data-assessment-entry><div class="assessment-grid">
@@ -227,7 +233,23 @@ function createAssessmentModule(category) {
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
     const formatDate = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
     const badgeClass = status => status === 'Published' ? 'assessment-published' : status === 'Pending' ? 'assessment-pending' : status === 'Draft' ? 'assessment-draft' : 'assessment-late';
-    const render = () => { const query = section.querySelector('[data-assessment-search]').value.toLowerCase(); const rows = records.filter(record => Object.values(record).join(' ').toLowerCase().includes(query));     section.querySelector('[data-assessment-table]').innerHTML = rows.map(record => `<tr><td>${escape(record.id)}</td><td><b>${escape(record.title)}</b></td><td>${escape(record.subject)}</td><td>${escape(record.className)} - ${escape(record.section)}</td><td>${escape(record.teacher)}</td><td>${formatDate(record.assignedDate)}</td><td>${formatDate(record.dueDate)}</td><td>${escape(record.marks)}</td><td>${escape(record.submissions || '0 / 0')}</td><td><span class="assessment-badge ${badgeClass(record.status)}">${escape(record.status)}</span></td><td><div class="assessment-row-actions"><button class="assessment-btn assessment-btn-small" data-action="view" data-id="${escape(record.id)}">View</button><button class="assessment-btn assessment-btn-small assessment-btn-light" data-action="edit" data-id="${escape(record.id)}">Edit</button><button class="assessment-btn assessment-btn-small assessment-btn-danger" data-action="delete" data-id="${escape(record.id)}">Delete</button></div></td></tr>`).join(''); section.querySelector('[data-assessment-empty]').style.display = rows.length ? 'none' : 'block'; };
+    const render = () => {
+        const query = section.querySelector('[data-assessment-search]').value.toLowerCase();
+        const rows = records.filter(record => Object.values(record).join(' ').toLowerCase().includes(query));
+        section.querySelector('[data-assessment-table]').innerHTML = rows.map(record => `<tr><td>${escape(record.id)}</td><td><b>${escape(record.title)}</b></td><td>${escape(record.subject)}</td><td>${escape(record.className)} - ${escape(record.section)}</td><td>${escape(record.teacher)}</td><td>${formatDate(record.assignedDate)}</td><td>${formatDate(record.dueDate)}</td><td>${escape(record.marks)}</td><td>${escape(record.submissions || '0 / 0')}</td><td><span class="assessment-badge ${badgeClass(record.status)}">${escape(record.status)}</span></td><td><div class="assessment-row-actions"><button class="assessment-btn assessment-btn-small" data-action="view" data-id="${escape(record.id)}">View</button><button class="assessment-btn assessment-btn-small assessment-btn-light" data-action="edit" data-id="${escape(record.id)}">Edit</button><button class="assessment-btn assessment-btn-small assessment-btn-danger" data-action="delete" data-id="${escape(record.id)}">Delete</button></div></td></tr>`).join('');
+        section.querySelector('[data-assessment-empty]').style.display = rows.length ? 'none' : 'block';
+        const today = new Date().toISOString().slice(0, 10);
+        const stats = {
+            total: records.length,
+            published: records.filter(record => record.status === 'Published').length,
+            draft: records.filter(record => record.status === 'Draft').length,
+            overdue: records.filter(record => record.dueDate && record.dueDate < today
+                && !['Closed', 'Draft'].includes(record.status)).length
+        };
+        Object.entries(stats).forEach(([name, value]) => {
+            section.querySelector(`[data-assessment-stat="${name}"]`).textContent = value;
+        });
+    };
     const formValues = () => Object.fromEntries([...form.elements]
         .filter(element => element.name && element.type !== 'file'
             && !['subjectOther', 'teacherOther'].includes(element.name))

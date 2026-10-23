@@ -147,3 +147,85 @@
     color: #1e293b;
     text-align: right;
 }
+
+.assessment-module .assessment-form form,
+.study-materials-module .sm-form form,
+.online-quizzes-module .oq-form form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    grid-template-areas: "fields summary" "actions actions";
+    align-items: start;
+    gap: 18px;
+}
+
+.assessment-module .assessment-grid,
+.study-materials-module .sm-grid,
+.online-quizzes-module .oq-grid {
+    grid-area: fields;
+    min-width: 0;
+}
+
+.assessment-module .assessment-live-summary,
+.study-materials-module .sm-live-summary,
+.online-quizzes-module .oq-live-summary {
+    grid-area: summary;
+    position: sticky;
+    top: 16px;
+    align-self: start;
+    min-width: 0;
+    margin: 0;
+}
+
+.assessment-module .assessment-form-actions,
+.study-materials-module .sm-form-actions,
+.online-quizzes-module .oq-form-actions {
+    grid-area: actions;
+}
+
+.assessment-module .assessment-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.assessment-module .assessment-stat {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid #dbe3ed;
+    border-left: 4px solid #2563eb;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.assessment-module .assessment-stat.is-published {border-left-color: #16a34a}
+.assessment-module .assessment-stat.is-draft {border-left-color: #d97706}
+.assessment-module .assessment-stat.is-overdue {border-left-color: #dc2626}
+.assessment-module .assessment-stat-icon {display:grid;width:38px;height:38px;flex:none;place-items:center;border-radius:8px;background:#eff6ff;color:#1d4ed8}
+.assessment-module .assessment-stat.is-published .assessment-stat-icon {background:#f0fdf4;color:#15803d}
+.assessment-module .assessment-stat.is-draft .assessment-stat-icon {background:#fffbeb;color:#b45309}
+.assessment-module .assessment-stat.is-overdue .assessment-stat-icon {background:#fef2f2;color:#b91c1c}
+.assessment-module .assessment-stat strong,.assessment-module .assessment-stat span {display:block}
+.assessment-module .assessment-stat strong {color:#172033;font-size:22px;line-height:1.1}
+.assessment-module .assessment-stat div>span {margin-top:4px;color:#64748b;font-size:11px}
+
+@media(max-width:900px) {
+    .assessment-module .assessment-form form,
+    .study-materials-module .sm-form form,
+    .online-quizzes-module .oq-form form {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "fields" "summary" "actions";
+    }
+    .assessment-module .assessment-live-summary,
+    .study-materials-module .sm-live-summary,
+    .online-quizzes-module .oq-live-summary {
+        position: static;
+    }
+    .assessment-module .assessment-stats {grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+@media(max-width:560px) {
+    .assessment-module .assessment-stats {grid-template-columns:minmax(0,1fr)}
+}
