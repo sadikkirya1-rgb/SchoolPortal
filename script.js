@@ -3066,8 +3066,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const collection = button.dataset.collection || activeNavigationCollection;
             const roleKey = String(role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
             const canEdit = unrestrictedRole || activeAccountPermissions?.permissions?.[collection]?.edit === true
-                || (collection === 'purchaseRequests' && roleKey === 'deputyheadteacher'
-                    && activeAccountPermissions?.permissions?.purchaseRequests === undefined)
+                || (['purchaseRequests', 'purchaseOrders', 'purchaseComparisons'].includes(collection)
+                    && ['deputyheadteacher', 'storemanager', 'bursar'].includes(roleKey)
+                    && activeAccountPermissions?.permissions?.[collection] === undefined)
                 || activeAccountPermissions?.perms?.edit === true;
             button.classList.toggle('account-action-hidden',
                 Boolean(role && !canEdit && mutationActionPattern.test(label)));

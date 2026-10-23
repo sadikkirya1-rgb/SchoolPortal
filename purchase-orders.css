@@ -30,12 +30,21 @@
 .purchase-orders-module .po-id{color:#1d4ed8}.purchase-orders-module .po-vendor{display:flex;align-items:center;gap:9px;white-space:nowrap}
 .purchase-orders-module .po-vendor-logo{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:9px;background:#cffafe;color:#155e75;font-size:10px;font-weight:700}
 .purchase-orders-module .po-badge{display:inline-flex;padding:4px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+.purchase-orders-module .po-approval-progress{display:block;margin-top:5px;color:#64748b;font-size:10px;line-height:1.4}
 .purchase-orders-module .po-badge.draft{background:#f1f5f9;color:#64748b}.purchase-orders-module .po-badge.sent{background:#dbeafe;color:#1d4ed8}.purchase-orders-module .po-badge.confirmed{background:#ede9fe;color:#6d28d9}.purchase-orders-module .po-badge.received{background:#dcfce7;color:#15803d}.purchase-orders-module .po-badge.cancelled{background:#fee2e2;color:#b91c1c}
+.purchase-orders-module .po-approval-state{display:table;width:max-content;max-width:100%;margin-top:4px;padding:3px 7px;border-radius:14px;background:#f1f5f9;color:#475569;font-size:9px;font-weight:700}
+.purchase-orders-module .po-approval-state.pending{background:#fff7ed;color:#c2410c}.purchase-orders-module .po-approval-state.approved{background:#ecfdf5;color:#047857}.purchase-orders-module .po-approval-state.rejected{background:#fef2f2;color:#b91c1c}
 .purchase-orders-module .po-actions{display:flex;gap:5px}.purchase-orders-module .po-action,.purchase-orders-module .po-close{display:grid;place-items:center;width:31px;height:31px;border:1px solid transparent;border-radius:7px;background:#f1f5f9;color:#475569;cursor:pointer}.purchase-orders-module .po-action:hover,.purchase-orders-module .po-close:hover{background:#e2e8f0}.purchase-orders-module .po-action.po-delete{color:#b91c1c}
 .purchase-orders-module .po-actions .po-action{flex:0 0 34px;width:34px;height:34px;padding:0;border:1px solid #cbd5e1;background:#fff;color:#1f2937}
 .purchase-orders-module .po-actions .po-action:hover{border-color:#64748b;background:#f1f5f9;color:#111827}
 .purchase-orders-module .po-actions .po-action.po-receive{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;gap:5px;width:auto;min-width:84px;padding:0 8px;border-color:#86efac;background:#f0fdf4;color:#166534;font-size:11px;font-weight:700}
 .purchase-orders-module .po-actions .po-action.po-receive:hover{border-color:#16a34a;background:#dcfce7;color:#14532d}
+.purchase-orders-module .po-actions .po-action.po-approve,.purchase-orders-module .po-actions .po-action.po-reject,.purchase-orders-module .po-actions .po-action.po-submit{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;gap:5px;width:auto;min-width:76px;padding:0 8px;font-size:11px;font-weight:700}
+.purchase-orders-module .po-actions .po-action.po-approve,.purchase-orders-module .po-actions .po-action.po-submit{border-color:#86efac;background:#f0fdf4;color:#166534}
+.purchase-orders-module .po-actions .po-action.po-reject{border-color:#fecaca;background:#fef2f2;color:#b91c1c}
+.purchase-orders-module .po-approval-table{min-width:680px}
+.purchase-orders-module .po-approval-history{margin:10px 0;padding:10px 12px;border:1px solid var(--po-border);border-radius:8px}
+.purchase-orders-module .po-approval-history summary{color:#334155;font-size:12px;font-weight:700;cursor:pointer}
 .purchase-orders-module .po-empty{padding:42px 18px;text-align:center;color:var(--po-muted)}
 .purchase-orders-module .po-overlay{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:18px;background:#0f172a99}.purchase-orders-module .po-overlay.is-open{display:flex}
 .purchase-orders-module .po-modal{width:min(960px,100%);max-height:94vh;overflow:auto;border-radius:12px;background:#fff;box-shadow:0 24px 70px #0004}

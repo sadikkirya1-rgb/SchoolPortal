@@ -11,8 +11,8 @@ function createPurchaseOrdersModule() {
             <article class="po-stat"><div><span>Total PO Value</span><strong data-po-stat="value">$0</strong></div><i class="fas fa-dollar-sign"></i></article>
         </section>
         <section class="po-content" aria-label="Purchase order records">
-            <div class="po-toolbar"><label class="po-search"><i class="fas fa-search" aria-hidden="true"></i><span class="po-sr-only">Search purchase orders</span><input type="search" data-po-search placeholder="Search PO, vendor, buyer..."></label><select class="po-filter" data-po-filter aria-label="Filter by status"><option value="">All Statuses</option><option>Draft</option><option>Sent</option><option>Confirmed</option><option>Received</option><option>Cancelled</option></select><button class="po-button po-light" type="button" data-po-print-list><i class="fas fa-print"></i> Print PO List</button></div>
-            <div class="po-table-wrap"><table class="po-table"><thead><tr><th>PO Number</th><th>Vendor</th><th>Buyer</th><th>Items</th><th>PO Value</th><th>Order Date</th><th>Delivery Date</th><th>Status</th><th>Actions</th></tr></thead><tbody data-po-rows></tbody></table></div>
+            <div class="po-toolbar"><label class="po-search"><i class="fas fa-search" aria-hidden="true"></i><span class="po-sr-only">Search purchase orders</span><input type="search" data-po-search placeholder="Search PO, vendor, buyer..."></label><select class="po-filter" data-po-filter aria-label="Filter by status"><option value="">All Statuses</option><option>Draft</option><option>Pending Approval</option><option>Approved</option><option>Rejected</option><option>Sent</option><option>Confirmed</option><option>Received</option><option>Cancelled</option></select><button class="po-button po-light" type="button" data-po-print-list><i class="fas fa-print"></i> Print PO List</button></div>
+            <div class="po-table-wrap"><table class="po-table"><thead><tr><th>PO Number</th><th>Vendor</th><th>Buyer</th><th>Items</th><th>PO Value</th><th>Order Date</th><th>Delivery Date</th><th>Order / Approval Status</th><th>Actions</th></tr></thead><tbody data-po-rows></tbody></table></div>
         </section>
         <div class="po-overlay" data-po-form-overlay><section class="po-modal" role="dialog" aria-modal="true" aria-labelledby="po-form-title"><header class="po-modal-head"><h3 id="po-form-title">Create Purchase Order</h3><button class="po-close" type="button" data-po-close-form aria-label="Close">&times;</button></header>
             <form class="po-form" data-po-form><div class="po-grid">
@@ -26,12 +26,19 @@ function createPurchaseOrdersModule() {
             </div>
             <div class="po-items"><div class="po-items-head"><h4>Purchase Order Items</h4><button class="po-button po-light" type="button" data-po-add-item><i class="fas fa-plus"></i> Add Item</button></div><div data-po-items></div>
                 <div class="po-totals"><div><span>Subtotal</span><strong data-po-subtotal>$0.00</strong></div><div><span>Discount</span><strong data-po-discount>$0.00</strong></div><div><span>Tax (5%)</span><strong data-po-tax>$0.00</strong></div><div class="po-grand"><span>Grand Total</span><strong data-po-total>$0.00</strong></div></div>
-            </div><footer class="po-modal-actions"><button class="po-button po-light" type="button" data-po-cancel>Cancel</button><button class="po-button po-primary" type="submit">Save Purchase Order</button></footer></form>
+            </div><footer class="po-modal-actions"><button class="po-button po-light" type="button" data-po-cancel>Cancel</button><button class="po-button po-light" type="submit" data-po-submit="Draft">Save Draft</button><button class="po-button po-primary" type="submit" data-po-submit="Pending">Submit for Approval</button></footer></form>
         </section></div>
         <div class="po-overlay" data-po-view-overlay><section class="po-modal" role="dialog" aria-modal="true" aria-labelledby="po-view-title"><header class="po-modal-head"><h3 id="po-view-title">Purchase Order Details</h3><button class="po-close" type="button" data-po-close-view aria-label="Close">&times;</button></header><div class="po-view" data-po-view-content></div><footer class="po-modal-actions"><button class="po-button po-light" type="button" data-po-close-view>Close</button><button class="po-button po-primary" type="button" data-po-print-current><i class="fas fa-print"></i> Print / PDF</button></footer></section></div>
         <div class="po-toast" role="status" aria-live="polite" data-po-toast></div>`;
 
     const storageKey = 'schoolPurchaseOrders';
+    const approvalStages = [
+        { title: 'Department Head', role: 'deputyHeadTeacher' },
+        { title: 'Procurement Officer', role: 'storeManager' },
+        { title: 'Finance Manager', role: 'bursar' },
+        { title: 'Principal', role: 'headTeacher' },
+        { title: 'Director', role: 'director' }
+    ];
 
     let orders;
     try {
@@ -46,6 +53,40 @@ function createPurchaseOrdersModule() {
     const q = selector => section.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
     const money = (value, currency = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(value) || 0);
+    const identity = () => window.schoolPortalData?.getIdentity?.();
+    const roleKey = role => String(role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const isApprovalAdmin = () => ['schooladmin', 'superadmin'].includes(roleKey(identity()?.role));
+    const canEditOrders = () => ['schooladmin', 'superadmin', 'director', 'headteacher'].includes(roleKey(identity()?.role))
+        || identity()?.permissions?.purchaseOrders?.edit === true
+        || (['deputyheadteacher', 'storemanager', 'bursar'].includes(roleKey(identity()?.role))
+            && identity()?.permissions?.purchaseOrders === undefined);
+    const createApprovalStages = () => approvalStages.map((stage, index) => ({
+        ...stage, status: index === 0 ? 'Pending' : 'Waiting', decidedBy: '', decidedByUid: '', approvedAt: '', rejectionReason: ''
+    }));
+    const currentStageIndex = order => Number.isInteger(order.currentApprovalStage)
+        ? order.currentApprovalStage : (order.approvalStages || []).findIndex(stage => stage.status === 'Pending');
+    const canDecideCurrentStage = order => {
+        const stage = order.approvalStages?.[currentStageIndex(order)];
+        return order.approvalStatus === 'Pending' && stage?.status === 'Pending' && canEditOrders()
+            && (isApprovalAdmin() || roleKey(identity()?.role) === roleKey(stage.role));
+    };
+    const approvalProgress = order => {
+        if (order.approvalStatus === 'Draft') return 'Not submitted';
+        if (order.approvalStatus === 'Rejected') {
+            const rejected = (order.approvalStages || []).find(stage => stage.status === 'Rejected');
+            return rejected ? `Rejected · ${rejected.title}` : 'Rejected';
+        }
+        if (order.approvalStatus === 'Approved') return '5/5 approvals';
+        const index = currentStageIndex(order);
+        return index >= 0 ? `${index + 1}/5 · ${order.approvalStages[index].title}` : 'Approval stages not recorded';
+    };
+    const archiveApprovalRound = order => {
+        const history = Array.isArray(order.approvalHistory) ? [...order.approvalHistory] : [];
+        if (order.approvalStages?.some(stage => stage.status === 'Rejected')) {
+            history.push({ approvalStages: order.approvalStages.map(stage => ({ ...stage })), rejectionReason: order.rejectionReason || '', decisionAt: order.decisionAt || '', decisionBy: order.decisionBy || '' });
+        }
+        return history;
+    };
     const subtotal = order => order.items.reduce((sum, item) => sum + Number(item[1]) * Number(item[2]), 0);
     const total = order => subtotal(order) * 1.05;
     const formatDate = value => {
@@ -62,19 +103,28 @@ function createPurchaseOrdersModule() {
     };
     const updateStats = () => {
         q('[data-po-stat="count"]').textContent = orders.length;
-        q('[data-po-stat="pending"]').textContent = orders.filter(order => ['Draft', 'Sent', 'Confirmed'].includes(order.status)).length;
+        q('[data-po-stat="pending"]').textContent = orders.filter(order => order.approvalStatus === 'Pending' || ['Draft', 'Sent', 'Confirmed'].includes(order.status)).length;
         q('[data-po-stat="received"]').textContent = orders.filter(order => order.status === 'Received').length;
         q('[data-po-stat="value"]').textContent = money(orders.reduce((sum, order) => sum + total(order), 0)).replace(/\.00$/, '');
     };
     const render = () => {
         const search = q('[data-po-search]').value.trim().toLowerCase();
         const status = q('[data-po-filter]').value;
-        const filtered = orders.filter(order => (!status || order.status === status) && (!search || JSON.stringify(order).toLowerCase().includes(search)));
+        const filtered = orders.filter(order => {
+            const matchesStatus = !status || order.status === status
+                || (status === 'Pending Approval' && order.approvalStatus === 'Pending')
+                || (status === 'Approved' && order.approvalStatus === 'Approved')
+                || (status === 'Rejected' && order.approvalStatus === 'Rejected');
+            return matchesStatus && (!search || JSON.stringify(order).toLowerCase().includes(search));
+        });
         q('[data-po-rows]').innerHTML = filtered.length ? filtered.map(order => {
             const initials = order.vendor.split(/\s+/).map(part => part[0] || '').slice(0, 2).join('').toUpperCase();
             const itemCount = order.items.reduce((sum, item) => sum + Number(item[1]), 0);
-            const receiveAction = order.status === 'Received' || order.status === 'Cancelled' ? '' : `<button class="po-action po-receive" type="button" title="Mark as received" aria-label="Mark ${escape(order.id)} as received" data-po-action="receive" data-id="${escape(order.id)}"><i class="fas fa-check"></i><span>Receive</span></button>`;
-            return `<tr><td><strong class="po-id">${escape(order.id)}</strong></td><td><span class="po-vendor"><span class="po-vendor-logo">${escape(initials)}</span><b>${escape(order.vendor)}</b></span></td><td>${escape(order.buyer)}</td><td>${itemCount} item(s)</td><td><strong>${money(total(order), order.currency)}</strong></td><td>${formatDate(order.date)}</td><td>${formatDate(order.delivery)}</td><td><span class="po-badge ${escape(order.status.toLowerCase())}">${escape(order.status)}</span></td><td><div class="po-actions"><button class="po-action" type="button" title="View" aria-label="View ${escape(order.id)}" data-po-action="view" data-id="${escape(order.id)}"><i class="fas fa-eye"></i></button><button class="po-action" type="button" title="Edit" aria-label="Edit ${escape(order.id)}" data-po-action="edit" data-id="${escape(order.id)}"><i class="fas fa-pen"></i></button><button class="po-action" type="button" title="Print" aria-label="Print ${escape(order.id)}" data-po-action="print" data-id="${escape(order.id)}"><i class="fas fa-print"></i></button>${receiveAction}<button class="po-action po-delete" type="button" title="Delete" aria-label="Delete ${escape(order.id)}" data-po-action="delete" data-id="${escape(order.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
+            const receiveAction = order.status === 'Received' || order.status === 'Cancelled' || (order.approvalStatus && order.approvalStatus !== 'Approved') ? '' : `<button class="po-action po-receive" type="button" title="Mark as received" aria-label="Mark ${escape(order.id)} as received" data-po-action="receive" data-id="${escape(order.id)}"><i class="fas fa-check"></i><span>Receive</span></button>`;
+            const approvalActions = canDecideCurrentStage(order) ? `<button class="po-action po-approve" type="button" title="Approve current stage" aria-label="Approve ${escape(order.id)} at ${escape(order.approvalStages[currentStageIndex(order)].title)} stage" data-po-action="approve" data-id="${escape(order.id)}"><i class="fas fa-check"></i><span>Approve</span></button><button class="po-action po-reject" type="button" title="Reject" aria-label="Reject ${escape(order.id)}" data-po-action="reject" data-id="${escape(order.id)}"><i class="fas fa-xmark"></i><span>Reject</span></button>` : '';
+            const submitAction = ['Draft', 'Rejected'].includes(order.approvalStatus || 'Draft') && canEditOrders() ? `<button class="po-action po-receive" type="button" title="Submit for approval" aria-label="Submit ${escape(order.id)} for approval" data-po-action="submit" data-id="${escape(order.id)}"><i class="fas fa-paper-plane"></i><span>Submit</span></button>` : '';
+            const editAction = ['Draft', 'Rejected'].includes(order.approvalStatus || 'Draft') && canEditOrders() ? `<button class="po-action" type="button" title="Edit" aria-label="Edit ${escape(order.id)}" data-po-action="edit" data-id="${escape(order.id)}"><i class="fas fa-pen"></i></button>` : '';
+            return `<tr><td><strong class="po-id">${escape(order.id)}</strong></td><td><span class="po-vendor"><span class="po-vendor-logo">${escape(initials)}</span><b>${escape(order.vendor)}</b></span></td><td>${escape(order.buyer)}</td><td>${itemCount} item(s)</td><td><strong>${money(total(order), order.currency)}</strong></td><td>${formatDate(order.date)}</td><td>${formatDate(order.delivery)}</td><td><span class="po-badge ${escape(order.status.toLowerCase())}">${escape(order.status)}</span><span class="po-approval-state ${escape((order.approvalStatus || 'Draft').toLowerCase())}">${escape(order.approvalStatus || 'Approval Draft')}</span><small class="po-approval-progress">${escape(approvalProgress(order))}</small></td><td><div class="po-actions"><button class="po-action" type="button" title="View" aria-label="View ${escape(order.id)}" data-po-action="view" data-id="${escape(order.id)}"><i class="fas fa-eye"></i></button>${editAction}<button class="po-action" type="button" title="Print" aria-label="Print ${escape(order.id)}" data-po-action="print" data-id="${escape(order.id)}"><i class="fas fa-print"></i></button>${submitAction}${approvalActions}${receiveAction}<button class="po-action po-delete" type="button" title="Delete" aria-label="Delete ${escape(order.id)}" data-po-action="delete" data-id="${escape(order.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
         }).join('') : '<tr><td colspan="9"><div class="po-empty">No purchase orders found.</div></td></tr>';
         updateStats();
     };
@@ -123,9 +173,14 @@ function createPurchaseOrdersModule() {
         q('[data-po-form-overlay]').classList.add('is-open');
         form.elements.vendor.focus();
     };
+    const approvalTracker = order => {
+        const current = (order.approvalStages || []).map((stage, index) => `<tr><td>${index + 1}</td><td>${escape(stage.title)}</td><td>${escape(stage.status)}</td><td>${escape(stage.decidedBy || '—')}</td><td>${stage.approvedAt ? formatDate(stage.approvedAt.slice(0, 10)) : escape(stage.rejectionReason || '—')}</td></tr>`).join('');
+        const history = (order.approvalHistory || []).map((round, index) => `<details class="po-approval-history"><summary>Previous submission ${index + 1}</summary><div class="po-table-wrap"><table class="po-table po-approval-table"><thead><tr><th>Stage</th><th>Signatory</th><th>Status</th><th>Signer</th><th>Date / Reason</th></tr></thead><tbody>${(round.approvalStages || []).map((stage, stageIndex) => `<tr><td>${stageIndex + 1}</td><td>${escape(stage.title)}</td><td>${escape(stage.status)}</td><td>${escape(stage.decidedBy || '—')}</td><td>${stage.approvedAt ? formatDate(stage.approvedAt.slice(0, 10)) : escape(stage.rejectionReason || '—')}</td></tr>`).join('')}</tbody></table></div></details>`).join('');
+        return `<div class="po-table-wrap"><table class="po-table po-approval-table"><thead><tr><th>Stage</th><th>Signatory</th><th>Status</th><th>Signer</th><th>Date / Reason</th></tr></thead><tbody>${current || '<tr><td colspan="5">No approval stages recorded.</td></tr>'}</tbody></table></div>${history}`;
+    };
     const details = order => `<div class="po-detail-grid">
-        ${[['PO Number', order.id], ['Status', order.status], ['Vendor', order.vendor], ['Buyer', order.buyer], ['Order Date', formatDate(order.date)], ['Expected Delivery', formatDate(order.delivery)], ['Payment Terms', order.payment], ['Shipping Method', order.shipping], ['Currency', order.currency], ['Department', order.department], ['Delivery Address', order.address || 'Not provided'], ['Notes', order.notes || 'Not provided']].map(([label, value]) => `<div class="po-info-box"><h4>${escape(label)}</h4><p>${label === 'Status' ? `<span class="po-badge ${escape(String(value).toLowerCase())}">${escape(value)}</span>` : escape(value)}</p></div>`).join('')}
-        </div><h4 class="po-details-title">Order Items</h4><div class="po-table-wrap"><table class="po-table po-details-table"><thead><tr><th>Item</th><th>SKU</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${order.items.map(item => `<tr><td>${escape(item[0])}</td><td>${escape(item[3] || '—')}</td><td>${Number(item[1])}</td><td>${money(item[2], order.currency)}</td><td>${money(item[1] * item[2], order.currency)}</td></tr>`).join('')}</tbody></table></div><div class="po-totals"><div><span>Subtotal</span><strong>${money(subtotal(order), order.currency)}</strong></div><div><span>Discount</span><strong>${money(0, order.currency)}</strong></div><div><span>Tax (5%)</span><strong>${money(subtotal(order) * 0.05, order.currency)}</strong></div><div class="po-grand"><span>Grand Total</span><strong>${money(total(order), order.currency)}</strong></div></div>`;
+        ${[['PO Number', order.id], ['Order Status', order.status], ['Approval Status', approvalProgress(order)], ['Vendor', order.vendor], ['Buyer', order.buyer], ['Order Date', formatDate(order.date)], ['Expected Delivery', formatDate(order.delivery)], ['Payment Terms', order.payment], ['Shipping Method', order.shipping], ['Currency', order.currency], ['Department', order.department], ['Delivery Address', order.address || 'Not provided'], ['Notes', order.notes || 'Not provided'], ['Rejection Reason', order.rejectionReason || 'Not applicable']].map(([label, value]) => `<div class="po-info-box"><h4>${escape(label)}</h4><p>${label === 'Order Status' ? `<span class="po-badge ${escape(String(value).toLowerCase())}">${escape(value)}</span>` : escape(value)}</p></div>`).join('')}
+        </div><h4 class="po-details-title">Approval Workflow</h4>${approvalTracker(order)}<h4 class="po-details-title">Order Items</h4><div class="po-table-wrap"><table class="po-table po-details-table"><thead><tr><th>Item</th><th>SKU</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${order.items.map(item => `<tr><td>${escape(item[0])}</td><td>${escape(item[3] || '—')}</td><td>${Number(item[1])}</td><td>${money(item[2], order.currency)}</td><td>${money(item[1] * item[2], order.currency)}</td></tr>`).join('')}</tbody></table></div><div class="po-totals"><div><span>Subtotal</span><strong>${money(subtotal(order), order.currency)}</strong></div><div><span>Discount</span><strong>${money(0, order.currency)}</strong></div><div><span>Tax (5%)</span><strong>${money(subtotal(order) * 0.05, order.currency)}</strong></div><div class="po-grand"><span>Grand Total</span><strong>${money(total(order), order.currency)}</strong></div></div>`;
     const printDocument = (title, html) => {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return showToast('Allow pop-ups to print purchase orders.');
@@ -135,7 +190,8 @@ function createPurchaseOrdersModule() {
         printWindow.print();
     };
     const printOrder = order => {
-        const html = `<header class="head"><div><h1>Purchase Order</h1><p>Procurement Department</p></div><div><strong>${escape(order.id)}</strong><br>Order Date: ${formatDate(order.date)}<br>Delivery: ${formatDate(order.delivery)}</div></header><div class="meta"><div><strong>Vendor</strong>${escape(order.vendor)}</div><div><strong>Buyer</strong>${escape(order.buyer)}</div><div><strong>Department</strong>${escape(order.department)}</div><div><strong>Status</strong>${escape(order.status)}</div><div><strong>Payment Terms</strong>${escape(order.payment)}</div><div><strong>Shipping</strong>${escape(order.shipping)}</div><div><strong>Currency</strong>${escape(order.currency)}</div><div><strong>Delivery Address</strong>${escape(order.address || '—')}</div></div><table><thead><tr><th>#</th><th>Item Description</th><th>SKU</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td>${escape(item[0])}</td><td>${escape(item[3] || '—')}</td><td>${Number(item[1])}</td><td>${money(item[2], order.currency)}</td><td>${money(item[1] * item[2], order.currency)}</td></tr>`).join('')}</tbody></table><div class="totals"><div><span>Subtotal</span><strong>${money(subtotal(order), order.currency)}</strong></div><div><span>Discount</span><strong>${money(0, order.currency)}</strong></div><div><span>Tax (5%)</span><strong>${money(subtotal(order) * 0.05, order.currency)}</strong></div><div class="grand"><span>Grand Total</span><strong>${money(total(order), order.currency)}</strong></div></div><div class="notes"><strong>Notes / Special Instructions</strong><p>${escape(order.notes || 'No special instructions.')}</p></div><div class="signatures"><span>Prepared By</span><span>Approved By</span><span>Vendor Acceptance</span></div>`;
+        const approvals = (order.approvalStages || []).map((stage, index) => `<tr><td>${index + 1}</td><td>${escape(stage.title)}</td><td>${escape(stage.status)}</td><td>${escape(stage.decidedBy || '—')}</td><td>${stage.approvedAt ? formatDate(stage.approvedAt.slice(0, 10)) : escape(stage.rejectionReason || '—')}</td></tr>`).join('');
+        const html = `<header class="head"><div><h1>Purchase Order</h1><p>Procurement Department</p></div><div><strong>${escape(order.id)}</strong><br>Order Date: ${formatDate(order.date)}<br>Delivery: ${formatDate(order.delivery)}</div></header><div class="meta"><div><strong>Vendor</strong>${escape(order.vendor)}</div><div><strong>Buyer</strong>${escape(order.buyer)}</div><div><strong>Department</strong>${escape(order.department)}</div><div><strong>Order / Approval Status</strong>${escape(order.status)} / ${escape(approvalProgress(order))}</div><div><strong>Payment Terms</strong>${escape(order.payment)}</div><div><strong>Shipping</strong>${escape(order.shipping)}</div><div><strong>Currency</strong>${escape(order.currency)}</div><div><strong>Delivery Address</strong>${escape(order.address || '—')}</div></div><table><thead><tr><th>#</th><th>Item Description</th><th>SKU</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td>${escape(item[0])}</td><td>${escape(item[3] || '—')}</td><td>${Number(item[1])}</td><td>${money(item[2], order.currency)}</td><td>${money(item[1] * item[2], order.currency)}</td></tr>`).join('')}</tbody></table><div class="totals"><div><span>Subtotal</span><strong>${money(subtotal(order), order.currency)}</strong></div><div><span>Discount</span><strong>${money(0, order.currency)}</strong></div><div><span>Tax (5%)</span><strong>${money(subtotal(order) * 0.05, order.currency)}</strong></div><div class="grand"><span>Grand Total</span><strong>${money(total(order), order.currency)}</strong></div></div><h2>Approval Workflow</h2><table><thead><tr><th>Stage</th><th>Signatory</th><th>Status</th><th>Signer</th><th>Date / Reason</th></tr></thead><tbody>${approvals || '<tr><td colspan="5">No approval stages recorded.</td></tr>'}</tbody></table><div class="notes"><strong>Notes / Special Instructions</strong><p>${escape(order.notes || 'No special instructions.')}</p></div>`;
         printDocument(order.id, html);
     };
 
@@ -149,18 +205,38 @@ function createPurchaseOrdersModule() {
     });
     q('[data-po-form]').addEventListener('submit', event => {
         event.preventDefault();
+        if (!canEditOrders()) return showToast('Your account cannot edit Purchase Orders.');
         const form = event.currentTarget;
         const items = [...section.querySelectorAll('.po-item-row')].map(row => [row.querySelector('[name="itemName"]').value.trim(), Number(row.querySelector('[name="quantity"]').value), Number(row.querySelector('[name="price"]').value), row.querySelector('[name="code"]').value.trim()]);
         if (!items.length || items.some(item => !item[0] || item[1] < 1 || item[2] < 0)) return showToast('Please add at least one valid order item.');
         const existing = orders.find(order => order.id === editingId);
         const sequence = Math.max(0, ...orders.map(order => Number(order.id.match(/^PO-\d{4}-(\d+)$/)?.[1]) || 0)) + 1;
-        const order = { id: existing?.id || `PO-${new Date().getFullYear()}-${String(sequence).padStart(3, '0')}`, vendor: form.elements.vendor.value.trim(), buyer: form.elements.buyer.value.trim(), date: form.elements.date.value, delivery: form.elements.delivery.value, status: existing?.status || 'Draft', payment: form.elements.payment.value, shipping: form.elements.shipping.value, currency: form.elements.currency.value, department: form.elements.department.value, address: form.elements.address.value.trim(), notes: form.elements.notes.value.trim(), items };
+        const submitForApproval = event.submitter?.dataset.poSubmit === 'Pending';
+        const nextStatus = submitForApproval ? 'Pending' : 'Draft';
+        const order = {
+            ...existing,
+            id: existing?.id || `PO-${new Date().getFullYear()}-${String(sequence).padStart(3, '0')}`,
+            vendor: form.elements.vendor.value.trim(), buyer: form.elements.buyer.value.trim(),
+            date: form.elements.date.value, delivery: form.elements.delivery.value,
+            status: existing?.status || 'Draft',
+            approvalStatus: nextStatus,
+            approvalStages: submitForApproval ? createApprovalStages() : existing?.approvalStages || [],
+            currentApprovalStage: submitForApproval ? 0 : existing?.currentApprovalStage,
+            approvalHistory: submitForApproval && existing ? archiveApprovalRound(existing) : existing?.approvalHistory || [],
+            rejectionReason: submitForApproval ? '' : existing?.rejectionReason || '',
+            decisionAt: submitForApproval ? '' : existing?.decisionAt || '',
+            decisionBy: submitForApproval ? '' : existing?.decisionBy || '',
+            payment: form.elements.payment.value, shipping: form.elements.shipping.value,
+            currency: form.elements.currency.value, department: form.elements.department.value,
+            address: form.elements.address.value.trim(), notes: form.elements.notes.value.trim(), items
+        };
         if (existing) orders = orders.map(item => item.id === editingId ? order : item);
         else orders.unshift(order);
         save();
         closeForm();
         render();
-        showToast(existing ? 'Purchase order updated.' : 'Purchase order created.');
+        if (submitForApproval) window.dispatchEvent(new CustomEvent('school-portal-approval-update'));
+        showToast(submitForApproval ? 'Purchase order submitted for approval.' : existing ? 'Purchase order draft saved.' : 'Purchase order draft created.');
     });
     q('[data-po-rows]').addEventListener('click', event => {
         const button = event.target.closest('[data-po-action]');
@@ -172,15 +248,70 @@ function createPurchaseOrdersModule() {
             q('[data-po-view-content]').innerHTML = details(order);
             q('[data-po-view-overlay]').classList.add('is-open');
         } else if (button.dataset.poAction === 'edit') {
+            if (!canEditOrders() || !['Draft', 'Rejected'].includes(order.approvalStatus || 'Draft')) return;
             openForm(order);
         } else if (button.dataset.poAction === 'print') {
             printOrder(order);
+        } else if (button.dataset.poAction === 'submit') {
+            if (!canEditOrders() || !['Draft', 'Rejected'].includes(order.approvalStatus || 'Draft')) return;
+            order.approvalHistory = archiveApprovalRound(order);
+            order.approvalStatus = 'Pending';
+            order.approvalStages = createApprovalStages();
+            order.currentApprovalStage = 0;
+            order.rejectionReason = '';
+            order.decisionAt = '';
+            order.decisionBy = '';
+            save();
+            render();
+            window.dispatchEvent(new CustomEvent('school-portal-approval-update'));
+            showToast('Purchase order submitted for approval.');
+        } else if (button.dataset.poAction === 'approve' || button.dataset.poAction === 'reject') {
+            if (!canDecideCurrentStage(order)) return showToast('Only the assigned signatory for the current approval step can decide this order.');
+            const isApproval = button.dataset.poAction === 'approve';
+            const stageIndex = currentStageIndex(order);
+            const stage = order.approvalStages[stageIndex];
+            const reason = isApproval ? '' : window.prompt(`Why is ${stage.title} rejecting ${order.id}?`);
+            if (!isApproval && reason === null) return;
+            if (!isApproval && !reason.trim()) return showToast('Enter a reason before rejecting this order.');
+            const signer = isApprovalAdmin() ? 'Admin (on behalf)' : window.schoolPortalFirebase?.auth?.currentUser?.displayName || identity()?.displayName || identity()?.fullName || identity()?.uid || 'Approver';
+            const timestamp = new Date().toISOString();
+            stage.decidedBy = signer;
+            stage.decidedByUid = identity()?.uid || '';
+            stage.approvedAt = timestamp;
+            if (isApproval) {
+                stage.status = 'Approved';
+                order.currentApprovalStage = stageIndex + 1;
+                if (order.currentApprovalStage === order.approvalStages.length) {
+                    order.approvalStatus = 'Approved';
+                    order.decisionAt = timestamp;
+                    order.decisionBy = signer;
+                } else {
+                    order.approvalStages[order.currentApprovalStage].status = 'Pending';
+                }
+            } else {
+                stage.status = 'Rejected';
+                stage.rejectionReason = reason.trim();
+                order.approvalStatus = 'Rejected';
+                order.rejectionReason = reason.trim();
+                order.decisionAt = timestamp;
+                order.decisionBy = signer;
+                order.approvalStages.slice(stageIndex + 1).forEach(next => { next.status = 'Not required'; });
+            }
+            save();
+            render();
+            window.dispatchEvent(new CustomEvent('school-portal-approval-update'));
+            showToast(isApproval
+                ? isApprovalAdmin() ? `Admin approved for ${stage.title} on behalf.` : `${stage.title} approved.`
+                : isApprovalAdmin() ? `Admin rejected for ${stage.title} on behalf.` : `${stage.title} rejected the purchase order.`);
         } else if (button.dataset.poAction === 'receive') {
+            if (order.approvalStatus && order.approvalStatus !== 'Approved') return showToast('This order must receive all five approvals before receipt.');
             order.status = 'Received';
             save();
             render();
             showToast(`${order.id} marked as received. Find it under Closed POs.`);
-        } else if (button.dataset.poAction === 'delete' && confirm(`Delete purchase order ${order.id}?`)) {
+        } else if (button.dataset.poAction === 'delete') {
+            if (!canEditOrders()) return showToast('Your account cannot delete Purchase Orders.');
+            if (!confirm(`Delete purchase order ${order.id}?`)) return;
             orders = orders.filter(item => item.id !== order.id);
             save();
             render();

@@ -580,12 +580,20 @@ test('purchase request approvals must follow the five assigned account roles in 
         await setDoc(doc(firestore, 'schools/SCH-TEST/members/procurement-approver'), {
             role: 'storeManager',
             status: 'active',
-            permissions: { purchaseRequests: { view: true, edit: true } }
+            permissions: {
+                purchaseRequests: { view: true, edit: true },
+                purchaseOrders: { view: true, edit: true },
+                purchaseComparisons: { view: true, edit: true }
+            }
         });
         await setDoc(doc(firestore, 'schools/SCH-TEST/members/finance-approver'), {
             role: 'bursar',
             status: 'active',
-            permissions: { purchaseRequests: { view: true, edit: true } }
+            permissions: {
+                purchaseRequests: { view: true, edit: true },
+                purchaseOrders: { view: true, edit: true },
+                purchaseComparisons: { view: true, edit: true }
+            }
         });
         await setDoc(doc(firestore, 'schools/SCH-TEST/members/principal-approver'), {
             role: 'headTeacher',
@@ -700,4 +708,63 @@ test('purchase request approvals must follow the five assigned account roles in 
     }
     assert.equal(adminOverrideData.status, 'Approved');
     assert.deepEqual(adminOverrideData.approvalStages.map(stage => stage.decidedByUid), Array(5).fill('admin-1'));
+});
+
+test('purchase orders and comparisons require the same sequential five-stage approvals', async () => {
+    const signers = ['department-head', 'procurement-approver', 'finance-approver', 'principal-approver', 'director-approver'];
+    for (const [collectionName, recordId] of [
+        ['purchaseOrders', 'PO-2026-501'],
+        ['purchaseComparisons', 'PC-2026-501']
+    ]) {
+        const ref = doc(administratorContext().firestore(), `schools/SCH-TEST/${collectionName}/${recordId}`);
+        const stages = [
+            ['Department Head', 'deputyHeadTeacher'],
+            ['Procurement Officer', 'storeManager'],
+            ['Finance Manager', 'bursar'],
+            ['Principal', 'headTeacher'],
+            ['Director', 'director']
+        ].map(([title, role], index) => ({
+            title, role, status: index === 0 ? 'Pending' : 'Waiting',
+            decidedBy: '', decidedByUid: '', approvedAt: '', rejectionReason: ''
+        }));
+        const makeData = () => ({
+            id: recordId,
+            status: 'Draft',
+            approvalStatus: 'Pending',
+            currentApprovalStage: 0,
+            approvalStages: structuredClone(stages)
+        });
+        let current = makeData();
+        await assertSucceeds(setDoc(ref, {
+            data: current,
+            version: 1,
+            updatedBy: 'admin-1',
+            updatedAt: '2026-10-23T00:00:00.000Z'
+        }));
+
+        const decide = async (uid, index, version, data) => {
+            const next = structuredClone(data);
+            const stage = next.approvalStages[index];
+            stage.status = 'Approved';
+            stage.decidedBy = `Signer ${index + 1}`;
+            stage.decidedByUid = uid;
+            stage.approvedAt = '2026-10-23T00:00:00.000Z';
+            next.currentApprovalStage = index + 1;
+            if (index < 4) next.approvalStages[index + 1].status = 'Pending';
+            else next.approvalStatus = 'Approved';
+            await updateDoc(doc(testEnvironment.authenticatedContext(uid).firestore(), ref.path), {
+                data: next,
+                version: version + 1,
+                updatedBy: uid,
+                updatedAt: '2026-10-23T00:00:00.000Z'
+            });
+            return next;
+        };
+        await assertFails(decide('procurement-approver', 0, 1, current));
+        for (const [index, uid] of signers.entries()) {
+            current = await assertSucceeds(decide(uid, index, index + 1, current));
+        }
+        assert.equal(current.approvalStatus, 'Approved');
+        assert.equal(current.approvalStages.filter(stage => stage.status === 'Approved').length, 5);
+    }
 });

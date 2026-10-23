@@ -131,9 +131,9 @@ function canEditCollection(owner, collectionName) {
         && owner.permissions?.examResults === undefined;
     return isAdministrator
         || owner.permissions?.[permissionCollection]?.edit === true
-        || (collectionName === 'purchaseRequests'
-            && owner.role === 'deputyHeadTeacher'
-            && owner.permissions?.purchaseRequests === undefined)
+        || (['purchaseRequests', 'purchaseOrders', 'purchaseComparisons'].includes(collectionName)
+            && ['deputyHeadTeacher', 'storeManager', 'bursar'].includes(owner.role)
+            && owner.permissions?.[collectionName] === undefined)
         || hasLegacyExamResultsAccess;
 }
 
@@ -752,9 +752,9 @@ async function subscribeLegacyCollections() {
     for (const collectionName of collectionNames) {
         const mayView = isSchoolAdmin
             || owner.permissions[collectionName]?.view === true
-            || (collectionName === 'purchaseRequests'
+            || (['purchaseRequests', 'purchaseOrders', 'purchaseComparisons'].includes(collectionName)
                 && owner.role === 'deputyHeadTeacher'
-                && owner.permissions.purchaseRequests === undefined);
+                && owner.permissions[collectionName] === undefined);
         if (!mayView || (owner.role === 'parent' && collectionName === 'notices')
             || (!isSchoolAdmin && isClassScopedCollection(collectionName))) continue;
         const storageKeys = Array.from(legacyDataCollections)

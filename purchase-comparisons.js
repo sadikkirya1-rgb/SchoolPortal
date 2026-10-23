@@ -16,12 +16,19 @@ function createPurchaseComparisonsModule() {
                 <label class="pc-full">Remarks / Evaluation Notes<textarea name="notes" placeholder="Enter comparison notes, technical comments, delivery considerations, etc."></textarea></label>
             </div>
             <div class="pc-vendors"><div class="pc-vendors-head"><h4>Supplier Quotations</h4><button class="pc-button pc-light" type="button" data-pc-add-vendor><i class="fas fa-plus"></i> Add Supplier</button></div><div data-pc-vendors></div></div>
-            <footer class="pc-modal-actions"><button class="pc-button pc-light" type="button" data-pc-cancel>Cancel</button><button class="pc-button pc-primary" type="submit">Save Comparison</button></footer></form>
+            <footer class="pc-modal-actions"><button class="pc-button pc-light" type="button" data-pc-cancel>Cancel</button><button class="pc-button pc-light" type="submit" data-pc-submit="Draft">Save Draft</button><button class="pc-button pc-primary" type="submit" data-pc-submit="Pending">Submit for Approval</button></footer></form>
         </section></div>
         <div class="pc-overlay" data-pc-view-overlay><section class="pc-modal" role="dialog" aria-modal="true" aria-labelledby="pc-view-title"><header class="pc-modal-head"><h3 id="pc-view-title">Purchase Comparison Details</h3><button class="pc-close" type="button" data-pc-close-view aria-label="Close">&times;</button></header><div class="pc-view" data-pc-view-content></div><footer class="pc-modal-actions"><button class="pc-button pc-light" type="button" data-pc-close-view>Close</button><button class="pc-button pc-primary" type="button" data-pc-print-current><i class="fas fa-print"></i> Print / PDF</button></footer></section></div>
         <div class="pc-toast" role="status" aria-live="polite" data-pc-toast></div>`;
 
     const storageKey = 'schoolPurchaseComparisons';
+    const approvalStages = [
+        { title: 'Department Head', role: 'deputyHeadTeacher' },
+        { title: 'Procurement Officer', role: 'storeManager' },
+        { title: 'Finance Manager', role: 'bursar' },
+        { title: 'Principal', role: 'headTeacher' },
+        { title: 'Director', role: 'director' }
+    ];
 
     let comparisons;
     try {
@@ -36,6 +43,40 @@ function createPurchaseComparisonsModule() {
     const q = selector => section.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
     const money = (value, currency = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(value) || 0);
+    const identity = () => window.schoolPortalData?.getIdentity?.();
+    const roleKey = role => String(role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const isApprovalAdmin = () => ['schooladmin', 'superadmin'].includes(roleKey(identity()?.role));
+    const canEditComparisons = () => ['schooladmin', 'superadmin', 'director', 'headteacher'].includes(roleKey(identity()?.role))
+        || identity()?.permissions?.purchaseComparisons?.edit === true
+        || (['deputyheadteacher', 'storemanager', 'bursar'].includes(roleKey(identity()?.role))
+            && identity()?.permissions?.purchaseComparisons === undefined);
+    const createApprovalStages = () => approvalStages.map((stage, index) => ({
+        ...stage, status: index === 0 ? 'Pending' : 'Waiting', decidedBy: '', decidedByUid: '', approvedAt: '', rejectionReason: ''
+    }));
+    const currentStageIndex = comparison => Number.isInteger(comparison.currentApprovalStage)
+        ? comparison.currentApprovalStage : (comparison.approvalStages || []).findIndex(stage => stage.status === 'Pending');
+    const canDecideCurrentStage = comparison => {
+        const stage = comparison.approvalStages?.[currentStageIndex(comparison)];
+        return comparison.approvalStatus === 'Pending' && stage?.status === 'Pending' && canEditComparisons()
+            && (isApprovalAdmin() || roleKey(identity()?.role) === roleKey(stage.role));
+    };
+    const approvalProgress = comparison => {
+        if (comparison.approvalStatus === 'Draft') return 'Not submitted';
+        if (comparison.approvalStatus === 'Rejected') {
+            const rejected = (comparison.approvalStages || []).find(stage => stage.status === 'Rejected');
+            return rejected ? `Rejected · ${rejected.title}` : 'Rejected';
+        }
+        if (comparison.approvalStatus === 'Approved') return '5/5 approvals';
+        const index = currentStageIndex(comparison);
+        return index >= 0 ? `${index + 1}/5 · ${comparison.approvalStages[index].title}` : 'Approval stages not recorded';
+    };
+    const archiveApprovalRound = comparison => {
+        const history = Array.isArray(comparison.approvalHistory) ? [...comparison.approvalHistory] : [];
+        if (comparison.approvalStages?.some(stage => stage.status === 'Rejected')) {
+            history.push({ approvalStages: comparison.approvalStages.map(stage => ({ ...stage })), rejectionReason: comparison.rejectionReason || '', decisionAt: comparison.decisionAt || '', decisionBy: comparison.decisionBy || '' });
+        }
+        return history;
+    };
     const formatDate = value => {
         const date = new Date(`${value}T00:00:00`);
         return Number.isNaN(date.getTime()) ? escape(value) : date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
@@ -53,8 +94,8 @@ function createPurchaseComparisonsModule() {
     };
     const updateStats = () => {
         q('[data-pc-stat="total"]').textContent = comparisons.length;
-        q('[data-pc-stat="pending"]').textContent = comparisons.filter(item => ['Draft', 'Pending'].includes(item.status)).length;
-        q('[data-pc-stat="completed"]').textContent = comparisons.filter(item => ['Completed', 'Approved'].includes(item.status)).length;
+        q('[data-pc-stat="pending"]').textContent = comparisons.filter(item => item.approvalStatus === 'Pending' || ['Draft', 'Pending'].includes(item.status)).length;
+        q('[data-pc-stat="completed"]').textContent = comparisons.filter(item => item.approvalStatus === 'Approved' || ['Completed', 'Approved'].includes(item.status)).length;
         const values = {};
         comparisons.forEach(item => { values[item.currency] = (values[item.currency] || 0) + item.vendors.reduce((sum, vendor) => sum + Number(vendor.quote), 0); });
         const currencies = Object.entries(values);
@@ -65,11 +106,20 @@ function createPurchaseComparisonsModule() {
     const render = () => {
         const search = q('[data-pc-search]').value.trim().toLowerCase();
         const status = q('[data-pc-filter]').value;
-        const filtered = comparisons.filter(item => (!status || item.status === status) && (!search || JSON.stringify(item).toLowerCase().includes(search)));
+        const filtered = comparisons.filter(item => {
+            const matchesStatus = !status || item.status === status
+                || (status === 'Pending' && item.approvalStatus === 'Pending')
+                || (status === 'Approved' && item.approvalStatus === 'Approved')
+                || (status === 'Rejected' && item.approvalStatus === 'Rejected');
+            return matchesStatus && (!search || JSON.stringify(item).toLowerCase().includes(search));
+        });
         q('[data-pc-rows]').innerHTML = filtered.length ? filtered.map(item => {
             const low = lowest(item);
             const high = highest(item);
-            return `<tr><td><strong class="pc-id">${escape(item.id)}</strong></td><td><b>${escape(item.requirement)}</b><small class="pc-request">${escape(item.request)}</small></td><td>${escape(item.department)}</td><td><span class="pc-vendor-count">${item.vendors.length} Supplier${item.vendors.length === 1 ? '' : 's'}</span></td><td><strong class="pc-lowest">${money(low, item.currency)}</strong></td><td>${money(high, item.currency)}</td><td><strong class="pc-savings">${money(high - low, item.currency)}</strong></td><td>${formatDate(item.date)}</td><td><span class="pc-badge ${escape(item.status.toLowerCase())}">${escape(item.status)}</span></td><td><div class="pc-actions"><button class="pc-action" type="button" title="View comparison" aria-label="View ${escape(item.id)}" data-pc-action="view" data-id="${escape(item.id)}"><i class="fas fa-eye"></i></button><button class="pc-action" type="button" title="Edit" aria-label="Edit ${escape(item.id)}" data-pc-action="edit" data-id="${escape(item.id)}"><i class="fas fa-pen"></i></button><button class="pc-action" type="button" title="Print" aria-label="Print ${escape(item.id)}" data-pc-action="print" data-id="${escape(item.id)}"><i class="fas fa-print"></i></button><button class="pc-action pc-delete" type="button" title="Delete" aria-label="Delete ${escape(item.id)}" data-pc-action="delete" data-id="${escape(item.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
+            const submitAction = ['Draft', 'Rejected'].includes(item.approvalStatus || 'Draft') && canEditComparisons() ? `<button class="pc-action pc-submit" type="button" title="Submit for approval" aria-label="Submit ${escape(item.id)} for approval" data-pc-action="submit" data-id="${escape(item.id)}"><i class="fas fa-paper-plane"></i><span>Submit</span></button>` : '';
+            const workflowActions = canDecideCurrentStage(item) ? `<button class="pc-action pc-approve" type="button" title="Approve current stage" aria-label="Approve ${escape(item.id)} at ${escape(item.approvalStages[currentStageIndex(item)].title)} stage" data-pc-action="approve" data-id="${escape(item.id)}"><i class="fas fa-check"></i><span>Approve</span></button><button class="pc-action pc-reject" type="button" title="Reject" aria-label="Reject ${escape(item.id)}" data-pc-action="reject" data-id="${escape(item.id)}"><i class="fas fa-xmark"></i><span>Reject</span></button>` : '';
+            const editAction = ['Draft', 'Rejected'].includes(item.approvalStatus || 'Draft') && canEditComparisons() ? `<button class="pc-action" type="button" title="Edit" aria-label="Edit ${escape(item.id)}" data-pc-action="edit" data-id="${escape(item.id)}"><i class="fas fa-pen"></i></button>` : '';
+            return `<tr><td><strong class="pc-id">${escape(item.id)}</strong></td><td><b>${escape(item.requirement)}</b><small class="pc-request">${escape(item.request)}</small></td><td>${escape(item.department)}</td><td><span class="pc-vendor-count">${item.vendors.length} Supplier${item.vendors.length === 1 ? '' : 's'}</span></td><td><strong class="pc-lowest">${money(low, item.currency)}</strong></td><td>${money(high, item.currency)}</td><td><strong class="pc-savings">${money(high - low, item.currency)}</strong></td><td>${formatDate(item.date)}</td><td><span class="pc-badge ${escape((item.approvalStatus || item.status).toLowerCase())}">${escape(item.approvalStatus || item.status)}</span><small class="pc-approval-progress">${escape(approvalProgress(item))}</small></td><td><div class="pc-actions"><button class="pc-action" type="button" title="View comparison" aria-label="View ${escape(item.id)}" data-pc-action="view" data-id="${escape(item.id)}"><i class="fas fa-eye"></i></button>${editAction}<button class="pc-action" type="button" title="Print" aria-label="Print ${escape(item.id)}" data-pc-action="print" data-id="${escape(item.id)}"><i class="fas fa-print"></i></button>${submitAction}${workflowActions}<button class="pc-action pc-delete" type="button" title="Delete" aria-label="Delete ${escape(item.id)}" data-pc-action="delete" data-id="${escape(item.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
         }).join('') : '<tr><td colspan="10"><div class="pc-empty">No purchase comparisons found.</div></td></tr>';
         updateStats();
     };
@@ -112,8 +162,11 @@ function createPurchaseComparisonsModule() {
     };
     const detailContent = comparison => {
         const low = lowest(comparison);
+        const approvalRows = (comparison.approvalStages || []).map((stage, index) => `<tr><td>${index + 1}</td><td>${escape(stage.title)}</td><td>${escape(stage.status)}</td><td>${escape(stage.decidedBy || '—')}</td><td>${stage.approvedAt ? formatDate(stage.approvedAt.slice(0, 10)) : escape(stage.rejectionReason || '—')}</td></tr>`).join('');
+        const approvalHistory = (comparison.approvalHistory || []).map((round, index) => `<details class="pc-approval-history"><summary>Previous submission ${index + 1}</summary><div class="pc-table-wrap"><table class="pc-approval-table"><thead><tr><th>Stage</th><th>Signatory</th><th>Status</th><th>Signer</th><th>Date / Reason</th></tr></thead><tbody>${(round.approvalStages || []).map((stage, stageIndex) => `<tr><td>${stageIndex + 1}</td><td>${escape(stage.title)}</td><td>${escape(stage.status)}</td><td>${escape(stage.decidedBy || '—')}</td><td>${stage.approvedAt ? formatDate(stage.approvedAt.slice(0, 10)) : escape(stage.rejectionReason || '—')}</td></tr>`).join('')}</tbody></table></div></details>`).join('');
         return `<div class="pc-compare-header"><div><h2>${escape(comparison.requirement)}</h2><p>${escape(comparison.id)} · ${escape(comparison.request)} · ${escape(comparison.department)}</p></div><span class="pc-best-price">Lowest Quote: ${money(low, comparison.currency)}</span></div>
-            <div class="pc-facts"><div class="pc-info-box"><h4>Status</h4><p><span class="pc-badge ${escape(comparison.status.toLowerCase())}">${escape(comparison.status)}</span></p></div><div class="pc-info-box"><h4>Quantity</h4><p>${Number(comparison.quantity)}</p></div><div class="pc-info-box"><h4>Evaluation Criteria</h4><p>${escape(comparison.criteria)}</p></div><div class="pc-info-box"><h4>Comparison Date</h4><p>${formatDate(comparison.date)}</p></div><div class="pc-info-box"><h4>Recommended Vendor</h4><p>${escape(comparison.recommended || 'Not selected')}</p></div></div>
+            <div class="pc-facts"><div class="pc-info-box"><h4>Status</h4><p><span class="pc-badge ${escape(comparison.status.toLowerCase())}">${escape(comparison.status)}</span></p><small class="pc-approval-progress">${escape(approvalProgress(comparison))}</small></div><div class="pc-info-box"><h4>Quantity</h4><p>${Number(comparison.quantity)}</p></div><div class="pc-info-box"><h4>Evaluation Criteria</h4><p>${escape(comparison.criteria)}</p></div><div class="pc-info-box"><h4>Comparison Date</h4><p>${formatDate(comparison.date)}</p></div><div class="pc-info-box"><h4>Recommended Vendor</h4><p>${escape(comparison.recommended || 'Not selected')}</p></div><div class="pc-info-box"><h4>Rejection Reason</h4><p>${escape(comparison.rejectionReason || 'Not applicable')}</p></div></div>
+            <h4 class="pc-table-title">Approval Workflow</h4><div class="pc-table-wrap"><table class="pc-approval-table"><thead><tr><th>Stage</th><th>Signatory</th><th>Status</th><th>Signer</th><th>Date / Reason</th></tr></thead><tbody>${approvalRows || '<tr><td colspan="5">No approval stages recorded.</td></tr>'}</tbody></table></div>${approvalHistory}
             <h4 class="pc-table-title">Supplier Comparison</h4><div class="pc-table-wrap"><table class="pc-comparison-table"><thead><tr><th>Supplier</th><th>Quotation</th><th>Price / Unit</th><th>Delivery</th><th>Warranty</th><th>Rating</th><th>Recommendation</th></tr></thead><tbody>${comparison.vendors.map(vendor => {
                 const isLowest = Number(vendor.quote) === low;
                 const recommended = comparison.recommended === vendor.name;
@@ -131,7 +184,8 @@ function createPurchaseComparisonsModule() {
     const printComparison = comparison => {
         const low = lowest(comparison);
         const rows = comparison.vendors.map(vendor => `<tr><td>${escape(vendor.name)}</td><td class="${Number(vendor.quote) === low ? 'best' : ''}">${money(vendor.quote, comparison.currency)}</td><td>${money(Number(vendor.quote) / Math.max(Number(comparison.quantity), 1), comparison.currency)}</td><td>${Number(vendor.delivery)} days</td><td>${escape(vendor.warranty || '—')}</td><td>${Number(vendor.rating).toFixed(1)}/5</td><td>${comparison.recommended === vendor.name ? 'RECOMMENDED' : Number(vendor.quote) === low ? 'LOWEST PRICE' : '—'}</td></tr>`).join('');
-        const html = `<header class="head"><div><h1>Purchase Comparison</h1><p>Procurement Department</p></div><div><strong>${escape(comparison.id)}</strong><br>Date: ${formatDate(comparison.date)}</div></header><div class="meta"><div><strong>Purchase Request</strong>${escape(comparison.request)}</div><div><strong>Requirement</strong>${escape(comparison.requirement)}</div><div><strong>Department</strong>${escape(comparison.department)}</div><div><strong>Quantity</strong>${Number(comparison.quantity)}</div><div><strong>Evaluation Criteria</strong>${escape(comparison.criteria)}</div><div><strong>Status</strong>${escape(comparison.status)}</div><div><strong>Recommended Supplier</strong>${escape(comparison.recommended || 'Not selected')}</div><div><strong>Lowest Quote</strong>${money(low, comparison.currency)}</div></div><table><thead><tr><th>Supplier</th><th>Quotation</th><th>Price / Unit</th><th>Delivery</th><th>Warranty</th><th>Rating</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table><div class="totals"><div><span>Lowest Quote</span><b>${money(low, comparison.currency)}</b></div><div><span>Highest Quote</span><b>${money(highest(comparison), comparison.currency)}</b></div><div class="grand"><span>Potential Savings</span><b>${money(savings(comparison), comparison.currency)}</b></div></div><div class="notes"><strong>Evaluation Notes</strong><p>${escape(comparison.notes || 'No notes provided.')}</p></div><div class="signatures"><span>Prepared By</span><span>Evaluated By</span><span>Approved By</span></div>`;
+        const approvals = (comparison.approvalStages || []).map((stage, index) => `<tr><td>${index + 1}</td><td>${escape(stage.title)}</td><td>${escape(stage.status)}</td><td>${escape(stage.decidedBy || '—')}</td><td>${stage.approvedAt ? formatDate(stage.approvedAt.slice(0, 10)) : escape(stage.rejectionReason || '—')}</td></tr>`).join('');
+        const html = `<header class="head"><div><h1>Purchase Comparison</h1><p>Procurement Department</p></div><div><strong>${escape(comparison.id)}</strong><br>Date: ${formatDate(comparison.date)}</div></header><div class="meta"><div><strong>Purchase Request</strong>${escape(comparison.request)}</div><div><strong>Requirement</strong>${escape(comparison.requirement)}</div><div><strong>Department</strong>${escape(comparison.department)}</div><div><strong>Quantity</strong>${Number(comparison.quantity)}</div><div><strong>Evaluation Criteria</strong>${escape(comparison.criteria)}</div><div><strong>Status / Approval</strong>${escape(comparison.status)} / ${escape(approvalProgress(comparison))}</div><div><strong>Recommended Supplier</strong>${escape(comparison.recommended || 'Not selected')}</div><div><strong>Lowest Quote</strong>${money(low, comparison.currency)}</div></div><table><thead><tr><th>Supplier</th><th>Quotation</th><th>Price / Unit</th><th>Delivery</th><th>Warranty</th><th>Rating</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table><div class="totals"><div><span>Lowest Quote</span><b>${money(low, comparison.currency)}</b></div><div><span>Highest Quote</span><b>${money(highest(comparison), comparison.currency)}</b></div><div class="grand"><span>Potential Savings</span><b>${money(savings(comparison), comparison.currency)}</b></div></div><h2>Approval Workflow</h2><table><thead><tr><th>Stage</th><th>Signatory</th><th>Status</th><th>Signer</th><th>Date / Reason</th></tr></thead><tbody>${approvals || '<tr><td colspan="5">No approval stages recorded.</td></tr>'}</tbody></table><div class="notes"><strong>Evaluation Notes</strong><p>${escape(comparison.notes || 'No notes provided.')}</p></div>`;
         printDocument(comparison.id, html);
     };
 
@@ -146,19 +200,37 @@ function createPurchaseComparisonsModule() {
     });
     q('[data-pc-form]').addEventListener('submit', event => {
         event.preventDefault();
+        if (!canEditComparisons()) return toast('Your account cannot edit Purchase Comparisons.');
         const form = event.currentTarget;
         const vendors = [...section.querySelectorAll('.pc-vendor-row')].map(row => ({ name: row.querySelector('.pc-vendor-name').value.trim(), quote: Number(row.querySelector('.pc-vendor-quote').value) || 0, delivery: Number(row.querySelector('.pc-vendor-delivery').value) || 0, warranty: row.querySelector('.pc-vendor-warranty').value.trim(), rating: Number(row.querySelector('.pc-vendor-rating').value) || 0 })).filter(vendor => vendor.name);
         if (vendors.length < 2) return toast('Please add at least two suppliers.');
         if (vendors.some(vendor => vendor.quote < 0 || vendor.delivery < 0 || vendor.rating < 0 || vendor.rating > 5)) return toast('Enter valid supplier quote, delivery and rating values.');
         const existing = comparisons.find(item => item.id === editingId);
         const sequence = Math.max(0, ...comparisons.map(item => Number(item.id.match(/^PC-\d{4}-(\d+)$/)?.[1]) || 0)) + 1;
-        const comparison = { id: existing?.id || `PC-${new Date().getFullYear()}-${String(sequence).padStart(3, '0')}`, request: form.elements.request.value.trim(), requirement: form.elements.requirement.value.trim(), department: form.elements.department.value, quantity: Number(form.elements.quantity.value), currency: form.elements.currency.value, date: form.elements.date.value, criteria: form.elements.criteria.value, status: existing?.status || 'Draft', recommended: form.elements.recommended.value, notes: form.elements.notes.value.trim(), vendors };
+        const submitForApproval = event.submitter?.dataset.pcSubmit === 'Pending';
+        const comparison = {
+            ...existing,
+            id: existing?.id || `PC-${new Date().getFullYear()}-${String(sequence).padStart(3, '0')}`,
+            request: form.elements.request.value.trim(), requirement: form.elements.requirement.value.trim(),
+            department: form.elements.department.value, quantity: Number(form.elements.quantity.value),
+            currency: form.elements.currency.value, date: form.elements.date.value,
+            criteria: form.elements.criteria.value, status: existing?.status || 'Draft',
+            approvalStatus: submitForApproval ? 'Pending' : 'Draft',
+            approvalStages: submitForApproval ? createApprovalStages() : existing?.approvalStages || [],
+            currentApprovalStage: submitForApproval ? 0 : existing?.currentApprovalStage,
+            approvalHistory: submitForApproval && existing ? archiveApprovalRound(existing) : existing?.approvalHistory || [],
+            rejectionReason: submitForApproval ? '' : existing?.rejectionReason || '',
+            decisionAt: submitForApproval ? '' : existing?.decisionAt || '',
+            decisionBy: submitForApproval ? '' : existing?.decisionBy || '',
+            recommended: form.elements.recommended.value, notes: form.elements.notes.value.trim(), vendors
+        };
         if (existing) comparisons = comparisons.map(item => item.id === editingId ? comparison : item);
         else comparisons.unshift(comparison);
         save();
         closeForm();
         render();
-        toast(existing ? 'Purchase comparison updated.' : 'Purchase comparison created.');
+        if (submitForApproval) window.dispatchEvent(new CustomEvent('school-portal-approval-update'));
+        toast(submitForApproval ? 'Purchase comparison submitted for approval.' : existing ? 'Purchase comparison draft saved.' : 'Purchase comparison draft created.');
     });
     q('[data-pc-rows]').addEventListener('click', event => {
         const button = event.target.closest('[data-pc-action]');
@@ -170,10 +242,64 @@ function createPurchaseComparisonsModule() {
             q('[data-pc-view-content]').innerHTML = detailContent(comparison);
             q('[data-pc-view-overlay]').classList.add('is-open');
         } else if (button.dataset.pcAction === 'edit') {
+            if (!canEditComparisons() || !['Draft', 'Rejected'].includes(comparison.approvalStatus || 'Draft')) return;
             openForm(comparison);
         } else if (button.dataset.pcAction === 'print') {
             printComparison(comparison);
-        } else if (button.dataset.pcAction === 'delete' && confirm(`Delete purchase comparison ${comparison.id}?`)) {
+        } else if (button.dataset.pcAction === 'submit') {
+            if (!canEditComparisons() || !['Draft', 'Rejected'].includes(comparison.approvalStatus || 'Draft')) return;
+            comparison.approvalHistory = archiveApprovalRound(comparison);
+            comparison.approvalStatus = 'Pending';
+            comparison.approvalStages = createApprovalStages();
+            comparison.currentApprovalStage = 0;
+            comparison.rejectionReason = '';
+            comparison.decisionAt = '';
+            comparison.decisionBy = '';
+            save();
+            render();
+            window.dispatchEvent(new CustomEvent('school-portal-approval-update'));
+            toast('Purchase comparison submitted for approval.');
+        } else if (button.dataset.pcAction === 'approve' || button.dataset.pcAction === 'reject') {
+            if (!canDecideCurrentStage(comparison)) return toast('Only the assigned signatory for the current approval step can decide this comparison.');
+            const isApproval = button.dataset.pcAction === 'approve';
+            const stageIndex = currentStageIndex(comparison);
+            const stage = comparison.approvalStages[stageIndex];
+            const reason = isApproval ? '' : window.prompt(`Why is ${stage.title} rejecting ${comparison.id}?`);
+            if (!isApproval && reason === null) return;
+            if (!isApproval && !reason.trim()) return toast('Enter a reason before rejecting this comparison.');
+            const signer = isApprovalAdmin() ? 'Admin (on behalf)' : window.schoolPortalFirebase?.auth?.currentUser?.displayName || identity()?.displayName || identity()?.fullName || identity()?.uid || 'Approver';
+            const timestamp = new Date().toISOString();
+            stage.decidedBy = signer;
+            stage.decidedByUid = identity()?.uid || '';
+            stage.approvedAt = timestamp;
+            if (isApproval) {
+                stage.status = 'Approved';
+                comparison.currentApprovalStage = stageIndex + 1;
+                if (comparison.currentApprovalStage === comparison.approvalStages.length) {
+                    comparison.approvalStatus = 'Approved';
+                    comparison.decisionAt = timestamp;
+                    comparison.decisionBy = signer;
+                } else {
+                    comparison.approvalStages[comparison.currentApprovalStage].status = 'Pending';
+                }
+            } else {
+                stage.status = 'Rejected';
+                stage.rejectionReason = reason.trim();
+                comparison.approvalStatus = 'Rejected';
+                comparison.rejectionReason = reason.trim();
+                comparison.decisionAt = timestamp;
+                comparison.decisionBy = signer;
+                comparison.approvalStages.slice(stageIndex + 1).forEach(next => { next.status = 'Not required'; });
+            }
+            save();
+            render();
+            window.dispatchEvent(new CustomEvent('school-portal-approval-update'));
+            toast(isApproval
+                ? isApprovalAdmin() ? `Admin approved for ${stage.title} on behalf.` : `${stage.title} approved.`
+                : isApprovalAdmin() ? `Admin rejected for ${stage.title} on behalf.` : `${stage.title} rejected the purchase comparison.`);
+        } else if (button.dataset.pcAction === 'delete') {
+            if (!canEditComparisons()) return toast('Your account cannot delete Purchase Comparisons.');
+            if (!confirm(`Delete purchase comparison ${comparison.id}?`)) return;
             comparisons = comparisons.filter(item => item.id !== comparison.id);
             save();
             render();
