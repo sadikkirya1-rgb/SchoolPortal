@@ -59,6 +59,7 @@ service cloud.firestore {
     function canView(schoolId, collectionName) {
       return isSchoolAdmin(schoolId)
         || hasPermission(schoolId, collectionName, 'view')
+        || (collectionName == 'inventorySettings' && hasPermission(schoolId, 'inventory', 'view'))
         || (collectionName == 'examResults'
           && hasLegacyTeachingExamResultsPermission(schoolId, 'view'));
     }
@@ -66,6 +67,7 @@ service cloud.firestore {
     function canEdit(schoolId, collectionName) {
       return isSchoolAdmin(schoolId)
         || hasPermission(schoolId, collectionName, 'edit')
+        || (collectionName == 'inventorySettings' && hasPermission(schoolId, 'inventory', 'edit'))
         || (collectionName == 'examResults'
           && hasLegacyTeachingExamResultsPermission(schoolId, 'edit'));
     }
@@ -170,7 +172,7 @@ service cloud.firestore {
         'studyMaterials', 'quizzes', 'inventory', 'assets', 'visitors',
         'appointments', 'staffAttendance', 'leaveRequests', 'payroll',
         'suppliers', 'purchaseOrders', 'purchaseRequests', 'auditEvents',
-        'settings', 'schoolProfile', 'announcements', 'smsMessages', 'notifications',
+        'settings', 'inventorySettings', 'schoolProfile', 'announcements', 'smsMessages', 'notifications',
         'alumni', 'boardingRecords', 'certificates', 'counseling', 'curriculum',
         'idCards', 'sportsActivities', 'recruitment', 'payrollReports', 'paySlips',
         'statutoryReturns', 'purchaseComparisons', 'quotations', 'goodsReceipts',

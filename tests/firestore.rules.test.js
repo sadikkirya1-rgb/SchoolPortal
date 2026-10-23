@@ -36,6 +36,11 @@ before(async () => {
             assignedClassIds: ['CLASS-A'],
             permissions: { students: { view: true, edit: true } }
         });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/inventory-manager'), {
+            role: 'storeManager',
+            status: 'active',
+            permissions: { inventory: { view: true, edit: true } }
+        });
         await setDoc(doc(firestore, 'schools/SCH-TEST/members/id-card-editor'), {
             role: 'teacher',
             status: 'active',
@@ -208,6 +213,21 @@ test('a user without school membership cannot read school records', async () => 
 test('school membership never grants access to records in another school', async () => {
     const firestore = testEnvironment.authenticatedContext('teacher-1').firestore();
     await assertFails(getDoc(doc(firestore, 'schools/OTHER-SCHOOL/students/PRIVATE')));
+});
+
+test('inventory permissions also govern school inventory settings', async () => {
+    const firestore = testEnvironment.authenticatedContext('inventory-manager').firestore();
+    const settingRef = doc(firestore, 'schools/SCH-TEST/inventorySettings/category-electronics');
+    await assertSucceeds(setDoc(settingRef, {
+        data: { optionType: 'category', name: 'Electronics', active: true },
+        version: 1,
+        updatedBy: 'inventory-manager',
+        updatedAt: '2026-10-23T00:00:00.000Z'
+    }));
+    await assertSucceeds(getDoc(settingRef));
+
+    const readOnlyUser = testEnvironment.authenticatedContext('teacher-1').firestore();
+    await assertFails(getDoc(doc(readOnlyUser, 'schools/SCH-TEST/inventorySettings/category-electronics')));
 });
 
 test('accounts with a temporary password can read their membership but not school data until changing it', async () => {

@@ -3033,7 +3033,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ['curriculum', 'curriculum'], ['streams', 'streams'], ['subjects', 'subjects'], ['timetables', 'timetables'],
         ['assignments', 'assessments'], ['study materials', 'studyMaterials'], ['online quizzes', 'quizzes'],
         ['attendance', 'attendance'], ['health/infirmary', 'healthRecords'], ['boarding', 'boardingRecords'],
-        ['transport', 'transportRoutes'], ['inventory', 'inventory'], ['discipline case', 'disciplineCases'],
+        ['transport', 'transportRoutes'], ['inventory', 'inventory'], ['inventory categories', 'inventory'],
+        ['funding sources', 'inventory'], ['assignment statuses', 'inventory'],
+        ['discipline case', 'disciplineCases'],
         ['clubs & societies', 'clubs'], ['sports & activities', 'sportsActivities'], ['counseling', 'counseling'],
         ['report cards', 'reportCards'], ['analytics', 'learningAnalytics'], ['certificates', 'certificates'],
         ['staff attendance', 'staffAttendance'], ['leave management', 'leaveRequests'], ['recruitment', 'recruitment'],
@@ -8791,6 +8793,27 @@ Total Amount: —
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(inventoryModule, dashboardEl);
                 }
                 showSection('inventoryModule');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
+            const inventorySettingTypes = {
+                'Inventory Categories': 'category',
+                'Funding Sources': 'fundingSource',
+                'Assignment Statuses': 'assignmentStatus'
+            };
+            if (inventorySettingTypes[linkText]) {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Operations Department';
+                const optionType = inventorySettingTypes[linkText];
+                const moduleId = `inventorySettings-${optionType}`;
+                let settingsModule = document.getElementById(moduleId);
+                if (!settingsModule) {
+                    settingsModule = window.createInventorySettingsModule(optionType);
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(settingsModule, dashboardEl);
+                }
+                showSection(moduleId);
                 updateBreadcrumb([category, linkText]);
                 return;
             }

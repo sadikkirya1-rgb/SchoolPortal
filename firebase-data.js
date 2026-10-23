@@ -22,7 +22,7 @@ const allowedCollections = new Set([
     'studyMaterials', 'quizzes', 'inventory', 'assets', 'visitors',
     'appointments', 'staffAttendance', 'leaveRequests', 'payroll',
     'suppliers', 'purchaseOrders', 'purchaseRequests', 'auditEvents',
-    'settings', 'schoolProfile', 'alumni', 'boardingRecords', 'certificates',
+    'settings', 'inventorySettings', 'schoolProfile', 'alumni', 'boardingRecords', 'certificates',
     'counseling', 'curriculum', 'idCards', 'sportsActivities', 'recruitment',
     'payrollReports', 'paySlips', 'statutoryReturns', 'purchaseComparisons',
     'quotations', 'goodsReceipts', 'supplierInvoices', 'maintenanceWorkOrders',
@@ -124,12 +124,13 @@ function isTeachingRole(role) {
 function canEditCollection(owner, collectionName) {
     if (!owner || ['parent', 'student'].includes(String(owner.role).toLowerCase())) return false;
     const isAdministrator = ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(owner.role);
+    const permissionCollection = collectionName === 'inventorySettings' ? 'inventory' : collectionName;
     const hasLegacyExamResultsAccess = collectionName === 'examResults'
         && isTeachingRole(owner.role)
         && owner.assignedClassIds.length > 0
         && owner.permissions?.examResults === undefined;
     return isAdministrator
-        || owner.permissions?.[collectionName]?.edit === true
+        || owner.permissions?.[permissionCollection]?.edit === true
         || hasLegacyExamResultsAccess;
 }
 

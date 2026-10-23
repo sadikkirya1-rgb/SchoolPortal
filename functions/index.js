@@ -1787,7 +1787,7 @@ const auditedCollections = new Set([
     'transportRoutes', 'disciplineCases', 'clubs', 'studyMaterials', 'quizzes',
     'inventory', 'assets', 'visitors', 'appointments', 'staffAttendance',
     'leaveRequests', 'payroll', 'suppliers', 'purchaseOrders', 'purchaseRequests',
-    'settings', 'schoolProfile', 'announcements', 'smsMessages', 'notifications',
+    'settings', 'inventorySettings', 'schoolProfile', 'announcements', 'smsMessages', 'notifications',
     'teachers', 'staffDirectory', 'visitorLogs', 'alumni',
     'boardingRecords', 'certificates', 'counseling', 'curriculum', 'idCards',
     'sportsActivities', 'recruitment', 'payrollReports', 'paySlips', 'statutoryReturns',
