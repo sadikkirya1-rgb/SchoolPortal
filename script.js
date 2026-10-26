@@ -6854,7 +6854,7 @@ document.addEventListener('DOMContentLoaded', () => {
         Teacher: { sections: ['Main', 'Academic Department', 'E-Learning Department', 'Student Life Department'], perms: { view: true, edit: true, delete: false } },
         Librarian: { sections: ['Main', 'Academic Department', 'E-Learning Department', 'Student Life Department'], perms: { view: true, edit: true, delete: false } },
         'HR Officer': { sections: ['Main', 'Human Resources Department', 'Payroll Department'], perms: { view: true, edit: true, delete: false } },
-        'Store Manager': { sections: ['Main', 'Operations Department', 'Procurement Department', 'Assets & Security Department'], perms: { view: true, edit: true, delete: false } },
+        'Store Manager': { sections: ['Main', 'Operations Department', 'Procurement Department'], perms: { view: true, edit: true, delete: false } },
         Parent: {
             sections: parentRecommendedSectionGrants,
             perms: { view: true, edit: false, delete: false }
@@ -8569,7 +8569,7 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(fixedAssetsModule, dashboardEl);
                 }
                 showSection('fixedAssetsModule');
-                updateBreadcrumb(['Assets & Security Department', 'Fixed Assets']);
+                updateBreadcrumb(['Operations Department', 'Fixed Assets']);
                 return;
             }
 
@@ -8581,7 +8581,7 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(maintenanceModule, dashboardEl);
                 }
                 showSection('maintenanceManagementModule');
-                updateBreadcrumb(['Assets & Security Department', 'Maintenance']);
+                updateBreadcrumb(['Operations Department', 'Maintenance']);
                 return;
             }
 
