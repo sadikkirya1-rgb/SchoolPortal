@@ -31,16 +31,7 @@ async function findAuditEvents(recordId) {
     return snapshot;
 }
 
-async function waitForAuditEvents(recordId, expectedCount) {
-    for (let attempt = 0; attempt < 50; attempt += 1) {
-        const snapshot = await findAuditEvents(recordId);
-        if (snapshot.size >= expectedCount) return snapshot;
-        await new Promise(resolve => setTimeout(resolve, 200));
-    }
-    throw new Error(`Expected ${expectedCount} audit events for ${recordId}.`);
-}
-
-test('Firestore create and update operations produce server audit events', async () => {
+test('Firestore create and update operations do not produce audit events', async () => {
     const recordId = `ATT-${process.pid}-${Date.now()}`;
     await testEnvironment.withSecurityRulesDisabled(async context => {
         await setDoc(doc(context.firestore(), `schools/SCH-AUDIT-TEST/attendance/${recordId}`), {
@@ -51,14 +42,6 @@ test('Firestore create and update operations produce server audit events', async
         });
     });
 
-    const createSnapshot = await waitForAuditEvents(recordId, 1);
-    const created = createSnapshot.docs.map(item => item.data().data).find(item => item.action === 'create');
-    assert.ok(created);
-    assert.equal(created.actorUid, 'teacher-1');
-    assert.equal(created.collection, 'attendance');
-    assert.ok(created.changedFields.includes('status'));
-    assert.equal(Object.hasOwn(created, 'record'), false);
-
     await testEnvironment.withSecurityRulesDisabled(async context => {
         await updateDoc(doc(context.firestore(), `schools/SCH-AUDIT-TEST/attendance/${recordId}`), {
             data: { studentId: 'STUDENT-1', status: 'Absent' },
@@ -68,9 +51,7 @@ test('Firestore create and update operations produce server audit events', async
         });
     });
 
-    const updateSnapshot = await waitForAuditEvents(recordId, 2);
-    const updated = updateSnapshot.docs.map(item => item.data().data).find(item => item.action === 'update');
-    assert.ok(updated);
-    assert.deepEqual(updated.changedFields, ['status']);
-    assert.equal(Object.hasOwn(updated, 'record'), false);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const snapshot = await findAuditEvents(recordId);
+    assert.equal(snapshot.size, 0);
 });

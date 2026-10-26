@@ -21,7 +21,7 @@ const allowedCollections = new Set([
     'healthRecords', 'transportRoutes', 'disciplineCases', 'clubs',
     'studyMaterials', 'quizzes', 'inventory', 'assets', 'visitors',
     'appointments', 'staffAttendance', 'leaveRequests', 'payroll',
-    'suppliers', 'purchaseOrders', 'purchaseRequests', 'auditEvents',
+    'suppliers', 'purchaseOrders', 'purchaseRequests',
     'settings', 'inventorySettings', 'schoolProfile', 'alumni', 'boardingRecords', 'certificates',
     'counseling', 'curriculum', 'idCards', 'sportsActivities', 'recruitment',
     'payrollReports', 'paySlips', 'statutoryReturns', 'purchaseComparisons',

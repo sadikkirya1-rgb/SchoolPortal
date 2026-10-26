@@ -486,9 +486,9 @@ test('assigned data permissions limit accounts to the selected access levels', a
     await assertSucceeds(deleteDoc(doc(deleterDb, 'schools/SCH-TEST/students/STUDENT-C')));
 });
 
-test('school admins can read server-generated audit events', async () => {
+test('school admins cannot read audit events', async () => {
     const firestore = administratorContext().firestore();
-    await assertSucceeds(getDoc(doc(firestore, 'schools/SCH-TEST/auditEvents/EVENT-1')));
+    await assertFails(getDoc(doc(firestore, 'schools/SCH-TEST/auditEvents/EVENT-1')));
 });
 
 test('push notification tokens are inaccessible to school clients', async () => {

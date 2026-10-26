@@ -80,16 +80,6 @@ function isPlatformAdmin(request) {
     return request.auth?.token?.appAdmin === true;
 }
 
-async function writePlatformAudit(request, action, schoolId, subjectUid = null) {
-    await db.collection('platformAuditLogs').add({
-        actorUid: request.auth.uid,
-        action,
-        schoolId,
-        subjectUid,
-        createdAt: FieldValue.serverTimestamp()
-    });
-}
-
 function schoolIdDate(date) {
     const day = String(date.getUTCDate()).padStart(2, '0');
     const month = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -174,14 +164,6 @@ exports.createSchool = onCall(async request => {
             createdAt: FieldValue.serverTimestamp(),
             createdBy: request.auth.uid
         });
-        const auditRef = db.collection('platformAuditLogs').doc();
-        transaction.create(auditRef, {
-            actorUid: request.auth.uid,
-            action: 'school.created',
-            schoolId: allocatedId,
-            subjectUid: null,
-            createdAt: FieldValue.serverTimestamp()
-        });
         return allocatedId;
     });
 
@@ -263,11 +245,6 @@ exports.setPlatformSchoolStatus = onCall(async request => {
     const schoolSnapshot = await schoolRef.get();
     if (!schoolSnapshot.exists) throw new HttpsError('not-found', 'School not found.');
     await schoolRef.update({ status, updatedAt: FieldValue.serverTimestamp() });
-    try {
-        await writePlatformAudit(request, `school.${status}`, schoolId);
-    } catch (auditError) {
-        console.error('Platform school status audit entry failed.', auditError);
-    }
     return { schoolId, status };
 });
 
@@ -345,22 +322,6 @@ async function validateAssignedClassIds(schoolId, role, classIds) {
         throw new HttpsError('invalid-argument', 'One or more selected classes do not exist or are inactive.');
     }
     return classIds;
-}
-
-function accountAuditData(request, action, uid, changes = []) {
-    return {
-        data: {
-            actorUid: request.auth.uid,
-            subjectUid: uid,
-            action,
-            changedFields: changes,
-            source: 'account-management',
-            occurredAt: FieldValue.serverTimestamp()
-        },
-        version: 1,
-        updatedBy: request.auth.uid,
-        updatedAt: FieldValue.serverTimestamp()
-    };
 }
 
 function validateAccountPassword(value) {
@@ -958,24 +919,9 @@ exports.createSchoolUser = onCall(async request => {
         };
         const batch = db.batch();
         batch.set(db.doc(`schools/${schoolId}/members/${createdUser.uid}`), member);
-        batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
-            request,
-            'account.invited',
-            createdUser.uid,
-            ['role', 'sections', 'assignedClassIds', 'permissions', 'status', 'mustChangePassword']
-        ));
         if (account.role === 'parent') {
             batch.set(db.doc(`schools/${schoolId}/members/${createdUser.uid}/linkedStudents/${account.linkedRecordId}`), {
                 studentId: account.linkedRecordId,
-                createdAt: FieldValue.serverTimestamp()
-            });
-        }
-        if (caller.platformAdmin) {
-            batch.create(db.collection('platformAuditLogs').doc(), {
-                actorUid: request.auth.uid,
-                action: 'account.created',
-                schoolId,
-                subjectUid: createdUser.uid,
                 createdAt: FieldValue.serverTimestamp()
             });
         }
@@ -1068,20 +1014,7 @@ exports.updateSchoolUser = onCall(async request => {
         authProfileUpdated = true;
         const batch = db.batch();
         batch.update(memberRef, profile);
-        batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
-            request,
-            'account.updated',
-            uid,
-            Object.keys(profile).filter(key => key !== 'updatedAt')
-        ));
         await batch.commit();
-        if (isPlatformAdmin(request)) {
-            try {
-                await writePlatformAudit(request, 'account.updated', schoolId, uid);
-            } catch (auditError) {
-                console.error('Platform account update audit entry failed.', auditError);
-            }
-        }
     } catch (error) {
         console.error('Unable to update school member account.', error);
         if (authProfileUpdated) {
@@ -1114,12 +1047,6 @@ exports.generateSchoolUserPasswordResetLink = onCall(async request => {
     try {
         const account = await auth.getUser(uid);
         const invitationUrl = await auth.generatePasswordResetLink(account.email);
-        await db.collection(`schools/${schoolId}/auditEvents`).add(accountAuditData(
-            request,
-            'account.password_reset_link_issued',
-            uid,
-            ['password']
-        ));
         return { invitationUrl };
     } catch (error) {
         if (error instanceof HttpsError) throw error;
@@ -1154,12 +1081,6 @@ exports.setSchoolUserTemporaryPassword = onCall(async request => {
             mustChangePassword: true,
             updatedAt: FieldValue.serverTimestamp()
         });
-        batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
-            request,
-            'account.temporary_password_set',
-            uid,
-            ['mustChangePassword']
-        ));
         await batch.commit();
     } catch (error) {
         if (error instanceof HttpsError) throw error;
@@ -1198,12 +1119,6 @@ exports.completeOwnPasswordChange = onCall(async request => {
             passwordChangedAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp()
         });
-        batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
-            request,
-            'account.password_changed',
-            request.auth.uid,
-            ['mustChangePassword']
-        ));
         await batch.commit();
     } catch (error) {
         if (error instanceof HttpsError) throw error;
@@ -1236,20 +1151,7 @@ exports.setSchoolUserStatus = onCall(async request => {
     }
     const batch = db.batch();
     batch.update(memberRef, { status: status ? 'active' : 'disabled', updatedAt: FieldValue.serverTimestamp() });
-    batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
-        request,
-        status ? 'account.activated' : 'account.suspended',
-        uid,
-        ['status']
-    ));
     await batch.commit();
-    if (isPlatformAdmin(request)) {
-        try {
-            await writePlatformAudit(request, `account.${status ? 'activated' : 'suspended'}`, schoolId, uid);
-        } catch (auditError) {
-            console.error('Platform account status audit entry failed.', auditError);
-        }
-    }
     return { uid, status };
 });
 
@@ -1289,20 +1191,7 @@ exports.deleteSchoolUser = onCall(async request => {
     }
     const batch = db.batch();
     batch.delete(memberRef);
-    batch.create(db.collection(`schools/${schoolId}/auditEvents`).doc(), accountAuditData(
-        request,
-        'account.deleted',
-        uid,
-        ['account']
-    ));
     await batch.commit();
-    if (isPlatformAdmin(request)) {
-        try {
-            await writePlatformAudit(request, 'account.deleted', schoolId, uid);
-        } catch (auditError) {
-            console.error('Platform account deletion audit entry failed.', auditError);
-        }
-    }
     return { uid };
 });
 
@@ -1779,67 +1668,6 @@ for (const collectionName of Object.keys(parentNotificationRoutes)
         event => dispatchSchoolNotification(event, collectionName)
     );
 }
-
-const auditedCollections = new Set([
-    'students', 'parents', 'staff', 'classes', 'subjects', 'attendance',
-    'assessments', 'reportCards', 'examResults', 'fees', 'feeInvoices', 'expenses', 'timetables',
-    'notices', 'smsAlerts', 'libraryBooks', 'libraryLoans', 'healthRecords',
-    'transportRoutes', 'disciplineCases', 'clubs', 'studyMaterials', 'quizzes',
-    'inventory', 'assets', 'visitors', 'appointments', 'staffAttendance',
-    'leaveRequests', 'payroll', 'suppliers', 'purchaseOrders', 'purchaseRequests',
-    'settings', 'inventorySettings', 'schoolProfile', 'announcements', 'smsMessages', 'notifications',
-    'teachers', 'staffDirectory', 'visitorLogs', 'alumni',
-    'boardingRecords', 'certificates', 'counseling', 'curriculum', 'idCards',
-    'sportsActivities', 'recruitment', 'payrollReports', 'paySlips', 'statutoryReturns',
-    'purchaseComparisons', 'quotations', 'goodsReceipts', 'supplierInvoices',
-    'maintenanceWorkOrders', 'enquiries', 'incomingMail', 'followUps', 'dispatches',
-    'callLogs', 'admissions', 'applications', 'interviews', 'admissionLetters',
-    'waitingList', 'studentTransfers', 'questionBank', 'onlineClasses',
-    'learningAnalytics', 'transcripts', 'unebExams', 'schemesOfWork', 'streams',
-    'lessonPlans', 'schoolDocuments', 'calendarEvents', 'ministryReports', 'emisReports'
-]);
-
-exports.auditSchoolRecordChanges = onDocumentWritten(
-    'schools/{schoolId}/{collectionName}/{recordId}',
-    async event => {
-        const { schoolId, collectionName, recordId } = event.params;
-        if (collectionName === 'auditEvents' || !auditedCollections.has(collectionName)) return;
-
-        const before = event.data?.before.exists ? event.data.before.data() : null;
-        const after = event.data?.after.exists ? event.data.after.data() : null;
-        if (!before && !after) return;
-
-        const beforeData = before?.data && typeof before.data === 'object' ? before.data : before || {};
-        const afterData = after?.data && typeof after.data === 'object' ? after.data : after || {};
-        const action = !before || !afterData.deleted && beforeData.deleted
-            ? 'create'
-            : !after || afterData.deleted === true && beforeData.deleted !== true
-                ? 'delete'
-                : 'update';
-        const changedFields = Array.from(new Set([...Object.keys(beforeData), ...Object.keys(afterData)]))
-            .filter(field => JSON.stringify(beforeData[field]) !== JSON.stringify(afterData[field]))
-            .slice(0, 50);
-        const actorUid = after?.updatedBy || before?.updatedBy || null;
-        const auditRef = db.doc(`schools/${schoolId}/auditEvents/${event.id}`);
-
-        return auditRef.create({
-            data: {
-                actorUid,
-                action,
-                collection: collectionName,
-                recordId,
-                changedFields,
-                source: 'firestore-trigger',
-                occurredAt: FieldValue.serverTimestamp()
-            },
-            version: 1,
-            updatedBy: actorUid || 'system',
-            updatedAt: FieldValue.serverTimestamp()
-        }).catch(async error => {
-            if (error.code !== 6 && error.code !== 'already-exists') throw error;
-        });
-    }
-);
 
 exports.startScheduledFirestoreExport = onSchedule({
     schedule: '0 2 * * *',
