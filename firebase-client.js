@@ -256,6 +256,7 @@ const deleteSchoolUser = httpsCallable(functions, 'deleteSchoolUser');
 const setSchoolUserTemporaryPassword = httpsCallable(functions, 'setSchoolUserTemporaryPassword');
 const completeOwnPasswordChange = httpsCallable(functions, 'completeOwnPasswordChange');
 const getPublicPlatformStats = httpsCallable(functions, 'getPublicPlatformStats');
+const getSchoolAnalytics = httpsCallable(functions, 'getSchoolAnalytics');
 const getLinkedSchoolRecords = httpsCallable(functions, 'getLinkedSchoolRecords');
 const getParentPortalDashboardSummary = httpsCallable(functions, 'getParentPortalDashboardSummary');
 const savePushToken = httpsCallable(functions, 'savePushToken');
@@ -394,7 +395,8 @@ window.schoolPortalFirebase = {
     setSchoolUserStatus,
     deleteSchoolUser,
     setSchoolUserTemporaryPassword,
-    getPublicPlatformStats: async () => (await getPublicPlatformStats()).data
+    getPublicPlatformStats: async () => (await getPublicPlatformStats()).data,
+    getSchoolAnalytics: async schoolId => (await getSchoolAnalytics({ schoolId: normalizeSchoolId(schoolId) })).data
 };
 
 await import('./firebase-data.js');

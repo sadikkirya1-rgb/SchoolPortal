@@ -13,6 +13,7 @@ The Firebase client is configured for the `delivery-app-6a47f` project and the `
    ```
 
    Cloud Functions deployment requires a billing-enabled Firebase project. Review and test the rules with the Firebase Emulator before deploying them to a production school.
+   System Analytics uses the `getSchoolAnalytics` callable deployed with the functions. It returns school-scoped account and Firestore collection counts to authorized administrators; audit history, uptime, API request volume, and storage usage are not currently collected.
 3. Create your initial App Admin Auth user in Firebase Console. Find its Authentication UID, then grant the restricted App Admin custom claim from a trusted environment that has Firebase Admin SDK dependencies and Google Application Default Credentials:
 
    ```sh

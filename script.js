@@ -7074,9 +7074,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tr.classList.add('deactivated-row');
             }
 
-            const channels = notificationChannels
-                .filter(channel => u.notificationPreferences?.[channel])
-                .join(', ') || 'None selected';
+            const contactNumber = String(u.phone || '').trim() || 'Not selected';
 
             tr.innerHTML = `
                 <td style="text-align: center; width: 50px;">
@@ -7086,7 +7084,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${escapeUserHTML(u.userId)}</td>
                 <td>${escapeUserHTML(u.role)}</td>
                 <td>${escapeUserHTML(u.linkedRecordId || '—')}</td>
-                <td>${escapeUserHTML([u.email, u.phone].filter(Boolean).join(' · ') || '—')}<small class="user-notification-summary">Notices: ${escapeUserHTML(channels)}</small></td>
+                <td>${escapeUserHTML(contactNumber)}</td>
                 <td>${isAdministrator ? 'All sections' : sectionCount}</td>
                 <td>${isAdministrator ? 'All classes' : escapeUserHTML((u.assignedClassIds || []).join(', ') || (['teacher', 'deputyHeadTeacher'].includes(u.role) ? 'None assigned' : 'Not applicable'))}</td>
                 <td class="small">${isAdministrator ? 'Full school access' : escapeUserHTML(permissionSummary(u.permissions))}</td>

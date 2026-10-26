@@ -107,6 +107,70 @@ exports.getPublicPlatformStats = onCall(async () => {
     return publicStatsCache;
 });
 
+const schoolAnalyticsModules = [
+    { name: 'Academic', department: 'Academic', collections: ['students', 'parents', 'staff', 'teachers', 'classes', 'subjects', 'attendance', 'assessments', 'reportCards', 'examResults', 'timetables', 'curriculum', 'streams', 'lessonPlans', 'schemesOfWork', 'transcripts', 'unebExams'] },
+    { name: 'E-Learning', department: 'Academic', collections: ['studyMaterials', 'quizzes', 'onlineClasses', 'questionBank', 'learningAnalytics'] },
+    { name: 'Student Life', department: 'Student Affairs', collections: ['disciplineCases', 'clubs', 'sportsActivities', 'counseling', 'healthRecords', 'certificates', 'alumni', 'boardingRecords'] },
+    { name: 'Admissions', department: 'Admissions', collections: ['admissions', 'applications', 'interviews', 'admissionLetters', 'waitingList', 'studentTransfers'] },
+    { name: 'Finance', department: 'Finance', collections: ['fees', 'feeInvoices', 'expenses'] },
+    { name: 'Payroll', department: 'HR', collections: ['payroll', 'paySlips', 'statutoryReturns', 'payrollReports', 'staffAttendance', 'leaveRequests', 'recruitment'] },
+    { name: 'Procurement', department: 'Procurement', collections: ['suppliers', 'purchaseOrders', 'purchaseRequests', 'purchaseComparisons', 'quotations', 'goodsReceipts', 'supplierInvoices'] },
+    { name: 'Operations', department: 'Operations', collections: ['inventory', 'assets', 'maintenanceWorkOrders', 'transportRoutes'] },
+    { name: 'Communication', department: 'Communication', collections: ['notices', 'smsAlerts', 'smsMessages', 'announcements', 'notifications'] },
+    { name: 'Front Office', department: 'Front Office', collections: ['visitors', 'appointments', 'enquiries', 'incomingMail', 'followUps', 'dispatches', 'callLogs', 'visitorLogs', 'calendarEvents', 'schoolDocuments'] },
+    { name: 'System', department: 'System', collections: ['settings', 'inventorySettings', 'schoolProfile', 'idCards', 'ministryReports', 'emisReports'] }
+];
+const schoolAnalyticsCollectionNames = [...new Set(schoolAnalyticsModules.flatMap(module => module.collections))];
+const schoolAnalyticsCache = new Map();
+
+exports.getSchoolAnalytics = onCall(async request => {
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    await requireSchoolAdmin(request, schoolId);
+    const schoolSnapshot = await db.doc(`schools/${schoolId}`).get();
+    if (!schoolSnapshot.exists || schoolSnapshot.data()?.status !== 'active') {
+        throw new HttpsError('not-found', 'The active school was not found.');
+    }
+    const cached = schoolAnalyticsCache.get(schoolId);
+    if (cached && Date.now() - cached.createdAt < 30_000) return cached.value;
+
+    const memberSnapshot = await db.collection(`schools/${schoolId}/members`).get();
+    const membersByRole = {};
+    let activeMembers = 0;
+    memberSnapshot.forEach(member => {
+        const data = member.data();
+        const role = String(data.role || 'Other');
+        membersByRole[role] = (membersByRole[role] || 0) + 1;
+        if (data.status === 'active') activeMembers += 1;
+    });
+
+    const collectionCounts = {};
+    for (let index = 0; index < schoolAnalyticsCollectionNames.length; index += 10) {
+        const batch = schoolAnalyticsCollectionNames.slice(index, index + 10);
+        const counts = await Promise.all(batch.map(async name => {
+            const result = await db.collection(`schools/${schoolId}/${name}`).count().get();
+            return [name, result.data().count];
+        }));
+        counts.forEach(([name, count]) => { collectionCounts[name] = count; });
+    }
+    const modules = schoolAnalyticsModules.map(module => ({
+        name: module.name,
+        department: module.department,
+        collectionCount: module.collections.length,
+        records: module.collections.reduce((total, name) => total + collectionCounts[name], 0)
+    }));
+    const value = {
+        totalUsers: memberSnapshot.size,
+        activeUsers: activeMembers,
+        membersByRole,
+        collectionCounts,
+        totalRecords: Object.values(collectionCounts).reduce((total, count) => total + count, 0),
+        modulesWithRecords: modules.filter(module => module.records > 0).length,
+        modules
+    };
+    schoolAnalyticsCache.set(schoolId, { createdAt: Date.now(), value });
+    return value;
+});
+
 exports.createSchool = onCall(async request => {
     requirePlatformAdmin(request);
     const name = String(request.data?.name || '').trim();
