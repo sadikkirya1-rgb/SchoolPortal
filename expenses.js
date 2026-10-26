@@ -17,10 +17,27 @@ function createExpensesModule() {
     const statusClass = status => status === 'Paid' ? 'expense-paid' : status === 'Overdue' ? 'expense-overdue' : 'expense-pending';
     const save = () => localStorage.setItem(key, JSON.stringify(expenses));
     const get = id => expenses.find(item => item.id === id);
+    const nextExpenseId = () => {
+        const used = new Set(expenses.map(item => String(item.expenseId || '').toLowerCase()));
+        const lastNumber = expenses.reduce((maximum, item) => {
+            const value = String(item.expenseId || '');
+            const suffix = value.slice(4);
+            return value.toUpperCase().startsWith('EXP-') && /^\d+$/.test(suffix)
+                ? Math.max(maximum, Number(suffix))
+                : maximum;
+        }, 1000);
+        let number = lastNumber + 1;
+        let id;
+        do {
+            id = `EXP-${String(number++).padStart(4, '0')}`;
+        } while (used.has(id.toLowerCase()));
+        return id;
+    };
     const updateStats = () => { [['total', expenses], ['paid', expenses.filter(item => item.status === 'Paid')], ['pending', expenses.filter(item => item.status === 'Pending')], ['overdue', expenses.filter(item => item.status === 'Overdue')]].forEach(([name, items]) => q(`[data-expense-stat="${name}"]`).textContent = money(items.reduce((sum, item) => sum + num(item.amount), 0))); };
     const render = () => { const search = q('[data-expense-search]').value.toLowerCase(); const category = q('[data-expense-category]').value; const status = q('[data-expense-status]').value; const found = expenses.filter(item => [item.expenseName, item.expenseId, item.vendor, item.category].join(' ').toLowerCase().includes(search) && (!category || item.category === category) && (!status || item.status === status)); q('[data-expense-table]').innerHTML = found.map(item => `<tr><td><div class="expense-person"><div class="expense-avatar">${esc(initials(item.expenseName))}</div><div><strong>${esc(item.expenseName)}</strong><small>${esc(item.expenseId)}</small></div></div></td><td>${esc(item.category)}</td><td>${esc(item.vendor)}</td><td>${date(item.expenseDate)}</td><td><strong>${money(item.amount)}</strong></td><td>${esc(item.paymentMethod || '—')}</td><td>${date(item.dueDate)}</td><td><span class="expense-badge ${statusClass(item.status)}">${esc(item.status)}</span></td><td><div class="expense-actions"><button class="expense-icon-btn" type="button" title="Preview" data-expense-action="preview" data-id="${item.id}"><i class="fas fa-eye"></i></button><button class="expense-icon-btn" type="button" title="Edit" data-expense-action="edit" data-id="${item.id}"><i class="fas fa-pen"></i></button><button class="expense-icon-btn delete" type="button" title="Delete" data-expense-action="delete" data-id="${item.id}"><i class="fas fa-trash"></i></button></div></td></tr>`).join(''); q('[data-expense-empty]').style.display = found.length ? 'none' : 'block'; updateStats(); };
 
     const form = q('[data-expense-form]');
+    form.elements.expenseId.readOnly = true;
     const formOverlay = q('[data-expense-form-overlay]');
     const previewOverlay = q('[data-expense-preview-overlay]');
     const liveSummary = document.createElement('aside');
@@ -50,7 +67,7 @@ function createExpensesModule() {
     };
     form.addEventListener('input', updateLiveSummary);
     form.addEventListener('change', updateLiveSummary);
-    const reset = () => { form.reset(); form.elements.id.value = ''; const today = new Date().toISOString().slice(0, 10); form.elements.expenseDate.value = today; form.elements.dueDate.value = today; form.elements.amount.value = 0; form.elements.status.value = 'Pending'; q('[data-expense-form-title]').textContent = 'Add Expense Record'; };
+    const reset = () => { form.reset(); form.elements.id.value = ''; form.elements.expenseId.value = nextExpenseId(); const today = new Date().toISOString().slice(0, 10); form.elements.expenseDate.value = today; form.elements.dueDate.value = today; form.elements.amount.value = 0; form.elements.status.value = 'Pending'; q('[data-expense-form-title]').textContent = 'Add Expense Record'; };
     const openForm = item => { if (!item) reset(); else { Object.keys(item).forEach(field => { if (form.elements[field]) form.elements[field].value = item[field]; }); q('[data-expense-form-title]').textContent = 'Edit Expense Record'; } updateLiveSummary(); formOverlay.classList.add('is-open'); form.elements.expenseName.focus(); };
     const preview = item => `<div class="expense-document"><div class="expense-receipt-header"><div class="expense-school-name">GREEN VALLEY INTERNATIONAL SCHOOL</div><div class="expense-school-address">Finance Department · Accounts & Administration</div><div class="expense-receipt-title">Expense Voucher</div><div class="expense-receipt-number">Expense No: ${esc(item.expenseId)}</div></div><div class="expense-preview-section"><h4>Expense Information</h4><div class="expense-preview-grid">${[['Expense Name', item.expenseName], ['Category', item.category], ['Vendor / Payee', item.vendor], ['Expense Date', date(item.expenseDate)]].map(([label, value]) => `<div class="expense-preview-item"><strong>${label}</strong>${esc(value)}</div>`).join('')}</div></div><div class="expense-preview-section"><h4>Payment Details</h4><table class="expense-summary"><thead><tr><th>Description</th><th>Due Date</th><th>Amount</th></tr></thead><tbody><tr><td>${esc(item.expenseName)}</td><td>${date(item.dueDate)}</td><td>${money(item.amount)}</td></tr></tbody></table><div class="expense-total"><div class="expense-total-box"><small>Expense Amount</small><strong>${money(item.amount)}</strong></div></div></div><div class="expense-preview-section"><h4>Transaction Information</h4><div class="expense-preview-grid">${[['Payment Method', item.paymentMethod || '—'], ['Payment Date', item.paymentDate ? date(item.paymentDate) : '—'], ['Status', item.status]].map(([label, value]) => `<div class="expense-preview-item"><strong>${label}</strong>${esc(value)}</div>`).join('')}</div></div><div class="expense-preview-section"><h4>Description / Notes</h4><div class="expense-notes">${esc(item.notes || 'No additional notes.')}</div></div><div class="expense-signatures"><span>Prepared By</span><span>Authorized By</span></div></div>`;
     const openPreview = item => { selectedId = item.id; q('[data-expense-preview-content]').innerHTML = preview(item); previewOverlay.classList.add('is-open'); };

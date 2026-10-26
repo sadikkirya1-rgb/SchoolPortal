@@ -7710,12 +7710,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <th>Invoice Date</th>
                                     <th>Due Date</th>
                                     <th>Amount</th>
+                                    <th>Balance</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr class="empty-state"><td colspan="8">No invoices found.</td></tr>
+                                <tr class="empty-state"><td colspan="9">No invoices found.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -7735,9 +7736,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <label>Invoice Date *<input name="invoiceDate" type="date" required></label>
                             <label>Due Date *<input name="dueDate" type="date" required></label>
                             <label>Amount (AED) *<input name="amount" type="number" min="0" step="0.01" value="0" required></label>
+                            <label>Balance (AED)<input name="balance" type="number" min="0" step="0.01" value="0" readonly></label>
                             <label>Status<select name="status"><option>Pending</option><option>Partial</option><option>Paid</option><option>Overdue</option></select></label>
                         </div>
-                        <aside class="fee-invoice-live-summary" aria-live="polite"><h4>Live Summary</h4><p>Updates as you enter invoice details.</p><div><span>Student</span><strong data-invoice-live="student">—</strong></div><div><span>Student ID</span><strong data-invoice-live="studentId">—</strong></div><div><span>Class</span><strong data-invoice-live="className">—</strong></div><div><span>Due Date</span><strong data-invoice-live="dueDate">—</strong></div><div><span>Status</span><strong data-invoice-live="status">Pending</strong></div><div><span>Amount</span><strong data-invoice-live="amount">AED 0.00</strong></div></aside>
+                        <aside class="fee-invoice-live-summary" aria-live="polite"><h4>Live Summary</h4><p>Updates as you enter invoice details.</p><div><span>Student</span><strong data-invoice-live="student">—</strong></div><div><span>Student ID</span><strong data-invoice-live="studentId">—</strong></div><div><span>Class</span><strong data-invoice-live="className">—</strong></div><div><span>Due Date</span><strong data-invoice-live="dueDate">—</strong></div><div><span>Status</span><strong data-invoice-live="status">Pending</strong></div><div><span>Amount</span><strong data-invoice-live="amount">AED 0.00</strong></div><div><span>Balance</span><strong data-invoice-live="balance">AED 0.00</strong></div></aside>
                         <div class="fee-invoice-form-actions"><button class="btn btn-light" type="button" data-invoice-form-cancel>Cancel</button><button class="btn btn-primary" type="submit">Save Invoice</button></div>
                     </form></div>
                 </div>
@@ -7791,6 +7793,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="invoice-totals">
                                 <div class="total-row"><span>Subtotal</span><strong>—</strong></div>
                                 <div class="total-row"><span>Discount</span><strong>—</strong></div>
+                                <div class="total-row"><span>Balance</span><strong>—</strong></div>
                                 <div class="total-row final"><span>Total Due</span><strong>—</strong></div>
                             </div>
                             <div class="payment-note">✓ Payment status: <strong id="previewPaymentStatus">—</strong> — Thank you for keeping your school fee account up to date.</div>
@@ -7828,7 +7831,7 @@ document.addEventListener('DOMContentLoaded', () => {
             classSelect.innerHTML = '<option value="">All Classes</option>' + [...new Set(invoices.map(invoice => invoice.className).filter(Boolean))].map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
             if ([...classSelect.options].some(option => option.value === currentClass)) classSelect.value = currentClass;
             const body = invoiceQuery('#invoiceTable tbody');
-            body.innerHTML = invoices.length ? invoices.map(invoice => `<tr data-status="${escapeHtml(invoice.status)}" data-class="${escapeHtml(invoice.className)}" data-date="${escapeHtml(invoice.invoiceDate)}"><td><strong class="invoice-number">${escapeHtml(invoice.number)}</strong></td><td><div class="student"><span class="student-avatar">${escapeHtml(String(invoice.student || '?').split(/\s+/).slice(0,2).map(part => part[0]).join('').toUpperCase())}</span><div><strong class="student-name">${escapeHtml(invoice.student)}</strong><small class="student-id">${escapeHtml(invoice.studentId)}</small></div></div></td><td>${escapeHtml(invoice.className)}</td><td>${invoiceDate(invoice.invoiceDate)}</td><td>${invoiceDate(invoice.dueDate)}</td><td><strong class="amount">${invoiceMoney(invoice.amount)}</strong></td><td><span class="status ${escapeHtml(String(invoice.status).toLowerCase())}">${escapeHtml(invoice.status)}</span></td><td><div class="actions invoice-actions"><button class="action-btn" type="button" title="Preview invoice" aria-label="Preview ${escapeHtml(invoice.number)}" data-invoice-action="preview" data-invoice-number="${escapeHtml(invoice.number)}"><i class="fas fa-eye"></i></button><button class="action-btn print" type="button" title="Print invoice" aria-label="Print ${escapeHtml(invoice.number)}" data-invoice-action="print" data-invoice-number="${escapeHtml(invoice.number)}"><i class="fas fa-print"></i></button><button class="action-btn download" type="button" title="Download invoice" aria-label="Download ${escapeHtml(invoice.number)}" data-invoice-action="download" data-invoice-number="${escapeHtml(invoice.number)}"><i class="fas fa-download"></i></button></div></td></tr>`).join('') : '<tr class="empty-state"><td colspan="8">No invoices found. Use + Fee Invoices to create one.</td></tr>';
+            body.innerHTML = invoices.length ? invoices.map(invoice => `<tr data-status="${escapeHtml(invoice.status)}" data-class="${escapeHtml(invoice.className)}" data-date="${escapeHtml(invoice.invoiceDate)}"><td><strong class="invoice-number">${escapeHtml(invoice.number)}</strong></td><td><div class="student"><span class="student-avatar">${escapeHtml(String(invoice.student || '?').split(/\s+/).slice(0,2).map(part => part[0]).join('').toUpperCase())}</span><div><strong class="student-name">${escapeHtml(invoice.student)}</strong><small class="student-id">${escapeHtml(invoice.studentId)}</small></div></div></td><td>${escapeHtml(invoice.className)}</td><td>${invoiceDate(invoice.invoiceDate)}</td><td>${invoiceDate(invoice.dueDate)}</td><td><strong class="amount">${invoiceMoney(invoice.amount)}</strong></td><td><strong class="amount">${invoiceMoney(invoice.balance)}</strong></td><td><span class="status ${escapeHtml(String(invoice.status).toLowerCase())}">${escapeHtml(invoice.status)}</span></td><td><div class="actions invoice-actions"><button class="action-btn" type="button" title="Preview invoice" aria-label="Preview ${escapeHtml(invoice.number)}" data-invoice-action="preview" data-invoice-number="${escapeHtml(invoice.number)}"><i class="fas fa-eye"></i></button><button class="action-btn print" type="button" title="Print invoice" aria-label="Print ${escapeHtml(invoice.number)}" data-invoice-action="print" data-invoice-number="${escapeHtml(invoice.number)}"><i class="fas fa-print"></i></button><button class="action-btn download" type="button" title="Download invoice" aria-label="Download ${escapeHtml(invoice.number)}" data-invoice-action="download" data-invoice-number="${escapeHtml(invoice.number)}"><i class="fas fa-download"></i></button></div></td></tr>`).join('') : '<tr class="empty-state"><td colspan="9">No invoices found. Use + Fee Invoices to create one.</td></tr>';
             window.filterInvoices();
         };
         const invoiceForm = invoiceQuery('#feeInvoiceForm');
@@ -7845,12 +7848,26 @@ document.addEventListener('DOMContentLoaded', () => {
         studentStatus.setAttribute('aria-live', 'polite');
         studentSelect.parentElement.appendChild(studentStatus);
         let studentRecords = [];
+        let feeRecords = [];
         const studentDisplayId = student => String(student.admissionNo || student.admissionNumber || student.studentCode || student.studentId || student.id || '').trim();
         const studentRecordKey = student => String(student.id || studentDisplayId(student)).trim();
         const studentFullName = student => String(student.fullName || student.name || student.studentName
             || [student.firstName, student.middleName, student.lastName].filter(Boolean).join(' ') || '').trim();
         const selectedStudent = value => studentRecords.find(student =>
             studentDisplayId(student) === String(value) || studentRecordKey(student) === String(value));
+        const studentFees = student => {
+            const ids = new Set([studentRecordKey(student), studentDisplayId(student)].filter(Boolean).map(String));
+            return feeRecords.filter(fee => fee && fee.deleted !== true
+                && [fee.studentId, fee.studentRecordId, fee.studentAdmissionNo, fee.admissionNo]
+                    .some(value => value !== undefined && value !== null && ids.has(String(value))));
+        };
+        const feeAmount = fee => Number(fee.totalFee ?? fee.amount ?? fee.amountDue) || 0;
+        const feeBalance = fee => {
+            const storedBalance = fee.balance ?? fee.balanceDue;
+            return storedBalance !== undefined && storedBalance !== null
+                ? Math.max(0, Number(storedBalance) || 0)
+                : Math.max(0, feeAmount(fee) - (Number(fee.amountPaid ?? fee.paidAmount) || 0));
+        };
         const refreshInvoiceStudentOptions = () => {
             const selected = studentSelect.value;
             studentSelect.replaceChildren(new Option(studentRecords.length ? 'Select student ID' : 'No student records available', ''));
@@ -7872,6 +7889,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!student) {
                 invoiceForm.elements.student.value = '';
                 invoiceForm.elements.className.value = '';
+                invoiceForm.elements.amount.value = 0;
+                invoiceForm.elements.balance.value = 0;
                 studentRecordId.value = '';
                 updateInvoiceSummary();
                 return;
@@ -7879,11 +7898,14 @@ document.addEventListener('DOMContentLoaded', () => {
             invoiceForm.elements.student.value = studentFullName(student);
             invoiceForm.elements.className.value = String(student.className || student.class || student.grade || student.gradeName || '').trim();
             studentRecordId.value = studentRecordKey(student);
+            const fees = studentFees(student);
+            invoiceForm.elements.amount.value = fees.reduce((total, fee) => total + feeAmount(fee), 0).toFixed(2);
+            invoiceForm.elements.balance.value = fees.reduce((total, fee) => total + feeBalance(fee), 0).toFixed(2);
             updateInvoiceSummary();
         };
         const updateInvoiceSummary = () => {
             const values = Object.fromEntries(new FormData(invoiceForm).entries());
-            const summary = { student: values.student || '—', studentId: values.studentId || '—', className: values.className || '—', dueDate: invoiceDate(values.dueDate), status: values.status || 'Pending', amount: invoiceMoney(values.amount) };
+            const summary = { student: values.student || '—', studentId: values.studentId || '—', className: values.className || '—', dueDate: invoiceDate(values.dueDate), status: values.status || 'Pending', amount: invoiceMoney(values.amount), balance: invoiceMoney(values.balance) };
             Object.entries(summary).forEach(([name, value]) => invoiceQuery(`[data-invoice-live="${name}"]`).textContent = value);
         };
         const openInvoiceForm = () => {
@@ -7893,6 +7915,7 @@ document.addEventListener('DOMContentLoaded', () => {
             invoiceForm.elements.invoiceDate.value = new Date().toISOString().slice(0, 10);
             invoiceForm.elements.dueDate.value = invoiceForm.elements.invoiceDate.value;
             invoiceForm.elements.amount.value = 0;
+            invoiceForm.elements.balance.value = 0;
             updateInvoiceSummary();
             invoiceFormModal.classList.add('show');
             invoiceFormModal.setAttribute('aria-hidden', 'false');
@@ -7911,7 +7934,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const status = values.status === 'Pending' && values.dueDate && new Date(`${values.dueDate}T00:00:00`) < new Date(new Date().toDateString()) ? 'Overdue' : values.status;
             const number = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-            invoiceData[number] = { number, ...values, amount: Number(values.amount) || 0, status };
+            invoiceData[number] = { number, ...values, amount: Number(values.amount) || 0, balance: Number(values.balance) || 0, status };
             saveInvoices();
             renderInvoices();
             invoiceFormModal.classList.remove('show');
@@ -7923,11 +7946,17 @@ document.addEventListener('DOMContentLoaded', () => {
         invoiceQuery('.invoice-main-btn').addEventListener('click', openInvoiceForm);
         const studentApi = window.schoolPortalData;
         if (studentApi?.subscribe) {
+            Promise.resolve(studentApi.subscribe('fees', records => {
+                feeRecords = records.filter(fee => fee && fee.deleted !== true);
+                if (studentSelect.value) selectInvoiceStudent();
+            })).catch(error => {
+                console.error('Unable to load fee records for fee invoices.', error);
+            });
             Promise.resolve(studentApi.subscribe('students', records => {
                 studentRecords = records.filter(student => student && student.deleted !== true);
                 refreshInvoiceStudentOptions();
                 studentStatus.textContent = studentRecords.length
-                    ? 'Select a student ID to fill in the student name and class.'
+                    ? ''
                     : 'No student records are available for this school.';
                 if (studentSelect.value) selectInvoiceStudent();
             })).catch(error => {
@@ -7968,7 +7997,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const totalCells = invoiceQuery('.invoice-totals').querySelectorAll('strong');
             totalCells[0].textContent = invoiceMoney(invoice.amount);
             totalCells[1].textContent = invoiceMoney(0);
-            totalCells[2].textContent = invoiceMoney(invoice.amount);
+            totalCells[2].textContent = invoiceMoney(invoice.balance);
+            totalCells[3].textContent = invoiceMoney(invoice.amount);
             invoiceQuery('#invoicePreviewModal').classList.add('show');
         };
 
@@ -7994,9 +8024,8 @@ Status: ${invoice.status}
 ----------------------------------------
 FEE DETAILS
 ----------------------------------------
-Tuition Fee              —
-Transportation Fee       —
-Activity Fee             —
+Tuition Fee              ${invoiceMoney(invoice.amount)}
+Outstanding Balance      ${invoiceMoney(invoice.balance)}
 ----------------------------------------
 TOTAL DUE                ${invoiceMoney(invoice.amount)}
 ----------------------------------------
