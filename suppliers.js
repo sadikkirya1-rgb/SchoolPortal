@@ -8,7 +8,7 @@ function createSuppliersModule() {
         <section class="sp-content" aria-label="Supplier directory"><div class="sp-toolbar"><label class="sp-search"><i class="fas fa-search" aria-hidden="true"></i><span class="sp-sr-only">Search suppliers</span><input type="search" data-sp-search placeholder="Search supplier, contact, email, category..."></label><select class="sp-filter" data-sp-status aria-label="Filter by status"><option value="">All Statuses</option><option>Active</option><option>Preferred</option><option>Pending Approval</option><option>Inactive</option><option>Suspended</option></select><select class="sp-filter" data-sp-category aria-label="Filter by category"><option value="">All Categories</option></select><button class="sp-button sp-light" type="button" data-sp-print-report><i class="fas fa-print"></i> Print Report</button></div>
             <div class="sp-table-wrap"><table class="sp-table"><thead><tr><th>Supplier</th><th>Contact Person</th><th>Category</th><th>Location</th><th>Payment Terms</th><th>Rating</th><th>Status</th><th>Actions</th></tr></thead><tbody data-sp-rows></tbody></table></div></section>
         <div class="sp-overlay" data-sp-form-overlay><section class="sp-modal" role="dialog" aria-modal="true" aria-labelledby="sp-form-title"><header class="sp-modal-head"><h3 id="sp-form-title">Add Supplier</h3><button class="sp-close" type="button" data-sp-close-form aria-label="Close">&times;</button></header>
-            <form class="sp-form" data-sp-form><div class="sp-grid">
+            <form class="sp-form" data-sp-form><div class="sp-form-layout"><div class="sp-form-body"><div class="sp-grid">
                 <label>Supplier / Company Name<input name="name" required placeholder="Enter company name"></label><label>Supplier Code<input name="id" required placeholder="e.g. SUP-001"></label><label>Supplier Type<select name="type"><option>Local Supplier</option><option>International Supplier</option><option>Manufacturer</option><option>Distributor</option><option>Service Provider</option><option>Contractor</option></select></label>
                 <label>Category<select name="category"><option>IT &amp; Technology</option><option>Office Supplies</option><option>Construction</option><option>Industrial</option><option>Facilities</option><option>Transportation</option><option>Professional Services</option><option>Hospitality</option><option>Medical</option><option>Other</option></select></label><label>Contact Person<input name="contact" required placeholder="Full name"></label><label>Job Title<input name="jobTitle" placeholder="e.g. Sales Manager"></label>
                 <label>Email Address<input name="email" type="email" required placeholder="supplier@example.com"></label><label>Phone Number<input name="phone" type="tel" required placeholder="+971 50 000 0000"></label><label>Alternative Phone<input name="altPhone" type="tel" placeholder="+971..."></label>
@@ -16,7 +16,9 @@ function createSuppliersModule() {
                 <label>Payment Terms<select name="paymentTerms"><option>Immediate</option><option>Net 15</option><option>Net 30</option><option>Net 45</option><option>Net 60</option><option>Net 90</option></select></label><label>Currency<select name="currency"><option>USD</option><option>AED</option><option>EUR</option><option>GBP</option><option>SAR</option></select></label><label>Credit Limit<input name="creditLimit" type="number" min="0" step="0.01" placeholder="0.00"></label>
                 <label>Supplier Rating<select name="rating"><option value="5">5 - Excellent</option><option value="4">4 - Very Good</option><option value="3">3 - Good</option><option value="2">2 - Fair</option><option value="1">1 - Poor</option></select></label><label>Status<select name="status"><option>Active</option><option>Preferred</option><option>Pending Approval</option><option>Inactive</option><option>Suspended</option></select></label><label>Tax / VAT Number<input name="taxNumber" placeholder="Tax registration number"></label>
                 <label>Registration / License No.<input name="registration" placeholder="Business registration"></label><label class="sp-full">Address<textarea name="address" placeholder="Complete supplier address"></textarea></label><label class="sp-full">Products / Services Provided<textarea name="products" placeholder="Describe the products or services supplied"></textarea></label><label class="sp-full">Supplier Notes<textarea name="notes" placeholder="Internal notes, special conditions, delivery information, etc."></textarea></label>
-            </div><footer class="sp-modal-actions"><button class="sp-button sp-light" type="button" data-sp-cancel>Cancel</button><button class="sp-button sp-primary" type="submit">Save Supplier</button></footer></form>
+            </div></div><aside class="sp-live-summary" aria-label="Supplier record summary"><h4>Supplier Summary</h4><p>Review the supplier profile as you fill out the form.</p><div class="sp-live-summary-list">
+                ${[['Supplier Code', 'id'], ['Company Name', 'name'], ['Supplier Type', 'type'], ['Category', 'category'], ['Contact Person', 'contact'], ['Email', 'email'], ['Phone', 'phone'], ['Location', 'city'], ['Country', 'country'], ['Payment Terms', 'paymentTerms'], ['Currency', 'currency'], ['Credit Limit', 'creditLimit'], ['Rating', 'rating'], ['Status', 'status']].map(([label, name]) => `<div class="sp-live-summary-row"><span>${label}</span><strong data-sp-summary="${name}">—</strong></div>`).join('')}
+            </div></aside><footer class="sp-modal-actions"><button class="sp-button sp-light" type="button" data-sp-cancel>Cancel</button><button class="sp-button sp-primary" type="submit">Save Supplier</button></footer></div></form>
         </section></div>
         <div class="sp-overlay" data-sp-view-overlay><section class="sp-modal" role="dialog" aria-modal="true" aria-labelledby="sp-view-title"><header class="sp-modal-head"><h3 id="sp-view-title">Supplier Profile</h3><button class="sp-close" type="button" data-sp-close-view aria-label="Close">&times;</button></header><div class="sp-view" data-sp-view-content></div><footer class="sp-modal-actions"><button class="sp-button sp-light" type="button" data-sp-close-view>Close</button><button class="sp-button sp-primary" type="button" data-sp-print-current><i class="fas fa-print"></i> Print / PDF</button></footer></section></div>
         <div class="sp-toast" role="status" aria-live="polite" data-sp-toast></div>`;
@@ -37,6 +39,16 @@ function createSuppliersModule() {
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
     const statusClass = status => status.toLowerCase().replace(/\s+/g, '-');
     const stars = rating => '★'.repeat(Math.max(0, Math.min(5, Number(rating) || 0))) + '☆'.repeat(5 - Math.max(0, Math.min(5, Number(rating) || 0)));
+    const summaryFields = ['id', 'name', 'type', 'category', 'contact', 'email', 'phone', 'city', 'country', 'paymentTerms', 'currency', 'creditLimit', 'rating', 'status'];
+    const updateFormSummary = () => {
+        const form = q('[data-sp-form]');
+        summaryFields.forEach(name => {
+            let value = String(form.elements[name].value || '').trim();
+            if (name === 'creditLimit' && value) value = `${form.elements.currency.value} ${Number(value).toLocaleString()}`;
+            if (name === 'rating' && value) value = `${value}/5`;
+            q(`[data-sp-summary="${name}"]`).textContent = value || '—';
+        });
+    };
     const save = () => localStorage.setItem(storageKey, JSON.stringify(suppliers));
     const toast = message => {
         const element = q('[data-sp-toast]');
@@ -78,9 +90,12 @@ function createSuppliersModule() {
         if (supplier) {
             ['name', 'id', 'type', 'category', 'contact', 'jobTitle', 'email', 'phone', 'altPhone', 'country', 'city', 'website', 'paymentTerms', 'currency', 'creditLimit', 'rating', 'status', 'taxNumber', 'registration', 'address', 'products', 'notes'].forEach(field => { form.elements[field].value = supplier[field] ?? ''; });
         }
+        updateFormSummary();
         q('[data-sp-form-overlay]').classList.add('is-open');
         form.elements.name.focus();
     };
+    q('[data-sp-form]').addEventListener('input', updateFormSummary);
+    q('[data-sp-form]').addEventListener('change', updateFormSummary);
     const detailContent = supplier => {
         const initials = supplier.name.split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase();
         const info = [['Website', supplier.website], ['Tax / VAT Number', supplier.taxNumber], ['Registration No.', supplier.registration], ['Alternative Phone', supplier.altPhone], ['Address', supplier.address], ['Products / Services', supplier.products]];

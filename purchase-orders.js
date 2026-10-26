@@ -17,6 +17,7 @@ function createPurchaseOrdersModule() {
         <div class="po-overlay" data-po-form-overlay><section class="po-modal" role="dialog" aria-modal="true" aria-labelledby="po-form-title"><header class="po-modal-head"><h3 id="po-form-title">Create Purchase Order</h3><button class="po-close" type="button" data-po-close-form aria-label="Close">&times;</button></header>
             <form class="po-form" data-po-form><div class="po-grid">
                 <label>Vendor / Supplier<input name="vendor" required placeholder="e.g. ABC Trading LLC"></label><label>Buyer / Purchaser<input name="buyer" required placeholder="e.g. Ahmed Khan"></label>
+                <label>Purchase Request<select name="sourceRequestId"><option value="">No linked purchase request</option></select></label>
                 <label>PO Date<input name="date" type="date" required></label><label>Expected Delivery Date<input name="delivery" type="date" required></label>
                 <label>Payment Terms<select name="payment"><option>Net 30</option><option>Net 15</option><option>Net 60</option><option>Due on Delivery</option><option>Advance Payment</option></select></label>
                 <label>Shipping Method<select name="shipping"><option>Standard Delivery</option><option>Express Delivery</option><option>Courier</option><option>Vendor Delivery</option><option>Pickup</option></select></label>
@@ -50,6 +51,7 @@ function createPurchaseOrdersModule() {
     let editingId = null;
     let viewingId = null;
     let toastTimer;
+    let purchaseRequests = [];
     const q = selector => section.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
     const money = (value, currency = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(value) || 0);
@@ -94,6 +96,26 @@ function createPurchaseOrdersModule() {
         return Number.isNaN(date.getTime()) ? escape(value) : date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
     };
     const save = () => localStorage.setItem(storageKey, JSON.stringify(orders));
+    const refreshPurchaseRequestOptions = () => {
+        const select = q('[name="sourceRequestId"]');
+        const selected = select.value;
+        try {
+            const stored = JSON.parse(localStorage.getItem('schoolPurchaseRequests') || '[]');
+            purchaseRequests = Array.isArray(stored) ? stored.filter(request => request && request.deleted !== true) : [];
+        } catch (error) {
+            console.error('Unable to load purchase requests for purchase order linking.', error);
+            purchaseRequests = [];
+        }
+        select.replaceChildren(new Option('No linked purchase request', ''));
+        purchaseRequests
+            .filter(request => request.id)
+            .sort((left, right) => String(right.id).localeCompare(String(left.id)))
+            .forEach(request => select.add(new Option(`${request.id} — ${request.requester || request.department || 'Purchase request'}`, String(request.id))));
+        if (selected && !Array.from(select.options).some(option => option.value === selected)) {
+            select.add(new Option(`${selected} — Purchase request record unavailable`, selected));
+        }
+        select.value = selected;
+    };
     const showToast = message => {
         const toast = q('[data-po-toast]');
         toast.textContent = message;
@@ -156,6 +178,7 @@ function createPurchaseOrdersModule() {
     const closeView = () => q('[data-po-view-overlay]').classList.remove('is-open');
     const openForm = order => {
         const form = q('[data-po-form]');
+        refreshPurchaseRequestOptions();
         form.reset();
         q('[data-po-items]').replaceChildren();
         editingId = order?.id ?? null;
@@ -163,6 +186,10 @@ function createPurchaseOrdersModule() {
         const today = new Date().toISOString().slice(0, 10);
         form.elements.date.value = order?.date || today;
         form.elements.delivery.value = order?.delivery || today;
+        if (order?.sourceRequestId && !Array.from(form.elements.sourceRequestId.options).some(option => option.value === String(order.sourceRequestId))) {
+            form.elements.sourceRequestId.add(new Option(`${order.sourceRequestId} — Purchase request record unavailable`, order.sourceRequestId));
+        }
+        form.elements.sourceRequestId.value = order?.sourceRequestId || order?.requestId || '';
         if (order) {
             ['vendor', 'buyer', 'payment', 'shipping', 'currency', 'department', 'address', 'notes'].forEach(field => { form.elements[field].value = order[field] || ''; });
             order.items.forEach(addItem);
@@ -179,7 +206,7 @@ function createPurchaseOrdersModule() {
         return `<div class="po-table-wrap"><table class="po-table po-approval-table"><thead><tr><th>Stage</th><th>Signatory</th><th>Status</th><th>Signer</th><th>Date / Reason</th></tr></thead><tbody>${current || '<tr><td colspan="5">No approval stages recorded.</td></tr>'}</tbody></table></div>${history}`;
     };
     const details = order => `<div class="po-detail-grid">
-        ${[['PO Number', order.id], ['Order Status', order.status], ['Approval Status', approvalProgress(order)], ['Vendor', order.vendor], ['Buyer', order.buyer], ['Order Date', formatDate(order.date)], ['Expected Delivery', formatDate(order.delivery)], ['Payment Terms', order.payment], ['Shipping Method', order.shipping], ['Currency', order.currency], ['Department', order.department], ['Delivery Address', order.address || 'Not provided'], ['Notes', order.notes || 'Not provided'], ['Rejection Reason', order.rejectionReason || 'Not applicable']].map(([label, value]) => `<div class="po-info-box"><h4>${escape(label)}</h4><p>${label === 'Order Status' ? `<span class="po-badge ${escape(String(value).toLowerCase())}">${escape(value)}</span>` : escape(value)}</p></div>`).join('')}
+        ${[['PO Number', order.id], ['Order Status', order.status], ['Approval Status', approvalProgress(order)], ['Vendor', order.vendor], ['Buyer', order.buyer], ['Purchase Request', order.sourceRequestId || order.requestId || 'Not linked'], ['Order Date', formatDate(order.date)], ['Expected Delivery', formatDate(order.delivery)], ['Payment Terms', order.payment], ['Shipping Method', order.shipping], ['Currency', order.currency], ['Department', order.department], ['Delivery Address', order.address || 'Not provided'], ['Notes', order.notes || 'Not provided'], ['Rejection Reason', order.rejectionReason || 'Not applicable']].map(([label, value]) => `<div class="po-info-box"><h4>${escape(label)}</h4><p>${label === 'Order Status' ? `<span class="po-badge ${escape(String(value).toLowerCase())}">${escape(value)}</span>` : escape(value)}</p></div>`).join('')}
         </div><h4 class="po-details-title">Approval Workflow</h4>${approvalTracker(order)}<h4 class="po-details-title">Order Items</h4><div class="po-table-wrap"><table class="po-table po-details-table"><thead><tr><th>Item</th><th>SKU</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${order.items.map(item => `<tr><td>${escape(item[0])}</td><td>${escape(item[3] || '—')}</td><td>${Number(item[1])}</td><td>${money(item[2], order.currency)}</td><td>${money(item[1] * item[2], order.currency)}</td></tr>`).join('')}</tbody></table></div><div class="po-totals"><div><span>Subtotal</span><strong>${money(subtotal(order), order.currency)}</strong></div><div><span>Discount</span><strong>${money(0, order.currency)}</strong></div><div><span>Tax (5%)</span><strong>${money(subtotal(order) * 0.05, order.currency)}</strong></div><div class="po-grand"><span>Grand Total</span><strong>${money(total(order), order.currency)}</strong></div></div>`;
     const printDocument = (title, html) => {
         const printWindow = window.open('', '_blank');
@@ -191,7 +218,7 @@ function createPurchaseOrdersModule() {
     };
     const printOrder = order => {
         const approvals = (order.approvalStages || []).map((stage, index) => `<tr><td>${index + 1}</td><td>${escape(stage.title)}</td><td>${escape(stage.status)}</td><td>${escape(stage.decidedBy || '—')}</td><td>${stage.approvedAt ? formatDate(stage.approvedAt.slice(0, 10)) : escape(stage.rejectionReason || '—')}</td></tr>`).join('');
-        const html = `<header class="head"><div><h1>Purchase Order</h1><p>Procurement Department</p></div><div><strong>${escape(order.id)}</strong><br>Order Date: ${formatDate(order.date)}<br>Delivery: ${formatDate(order.delivery)}</div></header><div class="meta"><div><strong>Vendor</strong>${escape(order.vendor)}</div><div><strong>Buyer</strong>${escape(order.buyer)}</div><div><strong>Department</strong>${escape(order.department)}</div><div><strong>Order / Approval Status</strong>${escape(order.status)} / ${escape(approvalProgress(order))}</div><div><strong>Payment Terms</strong>${escape(order.payment)}</div><div><strong>Shipping</strong>${escape(order.shipping)}</div><div><strong>Currency</strong>${escape(order.currency)}</div><div><strong>Delivery Address</strong>${escape(order.address || '—')}</div></div><table><thead><tr><th>#</th><th>Item Description</th><th>SKU</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td>${escape(item[0])}</td><td>${escape(item[3] || '—')}</td><td>${Number(item[1])}</td><td>${money(item[2], order.currency)}</td><td>${money(item[1] * item[2], order.currency)}</td></tr>`).join('')}</tbody></table><div class="totals"><div><span>Subtotal</span><strong>${money(subtotal(order), order.currency)}</strong></div><div><span>Discount</span><strong>${money(0, order.currency)}</strong></div><div><span>Tax (5%)</span><strong>${money(subtotal(order) * 0.05, order.currency)}</strong></div><div class="grand"><span>Grand Total</span><strong>${money(total(order), order.currency)}</strong></div></div><h2>Approval Workflow</h2><table><thead><tr><th>Stage</th><th>Signatory</th><th>Status</th><th>Signer</th><th>Date / Reason</th></tr></thead><tbody>${approvals || '<tr><td colspan="5">No approval stages recorded.</td></tr>'}</tbody></table><div class="notes"><strong>Notes / Special Instructions</strong><p>${escape(order.notes || 'No special instructions.')}</p></div>`;
+        const html = `<header class="head"><div><h1>Purchase Order</h1><p>Procurement Department</p></div><div><strong>${escape(order.id)}</strong><br>Order Date: ${formatDate(order.date)}<br>Delivery: ${formatDate(order.delivery)}</div></header><div class="meta"><div><strong>Vendor</strong>${escape(order.vendor)}</div><div><strong>Buyer</strong>${escape(order.buyer)}</div><div><strong>Purchase Request</strong>${escape(order.sourceRequestId || order.requestId || 'Not linked')}</div><div><strong>Department</strong>${escape(order.department)}</div><div><strong>Order / Approval Status</strong>${escape(order.status)} / ${escape(approvalProgress(order))}</div><div><strong>Payment Terms</strong>${escape(order.payment)}</div><div><strong>Shipping</strong>${escape(order.shipping)}</div><div><strong>Currency</strong>${escape(order.currency)}</div><div><strong>Delivery Address</strong>${escape(order.address || '—')}</div></div><table><thead><tr><th>#</th><th>Item Description</th><th>SKU</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>${order.items.map((item, index) => `<tr><td>${index + 1}</td><td>${escape(item[0])}</td><td>${escape(item[3] || '—')}</td><td>${Number(item[1])}</td><td>${money(item[2], order.currency)}</td><td>${money(item[1] * item[2], order.currency)}</td></tr>`).join('')}</tbody></table><div class="totals"><div><span>Subtotal</span><strong>${money(subtotal(order), order.currency)}</strong></div><div><span>Discount</span><strong>${money(0, order.currency)}</strong></div><div><span>Tax (5%)</span><strong>${money(subtotal(order) * 0.05, order.currency)}</strong></div><div class="grand"><span>Grand Total</span><strong>${money(total(order), order.currency)}</strong></div></div><h2>Approval Workflow</h2><table><thead><tr><th>Stage</th><th>Signatory</th><th>Status</th><th>Signer</th><th>Date / Reason</th></tr></thead><tbody>${approvals || '<tr><td colspan="5">No approval stages recorded.</td></tr>'}</tbody></table><div class="notes"><strong>Notes / Special Instructions</strong><p>${escape(order.notes || 'No special instructions.')}</p></div>`;
         printDocument(order.id, html);
     };
 
@@ -226,6 +253,7 @@ function createPurchaseOrdersModule() {
             rejectionReason: submitForApproval ? '' : existing?.rejectionReason || '',
             decisionAt: submitForApproval ? '' : existing?.decisionAt || '',
             decisionBy: submitForApproval ? '' : existing?.decisionBy || '',
+            sourceRequestId: form.elements.sourceRequestId.value,
             payment: form.elements.payment.value, shipping: form.elements.shipping.value,
             currency: form.elements.currency.value, department: form.elements.department.value,
             address: form.elements.address.value.trim(), notes: form.elements.notes.value.trim(), items
@@ -319,6 +347,13 @@ function createPurchaseOrdersModule() {
         }
     });
     q('[data-po-form]').elements.currency.addEventListener('change', calculate);
+    refreshPurchaseRequestOptions();
+    window.addEventListener('school-portal-cloud-data-update', event => {
+        if (event.detail?.collection === 'purchaseRequests') refreshPurchaseRequestOptions();
+    });
+    window.addEventListener('storage', event => {
+        if (event.key === 'schoolPurchaseRequests') refreshPurchaseRequestOptions();
+    });
     q('[data-po-close-form]').addEventListener('click', closeForm);
     q('[data-po-cancel]').addEventListener('click', closeForm);
     section.querySelectorAll('[data-po-close-view]').forEach(button => button.addEventListener('click', closeView));

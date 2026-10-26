@@ -6,10 +6,11 @@ function createSupplierInvoicesModule() {
         <header class="si-header"><div><h2>Supplier Invoices</h2><p>Manage supplier bills, approvals, payment status and outstanding balances</p></div><button class="si-button si-primary" type="button" data-si-new><i class="fas fa-plus"></i> New Invoice</button></header>
         <section class="si-stats" aria-label="Supplier invoice summary"><article class="si-stat"><div><span>Total Invoices</span><strong data-si-stat="total">0</strong></div><i class="fas fa-file-invoice"></i></article><article class="si-stat"><div><span>Pending Approval</span><strong data-si-stat="pending">0</strong></div><i class="fas fa-clock"></i></article><article class="si-stat"><div><span>Paid</span><strong data-si-stat="paid">0</strong></div><i class="fas fa-circle-check"></i></article><article class="si-stat"><div><span>Outstanding</span><strong data-si-stat="outstanding">$0</strong></div><i class="fas fa-wallet"></i></article><article class="si-stat"><div><span>Overdue</span><strong data-si-stat="overdue">$0</strong></div><i class="fas fa-triangle-exclamation"></i></article></section>
         <section class="si-content" aria-label="Supplier invoice records"><div class="si-toolbar"><label class="si-search"><i class="fas fa-search" aria-hidden="true"></i><span class="si-sr-only">Search supplier invoices</span><input type="search" data-si-search placeholder="Search invoice, supplier, PO..."></label><select class="si-filter" data-si-filter aria-label="Filter by status"><option value="">All Statuses</option><option>Draft</option><option>Pending Approval</option><option>Approved</option><option>Partially Paid</option><option>Paid</option><option>Overdue</option><option>Rejected</option><option>Cancelled</option></select><button class="si-button si-light" type="button" data-si-print-list><i class="fas fa-print"></i> Print Report</button></div>
-            <div class="si-table-wrap"><table class="si-table"><thead><tr><th>Invoice No.</th><th>Supplier</th><th>PO / GRN</th><th>Invoice Date</th><th>Due Date</th><th>Total Amount</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody data-si-rows></tbody></table></div></section>
+            <div class="si-table-wrap"><table class="si-table"><thead><tr><th>Invoice No.</th><th>Supplier</th><th>PO / GRN</th><th>Attachments</th><th>Invoice Date</th><th>Due Date</th><th>Total Amount</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody data-si-rows></tbody></table></div></section>
         <div class="si-overlay" data-si-form-overlay><section class="si-modal" role="dialog" aria-modal="true" aria-labelledby="si-form-title"><header class="si-modal-head"><h3 id="si-form-title">Create Supplier Invoice</h3><button class="si-close" type="button" data-si-close-form aria-label="Close">&times;</button></header>
             <form class="si-form" data-si-form><div class="si-grid">
-                <label>Supplier / Vendor<input name="supplier" required placeholder="Enter supplier name"></label><label>Supplier Invoice No.<input name="invoiceNo" required placeholder="e.g. INV-2026-1001"></label><label>Purchase Order<input name="po" placeholder="e.g. PO-2026-014"></label>
+                <label>Supplier / Vendor<input name="supplier" required placeholder="Select a purchase order"></label><label>Supplier Invoice No.<input name="invoiceNo" required placeholder="e.g. INV-2026-1001"></label><label>Purchase Order<select name="po"><option value="">Select purchase order (optional)</option></select></label>
+                <div class="si-po-attachments si-full" data-si-po-attachments aria-live="polite">Select a purchase order to view its related procurement documents.</div>
                 <label>Goods Receipt Note<input name="grn" placeholder="e.g. GRN-2026-001"></label><label>Invoice Date<input name="invoiceDate" type="date" required></label><label>Due Date<input name="dueDate" type="date" required></label>
                 <label>Currency<select name="currency"><option value="USD">USD - US Dollar</option><option value="AED">AED - UAE Dirham</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option></select></label><label>Payment Terms<select name="paymentTerms"><option>Immediate</option><option>Net 15</option><option>Net 30</option><option>Net 45</option><option>Net 60</option><option>Net 90</option></select></label><label>Invoice Status<select name="status"><option>Draft</option><option>Pending Approval</option><option>Approved</option><option>Partially Paid</option><option>Paid</option><option>Overdue</option><option>Rejected</option><option>Cancelled</option></select></label>
                 <label>Payment Method<select name="paymentMethod"><option>Bank Transfer</option><option>Cheque</option><option>Credit Card</option><option>Cash</option><option>Online Transfer</option></select></label><label>Department<select name="department"><option>Procurement</option><option>Finance</option><option>Administration</option><option>IT</option><option>Operations</option><option>Human Resources</option><option>Warehouse</option><option>Facilities</option></select></label><label>Payment Reference<input name="paymentReference" placeholder="Transaction / cheque reference"></label>
@@ -21,6 +22,7 @@ function createSupplierInvoicesModule() {
             </div><footer class="si-modal-actions"><button class="si-button si-light" type="button" data-si-cancel>Cancel</button><button class="si-button si-primary" type="submit">Save Invoice</button></footer></form>
         </section></div>
         <div class="si-overlay" data-si-view-overlay><section class="si-modal" role="dialog" aria-modal="true" aria-labelledby="si-view-title"><header class="si-modal-head"><h3 id="si-view-title">Supplier Invoice Details</h3><button class="si-close" type="button" data-si-close-view aria-label="Close">&times;</button></header><div class="si-view" data-si-view-content></div><footer class="si-modal-actions"><button class="si-button si-light" type="button" data-si-close-view>Close</button><button class="si-button si-primary" type="button" data-si-print-current><i class="fas fa-print"></i> Print / PDF</button></footer></section></div>
+        <div class="si-overlay" data-si-attachments-overlay><section class="si-modal si-attachments-modal" role="dialog" aria-modal="true" aria-labelledby="si-attachments-title"><header class="si-modal-head"><h3 data-si-attachments-title id="si-attachments-title">Purchase Order Documents</h3><button class="si-close" type="button" data-si-close-attachments aria-label="Close">&times;</button></header><div class="si-attachments-content" data-si-attachments-content></div><footer class="si-modal-actions"><button class="si-button si-light" type="button" data-si-close-attachments>Close</button></footer></section></div>
         <div class="si-toast" role="status" aria-live="polite" data-si-toast></div>`;
 
     const storageKey = 'schoolSupplierInvoices';
@@ -35,6 +37,11 @@ function createSupplierInvoicesModule() {
     let editingId = null;
     let viewingId = null;
     let toastTimer;
+    let purchaseOrders = [];
+    let purchaseRequests = [];
+    let quotations = [];
+    let comparisons = [];
+    let goodsReceipts = [];
     const q = selector => section.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
     const money = (value, currency = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(value) || 0);
@@ -49,6 +56,167 @@ function createSupplierInvoicesModule() {
     const invoiceTotal = invoice => invoiceSubtotal(invoice) + invoiceTax(invoice);
     const invoiceBalance = invoice => Math.max(0, invoiceTotal(invoice) - (Number(invoice.paidAmount) || 0));
     const statusClass = status => status.toLowerCase().replace(/\s+/g, '-');
+    const recordList = key => {
+        try {
+            const records = JSON.parse(localStorage.getItem(key) || '[]');
+            return Array.isArray(records) ? records.filter(record => record && record.deleted !== true) : [];
+        } catch (error) {
+            console.error(`Unable to read ${key} records for supplier invoice attachments.`, error);
+            return [];
+        }
+    };
+    const refreshProcurementRecords = () => {
+        purchaseOrders = recordList('schoolPurchaseOrders');
+        purchaseRequests = recordList('schoolPurchaseRequests');
+        quotations = recordList('schoolQuotations');
+        comparisons = recordList('schoolPurchaseComparisons');
+        goodsReceipts = recordList('schoolGoodsReceipts');
+        refreshPurchaseOrderOptions();
+    };
+    const poId = order => String(order?.id || order?.poNumber || order?.purchaseOrderNumber || '').trim();
+    const refreshPurchaseOrderOptions = () => {
+        const select = q('[name="po"]');
+        const selected = select.value;
+        select.replaceChildren(new Option('Select purchase order (optional)', ''));
+        purchaseOrders
+            .filter(order => poId(order))
+            .sort((left, right) => poId(right).localeCompare(poId(left)))
+            .forEach(order => select.add(new Option(`${poId(order)} — ${order.vendor || order.supplier || 'Supplier not set'}`, poId(order))));
+        if (selected && !Array.from(select.options).some(option => option.value === selected)) {
+            select.add(new Option(`${selected} — Purchase order record unavailable`, selected));
+        }
+        select.value = selected;
+    };
+    const normalizeReference = value => String(value || '').trim().toLowerCase();
+    const documentReferences = order => {
+        const fields = {
+            request: ['request', 'requestId', 'purchaseRequest', 'purchaseRequestId', 'prNumber', 'sourceRequestId'],
+            comparison: ['comparison', 'comparisonId', 'comparisonNo', 'purchaseComparisonId'],
+            quotation: ['quotation', 'quotationId', 'quotationNo']
+        };
+        return Object.fromEntries(Object.entries(fields).map(([key, names]) => [
+            key,
+            names.map(name => normalizeReference(order?.[name])).filter(Boolean)
+        ]));
+    };
+    const linkedProcurementDocuments = order => {
+        if (!order) return [];
+        const references = documentReferences(order);
+        const vendor = normalizeReference(order.vendor || order.supplier);
+        const matchingComparisons = comparisons.filter(comparison => {
+            const id = normalizeReference(comparison.id);
+            const recommended = normalizeReference(comparison.recommended);
+            const comparisonRequest = normalizeReference(comparison.request || comparison.requestId);
+            return references.comparison.includes(id)
+                || references.request.includes(comparisonRequest)
+                || (vendor && (recommended === vendor
+                    || (Array.isArray(comparison.vendors) && comparison.vendors.some(item => normalizeReference(item.name) === vendor))));
+        });
+        const matchingQuotes = quotations.filter(quotation => {
+            const id = normalizeReference(quotation.id);
+            const quoteRequest = normalizeReference(quotation.request || quotation.requestId);
+            const supplierMatch = Boolean(vendor && normalizeReference(quotation.supplier) === vendor);
+            return references.quotation.includes(id)
+                || references.request.includes(quoteRequest)
+                || (supplierMatch && matchingComparisons.some(comparison => normalizeReference(comparison.request || comparison.requestId) === quoteRequest))
+                || (supplierMatch && !matchingComparisons.length && !references.request.length);
+        });
+        const requestReferences = new Set([
+            ...references.request,
+            ...matchingComparisons.map(comparison => normalizeReference(comparison.request || comparison.requestId)),
+            ...matchingQuotes.map(quotation => normalizeReference(quotation.request || quotation.requestId))
+        ].filter(Boolean));
+        const matchingRequests = purchaseRequests.filter(request =>
+            requestReferences.has(normalizeReference(request.id)));
+        const matchingReceipts = goodsReceipts.filter(receipt =>
+            normalizeReference(receipt.po || receipt.purchaseOrder || receipt.poNumber) === normalizeReference(poId(order)));
+        return [
+            { type: 'Purchase Order', record: order },
+            ...matchingRequests.map(record => ({ type: 'Purchase Request', record })),
+            ...matchingQuotes.map(record => ({ type: 'Quotation', record })),
+            ...matchingComparisons.map(record => ({ type: 'Purchase Comparison', record })),
+            ...matchingReceipts.map(record => ({ type: 'Goods Receipt Note', record }))
+        ];
+    };
+    const documentFiles = record => {
+        const values = [record.attachments, record.documents, record.files, record.attachment]
+            .flatMap(value => Array.isArray(value) ? value : value ? [value] : []);
+        return values.map((file, index) => {
+            const entry = typeof file === 'string' ? { url: file } : file || {};
+            const url = String(entry.url || entry.fileUrl || entry.downloadURL || entry.downloadUrl || entry.href || '').trim();
+            if (!url) return null;
+            let safeUrl = '';
+            try {
+                const parsed = new URL(url, window.location.href);
+                if (['https:', 'http:'].includes(parsed.protocol)) safeUrl = parsed.href;
+                else if (parsed.protocol === 'data:' && /^data:(application\/pdf|image\/(?:png|jpe?g|gif|webp));/i.test(url)) safeUrl = url;
+            } catch (error) {
+                console.warn('Skipping an invalid procurement document URL.', error);
+            }
+            return safeUrl ? {
+                name: String(entry.name || entry.fileName || entry.title || `Attached document ${index + 1}`),
+                url: safeUrl
+            } : null;
+        }).filter(Boolean);
+    };
+    const itemRows = items => {
+        if (!Array.isArray(items) || !items.length) return '<p class="si-document-empty">No line items recorded.</p>';
+        const rows = items.map(item => {
+            const values = Array.isArray(item)
+                ? item
+                : [item.description || item.name || item.item || item.requirement, item.qty ?? item.quantity, item.price ?? item.unitPrice, item.status];
+            return `<tr>${values.slice(0, 4).map(value => `<td>${escape(value ?? '—')}</td>`).join('')}</tr>`;
+        }).join('');
+        return `<div class="si-table-wrap"><table class="si-document-table"><thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Details</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    };
+    const documentPreviewHtml = ({ type, record }) => {
+        const fieldsByType = {
+            'Purchase Order': [['Vendor', record.vendor], ['Buyer', record.buyer], ['Order Date', record.date], ['Expected Delivery', record.delivery], ['Status', record.status], ['Currency', record.currency], ['Payment Terms', record.payment], ['Department', record.department], ['Notes', record.notes]],
+            'Purchase Request': [['Requester', record.requester], ['Department', record.department], ['Request Date', record.date], ['Priority', record.priority], ['Status', record.status], ['Purpose', record.purpose]],
+            Quotation: [['Supplier', record.supplier], ['Supplier Reference', record.supplierRef], ['Purchase Request', record.request], ['Quotation Date', record.date], ['Valid Until', record.validUntil], ['Status', record.status], ['Payment Terms', record.paymentTerms], ['Notes', record.notes]],
+            'Purchase Comparison': [['Purchase Request', record.request], ['Requirement', record.requirement], ['Department', record.department], ['Recommended Supplier', record.recommended], ['Comparison Date', record.date], ['Status', record.status], ['Notes', record.notes]],
+            'Goods Receipt Note': [['Supplier', record.supplier], ['Purchase Order', record.po || record.purchaseOrder || record.poNumber], ['Delivery Note', record.deliveryNote], ['Receipt Date', record.receiptDate], ['Status', record.status], ['Condition', record.condition], ['Notes', record.notes]]
+        };
+        const reference = record.id || record.poNumber || record.grnNumber || type;
+        const fields = fieldsByType[type] || Object.entries(record)
+            .filter(([key, value]) => !['items', 'vendors', 'attachment', 'attachments', 'documents', 'files'].includes(key) && ['string', 'number'].includes(typeof value))
+            .slice(0, 12);
+        const vendors = type === 'Purchase Comparison' && Array.isArray(record.vendors)
+            ? `<h5>Supplier Quotations</h5><div class="si-table-wrap"><table class="si-document-table"><thead><tr><th>Supplier</th><th>Quote</th><th>Delivery</th><th>Rating</th></tr></thead><tbody>${record.vendors.map(vendor => `<tr><td>${escape(vendor.name || '—')}</td><td>${escape(vendor.quote ?? '—')}</td><td>${escape(vendor.delivery ?? '—')}</td><td>${escape(vendor.rating ?? '—')}</td></tr>`).join('')}</tbody></table></div>`
+            : '';
+        const files = documentFiles(record);
+        const attachments = files.length
+            ? `<h5>Files</h5><ul class="si-document-files">${files.map(file => `<li><a href="${escape(file.url)}" target="_blank" rel="noopener noreferrer"><i class="fas fa-paperclip" aria-hidden="true"></i> ${escape(file.name)}</a></li>`).join('')}</ul>`
+            : '';
+        return `<article class="si-document-preview"><header><div><span>${escape(type)}</span><strong>${escape(reference)}</strong></div><span class="si-document-state">${escape(record.status || 'Record')}</span></header><dl>${fields.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${escape(value || '—')}</dd></div>`).join('')}</dl>${vendors}${record.items ? `<h5>Items</h5>${itemRows(record.items)}` : ''}${attachments}</article>`;
+    };
+    const showPurchaseOrderDocuments = orderId => {
+        const order = purchaseOrders.find(record => poId(record) === String(orderId));
+        const documents = linkedProcurementDocuments(order);
+        q('[data-si-attachments-title]').textContent = order
+            ? `Documents for ${poId(order)}`
+            : `Documents for ${orderId || 'Purchase Order'}`;
+        q('[data-si-attachments-content]').innerHTML = documents.length
+            ? `<p class="si-attachments-intro">${documents.length} related procurement record${documents.length === 1 ? '' : 's'} found. Select linked file names to open attached files.</p>${documents.map(documentPreviewHtml).join('')}`
+            : '<p class="si-document-empty">No purchase order or related procurement documents were found in the school records.</p>';
+        q('[data-si-attachments-overlay]').classList.add('is-open');
+    };
+    const updateSelectedPurchaseOrder = () => {
+        const select = q('[name="po"]');
+        const order = purchaseOrders.find(record => poId(record) === select.value);
+        const preview = q('[data-si-po-attachments]');
+        if (!select.value) {
+            preview.textContent = 'Select a purchase order to view its related procurement documents.';
+            return;
+        }
+        const docs = linkedProcurementDocuments(order);
+        if (!order) {
+            preview.textContent = 'This saved purchase order is not currently available in the school records.';
+            return;
+        }
+        q('[name="supplier"]').value = order.vendor || order.supplier || q('[name="supplier"]').value;
+        preview.innerHTML = `<span>${docs.length} related procurement record${docs.length === 1 ? '' : 's'} found for ${escape(poId(order))}.</span> <button class="si-button si-light" type="button" data-si-preview-selected-po><i class="fas fa-paperclip"></i> Preview Documents</button>`;
+    };
     const dueClass = invoice => {
         if (['Paid', 'Cancelled'].includes(invoice.status)) return 'normal';
         const due = new Date(`${invoice.dueDate}T00:00:00`);
@@ -100,7 +268,13 @@ function createSupplierInvoicesModule() {
         const search = q('[data-si-search]').value.trim().toLowerCase();
         const status = q('[data-si-filter]').value;
         const filtered = invoices.filter(invoice => (!status || invoice.status === status) && (!search || JSON.stringify(invoice).toLowerCase().includes(search)));
-        q('[data-si-rows]').innerHTML = filtered.length ? filtered.map(invoice => `<tr><td><strong class="si-id">${escape(invoice.invoiceNo)}</strong><small class="si-small">Record: ${escape(invoice.id)}</small></td><td><b>${escape(invoice.supplier)}</b><small class="si-small">${escape(invoice.department)}</small></td><td><strong>${escape(invoice.po || '—')}</strong><small class="si-small">${escape(invoice.grn || 'No GRN')}</small></td><td>${formatDate(invoice.invoiceDate)}</td><td><span class="si-due ${dueClass(invoice)}">${formatDate(invoice.dueDate)}</span><small class="si-small">${escape(dueText(invoice))}</small></td><td><strong>${money(invoiceTotal(invoice), invoice.currency)}</strong></td><td><strong>${money(invoiceBalance(invoice), invoice.currency)}</strong></td><td><span class="si-badge ${escape(statusClass(invoice.status))}">${escape(invoice.status)}</span></td><td><div class="si-actions"><button class="si-action" type="button" title="View" aria-label="View ${escape(invoice.invoiceNo)}" data-si-action="view" data-id="${escape(invoice.id)}"><i class="fas fa-eye"></i></button><button class="si-action" type="button" title="Edit" aria-label="Edit ${escape(invoice.invoiceNo)}" data-si-action="edit" data-id="${escape(invoice.id)}"><i class="fas fa-pen"></i></button><button class="si-action" type="button" title="Print" aria-label="Print ${escape(invoice.invoiceNo)}" data-si-action="print" data-id="${escape(invoice.id)}"><i class="fas fa-print"></i></button><button class="si-action si-delete" type="button" title="Delete" aria-label="Delete ${escape(invoice.invoiceNo)}" data-si-action="delete" data-id="${escape(invoice.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`).join('') : '<tr><td colspan="9"><div class="si-empty">No supplier invoices found.</div></td></tr>';
+        q('[data-si-rows]').innerHTML = filtered.length ? filtered.map(invoice => {
+            const relatedDocumentCount = linkedProcurementDocuments(purchaseOrders.find(order => poId(order) === String(invoice.po))).length;
+            const attachments = invoice.po
+                ? `<button class="si-button si-light si-attachments-button" type="button" data-si-preview-po="${escape(invoice.po)}" aria-label="Preview ${relatedDocumentCount} documents for purchase order ${escape(invoice.po)}"><i class="fas fa-paperclip"></i> Preview (${relatedDocumentCount})</button>`
+                : '<span class="si-small">No PO linked</span>';
+            return `<tr><td><strong class="si-id">${escape(invoice.invoiceNo)}</strong><small class="si-small">Record: ${escape(invoice.id)}</small></td><td><b>${escape(invoice.supplier)}</b><small class="si-small">${escape(invoice.department)}</small></td><td><strong>${escape(invoice.po || '—')}</strong><small class="si-small">${escape(invoice.grn || 'No GRN')}</small></td><td>${attachments}</td><td>${formatDate(invoice.invoiceDate)}</td><td><span class="si-due ${dueClass(invoice)}">${formatDate(invoice.dueDate)}</span><small class="si-small">${escape(dueText(invoice))}</small></td><td><strong>${money(invoiceTotal(invoice), invoice.currency)}</strong></td><td><strong>${money(invoiceBalance(invoice), invoice.currency)}</strong></td><td><span class="si-badge ${escape(statusClass(invoice.status))}">${escape(invoice.status)}</span></td><td><div class="si-actions"><button class="si-action" type="button" title="View" aria-label="View ${escape(invoice.invoiceNo)}" data-si-action="view" data-id="${escape(invoice.id)}"><i class="fas fa-eye"></i></button><button class="si-action" type="button" title="Edit" aria-label="Edit ${escape(invoice.invoiceNo)}" data-si-action="edit" data-id="${escape(invoice.id)}"><i class="fas fa-pen"></i></button><button class="si-action" type="button" title="Print" aria-label="Print ${escape(invoice.invoiceNo)}" data-si-action="print" data-id="${escape(invoice.id)}"><i class="fas fa-print"></i></button><button class="si-action si-delete" type="button" title="Delete" aria-label="Delete ${escape(invoice.invoiceNo)}" data-si-action="delete" data-id="${escape(invoice.id)}"><i class="fas fa-trash"></i></button></div></td></tr>`;
+        }).join('') : '<tr><td colspan="10"><div class="si-empty">No supplier invoices found.</div></td></tr>';
         updateStats();
     };
     const calculate = () => {
@@ -134,6 +308,7 @@ function createSupplierInvoicesModule() {
     const closeView = () => q('[data-si-view-overlay]').classList.remove('is-open');
     const openForm = invoice => {
         const form = q('[data-si-form]');
+        refreshPurchaseOrderOptions();
         form.reset();
         q('[data-si-items]').replaceChildren();
         editingId = invoice?.id ?? null;
@@ -144,11 +319,16 @@ function createSupplierInvoicesModule() {
         due.setDate(due.getDate() + 30);
         form.elements.dueDate.value = invoice?.dueDate || due.toISOString().slice(0, 10);
         if (invoice) {
-            ['supplier', 'invoiceNo', 'po', 'grn', 'currency', 'paymentTerms', 'status', 'paymentMethod', 'department', 'paymentReference', 'paidAmount', 'notes'].forEach(field => { form.elements[field].value = invoice[field] ?? ''; });
+            ['supplier', 'invoiceNo', 'grn', 'currency', 'paymentTerms', 'status', 'paymentMethod', 'department', 'paymentReference', 'paidAmount', 'notes'].forEach(field => { form.elements[field].value = invoice[field] ?? ''; });
+            if (invoice.po && !Array.from(form.elements.po.options).some(option => option.value === invoice.po)) {
+                form.elements.po.add(new Option(`${invoice.po} — Purchase order record unavailable`, invoice.po));
+            }
+            form.elements.po.value = invoice.po || '';
             invoice.items.forEach(addItem);
         } else {
             addItem(); addItem();
         }
+        updateSelectedPurchaseOrder();
         calculate();
         q('[data-si-form-overlay]').classList.add('is-open');
         form.elements.supplier.focus();
@@ -171,6 +351,11 @@ function createSupplierInvoicesModule() {
         printDocument(invoice.invoiceNo, html);
     };
 
+    refreshProcurementRecords();
+    q('[name="po"]').addEventListener('change', updateSelectedPurchaseOrder);
+    q('[data-si-po-attachments]').addEventListener('click', event => {
+        if (event.target.closest('[data-si-preview-selected-po]')) showPurchaseOrderDocuments(q('[name="po"]').value);
+    });
     q('[data-si-new]').addEventListener('click', () => openForm());
     q('[data-si-add-item]').addEventListener('click', () => addItem());
     q('[data-si-search]').addEventListener('input', render);
@@ -204,6 +389,11 @@ function createSupplierInvoicesModule() {
         toast(existing ? 'Supplier invoice updated.' : 'Supplier invoice created.');
     });
     q('[data-si-rows]').addEventListener('click', event => {
+        const previewButton = event.target.closest('[data-si-preview-po]');
+        if (previewButton) {
+            showPurchaseOrderDocuments(previewButton.dataset.siPreviewPo);
+            return;
+        }
         const button = event.target.closest('[data-si-action]');
         if (!button) return;
         const invoice = invoices.find(item => item.id === button.dataset.id);
@@ -226,15 +416,29 @@ function createSupplierInvoicesModule() {
     q('[data-si-close-form]').addEventListener('click', closeForm);
     q('[data-si-cancel]').addEventListener('click', closeForm);
     section.querySelectorAll('[data-si-close-view]').forEach(button => button.addEventListener('click', closeView));
+    section.querySelectorAll('[data-si-close-attachments]').forEach(button => button.addEventListener('click', () => q('[data-si-attachments-overlay]').classList.remove('is-open')));
     q('[data-si-print-current]').addEventListener('click', () => {
         const invoice = invoices.find(item => item.id === viewingId);
         if (invoice) printInvoice(invoice);
+    });
+    window.addEventListener('school-portal-cloud-data-update', event => {
+        if (!['purchaseOrders', 'purchaseRequests', 'quotations', 'purchaseComparisons', 'goodsReceipts'].includes(event.detail?.collection)) return;
+        refreshProcurementRecords();
+        render();
+        if (q('[data-si-form-overlay]').classList.contains('is-open')) updateSelectedPurchaseOrder();
+    });
+    window.addEventListener('storage', event => {
+        if (!['schoolPurchaseOrders', 'schoolPurchaseRequests', 'schoolQuotations', 'schoolPurchaseComparisons', 'schoolGoodsReceipts'].includes(event.key)) return;
+        refreshProcurementRecords();
+        render();
+        if (q('[data-si-form-overlay]').classList.contains('is-open')) updateSelectedPurchaseOrder();
     });
     section.querySelectorAll('.si-overlay').forEach(overlay => overlay.addEventListener('click', event => { if (event.target === overlay) overlay.classList.remove('is-open'); }));
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') {
             q('[data-si-form-overlay]').classList.remove('is-open');
             closeView();
+            q('[data-si-attachments-overlay]').classList.remove('is-open');
         }
     });
     render();
