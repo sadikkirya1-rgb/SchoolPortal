@@ -35,7 +35,7 @@ function createPurchaseRequestsModule() {
                     <div class="pr-items">
                         <div class="pr-items-head"><h4>Purchase Items</h4><button class="pr-button pr-light" type="button" data-pr-add-item><i class="fas fa-plus"></i> Add Item</button></div>
                         <div data-pr-items></div>
-                        <div class="pr-totals"><div><span>Subtotal</span><strong data-pr-subtotal>$0.00</strong></div><div><span>Tax (5%)</span><strong data-pr-tax>$0.00</strong></div><div class="pr-grand"><span>Total</span><strong data-pr-total>$0.00</strong></div></div>
+                        <div class="pr-totals"><div><span>Subtotal</span><strong data-pr-subtotal>UGX 0</strong></div><div><span>Tax (5%)</span><strong data-pr-tax>UGX 0</strong></div><div class="pr-grand"><span>Total</span><strong data-pr-total>UGX 0</strong></div></div>
                     </div>
                     <footer class="pr-modal-actions"><button class="pr-button pr-light" type="button" data-pr-cancel>Cancel</button><button class="pr-button pr-light" type="submit" data-pr-status="Draft">Save Draft</button><button class="pr-button pr-primary" type="submit" data-pr-status="Pending">Submit for Approval</button></footer>
                 </form>
@@ -72,7 +72,7 @@ function createPurchaseRequestsModule() {
 
     const q = selector => sec.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
-    const money = value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value) || 0);
+    const money = value => new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX' }).format(Number(value) || 0);
     const identity = () => window.schoolPortalData?.getIdentity?.();
     const roleKey = role => String(role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const administratorRoles = new Set(['schooladmin', 'superadmin', 'director', 'headteacher']);
@@ -210,7 +210,7 @@ function createPurchaseRequestsModule() {
     const formFooter = form.querySelector('.pr-modal-actions');
     const summaryPanel = document.createElement('aside');
     summaryPanel.className = 'pr-live-summary';
-    summaryPanel.innerHTML = '<h4>Request Summary</h4><p>Review requester, items, and total before saving.</p><div data-pr-live-fields></div><div class="pr-summary-row"><span>Status</span><strong data-pr-live-status>Draft</strong></div><h5>Items</h5><div data-pr-live-items></div><div class="pr-live-total"><span>Estimated total</span><strong data-pr-live-total>$0.00</strong></div>';
+    summaryPanel.innerHTML = '<h4>Request Summary</h4><p>Review requester, items, and total before saving.</p><div data-pr-live-fields></div><div class="pr-summary-row"><span>Status</span><strong data-pr-live-status>Draft</strong></div><h5>Items</h5><div data-pr-live-items></div><div class="pr-live-total"><span>Estimated total</span><strong data-pr-live-total>UGX 0</strong></div>';
     formMain.append(form.querySelector('.pr-grid'), form.querySelector('.pr-items'));
     form.insertBefore(formMain, formFooter);
     form.insertBefore(summaryPanel, formFooter);

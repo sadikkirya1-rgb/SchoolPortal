@@ -13,12 +13,12 @@ function createGoodsReceiptModule() {
                 <label>Delivery Note No.<input name="deliveryNote" required placeholder="Supplier delivery note"></label><label>Supplier Invoice No.<input name="invoice" placeholder="Invoice reference"></label>
                 <label>Receipt Date<input name="receiptDate" type="date" required></label><label>Inspection Date<input name="inspectionDate" type="date"></label>
                 <label>Warehouse / Location<select name="warehouse"><option>Main Warehouse</option><option>Central Store</option><option>North Warehouse</option><option>South Warehouse</option><option>IT Store</option><option>Administration Store</option></select></label><label>Received By<input name="receivedBy" placeholder="Warehouse receiver"></label>
-                <label>Inspected By<input name="inspectedBy" placeholder="Quality inspector"></label><label>Currency<select name="currency"><option value="USD">USD - US Dollar</option><option value="AED">AED - UAE Dirham</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option></select></label>
+                <label>Inspected By<input name="inspectedBy" placeholder="Quality inspector"></label><label>Currency<select name="currency"><option value="UGX" selected>UGX - Ugandan Shilling</option><option value="USD">USD - US Dollar</option><option value="AED">AED - UAE Dirham</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option></select></label>
                 <label>Receipt Status<select name="status"><option>Draft</option><option>Pending Inspection</option><option>Partial</option><option>Completed</option><option>Rejected</option></select></label><label>Condition<select name="condition"><option>Good Condition</option><option>Minor Damage</option><option>Damaged</option><option>Packaging Damaged</option><option>Rejected on Receipt</option></select></label>
                 <label class="grn-full">Receiving Notes<textarea name="notes" placeholder="Enter receiving notes, shortages, damages, inspection remarks, etc."></textarea></label>
             </div>
             <div class="grn-items"><div class="grn-items-head"><h4>Received Items</h4><button class="grn-button grn-light" type="button" data-grn-add-item><i class="fas fa-plus"></i> Add Item</button></div><div class="grn-item-labels"><span>Item Description</span><span>Ordered</span><span>Received</span><span>Rejected</span><span>Unit Price</span><span>Total</span><span></span></div><div data-grn-items></div>
-                <div class="grn-totals"><div><span>Total Ordered</span><strong data-grn-ordered>0</strong></div><div><span>Total Received</span><strong data-grn-received>0</strong></div><div><span>Total Rejected</span><strong data-grn-rejected>0</strong></div><div class="grn-grand"><span>Received Value</span><strong data-grn-value>$0.00</strong></div></div>
+                <div class="grn-totals"><div><span>Total Ordered</span><strong data-grn-ordered>0</strong></div><div><span>Total Received</span><strong data-grn-received>0</strong></div><div><span>Total Rejected</span><strong data-grn-rejected>0</strong></div><div class="grn-grand"><span>Received Value</span><strong data-grn-value>UGX 0</strong></div></div>
             </div><footer class="grn-modal-actions"><button class="grn-button grn-light" type="button" data-grn-cancel>Cancel</button><button class="grn-button grn-primary" type="submit">Save GRN</button></footer></form>
         </section></div>
         <div class="grn-overlay" data-grn-view-overlay><section class="grn-modal" role="dialog" aria-modal="true" aria-labelledby="grn-view-title"><header class="grn-modal-head"><h3 id="grn-view-title">Goods Receipt Details</h3><button class="grn-close" type="button" data-grn-close-view aria-label="Close">&times;</button></header><div class="grn-view" data-grn-view-content></div><footer class="grn-modal-actions"><button class="grn-button grn-light" type="button" data-grn-close-view>Close</button><button class="grn-button grn-primary" type="button" data-grn-print-current><i class="fas fa-print"></i> Print / PDF</button></footer></section></div>
@@ -38,7 +38,7 @@ function createGoodsReceiptModule() {
     let toastTimer;
     const q = selector => section.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
-    const money = (value, currency = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(value) || 0);
+    const money = (value, currency = 'UGX') => new Intl.NumberFormat('en-UG', { style: 'currency', currency }).format(Number(value) || 0);
     const formatDate = value => {
         if (!value) return '—';
         const parsed = new Date(`${value}T00:00:00`);
@@ -66,7 +66,7 @@ function createGoodsReceiptModule() {
         receipts.forEach(item => { values[item.currency] = (values[item.currency] || 0) + receivedValue(item); });
         const entries = Object.entries(values);
         const value = q('[data-grn-stat="value"]');
-        value.textContent = entries.length <= 1 ? money(entries[0]?.[1] || 0, entries[0]?.[0] || 'USD').replace(/\.00$/, '') : 'Multiple';
+        value.textContent = entries.length <= 1 ? money(entries[0]?.[1] || 0, entries[0]?.[0] || 'UGX').replace(/\.00$/, '') : 'Multiple';
         value.title = entries.map(([currency, amount]) => money(amount, currency)).join(' · ');
     };
     const render = () => {
@@ -102,7 +102,7 @@ function createGoodsReceiptModule() {
     const addItem = (item = { description: '', ordered: 1, received: 1, rejected: 0, price: 0 }) => {
         const row = document.createElement('div');
         row.className = 'grn-item-row';
-        row.innerHTML = `<input name="description" aria-label="Item description" placeholder="Item description" value="${escape(item.description)}" required><input name="ordered" aria-label="Ordered quantity" type="number" min="0" step="1" value="${Number(item.ordered) || 0}" required><input name="received" aria-label="Received quantity" type="number" min="0" step="1" value="${Number(item.received) || 0}" required><input name="rejected" aria-label="Rejected quantity" type="number" min="0" step="1" value="${Number(item.rejected) || 0}" required><input name="price" aria-label="Unit price" type="number" min="0" step="0.01" value="${Number(item.price) || 0}" required><strong data-grn-line-total>$0.00</strong><button class="grn-remove-item" type="button" aria-label="Remove item"><i class="fas fa-xmark"></i></button>`;
+        row.innerHTML = `<input name="description" aria-label="Item description" placeholder="Item description" value="${escape(item.description)}" required><input name="ordered" aria-label="Ordered quantity" type="number" min="0" step="1" value="${Number(item.ordered) || 0}" required><input name="received" aria-label="Received quantity" type="number" min="0" step="1" value="${Number(item.received) || 0}" required><input name="rejected" aria-label="Rejected quantity" type="number" min="0" step="1" value="${Number(item.rejected) || 0}" required><input name="price" aria-label="Unit price" type="number" min="0" step="0.01" value="${Number(item.price) || 0}" required><strong data-grn-line-total>UGX 0</strong><button class="grn-remove-item" type="button" aria-label="Remove item"><i class="fas fa-xmark"></i></button>`;
         q('[data-grn-items]').appendChild(row);
         row.addEventListener('input', calculate);
         row.querySelector('.grn-remove-item').addEventListener('click', () => { row.remove(); calculate(); });

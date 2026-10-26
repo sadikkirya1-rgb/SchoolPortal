@@ -11,7 +11,7 @@ function createPurchaseComparisonsModule() {
             <form class="pc-form" data-pc-form><div class="pc-grid">
                 <label>Purchase Request / Reference<select name="request" required><option value="">Select purchase request</option></select></label><label>Comparison Date<input name="date" type="date" required></label>
                 <label>Item / Requirement<input name="requirement" required placeholder="e.g. Laptop Computers"></label><label>Department<select name="department"><option>Procurement</option><option>IT</option><option>Finance</option><option>HR</option><option>Operations</option><option>Marketing</option><option>Administration</option></select></label>
-                <label>Requested Quantity<input name="quantity" type="number" min="1" step="1" value="1" required></label><label>Currency<select name="currency"><option value="USD">USD - US Dollar</option><option value="AED">AED - UAE Dirham</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option></select></label>
+                <label>Requested Quantity<input name="quantity" type="number" min="1" step="1" value="1" required></label><label>Currency<select name="currency"><option value="UGX" selected>UGX - Ugandan Shilling</option><option value="USD">USD - US Dollar</option><option value="AED">AED - UAE Dirham</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option></select></label>
                 <label>Evaluation Criteria<select name="criteria"><option>Lowest Price</option><option>Best Value</option><option>Quality &amp; Price</option><option>Technical Compliance</option><option>Delivery &amp; Price</option></select></label><label>Recommended Vendor<select name="recommended"><option value="">Select after comparing</option></select></label>
                 <label class="pc-full">Remarks / Evaluation Notes<textarea name="notes" placeholder="Enter comparison notes, technical comments, delivery considerations, etc."></textarea></label>
             </div>
@@ -44,7 +44,7 @@ function createPurchaseComparisonsModule() {
     let suppliers = [];
     const q = selector => section.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
-    const money = (value, currency = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(value) || 0);
+    const money = (value, currency = 'UGX') => new Intl.NumberFormat('en-UG', { style: 'currency', currency }).format(Number(value) || 0);
     const identity = () => window.schoolPortalData?.getIdentity?.();
     const roleKey = role => String(role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const isApprovalAdmin = () => ['schooladmin', 'superadmin'].includes(roleKey(identity()?.role));
@@ -148,7 +148,7 @@ function createPurchaseComparisonsModule() {
         comparisons.forEach(item => { values[item.currency] = (values[item.currency] || 0) + item.vendors.reduce((sum, vendor) => sum + Number(vendor.quote), 0); });
         const currencies = Object.entries(values);
         const value = q('[data-pc-stat="value"]');
-        value.textContent = currencies.length <= 1 ? money(currencies[0]?.[1] || 0, currencies[0]?.[0] || 'USD').replace(/\.00$/, '') : 'Multiple';
+        value.textContent = currencies.length <= 1 ? money(currencies[0]?.[1] || 0, currencies[0]?.[0] || 'UGX').replace(/\.00$/, '') : 'Multiple';
         value.title = currencies.map(([currency, amount]) => money(amount, currency)).join(' · ');
     };
     const render = () => {

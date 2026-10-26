@@ -11,7 +11,7 @@ function createQuotationsModule() {
             <form class="qt-form" data-qt-form><div class="qt-grid">
                 <label>Supplier / Vendor<input name="supplier" required placeholder="Enter supplier name"></label><label>Supplier Reference No.<input name="supplierRef" placeholder="Supplier quotation number"></label>
                 <label>Purchase Request<input name="request" required placeholder="e.g. PR-2026-014"></label><label>Quotation Date<input name="date" type="date" required></label>
-                <label>Valid Until<input name="validUntil" type="date" required></label><label>Currency<select name="currency"><option value="USD">USD - US Dollar</option><option value="AED">AED - UAE Dirham</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option></select></label>
+                <label>Valid Until<input name="validUntil" type="date" required></label><label>Currency<select name="currency"><option value="UGX" selected>UGX - Ugandan Shilling</option><option value="USD">USD - US Dollar</option><option value="AED">AED - UAE Dirham</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option></select></label>
                 <label>Payment Terms<select name="paymentTerms"><option>30 Days Credit</option><option>15 Days Credit</option><option>Cash on Delivery</option><option>Advance Payment</option><option>50% Advance / 50% Delivery</option></select></label><label>Delivery Terms<select name="deliveryTerms"><option>7 Days</option><option>14 Days</option><option>21 Days</option><option>30 Days</option><option>Immediate</option></select></label>
                 <label>Tax / VAT %<input name="tax" type="number" value="5" min="0" step="0.01"></label><label>Discount<input name="discount" type="number" value="0" min="0" step="0.01"></label>
                 <label>Quotation Status<select name="status"><option>Draft</option><option>Pending</option><option>Received</option><option>Accepted</option><option>Rejected</option><option>Expired</option></select></label><label>Contact Person<input name="contact" placeholder="Supplier contact person"></label>
@@ -19,7 +19,7 @@ function createQuotationsModule() {
                 <label class="qt-full">Notes / Terms &amp; Conditions<textarea name="notes" placeholder="Additional quotation notes, exclusions, warranty, terms and conditions..."></textarea></label>
             </div>
             <div class="qt-items-section"><div class="qt-items-head"><h4>Quotation Items</h4><button class="qt-button qt-light" type="button" data-qt-add-item><i class="fas fa-plus"></i> Add Item</button></div><div class="qt-item-labels"><span>Description</span><span>Qty</span><span>Unit Price</span><span>Discount</span><span>Total</span><span></span></div><div data-qt-items></div>
-                <div class="qt-form-totals"><div><span>Subtotal</span><strong data-qt-subtotal>$0.00</strong></div><div><span>Discount</span><strong data-qt-discount>$0.00</strong></div><div><span>Tax / VAT</span><strong data-qt-tax>$0.00</strong></div><div class="qt-grand"><span>Grand Total</span><strong data-qt-total>$0.00</strong></div></div>
+                <div class="qt-form-totals"><div><span>Subtotal</span><strong data-qt-subtotal>UGX 0</strong></div><div><span>Discount</span><strong data-qt-discount>UGX 0</strong></div><div><span>Tax / VAT</span><strong data-qt-tax>UGX 0</strong></div><div class="qt-grand"><span>Grand Total</span><strong data-qt-total>UGX 0</strong></div></div>
             </div><footer class="qt-modal-actions"><button class="qt-button qt-light" type="button" data-qt-cancel>Cancel</button><button class="qt-button qt-primary" type="submit">Save Quotation</button></footer></form>
         </section></div>
         <div class="qt-overlay" data-qt-view-overlay><section class="qt-modal" role="dialog" aria-modal="true" aria-labelledby="qt-view-title"><header class="qt-modal-head"><h3 id="qt-view-title">Quotation Details</h3><button class="qt-close" type="button" data-qt-close-view aria-label="Close">&times;</button></header><div class="qt-view" data-qt-view-content></div><footer class="qt-modal-actions"><button class="qt-button qt-light" type="button" data-qt-close-view>Close</button><button class="qt-button qt-primary" type="button" data-qt-print-current><i class="fas fa-print"></i> Print / PDF</button></footer></section></div>
@@ -39,7 +39,7 @@ function createQuotationsModule() {
     let toastTimer;
     const q = selector => section.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
-    const money = (value, currency = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(value) || 0);
+    const money = (value, currency = 'UGX') => new Intl.NumberFormat('en-UG', { style: 'currency', currency }).format(Number(value) || 0);
     const date = value => {
         if (!value) return '—';
         const parsed = new Date(`${value}T00:00:00`);
@@ -67,7 +67,7 @@ function createQuotationsModule() {
         quotations.forEach(item => { values[item.currency] = (values[item.currency] || 0) + grandTotal(item); });
         const entries = Object.entries(values);
         const value = q('[data-qt-stat="value"]');
-        value.textContent = entries.length <= 1 ? money(entries[0]?.[1] || 0, entries[0]?.[0] || 'USD').replace(/\.00$/, '') : 'Multiple';
+        value.textContent = entries.length <= 1 ? money(entries[0]?.[1] || 0, entries[0]?.[0] || 'UGX').replace(/\.00$/, '') : 'Multiple';
         value.title = entries.map(([currency, amount]) => money(amount, currency)).join(' · ');
     };
     const render = () => {
@@ -97,7 +97,7 @@ function createQuotationsModule() {
     const addItem = (item = { description: '', qty: 1, price: 0, discount: 0 }) => {
         const row = document.createElement('div');
         row.className = 'qt-item-row';
-        row.innerHTML = `<input name="description" aria-label="Item description" placeholder="Item description" value="${escape(item.description)}" required><input name="qty" aria-label="Quantity" type="number" min="1" step="1" value="${Number(item.qty) || 1}" required><input name="price" aria-label="Unit price" type="number" min="0" step="0.01" placeholder="0.00" value="${Number(item.price) || 0}" required><input name="itemDiscount" aria-label="Item discount" type="number" min="0" step="0.01" placeholder="0.00" value="${Number(item.discount) || 0}"><strong data-qt-line-total>$0.00</strong><button class="qt-remove-item" type="button" aria-label="Remove item"><i class="fas fa-xmark"></i></button>`;
+        row.innerHTML = `<input name="description" aria-label="Item description" placeholder="Item description" value="${escape(item.description)}" required><input name="qty" aria-label="Quantity" type="number" min="1" step="1" value="${Number(item.qty) || 1}" required><input name="price" aria-label="Unit price" type="number" min="0" step="0.01" placeholder="0.00" value="${Number(item.price) || 0}" required><input name="itemDiscount" aria-label="Item discount" type="number" min="0" step="0.01" placeholder="0.00" value="${Number(item.discount) || 0}"><strong data-qt-line-total>UGX 0</strong><button class="qt-remove-item" type="button" aria-label="Remove item"><i class="fas fa-xmark"></i></button>`;
         q('[data-qt-items]').appendChild(row);
         row.addEventListener('input', calculate);
         row.querySelector('.qt-remove-item').addEventListener('click', () => { row.remove(); calculate(); });

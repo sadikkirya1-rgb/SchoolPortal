@@ -23,12 +23,12 @@ function createPurchaseOrdersModule() {
                 <label>PO Date<input name="date" type="date" required></label><label>Expected Delivery Date<input name="delivery" type="date" required></label>
                 <label>Payment Terms<select name="payment"><option>Net 30</option><option>Net 15</option><option>Net 60</option><option>Due on Delivery</option><option>Advance Payment</option></select></label>
                 <label>Shipping Method<select name="shipping"><option>Standard Delivery</option><option>Express Delivery</option><option>Courier</option><option>Vendor Delivery</option><option>Pickup</option></select></label>
-                <label>Currency<select name="currency"><option value="USD">USD - US Dollar</option><option value="AED">AED - UAE Dirham</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option></select></label>
+                <label>Currency<select name="currency"><option value="UGX" selected>UGX - Ugandan Shilling</option><option value="USD">USD - US Dollar</option><option value="AED">AED - UAE Dirham</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option></select></label>
                 <label>Department<select name="department"><option>Procurement</option><option>IT</option><option>Finance</option><option>HR</option><option>Operations</option><option>Marketing</option><option>Administration</option></select></label>
                 <label class="po-full">Delivery Address<textarea name="address" placeholder="Enter delivery address..."></textarea></label><label class="po-full">Notes / Special Instructions<textarea name="notes" placeholder="Enter notes, terms or special instructions..."></textarea></label>
             </div>
             <div class="po-items"><div class="po-items-head"><h4>Purchase Order Items</h4><button class="po-button po-light" type="button" data-po-add-item><i class="fas fa-plus"></i> Add Item</button></div><div data-po-items></div>
-                <div class="po-totals"><div><span>Subtotal</span><strong data-po-subtotal>$0.00</strong></div><div><span>Discount</span><strong data-po-discount>$0.00</strong></div><div><span>Tax (5%)</span><strong data-po-tax>$0.00</strong></div><div class="po-grand"><span>Grand Total</span><strong data-po-total>$0.00</strong></div></div>
+                <div class="po-totals"><div><span>Subtotal</span><strong data-po-subtotal>UGX 0</strong></div><div><span>Discount</span><strong data-po-discount>UGX 0</strong></div><div><span>Tax (5%)</span><strong data-po-tax>UGX 0</strong></div><div class="po-grand"><span>Grand Total</span><strong data-po-total>UGX 0</strong></div></div>
             </div><footer class="po-modal-actions"><button class="po-button po-light" type="button" data-po-cancel>Cancel</button><button class="po-button po-light" type="submit" data-po-submit="Draft">Save Draft</button><button class="po-button po-primary" type="submit" data-po-submit="Pending">Submit for Approval</button></footer></form>
         </section></div>
         <div class="po-overlay" data-po-view-overlay><section class="po-modal" role="dialog" aria-modal="true" aria-labelledby="po-view-title"><header class="po-modal-head"><h3 id="po-view-title">Purchase Order Details</h3><button class="po-close" type="button" data-po-close-view aria-label="Close">&times;</button></header><div class="po-view" data-po-view-content></div><footer class="po-modal-actions"><button class="po-button po-light" type="button" data-po-close-view>Close</button><button class="po-button po-primary" type="button" data-po-print-current><i class="fas fa-print"></i> Print / PDF</button></footer></section></div>
@@ -60,7 +60,7 @@ function createPurchaseOrdersModule() {
     let comparisons = [];
     const q = selector => section.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
-    const money = (value, currency = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(value) || 0);
+    const money = (value, currency = 'UGX') => new Intl.NumberFormat('en-UG', { style: 'currency', currency }).format(Number(value) || 0);
     const identity = () => window.schoolPortalData?.getIdentity?.();
     const roleKey = role => String(role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const isApprovalAdmin = () => ['schooladmin', 'superadmin'].includes(roleKey(identity()?.role));

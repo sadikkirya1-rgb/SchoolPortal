@@ -12,12 +12,12 @@ function createSupplierInvoicesModule() {
                 <label>Supplier / Vendor<input name="supplier" required placeholder="Select a purchase order"></label><label>Supplier Invoice No.<input name="invoiceNo" required placeholder="e.g. INV-2026-1001"></label><label>Purchase Order<select name="po"><option value="">Select purchase order (optional)</option></select></label>
                 <div class="si-po-attachments si-full" data-si-po-attachments aria-live="polite">Select a purchase order to view its related procurement documents.</div>
                 <label>Goods Receipt Note<input name="grn" placeholder="e.g. GRN-2026-001"></label><label>Invoice Date<input name="invoiceDate" type="date" required></label><label>Due Date<input name="dueDate" type="date" required></label>
-                <label>Currency<select name="currency"><option value="USD">USD - US Dollar</option><option value="AED">AED - UAE Dirham</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option></select></label><label>Payment Terms<select name="paymentTerms"><option>Immediate</option><option>Net 15</option><option>Net 30</option><option>Net 45</option><option>Net 60</option><option>Net 90</option></select></label><label>Invoice Status<select name="status"><option>Draft</option><option>Pending Approval</option><option>Approved</option><option>Partially Paid</option><option>Paid</option><option>Overdue</option><option>Rejected</option><option>Cancelled</option></select></label>
+                <label>Currency<select name="currency"><option value="UGX" selected>UGX - Ugandan Shilling</option><option value="USD">USD - US Dollar</option><option value="AED">AED - UAE Dirham</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option></select></label><label>Payment Terms<select name="paymentTerms"><option>Immediate</option><option>Net 15</option><option>Net 30</option><option>Net 45</option><option>Net 60</option><option>Net 90</option></select></label><label>Invoice Status<select name="status"><option>Draft</option><option>Pending Approval</option><option>Approved</option><option>Partially Paid</option><option>Paid</option><option>Overdue</option><option>Rejected</option><option>Cancelled</option></select></label>
                 <label>Payment Method<select name="paymentMethod"><option>Bank Transfer</option><option>Cheque</option><option>Credit Card</option><option>Cash</option><option>Online Transfer</option></select></label><label>Department<select name="department"><option>Procurement</option><option>Finance</option><option>Administration</option><option>IT</option><option>Operations</option><option>Human Resources</option><option>Warehouse</option><option>Facilities</option></select></label><label>Payment Reference<input name="paymentReference" placeholder="Transaction / cheque reference"></label>
                 <label class="si-full">Invoice Notes<textarea name="notes" placeholder="Enter invoice notes, payment remarks, exceptions, etc."></textarea></label>
             </div>
             <div class="si-items"><div class="si-items-head"><h4>Invoice Items</h4><button class="si-button si-light" type="button" data-si-add-item><i class="fas fa-plus"></i> Add Item</button></div><div class="si-item-labels"><span>Description</span><span>Qty</span><span>Unit Price</span><span>Tax %</span><span>Line Total</span><span></span></div><div data-si-items></div>
-                <div class="si-totals"><div><span>Subtotal</span><strong data-si-subtotal>$0.00</strong></div><div><span>Tax</span><strong data-si-tax>$0.00</strong></div><div><span>Paid Amount</span><strong data-si-paid>$0.00</strong></div><div class="si-grand"><span>Invoice Total</span><strong data-si-total>$0.00</strong></div></div>
+                <div class="si-totals"><div><span>Subtotal</span><strong data-si-subtotal>UGX 0</strong></div><div><span>Tax</span><strong data-si-tax>UGX 0</strong></div><div><span>Paid Amount</span><strong data-si-paid>UGX 0</strong></div><div class="si-grand"><span>Invoice Total</span><strong data-si-total>UGX 0</strong></div></div>
                 <label class="si-paid-field">Amount Already Paid<input name="paidAmount" type="number" min="0" step="0.01" value="0"></label>
             </div><footer class="si-modal-actions"><button class="si-button si-light" type="button" data-si-cancel>Cancel</button><button class="si-button si-light" type="submit" data-si-submit="Save" hidden>Save Changes</button><button class="si-button si-light" type="submit" data-si-submit="Draft">Save Draft</button><button class="si-button si-primary" type="submit" data-si-submit="Pending">Submit for Approval</button></footer></form>
         </section></div>
@@ -44,7 +44,7 @@ function createSupplierInvoicesModule() {
     let goodsReceipts = [];
     const q = selector => section.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
-    const money = (value, currency = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(value) || 0);
+    const money = (value, currency = 'UGX') => new Intl.NumberFormat('en-UG', { style: 'currency', currency }).format(Number(value) || 0);
     const formatDate = value => {
         if (!value) return '—';
         const parsed = new Date(`${value}T00:00:00`);
@@ -327,7 +327,7 @@ function createSupplierInvoicesModule() {
         const values = {};
         records.forEach(invoice => { values[invoice.currency] = (values[invoice.currency] || 0) + invoice.value(invoice.record); });
         const entries = Object.entries(values);
-        return { label: entries.length <= 1 ? money(entries[0]?.[1] || 0, entries[0]?.[0] || 'USD').replace(/\.00$/, '') : 'Multiple', title: entries.map(([currency, amount]) => money(amount, currency)).join(' · ') };
+        return { label: entries.length <= 1 ? money(entries[0]?.[1] || 0, entries[0]?.[0] || 'UGX').replace(/\.00$/, '') : 'Multiple', title: entries.map(([currency, amount]) => money(amount, currency)).join(' · ') };
     };
     const updateStats = () => {
         q('[data-si-stat="total"]').textContent = invoices.length;
@@ -384,7 +384,7 @@ function createSupplierInvoicesModule() {
     const addItem = (item = { description: '', qty: 1, price: 0, tax: 5 }) => {
         const row = document.createElement('div');
         row.className = 'si-item-row';
-        row.innerHTML = `<input name="description" aria-label="Description" placeholder="Item / service description" value="${escape(item.description)}" required><input name="qty" aria-label="Quantity" type="number" min="0" step="1" value="${Number(item.qty) || 0}" required><input name="price" aria-label="Unit price" type="number" min="0" step="0.01" value="${Number(item.price) || 0}" required><input name="itemTax" aria-label="Tax percentage" type="number" min="0" max="100" step="0.01" value="${Number(item.tax) || 0}" required><strong data-si-line-total>$0.00</strong><button class="si-remove-item" type="button" aria-label="Remove invoice item"><i class="fas fa-xmark"></i></button>`;
+        row.innerHTML = `<input name="description" aria-label="Description" placeholder="Item / service description" value="${escape(item.description)}" required><input name="qty" aria-label="Quantity" type="number" min="0" step="1" value="${Number(item.qty) || 0}" required><input name="price" aria-label="Unit price" type="number" min="0" step="0.01" value="${Number(item.price) || 0}" required><input name="itemTax" aria-label="Tax percentage" type="number" min="0" max="100" step="0.01" value="${Number(item.tax) || 0}" required><strong data-si-line-total>UGX 0</strong><button class="si-remove-item" type="button" aria-label="Remove invoice item"><i class="fas fa-xmark"></i></button>`;
         q('[data-si-items]').appendChild(row);
         row.addEventListener('input', calculate);
         row.querySelector('.si-remove-item').addEventListener('click', () => { row.remove(); calculate(); });
