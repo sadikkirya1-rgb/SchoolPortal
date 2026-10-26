@@ -9,13 +9,13 @@ function createPurchaseComparisonsModule() {
             <div class="pc-table-wrap"><table class="pc-table"><thead><tr><th>Comparison No.</th><th>Purchase Request</th><th>Department</th><th>Vendors</th><th>Lowest Quote</th><th>Highest Quote</th><th>Savings</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody data-pc-rows></tbody></table></div></section>
         <div class="pc-overlay" data-pc-form-overlay><section class="pc-modal" role="dialog" aria-modal="true" aria-labelledby="pc-form-title"><header class="pc-modal-head"><h3 id="pc-form-title">Create Purchase Comparison</h3><button class="pc-close" type="button" data-pc-close-form aria-label="Close">&times;</button></header>
             <form class="pc-form" data-pc-form><div class="pc-grid">
-                <label>Purchase Request / Reference<input name="request" required placeholder="e.g. PR-2026-014"></label><label>Comparison Date<input name="date" type="date" required></label>
+                <label>Purchase Request / Reference<select name="request" required><option value="">Select purchase request</option></select></label><label>Comparison Date<input name="date" type="date" required></label>
                 <label>Item / Requirement<input name="requirement" required placeholder="e.g. Laptop Computers"></label><label>Department<select name="department"><option>Procurement</option><option>IT</option><option>Finance</option><option>HR</option><option>Operations</option><option>Marketing</option><option>Administration</option></select></label>
                 <label>Requested Quantity<input name="quantity" type="number" min="1" step="1" value="1" required></label><label>Currency<select name="currency"><option value="USD">USD - US Dollar</option><option value="AED">AED - UAE Dirham</option><option value="EUR">EUR - Euro</option><option value="GBP">GBP - British Pound</option></select></label>
                 <label>Evaluation Criteria<select name="criteria"><option>Lowest Price</option><option>Best Value</option><option>Quality &amp; Price</option><option>Technical Compliance</option><option>Delivery &amp; Price</option></select></label><label>Recommended Vendor<select name="recommended"><option value="">Select after comparing</option></select></label>
                 <label class="pc-full">Remarks / Evaluation Notes<textarea name="notes" placeholder="Enter comparison notes, technical comments, delivery considerations, etc."></textarea></label>
             </div>
-            <div class="pc-vendors"><div class="pc-vendors-head"><h4>Supplier Quotations</h4><button class="pc-button pc-light" type="button" data-pc-add-vendor><i class="fas fa-plus"></i> Add Supplier</button></div><div data-pc-vendors></div></div>
+            <div class="pc-vendors"><div class="pc-vendors-head"><h4>Supplier Quotations</h4><button class="pc-button pc-light" type="button" data-pc-add-vendor><i class="fas fa-plus"></i> Add Supplier</button></div><div class="pc-vendor-labels" aria-hidden="true"><span>Supplier Name</span><span>Quotation Amount</span><span>Delivery Days</span><span>Warranty</span><span>Rating / 5</span><span></span></div><div data-pc-vendors></div></div>
             <footer class="pc-modal-actions"><button class="pc-button pc-light" type="button" data-pc-cancel>Cancel</button><button class="pc-button pc-light" type="submit" data-pc-submit="Draft">Save Draft</button><button class="pc-button pc-primary" type="submit" data-pc-submit="Pending">Submit for Approval</button></footer></form>
         </section></div>
         <div class="pc-overlay" data-pc-view-overlay><section class="pc-modal" role="dialog" aria-modal="true" aria-labelledby="pc-view-title"><header class="pc-modal-head"><h3 id="pc-view-title">Purchase Comparison Details</h3><button class="pc-close" type="button" data-pc-close-view aria-label="Close">&times;</button></header><div class="pc-view" data-pc-view-content></div><footer class="pc-modal-actions"><button class="pc-button pc-light" type="button" data-pc-close-view>Close</button><button class="pc-button pc-primary" type="button" data-pc-print-current><i class="fas fa-print"></i> Print / PDF</button></footer></section></div>
@@ -40,6 +40,7 @@ function createPurchaseComparisonsModule() {
     let editingId = null;
     let viewingId = null;
     let toastTimer;
+    let purchaseRequests = [];
     const q = selector => section.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
     const money = (value, currency = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(value) || 0);
@@ -85,6 +86,28 @@ function createPurchaseComparisonsModule() {
     const highest = comparison => Math.max(...comparison.vendors.map(vendor => Number(vendor.quote)));
     const savings = comparison => highest(comparison) - lowest(comparison);
     const save = () => localStorage.setItem(storageKey, JSON.stringify(comparisons));
+    const refreshPurchaseRequestOptions = selectedRequest => {
+        const select = q('[name="request"]');
+        const selected = selectedRequest ?? select.value;
+        try {
+            const stored = JSON.parse(localStorage.getItem('schoolPurchaseRequests') || '[]');
+            purchaseRequests = Array.isArray(stored) ? stored.filter(request => request && request.deleted !== true && request.id) : [];
+        } catch (error) {
+            console.error('Unable to load purchase requests for comparison linking.', error);
+            purchaseRequests = [];
+        }
+        select.replaceChildren(new Option('Select purchase request', ''));
+        purchaseRequests
+            .sort((left, right) => String(right.id).localeCompare(String(left.id)))
+            .forEach(request => select.add(new Option(
+                `${request.id} — ${request.requester || request.department || 'Purchase request'}`,
+                String(request.id)
+            )));
+        if (selected && !Array.from(select.options).some(option => option.value === String(selected))) {
+            select.add(new Option(`${selected} — Saved reference not found`, String(selected)));
+        }
+        select.value = selected || '';
+    };
     const toast = message => {
         const element = q('[data-pc-toast]');
         element.textContent = message;
@@ -144,6 +167,7 @@ function createPurchaseComparisonsModule() {
     const openForm = comparison => {
         const form = q('[data-pc-form]');
         form.reset();
+        refreshPurchaseRequestOptions(comparison?.request || '');
         q('[data-pc-vendors]').replaceChildren();
         editingId = comparison?.id ?? null;
         q('#pc-form-title').textContent = comparison ? 'Edit Purchase Comparison' : 'Create Purchase Comparison';
@@ -309,6 +333,14 @@ function createPurchaseComparisonsModule() {
     q('[data-pc-close-form]').addEventListener('click', closeForm);
     q('[data-pc-cancel]').addEventListener('click', closeForm);
     section.querySelectorAll('[data-pc-close-view]').forEach(button => button.addEventListener('click', closeView));
+    refreshPurchaseRequestOptions();
+    window.addEventListener('school-portal-cloud-data-update', event => {
+        if (event.detail?.collection !== 'purchaseRequests') return;
+        refreshPurchaseRequestOptions();
+    });
+    window.addEventListener('storage', event => {
+        if (event.key === 'schoolPurchaseRequests') refreshPurchaseRequestOptions();
+    });
     q('[data-pc-print-current]').addEventListener('click', () => {
         const comparison = comparisons.find(item => item.id === viewingId);
         if (comparison) printComparison(comparison);
