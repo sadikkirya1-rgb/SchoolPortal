@@ -7729,9 +7729,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="modal-header"><div><h3 id="invoiceFormTitle">Create Fee Invoice</h3><p>Enter student and invoice details</p></div><button class="close-btn" type="button" data-invoice-form-close aria-label="Close">&times;</button></div>
                     <div class="modal-body"><form class="fee-invoice-form" id="feeInvoiceForm">
                         <div class="fee-invoice-form-grid">
-                            <label>Student Name *<input name="student" required placeholder="Enter student name"></label>
-                            <label>Student ID *<input name="studentId" required placeholder="e.g. STU-1001"></label>
-                            <label>Class *<input name="className" required placeholder="e.g. Grade 1"></label>
+                            <label>Student Name *<input name="student" required readonly placeholder="Select a student to fill this field"></label>
+                            <label>Student ID *<select name="studentId" required><option value="">Loading students...</option></select></label>
+                            <label>Class *<input name="className" required readonly placeholder="Select a student to fill this field"></label>
                             <label>Invoice Date *<input name="invoiceDate" type="date" required></label>
                             <label>Due Date *<input name="dueDate" type="date" required></label>
                             <label>Amount (AED) *<input name="amount" type="number" min="0" step="0.01" value="0" required></label>
@@ -7833,6 +7833,54 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const invoiceForm = invoiceQuery('#feeInvoiceForm');
         const invoiceFormModal = invoiceQuery('#invoiceFormModal');
+        const studentSelect = invoiceForm.elements.studentId;
+        studentSelect.disabled = true;
+        const studentRecordId = document.createElement('input');
+        studentRecordId.type = 'hidden';
+        studentRecordId.name = 'studentRecordId';
+        invoiceForm.appendChild(studentRecordId);
+        const studentStatus = document.createElement('small');
+        studentStatus.className = 'fee-invoice-student-status';
+        studentStatus.setAttribute('role', 'status');
+        studentStatus.setAttribute('aria-live', 'polite');
+        studentSelect.parentElement.appendChild(studentStatus);
+        let studentRecords = [];
+        const studentDisplayId = student => String(student.admissionNo || student.admissionNumber || student.studentCode || student.studentId || student.id || '').trim();
+        const studentRecordKey = student => String(student.id || studentDisplayId(student)).trim();
+        const studentFullName = student => String(student.fullName || student.name || student.studentName
+            || [student.firstName, student.middleName, student.lastName].filter(Boolean).join(' ') || '').trim();
+        const selectedStudent = value => studentRecords.find(student =>
+            studentDisplayId(student) === String(value) || studentRecordKey(student) === String(value));
+        const refreshInvoiceStudentOptions = () => {
+            const selected = studentSelect.value;
+            studentSelect.replaceChildren(new Option(studentRecords.length ? 'Select student ID' : 'No student records available', ''));
+            studentRecords
+                .filter(student => studentDisplayId(student))
+                .sort((left, right) => studentFullName(left).localeCompare(studentFullName(right)))
+                .forEach(student => studentSelect.add(new Option(
+                    `${studentDisplayId(student)} — ${studentFullName(student) || 'Student'}`,
+                    studentDisplayId(student)
+                )));
+            if (selected && !Array.from(studentSelect.options).some(option => option.value === selected)) {
+                studentSelect.add(new Option(`${selected} — Saved student`, selected));
+            }
+            studentSelect.value = selected;
+            studentSelect.disabled = studentRecords.length === 0;
+        };
+        const selectInvoiceStudent = () => {
+            const student = selectedStudent(studentSelect.value);
+            if (!student) {
+                invoiceForm.elements.student.value = '';
+                invoiceForm.elements.className.value = '';
+                studentRecordId.value = '';
+                updateInvoiceSummary();
+                return;
+            }
+            invoiceForm.elements.student.value = studentFullName(student);
+            invoiceForm.elements.className.value = String(student.className || student.class || student.grade || student.gradeName || '').trim();
+            studentRecordId.value = studentRecordKey(student);
+            updateInvoiceSummary();
+        };
         const updateInvoiceSummary = () => {
             const values = Object.fromEntries(new FormData(invoiceForm).entries());
             const summary = { student: values.student || '—', studentId: values.studentId || '—', className: values.className || '—', dueDate: invoiceDate(values.dueDate), status: values.status || 'Pending', amount: invoiceMoney(values.amount) };
@@ -7840,6 +7888,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const openInvoiceForm = () => {
             invoiceForm.reset();
+            refreshInvoiceStudentOptions();
+            selectInvoiceStudent();
             invoiceForm.elements.invoiceDate.value = new Date().toISOString().slice(0, 10);
             invoiceForm.elements.dueDate.value = invoiceForm.elements.invoiceDate.value;
             invoiceForm.elements.amount.value = 0;
@@ -7849,11 +7899,16 @@ document.addEventListener('DOMContentLoaded', () => {
             invoiceForm.elements.student.focus();
         };
         window.openInvoices = openInvoiceForm;
+        studentSelect.addEventListener('change', selectInvoiceStudent);
         invoiceForm.addEventListener('input', updateInvoiceSummary);
         invoiceForm.addEventListener('change', updateInvoiceSummary);
         invoiceForm.addEventListener('submit', event => {
             event.preventDefault();
             const values = Object.fromEntries(new FormData(invoiceForm).entries());
+            if (!values.studentId || !values.student || !values.className) {
+                window.alert('Select a student before creating the fee invoice.');
+                return;
+            }
             const status = values.status === 'Pending' && values.dueDate && new Date(`${values.dueDate}T00:00:00`) < new Date(new Date().toDateString()) ? 'Overdue' : values.status;
             const number = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
             invoiceData[number] = { number, ...values, amount: Number(values.amount) || 0, status };
@@ -7866,6 +7921,24 @@ document.addEventListener('DOMContentLoaded', () => {
         invoiceQuery('[data-invoice-form-cancel]').addEventListener('click', () => { invoiceFormModal.classList.remove('show'); invoiceFormModal.setAttribute('aria-hidden', 'true'); });
         invoiceFormModal.addEventListener('click', event => { if (event.target === invoiceFormModal) { invoiceFormModal.classList.remove('show'); invoiceFormModal.setAttribute('aria-hidden', 'true'); } });
         invoiceQuery('.invoice-main-btn').addEventListener('click', openInvoiceForm);
+        const studentApi = window.schoolPortalData;
+        if (studentApi?.subscribe) {
+            Promise.resolve(studentApi.subscribe('students', records => {
+                studentRecords = records.filter(student => student && student.deleted !== true);
+                refreshInvoiceStudentOptions();
+                studentStatus.textContent = studentRecords.length
+                    ? 'Select a student ID to fill in the student name and class.'
+                    : 'No student records are available for this school.';
+                if (studentSelect.value) selectInvoiceStudent();
+            })).catch(error => {
+                console.error('Unable to load student records for fee invoices.', error);
+                studentStatus.textContent = 'Unable to load student records. Check access and connectivity, then retry.';
+                studentSelect.disabled = true;
+            });
+        } else {
+            studentStatus.textContent = 'Student records are unavailable. Reload the app and try again.';
+            studentSelect.disabled = true;
+        }
         invoiceQuery('#invoiceTable').addEventListener('click', event => {
             const button = event.target.closest('[data-invoice-action]');
             if (!button) return;

@@ -41,6 +41,7 @@ function createPurchaseComparisonsModule() {
     let viewingId = null;
     let toastTimer;
     let purchaseRequests = [];
+    let suppliers = [];
     const q = selector => section.querySelector(selector);
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
     const money = (value, currency = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(Number(value) || 0);
@@ -108,6 +109,30 @@ function createPurchaseComparisonsModule() {
         }
         select.value = selected || '';
     };
+    const refreshSupplierOptions = () => {
+        try {
+            const stored = JSON.parse(localStorage.getItem('schoolSupplierDirectory') || '[]');
+            suppliers = Array.isArray(stored)
+                ? stored.filter(supplier => supplier && supplier.deleted !== true && (supplier.name || supplier.companyName || supplier.supplierName))
+                : [];
+        } catch (error) {
+            console.error('Unable to load suppliers for comparison quotations.', error);
+            suppliers = [];
+        }
+        section.querySelectorAll('.pc-vendor-name').forEach(select => {
+            const selected = select.value;
+            select.replaceChildren(new Option('Select supplier', ''));
+            suppliers.forEach(supplier => {
+                const name = supplier.name || supplier.companyName || supplier.supplierName;
+                select.add(new Option(`${name}${supplier.status ? ` — ${supplier.status}` : ''}`, name));
+            });
+            if (selected && !Array.from(select.options).some(option => option.value === selected)) {
+                select.add(new Option(`${selected} — Saved supplier not found`, selected));
+            }
+            select.value = selected;
+        });
+        updateRecommendedOptions();
+    };
     const toast = message => {
         const element = q('[data-pc-toast]');
         element.textContent = message;
@@ -157,9 +182,16 @@ function createPurchaseComparisonsModule() {
     const addVendor = (vendor = { name: '', quote: 0, delivery: 7, warranty: '1 Year', rating: 4 }) => {
         const row = document.createElement('div');
         row.className = 'pc-vendor-row';
-        row.innerHTML = `<input class="pc-vendor-name" aria-label="Supplier name" placeholder="Supplier name" value="${escape(vendor.name)}"><input class="pc-vendor-quote" aria-label="Quotation amount" type="number" min="0" step="0.01" placeholder="Quotation amount" value="${Number(vendor.quote) || 0}"><input class="pc-vendor-delivery" aria-label="Delivery days" type="number" min="0" step="1" placeholder="Days" value="${Number(vendor.delivery) || 0}"><input class="pc-vendor-warranty" aria-label="Warranty" placeholder="Warranty" value="${escape(vendor.warranty)}"><input class="pc-vendor-rating" aria-label="Supplier rating out of five" type="number" min="0" max="5" step="0.1" placeholder="Rating" value="${Number(vendor.rating) || 0}"><button class="pc-remove-vendor" type="button" aria-label="Remove supplier"><i class="fas fa-xmark"></i></button>`;
+        row.innerHTML = `<select class="pc-vendor-name" aria-label="Supplier name"><option value="">Select supplier</option></select><input class="pc-vendor-quote" aria-label="Quotation amount" type="number" min="0" step="0.01" placeholder="Quotation amount" value="${Number(vendor.quote) || 0}"><input class="pc-vendor-delivery" aria-label="Delivery days" type="number" min="0" step="1" placeholder="Days" value="${Number(vendor.delivery) || 0}"><input class="pc-vendor-warranty" aria-label="Warranty" placeholder="Warranty" value="${escape(vendor.warranty)}"><input class="pc-vendor-rating" aria-label="Supplier rating out of five" type="number" min="0" max="5" step="0.1" placeholder="Rating" value="${Number(vendor.rating) || 0}"><button class="pc-remove-vendor" type="button" aria-label="Remove supplier"><i class="fas fa-xmark"></i></button>`;
         q('[data-pc-vendors]').appendChild(row);
-        row.querySelector('.pc-vendor-name').addEventListener('input', updateRecommendedOptions);
+        refreshSupplierOptions();
+        const supplierSelect = row.querySelector('.pc-vendor-name');
+        if (vendor.name && !Array.from(supplierSelect.options).some(option => option.value === vendor.name)) {
+            supplierSelect.add(new Option(`${vendor.name} — Saved supplier not found`, vendor.name));
+        }
+        supplierSelect.value = vendor.name || '';
+        updateRecommendedOptions();
+        supplierSelect.addEventListener('change', updateRecommendedOptions);
         row.querySelector('.pc-remove-vendor').addEventListener('click', () => { row.remove(); updateRecommendedOptions(); });
     };
     const closeForm = () => q('[data-pc-form-overlay]').classList.remove('is-open');
@@ -334,12 +366,14 @@ function createPurchaseComparisonsModule() {
     q('[data-pc-cancel]').addEventListener('click', closeForm);
     section.querySelectorAll('[data-pc-close-view]').forEach(button => button.addEventListener('click', closeView));
     refreshPurchaseRequestOptions();
+    refreshSupplierOptions();
     window.addEventListener('school-portal-cloud-data-update', event => {
-        if (event.detail?.collection !== 'purchaseRequests') return;
-        refreshPurchaseRequestOptions();
+        if (event.detail?.collection === 'purchaseRequests') refreshPurchaseRequestOptions();
+        if (event.detail?.collection === 'suppliers') refreshSupplierOptions();
     });
     window.addEventListener('storage', event => {
         if (event.key === 'schoolPurchaseRequests') refreshPurchaseRequestOptions();
+        if (event.key === 'schoolSupplierDirectory') refreshSupplierOptions();
     });
     q('[data-pc-print-current]').addEventListener('click', () => {
         const comparison = comparisons.find(item => item.id === viewingId);
