@@ -4374,7 +4374,9 @@ document.addEventListener('DOMContentLoaded', () => {
             'Assignments': { text: 'Post Assignment', icon: 'fa-clipboard-list' },
             'Online Quizzes': { text: 'Create Quiz', icon: 'fa-stopwatch' },
             'Notice Board': { text: 'Create Notice', icon: 'fa-bullhorn' },
-            'User Roles': { text: 'Add Role', icon: 'fa-user-shield' }
+            'User Roles': { text: 'Add User', icon: 'fa-user-plus' },
+            'Users & Access': { text: 'Add User', icon: 'fa-user-plus' },
+            'Roles & Permissions': { text: 'Add User', icon: 'fa-user-plus' }
         };
 
         const config = actionConfigs[sectionLabel] || { text: `New ${sectionLabel}`, icon: 'fa-plus' };
@@ -4745,23 +4747,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const count = level => entries.filter(access => access?.[level] === true).length;
         return `${count('view')} view · ${count('edit')} edit · ${count('delete')} delete`;
     };
-    const formatSectionGrants = sections => (sections || []).map(grant => {
-        const parts = String(grant).split(':');
-        if (parts[0] === 'department') {
-            const title = Array.from(document.querySelectorAll('.sidebar > .menu-title'))
-                .find(item => sectionDepartmentKey(item) === grant);
-            return title?.innerText.trim() || parts[1];
-        }
-        if (parts[0] === 'module' && parts.length === 3) {
-            const title = Array.from(document.querySelectorAll('.sidebar > .menu-title'))
-                .find(item => normalizeSectionKey(item.dataset.accessSection || item.innerText.trim()) === parts[1]);
-            const link = title?.nextElementSibling?.querySelectorAll('a');
-            const module = Array.from(link || []).find(item => sectionModuleKey(title, item) === grant);
-            return module ? `${title.innerText.trim()} · ${(module.querySelector('span')?.textContent || module.textContent).trim()}` : `${parts[1]} · ${parts[2]}`;
-        }
-        return String(grant).replace(/\s+Department$/, '');
-    }).join(', ');
-
     const showUserRolesAddButton = () => {
         userRolesSection?.querySelectorAll('button').forEach(button => {
             if (/back to dashboard/i.test(button.textContent)) button.remove();
@@ -4771,6 +4756,12 @@ document.addEventListener('DOMContentLoaded', () => {
             toggleAddUserFormBtn.disabled = false;
             toggleAddUserFormBtn.style.pointerEvents = 'auto';
         }
+    };
+    const openUserRolesSection = label => {
+        showSection('userRolesSection');
+        showUserRolesAddButton();
+        void renderUsersTable();
+        updateBreadcrumb(['System', label]);
     };
 
     toggleAddUserFormBtn?.addEventListener('click', async () => {
@@ -7074,6 +7065,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isActive = u.status === 'active';
             const isAdministrator = isPrivilegedRole(u.role);
             const isCurrentUser = u.uid === session.userId;
+            const sectionCount = Array.isArray(u.sections) ? u.sections.length : 0;
 
             if (u.uid === session.userId) {
                 tr.classList.add('current-user-row');
@@ -7095,7 +7087,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${escapeUserHTML(u.role)}</td>
                 <td>${escapeUserHTML(u.linkedRecordId || '—')}</td>
                 <td>${escapeUserHTML([u.email, u.phone].filter(Boolean).join(' · ') || '—')}<small class="user-notification-summary">Notices: ${escapeUserHTML(channels)}</small></td>
-                <td>${isAdministrator ? 'All sections' : escapeUserHTML(formatSectionGrants(u.sections) || 'None assigned')}</td>
+                <td>${isAdministrator ? 'All sections' : sectionCount}</td>
                 <td>${isAdministrator ? 'All classes' : escapeUserHTML((u.assignedClassIds || []).join(', ') || (['teacher', 'deputyHeadTeacher'].includes(u.role) ? 'None assigned' : 'Not applicable'))}</td>
                 <td class="small">${isAdministrator ? 'Full school access' : escapeUserHTML(permissionSummary(u.permissions))}</td>
                 <td>
@@ -8392,10 +8384,12 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
             }
 
             if (link.id === 'userRolesBtn') {
-                showSection('userRolesSection');
-                showUserRolesAddButton();
-                renderUsersTable();
-                updateBreadcrumb(['System', 'User Roles']);
+                openUserRolesSection('Users & Access');
+                return;
+            }
+
+            if (linkText === 'Users' || linkText === 'Roles & Permissions') {
+                openUserRolesSection(linkText);
                 return;
             }
 
@@ -9491,13 +9485,10 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
                 } else {
                     modal.classList.add('active');
                 }
-            } else if (currentSection === 'User Roles') {
+            } else if (['User Roles', 'Users & Access', 'Users', 'Roles & Permissions'].includes(currentSection)) {
                 document.getElementById('userRolesBtn')?.click();
-                document.getElementById('roleManagementModule')?.querySelector('[data-rm-new]')?.click();
+                document.getElementById('toggleAddUserFormBtn')?.click();
                 return;
-            } else if (currentSection === 'Users') {
-                document.getElementById('userRolesBtn')?.click();
-                setTimeout(() => document.getElementById('toggleAddUserFormBtn')?.click(), 100);
             } else if (currentSection === 'ID Cards') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'ID Cards')?.click();
                 document.getElementById('idCardsModule')?.querySelector('[data-idc-new]')?.click();
