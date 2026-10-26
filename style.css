@@ -4904,7 +4904,7 @@ input:checked + .slider:before {
 
 .nav-links{
     display:grid;
-    gap:3px;
+    gap:0;
     padding:0;
 }
 

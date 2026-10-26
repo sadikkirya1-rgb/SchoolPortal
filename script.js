@@ -9183,7 +9183,7 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
                 return;
             }
 
-            if (linkText === 'QR Attendance Scanner') {
+            if (linkText === 'QR & Face') {
                 window.openSchoolPortalQrAttendanceScanner?.();
                 return;
             }

@@ -117,7 +117,6 @@
       "children": [
         {"id": "users", "label": "Users", "icon": "fas fa-users-cog", "href": "#/admin/users"},
         {"id": "roles", "label": "Roles & Permissions", "icon": "fas fa-user-shield", "href": "#/admin/roles"},
-        {"id": "backups", "label": "Backups", "icon": "fas fa-database", "href": "#/admin/backups"},
         {"id": "settings", "label": "System Settings", "icon": "fas fa-sliders-h", "href": "#/admin/settings"},
         {"id": "branding", "label": "School Branding", "icon": "fas fa-palette", "href": "#/admin/branding"}
       ]
