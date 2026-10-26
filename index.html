@@ -527,9 +527,9 @@ if ('serviceWorker' in navigator) {
 <ul class="nav-links">
     <li><a><i class="fas fa-file-circle-plus"></i><span>Purchase Request</span></a></li>
     <li><a><i class="fas fa-file-lines"></i><span>Quotations</span></a></li>
-    <li><a><i class="fas fa-code-compare"></i><span>Purchase Comparisons</span></a></li>
+    <li><a data-access-key="Purchase Comparisons"><i class="fas fa-code-compare"></i><span>Compasions</span></a></li>
     <li><a><i class="fas fa-cart-shopping"></i><span>Purchase Orders</span></a></li>
-    <li><a><i class="fas fa-truck-ramp-box"></i><span>Goods Receipt (GRN)</span></a></li>
+    <li><a data-access-key="Goods Receipt (GRN)"><i class="fas fa-truck-ramp-box"></i><span>Goods Recieved</span></a></li>
     <li><a><i class="fas fa-file-invoice-dollar"></i><span>Supplier Invoices</span></a></li>
     <li><a><i class="fas fa-truck-fast"></i><span>Suppliers</span></a></li>
 </ul>
@@ -541,17 +541,13 @@ if ('serviceWorker' in navigator) {
     <li><a><i class="fas fa-bullhorn"></i><span>Notice Board</span></a></li>
 </ul>
 
-<p class="menu-title"><i class="fas fa-window-restore"></i>Portals</p>
-<ul class="nav-links">
-    <li><a id="parentPortalPreviewBtn" data-portal-admin-only="true"><i class="fas fa-people-roof"></i><span>Parent Portal</span></a></li>
-</ul>
-
 <p class="menu-title"><i class="fas fa-sliders"></i>System</p>
 <ul class="nav-links">
     <li><a><i class="fas fa-qrcode"></i><span>QR &amp; Face</span></a></li>
     <li><a><i class="fas fa-chart-line"></i><span>Analytics</span></a></li>
     <li><a id="userRolesBtn"><i class="fas fa-user-shield"></i><span>Users &amp; Access</span></a></li>
     <li><a><i class="fas fa-gear"></i><span>Settings</span></a></li>
+    <li><a id="parentPortalPreviewBtn" data-portal-admin-only="true"><i class="fas fa-people-roof"></i><span>Parent Portal</span></a></li>
 </ul>
 
 </aside>

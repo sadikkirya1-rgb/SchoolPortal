@@ -2961,7 +2961,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `department:${normalizeSectionKey(title.dataset.accessSection || title.innerText.trim())}`;
     const sectionModuleKey = (title, link) => {
         const label = link.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.textContent || link.textContent;
-        return `module:${normalizeSectionKey(title.dataset.accessSection || title.innerText.trim())}:${normalizeSectionKey(link.dataset.menuId || label)}`;
+        return `module:${normalizeSectionKey(title.dataset.accessSection || title.innerText.trim())}:${normalizeSectionKey(link.dataset.accessKey || link.dataset.menuId || label)}`;
     };
     const parentRecommendedSectionGrants = [
         'module:academic:students',
@@ -4363,9 +4363,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'Purchase Request': { text: 'New Request', icon: 'fa-cart-plus' },
             'Purchase Requests': { text: 'New Request', icon: 'fa-cart-plus' },
             'Purchase Orders': { text: 'Create Purchase Order', icon: 'fa-cart-shopping' },
+            'Compasions': { text: 'New Comparison', icon: 'fa-code-compare' },
             'Purchase Comparisons': { text: 'New Comparison', icon: 'fa-code-compare' },
             'Quotations': { text: 'New Quotation', icon: 'fa-file-invoice-dollar' },
-            'Goods Receipt (GRN)': { text: 'New GRN', icon: 'fa-truck-ramp-box' },
+            'Goods Recieved': { text: 'New GRN', icon: 'fa-truck-ramp-box' },
             'Supplier Invoices': { text: 'New Invoice', icon: 'fa-file-invoice-dollar' },
             'Suppliers': { text: 'Add Supplier', icon: 'fa-truck-fast' },
             'Fixed Assets': { text: 'Add Fixed Asset', icon: 'fa-building-circle-check' },
@@ -8493,7 +8494,7 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
                 return;
             }
 
-            if (linkText === 'Purchase Comparisons') {
+            if (linkText === 'Compasions' || linkText === 'Purchase Comparisons') {
                 let purchaseComparisonsModule = document.getElementById('purchaseComparisonsModule');
                 if (!purchaseComparisonsModule) {
                     purchaseComparisonsModule = createPurchaseComparisonsModule();
@@ -8501,7 +8502,7 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(purchaseComparisonsModule, dashboardEl);
                 }
                 showSection('purchaseComparisonsModule');
-                updateBreadcrumb(['Procurement Department', 'Purchase Comparisons']);
+                updateBreadcrumb(['Procurement Department', linkText]);
                 return;
             }
 
@@ -8517,7 +8518,7 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
                 return;
             }
 
-            if (linkText === 'Goods Receipt (GRN)') {
+            if (linkText === 'Goods Recieved' || linkText === 'Goods Receipt (GRN)') {
                 let goodsReceiptModule = document.getElementById('goodsReceiptModule');
                 if (!goodsReceiptModule) {
                     goodsReceiptModule = createGoodsReceiptModule();
@@ -8525,7 +8526,7 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
                     if (dashboardEl) dashboardEl.parentNode.insertBefore(goodsReceiptModule, dashboardEl);
                 }
                 showSection('goodsReceiptModule');
-                updateBreadcrumb(['Procurement Department', 'Goods Receipt (GRN)']);
+                updateBreadcrumb(['Procurement Department', linkText]);
                 return;
             }
 
@@ -9531,16 +9532,16 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Purchase Orders')?.click();
                 document.getElementById('purchaseOrdersModule')?.querySelector('[data-po-new]')?.click();
                 return;
-            } else if (currentSection === 'Purchase Comparisons') {
-                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Purchase Comparisons')?.click();
+            } else if (currentSection === 'Compasions' || currentSection === 'Purchase Comparisons') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Compasions')?.click();
                 document.getElementById('purchaseComparisonsModule')?.querySelector('[data-pc-new]')?.click();
                 return;
             } else if (currentSection === 'Quotations') {
                 Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Quotations')?.click();
                 document.getElementById('quotationsModule')?.querySelector('[data-qt-new]')?.click();
                 return;
-            } else if (currentSection === 'Goods Receipt (GRN)') {
-                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Goods Receipt (GRN)')?.click();
+            } else if (currentSection === 'Goods Recieved' || currentSection === 'Goods Receipt (GRN)') {
+                Array.from(document.querySelectorAll('.nav-links a')).find(link => (link.querySelector('span')?.innerText.trim() || link.innerText.trim()) === 'Goods Recieved')?.click();
                 document.getElementById('goodsReceiptModule')?.querySelector('[data-grn-new]')?.click();
                 return;
             } else if (currentSection === 'Supplier Invoices') {
