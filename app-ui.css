@@ -316,7 +316,9 @@ body.dark-mode,
 }
 
 .nav-links a {
-    min-height: 44px;
+    min-height: 35px;
+    margin-inline: 4px;
+    padding: 5px 8px;
 }
 
 .nav-links a.active {
