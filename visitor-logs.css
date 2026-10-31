@@ -38,6 +38,7 @@
 
 .visitor-logs-module .vl-modal.vl-form-modal{width:min(1240px,100%)}
 .visitor-logs-module .vl-form-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(250px,290px);gap:16px;align-items:start}
+.visitor-logs-module .vl-toolbar .vl-add-button{margin-left:auto}
 .visitor-logs-module .vl-form-fields{min-width:0}
 .visitor-logs-module .vl-form-fields .vl-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 .visitor-logs-module .vl-form-fields .vl-grid>label{min-width:0}
