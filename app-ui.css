@@ -27,8 +27,12 @@
     display: none !important;
 }
 
-.main > section.module:not(.hidden) {
+.main > .module:not(.hidden) {
+    width: 100% !important;
+    max-width: none !important;
+    margin-inline: 0 !important;
     min-width: 0;
+    box-sizing: border-box;
     background: var(--app-content-bg);
     color: var(--app-ink);
 }
@@ -769,14 +773,54 @@ body.dark-mode,
     }
 }
 
-.main > section.module:not(.hidden) :is([class*="card"], [class*="panel"]):has(table) {
-    width: 100%;
-    max-width: none;
+.main > .module:not(.hidden) :is(
+    [class*="card"],
+    [class*="panel"],
+    [class*="content"],
+    [class*="records"],
+    [class*="data-view"],
+    [class*="data-card"],
+    [class*="data-list"],
+    [class*="view-card"],
+    [class*="list-card"]
+):not([class*="modal"]):not([class*="preview"]):not([class*="summary"]):not([class*="stat"]):not([class*="kpi"]):has(table),
+.main > .module:not(.hidden) :is(
+    [class*="data-view"],
+    [class*="data-list"],
+    [class*="records-view"],
+    [class*="view-card"],
+    [class*="list-card"]
+):not([class*="modal"]):not([class*="preview"]):not([class*="summary"]):not([class*="stat"]):not([class*="kpi"]) {
+    width: 100% !important;
+    max-width: none !important;
     min-width: 0;
+    margin-inline: 0 !important;
+    box-sizing: border-box;
+    align-self: stretch;
+    justify-self: stretch;
+    grid-column: 1 / -1;
     min-height: max(320px, calc(100vh - 260px));
 }
 
-.main > section.module:not(.hidden) :is([class*="card"], [class*="panel"]):has(table):has(> :is(
+.main > .module:not(.hidden) :not(table):not([class*="preview"]):has(table) {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    margin-inline: 0 !important;
+    box-sizing: border-box;
+}
+
+.main > .module:not(.hidden) :is(
+    [class*="card"],
+    [class*="panel"],
+    [class*="content"],
+    [class*="records"],
+    [class*="data-view"],
+    [class*="data-card"],
+    [class*="data-list"],
+    [class*="view-card"],
+    [class*="list-card"]
+):not([class*="modal"]):not([class*="preview"]):not([class*="summary"]):not([class*="stat"]):not([class*="kpi"]):has(table):has(:is(
     [class*="table-wrap"],
     [class*="table-wrapper"],
     [class*="table-container"],
@@ -787,14 +831,24 @@ body.dark-mode,
     flex-direction: column;
 }
 
-.main > section.module:not(.hidden) :is([class*="card"], [class*="panel"]):has(table) :is(
+.main > .module:not(.hidden) :is(
+    [class*="card"],
+    [class*="panel"],
+    [class*="content"],
+    [class*="records"],
+    [class*="data-view"],
+    [class*="data-card"],
+    [class*="data-list"],
+    [class*="view-card"],
+    [class*="list-card"]
+):not([class*="modal"]):not([class*="preview"]):not([class*="summary"]):not([class*="stat"]):not([class*="kpi"]):has(table) :is(
     [class*="table-wrap"],
     [class*="table-wrapper"],
     [class*="table-container"],
     [class*="table-responsive"],
     [class*="table-scroll"]
 ) {
-    width: 100%;
+    width: 100% !important;
     flex: 1 1 auto;
     min-height: 0;
 }
@@ -817,7 +871,24 @@ body.dark-mode,
 }
 
 @media (max-width: 640px) {
-    .main > section.module:not(.hidden) :is([class*="card"], [class*="panel"]):has(table) {
+    .main > .module:not(.hidden) :is(
+        [class*="card"],
+        [class*="panel"],
+        [class*="content"],
+        [class*="records"],
+        [class*="data-view"],
+        [class*="data-card"],
+        [class*="data-list"],
+        [class*="view-card"],
+        [class*="list-card"]
+    ):not([class*="modal"]):not([class*="preview"]):not([class*="summary"]):not([class*="stat"]):not([class*="kpi"]):has(table),
+    .main > .module:not(.hidden) :is(
+        [class*="data-view"],
+        [class*="data-list"],
+        [class*="records-view"],
+        [class*="view-card"],
+        [class*="list-card"]
+    ):not([class*="modal"]):not([class*="preview"]):not([class*="summary"]):not([class*="stat"]):not([class*="kpi"]) {
         min-height: max(320px, calc(100vh - 220px));
     }
 
