@@ -15,13 +15,9 @@
         section.innerHTML = `
             <header class="subjects-header">
                 <div>
-                    <p class="subjects-eyebrow">Academic Department</p>
                     <h1>School Subjects</h1>
                     <p>Manage the subject catalogue used for recording exam and test marks.</p>
                 </div>
-                <button class="subjects-primary-button" type="button" data-subject-add>
-                    <i class="fas fa-plus" aria-hidden="true"></i> Add Subject
-                </button>
             </header>
             <section class="subjects-summary" aria-label="Subject totals">
                 <article><span>Total subjects</span><strong data-subject-total>0</strong></article>
@@ -31,6 +27,9 @@
                 <div class="subjects-toolbar">
                     <div><h2>Subject catalogue</h2><p>Active subjects are available when staff enter exam and test marks.</p></div>
                     <label class="subjects-search"><span class="visually-hidden">Search subjects</span><i class="fas fa-search" aria-hidden="true"></i><input type="search" data-subject-search placeholder="Search name, code, or class"></label>
+                    <button class="subjects-primary-button" type="button" data-subject-add>
+                        <i class="fas fa-plus" aria-hidden="true"></i> Add Subject
+                    </button>
                 </div>
                 <form class="subjects-form" data-subject-form hidden>
                     <h3 data-subject-form-title>Add a subject</h3>

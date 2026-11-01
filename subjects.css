@@ -13,6 +13,19 @@
     gap: 16px;
 }
 
+.subjects-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 300px) minmax(0, 1fr);
+}
+
+.subjects-toolbar > .subjects-search {
+    justify-self: center;
+}
+
+.subjects-toolbar > .subjects-primary-button {
+    justify-self: end;
+}
+
 .subjects-header {
     margin-bottom: 22px;
 }
@@ -27,14 +40,6 @@
     margin: 0;
     color: #64748b;
     font-size: 13px;
-}
-
-.subjects-eyebrow {
-    color: #4f46e5 !important;
-    font-size: 11px !important;
-    font-weight: 800;
-    letter-spacing: .08em;
-    text-transform: uppercase;
 }
 
 .subjects-primary-button,
@@ -302,6 +307,10 @@
     .subjects-toolbar {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .subjects-toolbar {
+        grid-template-columns: 1fr;
     }
 
     .subjects-summary,
