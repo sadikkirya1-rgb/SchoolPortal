@@ -3095,13 +3095,15 @@ document.addEventListener('DOMContentLoaded', () => {
             ['Dashboard', 'Home', 'fa-house'],
             ['Students', 'Students', 'fa-user-graduate'],
             ['Attendance', 'Attendance', 'fa-calendar-check'],
-            ['Assignments', 'Assignments', 'fa-book-open']
+            ['Assignments', 'Assignments', 'fa-book-open'],
+            ['Exam & Test Marks', 'Marks', 'fa-clipboard-check']
         ],
         default: [
             ['Dashboard', 'Home', 'fa-house'],
             ['Students', 'Students', 'fa-user-graduate'],
             ['Attendance', 'Attendance', 'fa-calendar-check'],
-            ['Report Cards', 'Results', 'fa-square-poll-vertical']
+            ['Report Cards', 'Results', 'fa-square-poll-vertical'],
+            ['Exam & Test Marks', 'Marks', 'fa-clipboard-check']
         ]
     };
 
@@ -5387,7 +5389,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sec.className = 'module report-cards-module';
         sec.id = 'module_report_cards';
         sec.innerHTML = `
-            <div class="module-header report-cards-header"><div><h2>Report Cards</h2><p>After marking an exam or test, add a result for each subject, review the calculated percentages, then publish for linked parents and students.</p></div><div class="report-cards-user"><span>Administrator</span><small>Super Admin</small></div></div>
+            <div class="module-header report-cards-header"><div><h2>Report Cards</h2><p>Create, review, and publish student report cards using verified academic results.</p></div><div class="report-cards-user"><span>Administrator</span><small>Super Admin</small></div></div>
             <div class="report-cards-stats"><div><span>Total Report Cards</span><strong data-report-stat="total">0</strong><i class="fas fa-clipboard-list"></i></div><div><span>Published</span><strong data-report-stat="published">0</strong><i class="fas fa-check"></i></div><div><span>Generated</span><strong data-report-stat="generated">0</strong><i class="fas fa-bolt"></i></div><div><span>Draft</span><strong data-report-stat="draft">0</strong><i class="fas fa-pen"></i></div></div>
             <div class="report-cards-panel"><div class="report-cards-toolbar"><div><h3>Report Cards List</h3><p>Academic Year 2026/27</p></div><div class="report-cards-actions"><label class="report-search"><i class="fas fa-search"></i><input type="search" data-report-search placeholder="Search student or report no..."></label><button class="btn-secondary" type="button" data-report-filter><i class="fas fa-filter"></i> Filter</button><button class="btn-primary" type="button" data-report-new><i class="fas fa-plus"></i> New Report Card</button></div></div><div class="report-cards-table-wrap"><table><thead><tr><th>Report Card No.</th><th>Student</th><th>Class</th><th>Section</th><th>Academic Year</th><th>Period</th><th>Average</th><th>Grade</th><th>GPA</th><th>Attendance</th><th>Status</th><th>Generated</th><th>Actions</th></tr></thead><tbody data-report-table></tbody></table></div></div>
             <div class="report-card-modal hidden" data-report-modal><div class="report-card-dialog" role="dialog" aria-modal="true" aria-labelledby="report-card-form-title"><div class="report-card-dialog-header"><div><h3 id="report-card-form-title">Report Card Setup</h3><p>Configure report card information and display options</p></div><button class="icon-button" type="button" data-report-close aria-label="Close"><i class="fas fa-times"></i></button></div><form data-report-form><input type="hidden" name="editIndex"><div class="report-form-section"><h4>General Information</h4><div class="report-form-grid"><label>Report Card Name<input name="reportName" value="Student Academic Report Card" required></label><label>Academic Year<input name="year" value="2026/27" required></label><label>Academic Period<select name="period"><option>Term 1</option><option>Term 2</option><option>Term 3</option><option>Semester 1</option><option>Semester 2</option></select></label><label>Class / Grade<select name="class"><option>Grade 6</option><option>Grade 7</option><option selected>Grade 8</option><option>Grade 9</option><option>Grade 10</option><option>Grade 11</option><option>Grade 12</option></select></label><label>Section<select name="section"><option>A</option><option>B</option><option>C</option><option>D</option></select></label><label>Report Card Type<select name="reportType"><option>Standard</option><option>Detailed</option><option>Progress Report</option><option>Final Report</option></select></label><label>Grading System<select name="grading"><option>Percentage & Letter Grade</option><option>GPA 4.0 Scale</option><option>GPA 5.0 Scale</option><option>Custom School Grading</option></select></label><label>Status<select name="status"><option>Draft</option><option>Generated</option><option>Published</option><option>Archived</option></select></label></div></div><div class="report-form-section"><h4>Display Options</h4><div class="report-checkbox-grid">${['School Logo','Student Photo','Admission Number','Date of Birth','Class / Section','Attendance','Position / Rank','GPA','Overall Grade','Teacher Remarks','Principal Remarks','Parent Signature','Teacher Signature','Principal Signature'].map(label => `<label><input type="checkbox" checked> ${label}</label>`).join('')}</div></div><div class="report-form-section"><h4>Publication</h4><div class="report-form-grid"><label>Publication Status<select name="publication"><option>Draft</option><option>Generated</option><option>Published</option><option>Archived</option></select></label><label>Generated Date<input type="date" name="generatedDate"></label></div></div><div class="report-card-dialog-footer"><button class="btn-secondary" type="button" data-report-close>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Save Report Card</button></div></form></div></div>
@@ -5503,24 +5505,20 @@ document.addEventListener('DOMContentLoaded', () => {
         form.querySelector('.report-form-grid').prepend(studentLabel);
         const resultsSection = document.createElement('section');
         resultsSection.className = 'report-form-section report-subject-results';
-        resultsSection.innerHTML = '<h4>Exam & Test Results</h4><p class="report-subject-help">These results are loaded from published exam and test marks for the selected student, academic year, and period. Enter marks in the Exam & Test Marks tab; this report uses a snapshot of those published scores.</p><div data-report-subject-rows></div><button class="btn-secondary report-add-subject" type="button" data-report-load-results><i class="fas fa-rotate" aria-hidden="true"></i> Reload published marks</button>';
+        resultsSection.innerHTML = '<h4>Exam & Test Results</h4><p class="report-subject-help">These results are loaded from published exam and test marks for the selected student, academic year, and period. Enter marks in the separate Exam & Test Marks section; this report uses a snapshot of those published scores.</p><div data-report-subject-rows></div><button class="btn-secondary report-add-subject" type="button" data-report-load-results><i class="fas fa-rotate" aria-hidden="true"></i> Reload published marks</button>';
         form.querySelector('.report-form-section').after(resultsSection);
         const subjectRows = resultsSection.querySelector('[data-report-subject-rows]');
         const studentRecords = [];
         const subjectRecords = [];
         const examResultRecords = [];
-        const workflowTabs = document.createElement('nav');
-        workflowTabs.className = 'report-workflow-tabs';
-        workflowTabs.setAttribute('aria-label', 'Academic results workflow');
-        workflowTabs.innerHTML = '<button type="button" data-report-workflow-tab="results" aria-selected="true">Exam & Test Marks</button><button type="button" data-report-workflow-tab="cards" aria-selected="false">Report Cards</button>';
-        sec.querySelector('.report-cards-stats').after(workflowTabs);
-        const cardsPanel = sec.querySelector('.report-cards-panel');
-        cardsPanel.hidden = true;
         const examResultsPanel = document.createElement('section');
         examResultsPanel.className = 'report-exam-results-panel';
-        examResultsPanel.hidden = false;
         examResultsPanel.innerHTML = '<div class="report-cards-panel report-exam-entry"><header class="report-exam-heading"><div><h3>Enter marks after marking papers</h3><p>Save one result per student, subject, and exam/test. Draft marks are private. Publish after checking; published marks can then be loaded into a report card.</p></div></header><form data-exam-result-form><input type="hidden" name="recordId"><div class="report-exam-form-grid"><label>Student *<select name="studentId" required></select></label><label>Subject *<select name="subjectId" required></select></label><label>Exam / test name *<input name="assessmentName" required maxlength="100" placeholder="e.g. Term 1 Mathematics paper"></label><label>Type *<select name="assessmentType" required><option value="">Choose type</option><option value="test">Test</option><option value="exam">Examination</option></select></label><label>Exam date<input name="assessmentDate" type="date"></label><label>Academic year *<input name="year" required value="2026/27"></label><label>Term / period *<select name="period" required><option>Term 1</option><option>Term 2</option><option>Term 3</option><option>Semester 1</option><option>Semester 2</option></select></label><label>Maximum marks *<input name="maxMarks" type="number" min="0.01" step="any" required placeholder="100"></label><label>Marks obtained *<input name="obtainedMarks" type="number" min="0" step="any" required placeholder="85"></label><label>Percentage (automatic)<input name="percentage" readonly aria-label="Calculated percentage"></label><label class="report-exam-remarks">Teacher remarks<textarea name="remarks" maxlength="500" rows="2" placeholder="Optional feedback"></textarea></label></div><div class="report-exam-actions"><button class="btn-secondary" type="button" data-exam-save="Draft">Save draft</button><button class="btn-primary" type="button" data-exam-save="Published">Publish result</button><button class="btn-secondary" type="button" data-exam-reset>Clear form</button></div><p class="report-exam-feedback" data-exam-feedback role="status" aria-live="polite"></p></form></div><div class="report-cards-panel report-exam-list"><header class="report-exam-heading"><div><h3>Saved exam and test marks</h3><p>Review drafts and published marks. Select a row to update or publish it.</p></div></header><div class="report-cards-table-wrap"><table><thead><tr><th>Student ID</th><th>Student</th><th>Subject</th><th>Exam / test</th><th>Type</th><th>Period</th><th>Score</th><th>Percentage</th><th>Status</th><th>Actions</th></tr></thead><tbody data-exam-result-rows><tr><td colspan="10" class="report-empty">Loading saved results…</td></tr></tbody></table></div></div>';
-        cardsPanel.after(examResultsPanel);
+        const examResultsModule = document.createElement('section');
+        examResultsModule.className = 'module report-cards-module exam-results-module';
+        examResultsModule.id = 'module_exam_test_marks';
+        examResultsModule.innerHTML = '<div class="module-header report-cards-header"><div><h2>Exam &amp; Test Marks</h2><p>Record, review, and publish student marks independently from report cards.</p></div><div class="report-cards-user"><span>Administrator</span><small>Academic results access</small></div></div>';
+        examResultsModule.append(examResultsPanel);
         const examResultForm = examResultsPanel.querySelector('[data-exam-result-form]');
         const examResultRows = examResultsPanel.querySelector('[data-exam-result-rows]');
         const examResultFeedback = examResultsPanel.querySelector('[data-exam-feedback]');
@@ -5922,16 +5920,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
-        workflowTabs.addEventListener('click', event => {
-            const tab = event.target.closest('[data-report-workflow-tab]');
-            if (!tab) return;
-            const showResults = tab.dataset.reportWorkflowTab === 'results';
-            cardsPanel.hidden = showResults;
-            examResultsPanel.hidden = !showResults;
-            workflowTabs.querySelectorAll('[data-report-workflow-tab]').forEach(item => {
-                item.setAttribute('aria-selected', String(item === tab));
-            });
-        });
         form.elements.period.addEventListener('change', loadPublishedMarksIntoReport);
         form.elements.year.addEventListener('change', loadPublishedMarksIntoReport);
         sec.querySelector('[data-report-load-results]').addEventListener('click', loadPublishedMarksIntoReport);
@@ -6164,7 +6152,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         refreshStudentOptions('');
         fillSubjectRows();
-        render(); return sec;
+        render();
+        return { reportCards: sec, examTestMarks: examResultsModule };
     }
 
     function createReportsModule(category) {
@@ -9001,11 +8990,31 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
                 const category = parentUl?.previousElementSibling?.innerText.trim() || 'Academic Department';
                 let reportCardsModule = document.getElementById('module_report_cards');
                 if (!reportCardsModule) {
-                    reportCardsModule = createReportCardsModule(category);
+                    const modules = createReportCardsModule(category);
                     const dashboardEl = document.querySelector('.main > .dashboard-shell');
-                    if (dashboardEl) dashboardEl.parentNode.insertBefore(reportCardsModule, dashboardEl);
+                    reportCardsModule = modules.reportCards;
+                    if (dashboardEl?.parentNode) {
+                        dashboardEl.parentNode.insertBefore(reportCardsModule, dashboardEl);
+                        dashboardEl.parentNode.insertBefore(modules.examTestMarks, dashboardEl);
+                    }
                 }
                 showSection('module_report_cards');
+                updateBreadcrumb([category, linkText]);
+                return;
+            }
+
+            if (linkText === 'Exam & Test Marks') {
+                const parentUl = link.closest('ul.nav-links');
+                const category = parentUl?.previousElementSibling?.innerText.trim() || 'Academic Department';
+                if (!document.getElementById('module_exam_test_marks')) {
+                    const modules = createReportCardsModule(category);
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
+                    if (dashboardEl?.parentNode) {
+                        dashboardEl.parentNode.insertBefore(modules.reportCards, dashboardEl);
+                        dashboardEl.parentNode.insertBefore(modules.examTestMarks, dashboardEl);
+                    }
+                }
+                showSection('module_exam_test_marks');
                 updateBreadcrumb([category, linkText]);
                 return;
             }

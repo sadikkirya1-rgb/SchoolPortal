@@ -67,6 +67,7 @@
         {"id": "schemes", "label": "Schemes of Work", "icon": "fas fa-file-excel", "href": "#/academic/schemes"},
         {"id": "assessment", "label": "Continuous Assessment", "icon": "fas fa-tasks", "href": "#/academic/assessment"},
         {"id": "reports", "label": "Report Cards", "icon": "fas fa-chart-bar", "href": "#/academic/reports"},
+        {"id": "exam_test_marks", "label": "Exam & Test Marks", "icon": "fas fa-clipboard-check", "href": "#/academic/exam-test-marks"},
         {"id": "transcripts", "label": "Academic Transcripts", "icon": "fas fa-scroll", "href": "#/academic/transcripts"},
         {"id": "library", "label": "Library", "icon": "fas fa-book-medical", "href": "#/academic/library"},
         {"id": "id_cards", "label": "ID Cards", "icon": "fas fa-id-badge", "href": "#/academic/id-cards"},
