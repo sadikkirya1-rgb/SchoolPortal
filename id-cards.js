@@ -32,7 +32,7 @@ function createIDCardsModule(category) {
     const scannerPanel = document.createElement('section');
     scannerPanel.className = 'idc-panel idc-scan-panel hidden';
     scannerPanel.dataset.idcScanPanel = '';
-    scannerPanel.innerHTML = `<div class="idc-scan-heading"><div><h3>QR Attendance Scanner</h3><p>Use a member QR code or an enrolled face to record attendance.</p></div><button class="idc-btn idc-btn-light" type="button" data-idc-close-scanner aria-label="Close attendance scanner">Close</button></div><div class="idc-scan-controls"><div class="idc-scan-option"><span>Identify member</span><strong>QR or Face</strong></div><div class="idc-scan-option"><span>Camera</span><div class="idc-scan-button-group" role="group" aria-label="Choose camera"><button class="idc-btn idc-btn-light is-selected" type="button" data-idc-camera-facing="environment" aria-pressed="true"><i class="fas fa-camera" aria-hidden="true"></i> Back</button><button class="idc-btn idc-btn-light" type="button" data-idc-camera-facing="user" aria-pressed="false"><i class="fas fa-camera-rotate" aria-hidden="true"></i> Front</button></div></div><div class="idc-scan-option"><span>Attendance action</span><div class="idc-scan-button-group" role="group" aria-label="Attendance action"><button class="idc-btn idc-btn-light is-selected" type="button" data-idc-scan-mode="check-in" aria-pressed="true"><i class="fas fa-right-to-bracket" aria-hidden="true"></i> Check in</button><button class="idc-btn idc-btn-light" type="button" data-idc-scan-mode="check-out" aria-pressed="false"><i class="fas fa-right-from-bracket" aria-hidden="true"></i> Check out</button></div></div></div><div class="idc-camera-frame" data-idc-camera-frame><video data-idc-camera playsinline muted aria-label="Camera showing a member QR code or face"></video><div class="idc-camera-guide"><span class="idc-camera-guide-label">Keep the full QR code visible</span><div class="idc-camera-guide-box"><div class="idc-camera-scan-line" aria-hidden="true"></div></div><span class="idc-camera-guide-hint">Hold the phone steady; scanning is automatic</span></div><div class="idc-camera-message hidden" data-idc-camera-message role="status" aria-live="polite"></div></div><div class="idc-camera-actions"><button class="idc-btn idc-btn-primary" type="button" data-idc-camera-start><i class="fas fa-camera" aria-hidden="true"></i> Start camera</button><button class="idc-btn idc-btn-light" type="button" data-idc-camera-stop disabled><i class="fas fa-stop" aria-hidden="true"></i> Stop camera</button></div><p class="idc-scan-status" data-idc-scan-status role="status" aria-live="polite">Choose check-in or check-out, then start the camera.</p><div class="idc-scan-result hidden" data-idc-scan-result role="status" aria-live="polite"><strong data-idc-result-action></strong><span class="idc-result-name"><b>Member:</b> <span data-idc-result-name></span></span><span><b>Date:</b> <span data-idc-result-date></span></span><span><b>Time:</b> <span data-idc-result-time></span></span></div>`;
+    scannerPanel.innerHTML = `<div class="idc-scan-heading"><div><h3>QR Attendance Scanner</h3><p>Use a member QR code or an enrolled face to record attendance.</p></div><button class="idc-btn idc-btn-light" type="button" data-idc-close-scanner aria-label="Close attendance scanner">Close</button></div><div class="idc-scan-controls"><div class="idc-scan-option"><span>Identify member</span><strong>QR or Face</strong></div><div class="idc-scan-option"><span>Camera</span><div class="idc-scan-button-group" role="group" aria-label="Choose camera"><button class="idc-btn idc-btn-light is-selected" type="button" data-idc-camera-facing="environment" aria-pressed="true"><i class="fas fa-camera" aria-hidden="true"></i> Back</button><button class="idc-btn idc-btn-light" type="button" data-idc-camera-facing="user" aria-pressed="false"><i class="fas fa-camera-rotate" aria-hidden="true"></i> Front</button></div></div><div class="idc-scan-option"><span>Attendance action</span><div class="idc-scan-button-group" role="group" aria-label="Attendance action"><button class="idc-btn idc-btn-light is-selected" type="button" data-idc-scan-mode="check-in" aria-pressed="true"><i class="fas fa-right-to-bracket" aria-hidden="true"></i> Check in</button><button class="idc-btn idc-btn-light" type="button" data-idc-scan-mode="check-out" aria-pressed="false"><i class="fas fa-right-from-bracket" aria-hidden="true"></i> Check out</button></div></div></div><div class="idc-camera-frame" data-idc-camera-frame><video data-idc-camera playsinline muted aria-label="Camera showing a member QR code or face"></video><div class="idc-camera-member hidden" data-idc-camera-member aria-live="polite"><div class="idc-camera-member-photo-box"><img data-idc-camera-member-photo alt="" hidden><span data-idc-camera-member-photo-placeholder aria-label="Saved member photo unavailable"><i class="fas fa-user" aria-hidden="true"></i><small>Photo unavailable</small></span></div><div class="idc-camera-member-details"><strong data-idc-camera-member-name></strong><span data-idc-camera-member-id></span><span data-idc-camera-member-type></span><small data-idc-camera-member-status></small></div></div><div class="idc-camera-guide"><span class="idc-camera-guide-label">Keep the full QR code visible</span><div class="idc-camera-guide-box"><div class="idc-camera-scan-line" aria-hidden="true"></div></div><span class="idc-camera-guide-hint">Hold the phone steady; scanning is automatic</span></div><div class="idc-camera-message hidden" data-idc-camera-message role="status" aria-live="polite"></div></div><div class="idc-camera-actions"><button class="idc-btn idc-btn-primary" type="button" data-idc-camera-start><i class="fas fa-camera" aria-hidden="true"></i> Start camera</button><button class="idc-btn idc-btn-light" type="button" data-idc-camera-stop disabled><i class="fas fa-stop" aria-hidden="true"></i> Stop camera</button></div><p class="idc-scan-status" data-idc-scan-status role="status" aria-live="polite">Choose check-in or check-out, then start the camera.</p><div class="idc-scan-result hidden" data-idc-scan-result role="status" aria-live="polite"><strong data-idc-result-action></strong><span class="idc-result-name"><b>Member:</b> <span data-idc-result-name></span></span><span><b>Date:</b> <span data-idc-result-date></span></span><span><b>Time:</b> <span data-idc-result-time></span></span></div>`;
     scannerPanel.querySelector('.idc-scan-controls .idc-scan-option').remove();
     const idRecordsPanel = sec.querySelector('.idc-record-heading')?.closest('.idc-panel');
     const scannerClock = document.createElement('div');
@@ -589,12 +589,55 @@ function createIDCardsModule(category) {
     let cameraMessageTimer = null;
     let scannerAudioContext = null;
     let scanInProgress = false;
+    let scannerMemberTimer = null;
     let lastScannedToken = '';
     let lastQrSeenAt = 0;
     const scannerVideo = sec.querySelector('[data-idc-camera]');
     const scannerStatus = sec.querySelector('[data-idc-scan-status]');
     const scannerResult = sec.querySelector('[data-idc-scan-result]');
     const scannerFrame = sec.querySelector('[data-idc-camera-frame]');
+    const scannerMember = sec.querySelector('[data-idc-camera-member]');
+    const scannerMemberPhoto = sec.querySelector('[data-idc-camera-member-photo]');
+    const scannerMemberPhotoPlaceholder = sec.querySelector('[data-idc-camera-member-photo-placeholder]');
+    scannerMemberPhoto.addEventListener('error', () => {
+        scannerMemberPhoto.hidden = true;
+        scannerMemberPhotoPlaceholder.hidden = false;
+        scannerMemberPhotoPlaceholder.querySelector('small').textContent = 'Photo unavailable';
+    });
+    const showCameraMember = (card, rosterRecord, scanMethod) => {
+        clearTimeout(scannerMemberTimer);
+        const memberName = card.memberName || (rosterRecord ? memberRecordName(rosterRecord) : '') || 'Member';
+        const memberId = card.memberId || (rosterRecord ? memberRecordNumber(rosterRecord, card.memberType) : '') || card.id || '';
+        const memberPhoto = card.photo || card.photoURL || rosterRecord?.photo || rosterRecord?.photoUrl
+            || rosterRecord?.photoURL || rosterRecord?.profilePhoto || '';
+        scannerMemberPhoto.hidden = true;
+        scannerMemberPhotoPlaceholder.hidden = Boolean(memberPhoto);
+        scannerMemberPhotoPlaceholder.querySelector('small').textContent = memberPhoto ? 'Loading photo…' : 'Photo unavailable';
+        if (memberPhoto) {
+            scannerMemberPhoto.alt = `${memberName} photo`;
+            scannerMemberPhoto.onload = () => {
+                scannerMemberPhoto.hidden = false;
+                scannerMemberPhotoPlaceholder.hidden = true;
+            };
+            scannerMemberPhoto.src = memberPhoto;
+        } else {
+            scannerMemberPhoto.onload = null;
+            scannerMemberPhoto.removeAttribute('src');
+        }
+        scannerMember.querySelector('[data-idc-camera-member-name]').textContent = memberName;
+        scannerMember.querySelector('[data-idc-camera-member-id]').textContent = memberId ? `ID: ${memberId}` : '';
+        scannerMember.querySelector('[data-idc-camera-member-type]').textContent =
+            `${card.designation || card.memberType || 'Member'} · ${scanMethod} scan`;
+        scannerMember.querySelector('[data-idc-camera-member-status]').textContent =
+            `${String(card.status || 'Active')}${card.validUntil ? ` · Valid until ${card.validUntil}` : ''}`;
+        scannerMember.classList.remove('hidden');
+        scannerMemberTimer = setTimeout(() => {
+            scannerMember.classList.add('hidden');
+        }, 4000);
+    };
+    const updateCameraMemberStatus = message => {
+        scannerMember.querySelector('[data-idc-camera-member-status]').textContent = message;
+    };
     const scannerResultPhoto = document.createElement('img');
     scannerResultPhoto.className = 'idc-scan-result-face';
     scannerResultPhoto.alt = '';
@@ -769,6 +812,9 @@ function createIDCardsModule(category) {
         scannerVideo.srcObject = null;
         scannerFrame.classList.remove('is-scanning');
         scannerFrame.classList.remove('is-qr-detected');
+        clearTimeout(scannerMemberTimer);
+        scannerMemberTimer = null;
+        scannerMember.classList.add('hidden');
         clearTimeout(cameraMessageTimer);
         scannerMessage.classList.add('hidden');
         sec.querySelector('[data-idc-camera-start]').disabled = false;
@@ -970,6 +1016,8 @@ function createIDCardsModule(category) {
             scanStatus('QR code detected. Loading the member record before registering…');
             return;
         }
+        showCameraMember(matchedCard, attendanceMemberForCard(matchedCard), scanMethod);
+        updateCameraMemberStatus('Member recognized. Checking attendance…');
         markScannerRecognition();
         lastScannedToken = token;
         const scanAction = sec.querySelector('[data-idc-scan-mode].is-selected').dataset.idcScanMode;
@@ -982,11 +1030,13 @@ function createIDCardsModule(category) {
             if (recorded?.recorded) {
                 markScannerRecognition();
                 showCameraMessage(recorded.message);
+                updateCameraMemberStatus(recorded.message);
                 speakScanMessage(recorded.speechMessage);
                 void playScanSuccessSound();
             } else if (recorded?.message) {
                 scanStatus(recorded.message);
                 showCameraMessage(recorded.message);
+                updateCameraMemberStatus(recorded.message);
                 speakScanMessage(recorded.speechMessage);
                 void playScanSuccessSound();
             }
@@ -996,6 +1046,7 @@ function createIDCardsModule(category) {
             const message = error.message || 'Attendance could not be saved. Check your access and try again.';
             scanStatus(message);
             showCameraMessage(message);
+            updateCameraMemberStatus(message);
             speakScanMessage(`${scanMethod} scan. Attendance could not be saved. Please try again.`);
         }).finally(() => { scanInProgress = false; });
     };
@@ -1064,12 +1115,15 @@ function createIDCardsModule(category) {
         }
         const faceRecordToken = match.record.qrToken || String(match.record.id || '');
         if (faceRecordToken && faceRecordToken === lastScannedToken) return;
+        const rosterRecord = attendanceMemberForCard(match.record);
+        showCameraMember(match.record, rosterRecord, 'Face');
         const availabilityMessage = cardAvailabilityMessage(match.record);
         if (availabilityMessage) {
             markScannerRecognition();
             lastScannedToken = faceRecordToken;
             scanStatus(availabilityMessage);
             showCameraMessage(availabilityMessage);
+            updateCameraMemberStatus(availabilityMessage);
             speakScanMessage(`Face scan. ${availabilityMessage}`);
             void playScanSuccessSound();
             return;
@@ -1080,6 +1134,7 @@ function createIDCardsModule(category) {
             const message = 'This member card needs a QR token before it can record attendance.';
             scanStatus(message);
             showCameraMessage(message);
+            updateCameraMemberStatus(message);
             speakScanMessage(`Face scan. ${message}`);
             return;
         }

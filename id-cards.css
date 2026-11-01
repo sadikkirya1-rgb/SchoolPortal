@@ -34,6 +34,18 @@
 #idCardsModule .idc-camera-frame{position:relative;width:min(100%,520px);height:min(62vw,340px);min-height:220px;margin:0 auto;overflow:hidden;border-radius:10px;background:#0f172a}
 #idCardsModule [data-idc-camera]{display:block;width:100%;height:100%;object-fit:cover}
 #idCardsModule .idc-camera-clock{position:absolute;z-index:2;top:8px;left:50%;display:flex;justify-content:center;gap:10px;max-width:calc(100% - 20px);padding:5px 10px;border:1px solid #ffffff66;border-radius:999px;background:#0f172acc;color:#fff;font-size:12px;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap;transform:translateX(-50%);pointer-events:none}
+#idCardsModule .idc-camera-member{position:absolute;z-index:4;top:50%;left:50%;display:flex;flex-direction:column;align-items:center;gap:8px;width:min(280px,calc(100% - 32px));max-height:calc(100% - 32px);overflow:auto;padding:14px;border:1px solid #ffffff80;border-radius:14px;background:#0f172aeF;color:#fff;box-shadow:0 8px 24px #0007;text-align:center;transform:translate(-50%,-50%);pointer-events:none}
+#idCardsModule .idc-camera-member[hidden]{display:none}
+#idCardsModule .idc-camera-member-photo-box{display:grid;place-items:center;width:92px;height:92px;flex:0 0 92px;overflow:hidden;border:3px solid #86efac;border-radius:12px;background:#334155}
+#idCardsModule .idc-camera-member-photo-box img{display:block;width:100%;height:100%;object-fit:cover}
+#idCardsModule .idc-camera-member-photo-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:100%;height:100%;color:#e2e8f0}
+#idCardsModule .idc-camera-member-photo-placeholder i{font-size:30px}
+#idCardsModule .idc-camera-member-photo-placeholder small{font-size:9px}
+#idCardsModule .idc-camera-member-details{display:grid;justify-items:center;gap:3px;min-width:0;max-width:100%}
+#idCardsModule .idc-camera-member-details strong,#idCardsModule .idc-camera-member-details span,#idCardsModule .idc-camera-member-details small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#idCardsModule .idc-camera-member-details strong{font-size:13px}
+#idCardsModule .idc-camera-member-details span,#idCardsModule .idc-camera-member-details small{font-size:10px}
+#idCardsModule .idc-camera-member-details small{color:#bbf7d0;font-weight:700}
 #idCardsModule .idc-camera-guide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff;text-align:center;pointer-events:none}
 #idCardsModule .idc-camera-guide-label,#idCardsModule .idc-camera-guide-hint{padding:5px 9px;border-radius:20px;background:#0f172acc;font-size:11px;font-weight:800}
 #idCardsModule .idc-camera-guide-box{position:relative;width:min(92%,480px);height:70%;border:3px solid #ef4444;border-radius:14px;box-shadow:0 0 0 999px #0f172a40,0 0 16px #ef444499;transition:border-color .15s,box-shadow .15s}

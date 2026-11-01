@@ -125,9 +125,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentSchool = null;
     let resetReferenceLogin = () => {};
-    const appBaseTitle = document.title;
+    const appBaseTitle = 'SmartSkool';
     const schoolLabelElement = document.querySelector('.logo-copy h2');
-    const defaultSchoolName = schoolLabelElement?.textContent.trim() || 'EduMaster UG';
+    const defaultSchoolName = schoolLabelElement?.textContent.trim() || 'SmartSkool';
     const schoolLogoMark = document.getElementById('schoolLogoMark');
     const defaultSchoolLogo = schoolLogoMark?.querySelector('i')?.cloneNode(true);
     const setApplicationPage = (section = 'Dashboard') => {
@@ -136,8 +136,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (title) title.textContent = section === 'Dashboard' ? `${schoolName} Dashboard` : section;
         if (schoolLabelElement) schoolLabelElement.textContent = schoolName;
         document.title = section === 'Dashboard'
-            ? `${schoolName} | Dashboard`
-            : `${section} | ${schoolName || appBaseTitle}`;
+            ? `${appBaseTitle} | Dashboard`
+            : `${section} | ${appBaseTitle}`;
 
         const logoUrl = currentSchool?.logoURL;
         if (schoolLogoMark && logoUrl) {

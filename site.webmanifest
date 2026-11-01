@@ -1,7 +1,7 @@
 {
-  "name": "Smart School Portal",
-  "short_name": "Smart School",
-  "description": "School information and services for families, students, and teachers.",
+  "name": "SmartSkool School Portal",
+  "short_name": "SmartSkool",
+  "description": "SmartSkool school information and services for families, students, and teachers.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
