@@ -81,7 +81,7 @@ function createAssessmentModule(category) {
     const subjectOther = field('subjectOther');
     const teacherOther = field('teacherOther');
     const fallbackSubjects = ['Mathematics', 'English', 'Science', 'Computer Science', 'Physics', 'Chemistry', 'Biology', 'Social Studies', 'Geography', 'History', 'Arabic'];
-    const fallbackClasses = Array.from({ length: 12 }, (_, index) => `Grade ${index + 1}`);
+    const fallbackClasses = window.schoolPortalDefaultClassNames;
     const sectionSelect = field('section');
     let subjects = [];
     let classes = [];

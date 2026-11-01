@@ -37,7 +37,7 @@
                         <label>Subject name *<input name="subjectName" required maxlength="100" placeholder="e.g. Mathematics"></label>
                         <label>Subject code *<input name="subjectCode" required maxlength="30" placeholder="e.g. MATH"></label>
                         <label>Category<select name="subjectCategory"><option>Core</option><option>Elective</option><option>Optional</option><option>Co-Curricular</option></select></label>
-                        <label>Applicable class<select name="className"><option value="">All classes</option>${Array.from({ length: 12 }, (_, index) => `<option>Grade ${index + 1}</option>`).join('')}</select></label>
+                        <label>Applicable class<select name="className"><option value="">All classes</option>${window.schoolPortalDefaultClassNames.map(name => `<option>${escape(name)}</option>`).join('')}</select></label>
                         <label>Status<select name="status"><option>Active</option><option>Inactive</option></select></label>
                         <label class="subjects-description">Description<textarea name="description" maxlength="500" rows="2" placeholder="Optional details"></textarea></label>
                     </div>
