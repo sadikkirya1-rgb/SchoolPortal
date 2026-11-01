@@ -489,22 +489,8 @@ body.dark-mode,
 }
 
 .report-row-actions {
-    min-width: 250px;
+    display: flex;
     flex-wrap: wrap;
-}
-
-.report-cards-table-wrap th:last-child,
-.report-cards-table-wrap td:last-child {
-    position: sticky;
-    right: 0;
-    z-index: 1;
-    background: #fff;
-    box-shadow: -5px 0 8px rgba(15, 23, 42, .06);
-}
-
-.report-cards-table-wrap th:last-child {
-    z-index: 2;
-    background: #f8fafc;
 }
 
 .dark .report-cards-feedback,

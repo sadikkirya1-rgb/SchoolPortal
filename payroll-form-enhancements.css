@@ -138,26 +138,6 @@
   scrollbar-width: thin;
 }
 
-.payslips-module .payslips-table-wrap th:last-child,
-.payslips-module .payslips-table-wrap td:last-child,
-.statutory-returns-module .statutory-table-wrap th:last-child,
-.statutory-returns-module .statutory-table-wrap td:last-child,
-.payroll-reports-module .reports-table-wrap th:last-child,
-.payroll-reports-module .reports-table-wrap td:last-child {
-  position: sticky;
-  right: 0;
-  z-index: 1;
-  background: #fff;
-  box-shadow: -5px 0 8px rgba(15, 23, 42, 0.08);
-}
-
-.payslips-module .payslips-table-wrap th:last-child,
-.statutory-returns-module .statutory-table-wrap th:last-child,
-.payroll-reports-module .reports-table-wrap th:last-child {
-  z-index: 2;
-  background: #f8fafc;
-}
-
 .payslips-module .payslip-row-actions button,
 .statutory-returns-module .return-row-actions button,
 .payroll-reports-module .report-row-actions button,

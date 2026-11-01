@@ -99,21 +99,6 @@
     border-color: #64748b !important;
 }
 
-.expenses-module .expense-table-wrap th:last-child,
-.expenses-module .expense-table-wrap td:last-child {
-    position: sticky;
-    right: 0;
-    z-index: 1;
-    min-width: 118px;
-    background: #fff;
-    box-shadow: -5px 0 8px rgba(15, 23, 42, 0.08);
-}
-
-.expenses-module .expense-table-wrap th:last-child {
-    z-index: 2;
-    background: #f8fafc;
-}
-
 .expenses-module .expense-actions {
     justify-content: center;
     gap: 6px;

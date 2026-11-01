@@ -20,10 +20,7 @@
 #boardingModule .boarding-table-wrap::-webkit-scrollbar{height:12px}
 #boardingModule .boarding-table-wrap::-webkit-scrollbar-track{background:#e2e8f0}
 #boardingModule .boarding-table-wrap::-webkit-scrollbar-thumb{border:3px solid #e2e8f0;border-radius:8px;background:#64748b}
-#boardingModule .boarding-table th:last-child,#boardingModule .boarding-table td:last-child{position:sticky;right:0;min-width:260px;background:#fff;box-shadow:-5px 0 8px rgba(15,23,42,.08)}
-#boardingModule .boarding-table th:last-child{z-index:2;background:#f8fafc}
-#boardingModule .boarding-table td:last-child{z-index:1}
-#boardingModule .boarding-row-actions{min-width:244px;flex-wrap:wrap;gap:6px}
+#boardingModule .boarding-row-actions{flex-wrap:wrap;gap:6px}
 #boardingModule .boarding-action{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:58px;min-height:34px;padding:7px 9px;border:1px solid transparent;font-size:10px;white-space:nowrap}
 #boardingModule .boarding-view{border-color:#bfdbfe;background:#eff6ff;color:#1246a0}
 #boardingModule .boarding-edit{border-color:#fde68a;background:#fffbeb;color:#854d0e}
@@ -50,6 +47,4 @@
 @media(max-width:700px){
     #boardingModule .boarding-actions{width:100%;justify-content:flex-start}
     #boardingModule .boarding-actions .boarding-btn{flex:1}
-    #boardingModule .boarding-table th:last-child,#boardingModule .boarding-table td:last-child{min-width:230px}
-    #boardingModule .boarding-row-actions{min-width:214px}
 }

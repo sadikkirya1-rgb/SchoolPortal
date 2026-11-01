@@ -23,8 +23,6 @@
 .discipline-cases-module .dc-btn:focus-visible{outline:3px solid #a78bfa;outline-offset:2px}
 .discipline-cases-module .dc-light{border-color:#cbd5e1;color:#1e293b}
 .discipline-cases-module .dc-table-wrap{overflow:auto;scrollbar-color:#94a3b8 #e2e8f0;scrollbar-width:thin}
-.discipline-cases-module .dc-table th:last-child,.discipline-cases-module .dc-table td:last-child{position:sticky;right:0;min-width:310px;background:#fff;box-shadow:-5px 0 8px rgba(15,23,42,.08)}
-.discipline-cases-module .dc-table th:last-child{z-index:2;background:#f8fafc}
-.discipline-cases-module .dc-row-actions{min-width:294px;gap:6px}
+.discipline-cases-module .dc-row-actions{gap:6px}
 @media(max-width:900px){.discipline-cases-module .dc-form form{grid-template-columns:minmax(0,1fr)}.discipline-cases-module .dc-form form>.dc-grid,.discipline-cases-module .dc-form form>.dc-live-summary,.discipline-cases-module .dc-form form>.dc-form-actions{grid-column:1;grid-row:auto}.discipline-cases-module .dc-live-summary{margin-top:18px}}
-@media(max-width:700px){.discipline-cases-module .dc-form-actions .dc-btn{flex:1}.discipline-cases-module .dc-table th:last-child,.discipline-cases-module .dc-table td:last-child{min-width:270px}.discipline-cases-module .dc-row-actions{min-width:254px}}
+@media(max-width:700px){.discipline-cases-module .dc-form-actions .dc-btn{flex:1}}

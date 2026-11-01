@@ -18,6 +18,4 @@
 .sports-activities-module .sa-btn-light{border:1px solid #94a3b8;color:var(--sa-text)}
 .sports-activities-module .sa-btn:focus-visible,.sports-activities-module .sa-action-btn:focus-visible,.sports-activities-module .sa-close:focus-visible{outline:3px solid #818cf8;outline-offset:2px}
 .sports-activities-module .sa-table-wrap{overflow:auto;scrollbar-color:#94a3b8 #e2e8f0;scrollbar-width:thin}
-.sports-activities-module table th:last-child,.sports-activities-module table td:last-child{position:sticky;right:0;min-width:190px;background:var(--sa-card);box-shadow:-5px 0 8px rgba(15,23,42,.08)}
-.sports-activities-module table th:last-child{z-index:2}
 @media(max-width:900px){.sports-activities-module .sa-modal form{grid-template-columns:minmax(0,1fr)}.sports-activities-module .sa-live-summary{grid-column:1;margin:0 24px 20px}.sports-activities-module .sa-modal-foot{grid-column:1}}

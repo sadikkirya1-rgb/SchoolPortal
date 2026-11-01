@@ -17,10 +17,7 @@
 #alumniModule .alumni-table-wrap::-webkit-scrollbar{height:12px}
 #alumniModule .alumni-table-wrap::-webkit-scrollbar-track{background:#e2e8f0}
 #alumniModule .alumni-table-wrap::-webkit-scrollbar-thumb{border:3px solid #e2e8f0;border-radius:8px;background:#64748b}
-#alumniModule .alumni-table th:last-child,#alumniModule .alumni-table td:last-child{position:sticky;right:0;min-width:260px;background:#fff;box-shadow:-5px 0 8px rgba(15,23,42,.08)}
-#alumniModule .alumni-table th:last-child{z-index:2;background:#f8fafc}
-#alumniModule .alumni-table td:last-child{z-index:1}
-#alumniModule .alumni-actions-row{min-width:244px;flex-wrap:wrap;gap:6px}
+#alumniModule .alumni-actions-row{flex-wrap:wrap;gap:6px}
 #alumniModule .alumni-action{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:58px;min-height:34px;padding:7px 9px;border:1px solid transparent;font-size:10px;white-space:nowrap}
 #alumniModule .alumni-view{border-color:#bfdbfe;background:#eff6ff;color:#1246a0}
 #alumniModule .alumni-edit{border-color:#fde68a;background:#fffbeb;color:#854d0e}
@@ -46,6 +43,4 @@
 @media(max-width:700px){
     #alumniModule .alumni-actions{width:100%;justify-content:flex-start}
     #alumniModule .alumni-actions .alumni-btn{flex:1}
-    #alumniModule .alumni-table th:last-child,#alumniModule .alumni-table td:last-child{min-width:230px}
-    #alumniModule .alumni-actions-row{min-width:214px}
 }

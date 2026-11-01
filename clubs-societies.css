@@ -23,8 +23,6 @@
 .clubs-societies-module .cs-btn:focus-visible{outline:3px solid #2dd4bf;outline-offset:2px}
 .clubs-societies-module .cs-light{border-color:#cbd5e1;color:#1e293b}
 .clubs-societies-module .cs-table-wrap{overflow:auto;scrollbar-color:#94a3b8 #e2e8f0;scrollbar-width:thin}
-.clubs-societies-module .cs-table th:last-child,.clubs-societies-module .cs-table td:last-child{position:sticky;right:0;min-width:300px;background:#fff;box-shadow:-5px 0 8px rgba(15,23,42,.08)}
-.clubs-societies-module .cs-table th:last-child{z-index:2;background:#f8fafc}
-.clubs-societies-module .cs-row-actions{min-width:284px;gap:6px}
+.clubs-societies-module .cs-row-actions{gap:6px}
 @media(max-width:900px){.clubs-societies-module .cs-form form{grid-template-columns:minmax(0,1fr)}.clubs-societies-module .cs-form form>.cs-grid,.clubs-societies-module .cs-form form>.cs-live-summary,.clubs-societies-module .cs-form form>.cs-form-actions{grid-column:1;grid-row:auto}.clubs-societies-module .cs-live-summary{margin-top:18px}}
-@media(max-width:700px){.clubs-societies-module .cs-form-actions .cs-btn{flex:1}.clubs-societies-module .cs-table th:last-child,.clubs-societies-module .cs-table td:last-child{min-width:260px}.clubs-societies-module .cs-row-actions{min-width:244px}}
+@media(max-width:700px){.clubs-societies-module .cs-form-actions .cs-btn{flex:1}}
