@@ -453,6 +453,29 @@ body.dark-mode,
     gap: 5px;
 }
 
+.report-dimension-filter {
+    display: flex;
+    align-items: center;
+}
+
+.report-dimension-filter select {
+    width: 96px;
+    min-height: 36px;
+    padding: 6px 20px 6px 7px;
+    border: 1px solid #64748b;
+    border-radius: 7px;
+    background: #f1f5f9;
+    color: #172033;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.report-dimension-filter select:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 2px;
+}
+
 .report-status-filters .report-status-filter {
     min-height: 36px;
     margin-top: 0;
