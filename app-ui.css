@@ -768,3 +768,60 @@ body.dark-mode,
         flex-wrap: wrap;
     }
 }
+
+.main > section.module:not(.hidden) :is([class*="card"], [class*="panel"]):has(table) {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: max(320px, calc(100vh - 260px));
+}
+
+.main > section.module:not(.hidden) :is([class*="card"], [class*="panel"]):has(table):has(> :is(
+    [class*="table-wrap"],
+    [class*="table-wrapper"],
+    [class*="table-container"],
+    [class*="table-responsive"],
+    [class*="table-scroll"]
+)) {
+    display: flex;
+    flex-direction: column;
+}
+
+.main > section.module:not(.hidden) :is([class*="card"], [class*="panel"]):has(table) :is(
+    [class*="table-wrap"],
+    [class*="table-wrapper"],
+    [class*="table-container"],
+    [class*="table-responsive"],
+    [class*="table-scroll"]
+) {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.main > section.module:not(.hidden) :is([class*="table-footer"], [class*="pagination"]) {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    min-width: 0;
+}
+
+.main > section.module:not(.hidden) :is([class*="table-footer"], [class*="pagination"]) > [class*="pagination"] {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+@media (max-width: 640px) {
+    .main > section.module:not(.hidden) :is([class*="card"], [class*="panel"]):has(table) {
+        min-height: max(320px, calc(100vh - 220px));
+    }
+
+    .main > section.module:not(.hidden) :is([class*="table-footer"], [class*="pagination"]) {
+        justify-content: flex-start;
+    }
+}

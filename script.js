@@ -7535,9 +7535,9 @@ document.addEventListener('DOMContentLoaded', () => {
         sec.id = 'feeInvoicesModule';
         sec.innerHTML = `
             <style>
-                .fee-invoices-module { width: 100%; padding: 0; }
+                .fee-invoices-module { display: flex; width: 100%; min-height: calc(100vh - 130px); padding: 0; }
                 .fee-invoices-module * { box-sizing: border-box; }
-                .fee-invoices-section { max-width: 1400px; margin: 0 auto; padding: 24px 0 0; }
+                .fee-invoices-section { display: flex; width: 100%; min-height: inherit; flex-direction: column; max-width: none; margin: 0; padding: 24px 0 0; }
                 .invoice-header { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 20px; }
                 .invoice-title { display: flex; align-items: center; gap: 13px; }
                 .invoice-icon { width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #4f46e5; display: grid; place-items: center; font-size: 21px; font-weight: 800; }
@@ -7545,7 +7545,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .invoice-title p { color: #7b8494; font-size: 12px; margin-top: 4px; }
                 .invoice-main-btn { border: 0; color: white; background: linear-gradient(135deg, #4f46e5, #6366f1); padding: 11px 18px; border-radius: 10px; font-size: 12px; font-weight: 750; cursor: pointer; box-shadow: 0 8px 22px rgba(79,70,229,.20); transition: .2s; }
                 .invoice-main-btn:hover { transform: translateY(-1px); box-shadow: 0 11px 28px rgba(79,70,229,.28); }
-                .invoice-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 17px; overflow: hidden; box-shadow: 0 10px 35px rgba(15,23,42,.06); }
+                .invoice-card { display: flex; flex: 1; min-height: 0; flex-direction: column; background: #fff; border: 1px solid #e5e7eb; border-radius: 17px; overflow: hidden; box-shadow: 0 10px 35px rgba(15,23,42,.06); }
                 .filter-bar { padding: 17px; border-bottom: 1px solid #edf0f3; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
                 .filter-left, .filter-right { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
                 .search-box { position: relative; }
@@ -7553,7 +7553,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .search { width: 260px; height: 38px; border: 1px solid #e1e5eb; border-radius: 9px; padding: 0 12px 0 35px; outline: none; background: #fafbfc; font-size: 12px; }
                 .search:focus, .filter:focus { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(99,102,241,.08); }
                 .filter { height: 38px; border: 1px solid #e1e5eb; border-radius: 9px; padding: 0 10px; outline: none; background: #fafbfc; color: #4b5563; font-size: 11px; }
-                .table-wrapper { overflow-x: auto; }
+                .table-wrapper { flex: 1; overflow: auto; }
                 .invoice-table { width: 100%; min-width: 1050px; border-collapse: collapse; }
                 .invoice-table th { background: #fafbfc; color: #7b8494; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; padding: 13px 17px; text-align: left; border-bottom: 1px solid #e8ebef; white-space: nowrap; }
                 .invoice-table td { padding: 14px 17px; font-size: 12px; border-bottom: 1px solid #f0f2f4; white-space: nowrap; }
@@ -7576,7 +7576,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .action-btn:hover { color: #4f46e5; background: #eef2ff; border-color: #c7d2fe; }
                 .action-btn.print:hover { color: #059669; background: #ecfdf5; border-color: #a7f3d0; }
                 .action-btn.download:hover { color: #2563eb; background: #eff6ff; border-color: #bfdbfe; }
-                .table-footer { padding: 14px 17px; display: flex; justify-content: space-between; align-items: center; color: #7b8494; font-size: 11px; }
+                .table-footer { padding: 14px 17px; display: flex; flex-flow: row wrap; justify-content: space-between; align-items: center; gap: 8px 12px; color: #7b8494; font-size: 11px; }
                 .pagination { display: flex; gap: 5px; }
                 .page { width: 30px; height: 30px; border: 1px solid #e1e5eb; background: white; border-radius: 7px; cursor: pointer; font-size: 11px; }
                 .page.active { background: #4f46e5; border-color: #4f46e5; color: white; }
@@ -7617,8 +7617,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 .fee-invoices-module .action-btn:hover { background: #eef2ff; border-color: #4f46e5 !important; color: #3730a3 !important; }
                 .fee-invoices-module .action-btn.print:hover { background: #ecfdf5; border-color: #059669 !important; color: #047857 !important; }
                 .fee-invoices-module .action-btn.download:hover { background: #eff6ff; border-color: #2563eb !important; color: #1d4ed8 !important; }
-                .fee-invoices-module .invoice-table th:last-child, .fee-invoices-module .invoice-table td:last-child { position: sticky; right: 0; z-index: 1; min-width: 132px; background: #fff; box-shadow: -5px 0 8px rgba(15,23,42,.08); }
-                .fee-invoices-module .invoice-table th:last-child { z-index: 2; background: #fafbfc; }
                 .fee-invoices-module button:focus-visible, .closed-pos-module button:focus-visible { outline: 3px solid #818cf8; outline-offset: 2px; }
                 .fee-invoices-module .btn-light, .closed-pos-module .btn-light { padding: 9px 14px; border: 1px solid #94a3b8 !important; background: #f1f5f9; color: #1f2937 !important; }
                 .fee-invoices-module .btn-light:hover, .closed-pos-module .btn-light:hover { background: #e2e8f0; border-color: #64748b !important; color: #0f172a !important; }
@@ -7637,14 +7635,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 .fee-invoice-form-actions .btn { min-height: 38px; padding: 9px 15px; }
                 .fee-invoice-live-summary div:last-child { border: 0; margin-top: 5px; padding: 10px; border-radius: 8px; background: #eef2ff; color: #1e1b4b; font-weight: 700; }
                 .closed-po-feedback { min-height: 18px; margin: -10px 0 14px; color: #334155; font-size: 12px; font-weight: 600; }
-                .closed-pos-module .table-wrapper th:last-child, .closed-pos-module .table-wrapper td:last-child { position: sticky; right: 0; z-index: 1; min-width: 126px; background: #fff; box-shadow: -5px 0 8px rgba(15,23,42,.08); }
-                .closed-pos-module .table-wrapper th:last-child { z-index: 2; background: #fafbfc; }
                 .closed-pos-module .action-btn { display: inline-grid; place-items: center; flex: 0 0 34px; width: 34px; min-width: 34px; height: 34px; padding: 0 !important; border: 1px solid #94a3b8 !important; border-radius: 7px; background: #fff; color: #1f2937 !important; line-height: 1; }
                 .closed-pos-module .action-btn:hover { background: #eef2ff; border-color: #4f46e5 !important; color: #3730a3 !important; }
                 .closed-pos-module .action-btn.print:hover { background: #ecfdf5; border-color: #059669 !important; color: #047857 !important; }
                 .closed-pos-module .action-btn.download:hover { background: #eff6ff; border-color: #2563eb !important; color: #1d4ed8 !important; }
                 .closed-pos-module .closed-po-btn, .fee-invoices-module .invoice-main-btn { min-height: 40px; }
-                @media(max-width:700px) { .invoice-header { flex-direction: column; align-items: flex-start; } .invoice-main-btn { width: 100%; } .filter-left, .filter-right { width: 100%; } .search { width: 100%; } .filter { flex: 1; } .invoice-info-grid { grid-template-columns: 1fr; } .invoice-top { flex-direction: column; } .invoice-heading { text-align: left; } .invoice-document { padding: 15px; } .table-footer { flex-direction: column; gap: 12px; } }
+                @media(max-width:700px) { .invoice-header { flex-direction: column; align-items: flex-start; } .invoice-main-btn { width: 100%; } .filter-left, .filter-right { width: 100%; } .search { width: 100%; } .filter { flex: 1; } .invoice-info-grid { grid-template-columns: 1fr; } .invoice-top { flex-direction: column; } .invoice-heading { text-align: left; } .invoice-document { padding: 15px; } }
                 @media(max-width:760px) { .fee-invoice-form { grid-template-columns: minmax(0,1fr); } .fee-invoice-live-summary, .fee-invoice-form-actions { grid-column: 1; grid-row: auto; } }
                 @media(max-width:520px) { .fee-invoice-form-grid { grid-template-columns: minmax(0,1fr); } }
                 @media print { body * { visibility: hidden !important; } #invoicePreviewModal, #invoicePreviewModal * { visibility: visible !important; } #invoicePreviewModal { position: absolute; inset: 0; display: block !important; background: white; padding: 0; } .modal-box { width: 100%; max-height: none; box-shadow: none; border-radius: 0; } .modal-header, .modal-footer { display: none !important; } .modal-body { padding: 0; } .invoice-document { border: 0; } }
@@ -8108,9 +8104,9 @@ Finance & Accounts Department
         sec.id = 'closedPOsModule';
         sec.innerHTML = `
             <style>
-                .closed-pos-module { width: 100%; padding: 0; }
+                .closed-pos-module { display: flex; width: 100%; min-height: calc(100vh - 130px); padding: 0; }
                 .closed-pos-module * { box-sizing: border-box; }
-                .closed-po-section { max-width: 1400px; margin: 0 auto; padding: 24px 0 0; }
+                .closed-po-section { display: flex; width: 100%; min-height: inherit; flex-direction: column; max-width: none; margin: 0; padding: 24px 0 0; }
                 .closed-po-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 15px; }
                 .closed-po-title { display: flex; align-items: center; gap: 13px; }
                 .closed-po-icon { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; background: #e8f8ef; color: #16a34a; font-size: 21px; font-weight: bold; }
@@ -8118,7 +8114,7 @@ Finance & Accounts Department
                 .closed-po-title p { color: #7b8494; font-size: 12px; margin-top: 4px; }
                 .closed-po-btn { border: 0; background: linear-gradient(135deg, #4f46e5, #6366f1); color: white; padding: 11px 17px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 7px 20px rgba(79,70,229,.20); transition: .2s; }
                 .closed-po-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 25px rgba(79,70,229,.27); }
-                .po-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 17px; box-shadow: 0 10px 35px rgba(15,23,42,.06); overflow: hidden; }
+                .po-card { display: flex; flex: 1; min-height: 0; flex-direction: column; background: #fff; border: 1px solid #e5e7eb; border-radius: 17px; box-shadow: 0 10px 35px rgba(15,23,42,.06); overflow: hidden; }
                 .filter-bar { padding: 17px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #edf0f3; }
                 .filter-left, .filter-right { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
                 .search-box { position: relative; }
@@ -8126,7 +8122,7 @@ Finance & Accounts Department
                 .search { width: 250px; height: 38px; border: 1px solid #e1e5eb; border-radius: 9px; padding: 0 12px 0 35px; outline: none; font-size: 12px; background: #fafbfc; }
                 .search:focus, .filter:focus { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(99,102,241,.08); }
                 .filter { height: 38px; border: 1px solid #e1e5eb; border-radius: 9px; padding: 0 10px; outline: none; background: #fafbfc; color: #4b5563; font-size: 11px; }
-                .table-wrapper { overflow-x: auto; }
+                .table-wrapper { flex: 1; overflow: auto; }
                 .closed-pos-module table { width: 100%; min-width: 900px; border-collapse: collapse; }
                 .closed-pos-module th { background: #fafbfc; color: #7b8494; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; padding: 13px 17px; text-align: left; border-bottom: 1px solid #e8ebef; white-space: nowrap; }
                 .closed-pos-module td { padding: 14px 17px; font-size: 12px; border-bottom: 1px solid #f0f2f4; white-space: nowrap; }
@@ -8182,7 +8178,7 @@ Finance & Accounts Department
                 .btn { border: 0; border-radius: 8px; padding: 9px 14px; font-size: 11px; font-weight: 700; cursor: pointer; }
                 .btn-light { background: #f1f5f9; color: #334155; }
                 .btn-primary { background: #4f46e5; color: white; }
-                @media(max-width:700px) { .closed-po-header { align-items: flex-start; flex-direction: column; } .closed-po-btn { width: 100%; } .search { width: 100%; } .filter-left, .filter-right { width: 100%; } .filter { flex: 1; } .po-info { grid-template-columns: 1fr; } .po-heading { flex-direction: column; } .po-title { text-align: left; } .po-print { padding: 15px; } .table-footer { flex-direction: column; gap: 12px; } }
+                @media(max-width:700px) { .closed-po-header { align-items: flex-start; flex-direction: column; } .closed-po-btn { width: 100%; } .search { width: 100%; } .filter-left, .filter-right { width: 100%; } .filter { flex: 1; } .po-info { grid-template-columns: 1fr; } .po-heading { flex-direction: column; } .po-title { text-align: left; } .po-print { padding: 15px; } }
                 @media print { body * { visibility: hidden !important; } #previewModal, #previewModal * { visibility: visible !important; } #previewModal { position: absolute; inset: 0; display: block !important; background: white; padding: 0; } .modal-box { width: 100%; max-height: none; box-shadow: none; border-radius: 0; } .modal-header, .modal-footer { display: none !important; } .modal-body { padding: 0; } .po-print { border: 0; } }
             </style>
             <div class="closed-po-section">

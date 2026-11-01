@@ -50,11 +50,7 @@
 #attendanceModule .attendance-register thead th span,#attendanceModule .attendance-register thead th strong{display:block}
 #attendanceModule .attendance-register thead th span{color:#64748b;font-size:8px;font-weight:600}
 #attendanceModule .attendance-register thead th strong{margin-top:2px;font-size:11px}
-#attendanceModule .attendance-register .attendance-register-member{position:sticky;left:0;z-index:2;width:190px;min-width:190px;max-width:190px;text-align:left;background:#fff}
-#attendanceModule .attendance-register thead .attendance-register-member{z-index:5;background:#f8fafc}
 #attendanceModule .attendance-register .attendance-register-member strong{display:block;overflow:hidden;text-overflow:ellipsis}
-#attendanceModule .attendance-register .attendance-register-id{position:sticky;left:190px;z-index:2;width:118px;min-width:118px;max-width:118px;background:#fff;text-align:left}
-#attendanceModule .attendance-register thead .attendance-register-id{z-index:5;background:#f8fafc}
 #attendanceModule .attendance-register .attendance-register-type{min-width:78px;text-align:left}
 #attendanceModule .attendance-register .is-weekend{background:#f1f5f9}
 #attendanceModule .attendance-register-cell{display:grid;width:30px;height:30px;place-items:center;margin:auto;padding:0;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#64748b;font:800 10px Poppins,"Segoe UI",sans-serif;cursor:pointer}
@@ -75,5 +71,5 @@
 .attendance-register-pagination button{display:grid;width:34px;height:34px;place-items:center;margin:0;padding:0}
 .attendance-register-pagination button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:700px){.attendance-records .attendance-tools{flex-direction:row;align-items:center;flex-wrap:nowrap}}
-@media(max-width:640px){#attendanceModule .attendance-register{padding:12px}#attendanceModule .attendance-register-heading{align-items:flex-start;flex-direction:column}#attendanceModule .attendance-register-filters{gap:8px}#attendanceModule .attendance-register .attendance-register-member{width:150px;min-width:150px;max-width:150px}#attendanceModule .attendance-register .attendance-register-id{left:150px;width:105px;min-width:105px;max-width:105px}.attendance-records .attendance-tools{padding-left:12px;padding-right:12px}}
+@media(max-width:640px){#attendanceModule .attendance-register{padding:12px}#attendanceModule .attendance-register-heading{align-items:flex-start;flex-direction:column}#attendanceModule .attendance-register-filters{gap:8px}.attendance-records .attendance-tools{padding-left:12px;padding-right:12px}}
 #attendanceModule button.attendance-delete{border-color:#fca5a5;background:#fee2e2;color:#b91c1c}

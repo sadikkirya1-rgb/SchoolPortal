@@ -1,3 +1,11 @@
+.assessment-module,
+.study-materials-module,
+.online-quizzes-module {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+}
+
 .assessment-module .assessment-header,
 .study-materials-module .sm-header,
 .online-quizzes-module .oq-header {
