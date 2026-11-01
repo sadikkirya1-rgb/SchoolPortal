@@ -72,9 +72,4 @@ const hostedIndex = fs.readFileSync(hostedIndexPath, 'utf8')
     .replace('./node_modules/@vladmandic/face-api/dist/face-api.js', './vendor/face-api.js');
 fs.writeFileSync(hostedIndexPath, hostedIndex);
 
-const hostedIdCardsPath = path.join(publicDirectory, 'id-cards.js');
-const hostedIdCards = fs.readFileSync(hostedIdCardsPath, 'utf8')
-    .replace('./node_modules/@vladmandic/face-api/model', './vendor/face-api-models');
-fs.writeFileSync(hostedIdCardsPath, hostedIdCards);
-
 console.log('Prepared Firebase Hosting files in public/.');

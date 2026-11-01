@@ -1,7 +1,8 @@
 {
   "scripts": {
     "check": "for file in *.js functions/index.js tests/*.js scripts/*.js; do node --check \"$file\" || exit 1; done",
-    "test": "firebase emulators:exec --only firestore,functions,storage,pubsub --project demo-school-portal \"node --test tests/*.test.js\""
+    "test": "firebase emulators:exec --only firestore,functions,storage,pubsub --project demo-school-portal \"node --test tests/*.test.js\"",
+    "postinstall": "node scripts/prepare-face-models.js"
   },
   "dependencies": {
     "@vladmandic/face-api": "^1.7.15",

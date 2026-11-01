@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'school-portal-shell-v4';
-const RUNTIME_CACHE = 'school-portal-runtime-v4';
+const SHELL_CACHE = 'school-portal-shell-v5';
+const RUNTIME_CACHE = 'school-portal-runtime-v5';
 const BASE_URL = new URL('./', self.location.href);
 
 self.addEventListener('message', event => {
@@ -100,6 +100,15 @@ self.addEventListener('fetch', event => {
     const localAsset = url.origin === self.location.origin;
     const firebaseModule = url.hostname === 'www.gstatic.com' && url.pathname.includes('/firebasejs/');
     if (!localAsset && !firebaseModule) return;
+    const legacyFaceModelDirectory = new URL('./node_modules/@vladmandic/face-api/model/', BASE_URL);
+    const isLegacyFaceModel = localAsset && url.pathname.startsWith(legacyFaceModelDirectory.pathname);
+    let fetchRequest = request;
+    if (isLegacyFaceModel) {
+        const modelUrl = new URL('./vendor/face-api-models/', BASE_URL);
+        modelUrl.pathname += url.pathname.slice(legacyFaceModelDirectory.pathname.length);
+        modelUrl.search = url.search;
+        fetchRequest = new Request(modelUrl, request);
+    }
 
     event.respondWith((async () => {
         const cache = await caches.open(localAsset ? SHELL_CACHE : RUNTIME_CACHE);
@@ -119,15 +128,21 @@ self.addEventListener('fetch', event => {
             return cached || (await cache.match(new URL('./index.html', self.location.href)));
         }
 
+        let response;
         try {
-            const response = await fetch(request, { cache: 'no-cache' });
-            if (response && response.ok) {
-                await cache.put(request, response.clone());
-                return response;
-            }
+            response = await fetch(fetchRequest, { cache: 'no-cache' });
         } catch (error) {
             if (cached) return cached;
-            throw error;
+            return Response.error();
+        }
+
+        if (response && response.ok) {
+            try {
+                await cache.put(request, response.clone());
+            } catch (error) {
+                console.warn('Unable to cache a fetched resource.', error);
+            }
+            return response;
         }
 
         return cached || Response.error();

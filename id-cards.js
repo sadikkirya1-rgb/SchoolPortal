@@ -88,7 +88,7 @@ function createIDCardsModule(category) {
     let faceEnrollmentStream = null;
     let faceDescriptor = null;
     let faceModelsLoaded = false;
-    const faceModelPath = './node_modules/@vladmandic/face-api/model';
+    const faceModelPath = './vendor/face-api-models';
     const loadFaceModels = async () => {
         const faceApi = window.faceapi;
         if (!faceApi) throw new Error('Face matching is unavailable. Reload the app and try again.');
@@ -480,6 +480,7 @@ function createIDCardsModule(category) {
     let attendanceSubscription = null;
     let attendanceIdentityKey = '';
     let cameraStream = null;
+    let cameraStartId = 0;
     let cameraTimer = null;
     let frameScanInProgress = false;
     let cameraMessageTimer = null;
@@ -636,6 +637,7 @@ function createIDCardsModule(category) {
         }, 2000);
     };
     const stopCamera = () => {
+        cameraStartId += 1;
         clearTimeout(cameraTimer);
         cameraTimer = null;
         lastScannedToken = '';
@@ -949,6 +951,8 @@ function createIDCardsModule(category) {
         }
     };
     const startCamera = async () => {
+        stopCamera();
+        const startId = cameraStartId;
         stopFaceEnrollmentCamera();
         faceEnrollmentModal.classList.add('hidden');
         const identity = window.schoolPortalData?.getIdentity?.();
@@ -967,13 +971,17 @@ function createIDCardsModule(category) {
         try {
             await loadFaceModels();
         } catch (error) {
+            if (startId !== cameraStartId) return;
             scanStatus(error.message || 'Face matching is unavailable.');
             return;
         }
+        if (startId !== cameraStartId) return;
         void prepareScannerAudio();
         if (!attendanceRecordsLoaded) await connectAttendanceRecords();
+        if (startId !== cameraStartId) return;
+        let stream;
         try {
-            cameraStream = await navigator.mediaDevices.getUserMedia({
+            stream = await navigator.mediaDevices.getUserMedia({
                 audio: false,
                 video: {
                     facingMode: { ideal: sec.querySelector('[data-idc-camera-facing].is-selected').dataset.idcCameraFacing },
@@ -981,9 +989,19 @@ function createIDCardsModule(category) {
                     height: { ideal: 1080 }
                 }
             });
-            await configureCamera(cameraStream);
-            scannerVideo.srcObject = cameraStream;
+            if (startId !== cameraStartId) {
+                stream.getTracks().forEach(track => track.stop());
+                return;
+            }
+            cameraStream = stream;
+            await configureCamera(stream);
+            if (startId !== cameraStartId || cameraStream !== stream) {
+                stream.getTracks().forEach(track => track.stop());
+                return;
+            }
+            scannerVideo.srcObject = stream;
             await scannerVideo.play();
+            if (startId !== cameraStartId || cameraStream !== stream) return;
             scannerFrame.classList.add('is-scanning');
             sec.querySelector('[data-idc-camera-start]').disabled = true;
             sec.querySelector('[data-idc-camera-stop]').disabled = false;
@@ -995,7 +1013,15 @@ function createIDCardsModule(category) {
             scanStatus('Looking for a QR code or enrolled face.');
             cameraTimer = setTimeout(scanCameraFrame, 0);
         } catch (error) {
+            if (startId !== cameraStartId) {
+                stream?.getTracks().forEach(track => track.stop());
+                return;
+            }
             stopCamera();
+            if (error.name === 'AbortError') {
+                scanStatus('Camera startup was interrupted. Start the camera again.');
+                return;
+            }
             console.error('Unable to start the attendance camera.', error);
             scanStatus(error.name === 'NotAllowedError'
                 ? 'Camera permission was denied. Allow camera access in your browser settings, then try again.'

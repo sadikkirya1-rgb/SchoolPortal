@@ -1,4 +1,5 @@
 node_modules/
+/vendor/face-api-models/
 /public/
 .firebase/
 firebase-debug.log
