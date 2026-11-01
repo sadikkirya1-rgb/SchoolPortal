@@ -418,6 +418,42 @@ body.dark-mode,
     font-size: 12px;
 }
 
+.report-cards-toolbar {
+    flex-wrap: nowrap;
+}
+
+.report-cards-toolbar > div:first-child {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.report-cards-toolbar h3,
+.report-cards-toolbar p,
+.report-cards-actions {
+    white-space: nowrap;
+}
+
+.report-cards-toolbar p {
+    margin: 0;
+}
+
+.report-cards-actions {
+    flex-wrap: nowrap;
+}
+
+@media (max-width: 900px) {
+    .report-cards-toolbar {
+        flex-wrap: wrap;
+    }
+
+    .report-cards-toolbar > div:first-child,
+    .report-cards-actions {
+        flex-wrap: wrap;
+    }
+}
+
 .report-form-grid select[name="studentId"] {
     min-height: 38px;
 }
