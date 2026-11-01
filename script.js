@@ -5072,23 +5072,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </aside>
             </div>
-            <div class="enquiry-date-filter">
-                <label for="enquiryDatePeriod">Filter enquiries by date</label>
-                <select id="enquiryDatePeriod" data-enquiry-date-period>
-                    <option value="all">All</option>
-                    <option value="today">Today</option>
-                    <option value="yesterday">Yesterday</option>
-                    <option value="lastWeek">Last week</option>
-                    <option value="lastMonth">Last Month</option>
-                    <option value="custom">Custom</option>
-                </select>
-                <div class="enquiry-custom-date-range hidden" data-enquiry-custom-range>
-                    <label>From <input type="date" data-enquiry-date-start></label>
-                    <label>To <input type="date" data-enquiry-date-end></label>
+            <div class="enquiries-table"><div class="table-card"><div class="utility-register-heading">
+                <div class="enquiry-date-filter">
+                    <label for="enquiryDatePeriod">Filter enquiries by date</label>
+                    <select id="enquiryDatePeriod" data-enquiry-date-period>
+                        <option value="all">All</option>
+                        <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="lastWeek">Last week</option>
+                        <option value="lastMonth">Last Month</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                    <div class="enquiry-custom-date-range hidden" data-enquiry-custom-range>
+                        <label>From <input type="date" data-enquiry-date-start></label>
+                        <label>To <input type="date" data-enquiry-date-end></label>
+                    </div>
+                    <span class="enquiry-date-filter-message" data-enquiry-date-message aria-live="polite"></span>
                 </div>
-                <span class="enquiry-date-filter-message" data-enquiry-date-message aria-live="polite"></span>
-            </div>
-            <div class="enquiries-table"><div class="table-card"><div class="utility-register-heading"><h3 class="table-title">Saved Enquiry Records</h3><button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> New Enquiry</button></div><table><thead><tr><th>Name</th><th>Contact</th><th>Address</th><th>Type</th><th>Purpose</th><th>Student ID</th><th>Department</th><th>Assigned To</th><th>Follow-up</th><th>Appointment</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
+                <button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> New Enquiry</button>
+            </div><table><thead><tr><th>Name</th><th>Contact</th><th>Address</th><th>Type</th><th>Purpose</th><th>Student ID</th><th>Department</th><th>Assigned To</th><th>Follow-up</th><th>Appointment</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
 
         const form = sec.querySelector('[data-enquiry-form]');
         const table = sec.querySelector('[data-enquiry-table]');

@@ -4269,6 +4269,9 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .enquiries-table .table-title{margin:0;padding:12px 15px}
 .enquiries-table table{min-width:960px}
 .appointments-module .enquiries-table .table-card{width:max-content;min-width:100%}
+.enquiries-module .enquiries-table .utility-register-heading{margin-bottom:0}
+.enquiries-module .enquiries-table .enquiry-date-filter{flex:1;min-width:0;margin:0;padding:0;border:0;border-radius:0;background:transparent}
+.enquiries-module .enquiries-table .enquiry-custom-date-range{align-items:center}
 .enquiries-table td:last-child{white-space:nowrap}
 .enquiry-actions{display:flex;gap:5px;flex-wrap:nowrap;white-space:nowrap;min-width:max-content}
 .enquiry-action{
