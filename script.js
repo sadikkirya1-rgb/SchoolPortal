@@ -6206,10 +6206,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }[label];
         const sec = document.createElement('section'); sec.className = 'module enquiries-module utility-module'; sec.id = moduleId;
         const newRecordButton = `<button class="${['Visitor Logs', 'Announcements', 'Calendar', 'Documents', 'Notifications'].includes(label) ? 'btn-primary' : 'btn-secondary'}" type="button" data-utility-new${label === 'Documents' ? ' data-collection="schoolDocuments"' : ''}><i class="fas fa-plus"></i> ${label === 'Documents' ? 'Add Document' : `New ${label.replace('Logs', 'Log')}`}</button>`;
-        sec.innerHTML = `${['Documents', 'Calendar', 'Announcements', 'Notifications'].includes(label) ? '' : `<div class="module-header"><div><h2>${label}</h2><p>Department: ${category}</p></div>${newRecordButton}</div>`}<div class="utility-entry-card enquiry-card hidden"><div class="enquiry-card-header"><h3>${label} Entry</h3><p>Capture and manage Front Office records.</p></div><div class="enquiry-card-body"><form data-utility-form><div class="enquiry-form-grid"><div class="enquiry-form-group"><label>${config[0]}</label><input name="title" required></div><div class="enquiry-form-group"><label>${config[1]}</label><input name="owner"></div><div class="enquiry-form-group"><label>${config[2]}</label><input name="date" type="date" required></div><div class="enquiry-form-group"><label>${config[3]}</label><select name="status"><option>Open</option><option>Active</option><option>Published</option><option>Scheduled</option><option>Completed</option><option>Read</option><option>Archived</option></select></div><div class="enquiry-form-group full"><label>${config[4]}</label><textarea name="details"></textarea></div></div><div class="enquiry-form-actions"><button class="btn-secondary" type="reset">Clear</button><button class="btn-secondary" type="button" data-utility-cancel>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Save Record</button></div></form></div></div><div class="enquiries-table"><div class="table-card"><div class="utility-register-heading"><h3 class="table-title">${label} Register</h3>${['Documents', 'Calendar', 'Announcements', 'Notifications'].includes(label) ? newRecordButton : ''}</div><table><thead><tr><th>Title / Name</th><th>Owner / Recipient</th><th>Date</th><th>Status</th><th>Details</th><th>Actions</th></tr></thead><tbody data-utility-table></tbody></table></div></div>`;
+        sec.innerHTML = `${['Documents', 'Calendar', 'Announcements', 'Notifications'].includes(label) ? '' : `<div class="module-header"><div><h2>${label}</h2><p>Department: ${category}</p></div>${newRecordButton}</div>`}${label === 'Announcements' ? `<div class="report-cards-stats announcement-stats" aria-label="Announcement summary"><div><span>Total Announcements</span><strong data-announcement-stat="total">0</strong><i class="fas fa-bullhorn"></i></div><div><span>Published</span><strong data-announcement-stat="published">0</strong><i class="fas fa-circle-check"></i></div><div><span>Scheduled</span><strong data-announcement-stat="scheduled">0</strong><i class="fas fa-clock"></i></div><div><span>Drafts</span><strong data-announcement-stat="draft">0</strong><i class="fas fa-file-lines"></i></div></div>` : ''}<div class="utility-entry-card enquiry-card hidden"><div class="enquiry-card-header"><h3>${label} Entry</h3><p>Capture and manage Front Office records.</p></div><div class="enquiry-card-body"><form data-utility-form><div class="enquiry-form-grid"><div class="enquiry-form-group"><label>${config[0]}</label><input name="title" required></div><div class="enquiry-form-group"><label>${config[1]}</label><input name="owner"></div><div class="enquiry-form-group"><label>${config[2]}</label><input name="date" type="date" required></div><div class="enquiry-form-group"><label>${config[3]}</label><select name="status"><option>Open</option><option>Active</option><option>Published</option><option>Scheduled</option><option>Completed</option><option>Read</option><option>Archived</option></select></div><div class="enquiry-form-group full"><label>${config[4]}</label><textarea name="details"></textarea></div></div><div class="enquiry-form-actions"><button class="btn-secondary" type="reset">Clear</button><button class="btn-secondary" type="button" data-utility-cancel>Cancel</button><button class="btn-primary" type="submit"><i class="fas fa-save"></i> Save Record</button></div></form></div></div><div class="enquiries-table"><div class="table-card"><div class="utility-register-heading"><h3 class="table-title">${label} Register</h3>${['Documents', 'Calendar', 'Announcements', 'Notifications'].includes(label) ? newRecordButton : ''}</div><table><thead><tr><th>Title / Name</th><th>Owner / Recipient</th><th>Date</th><th>Status</th><th>Details</th><th>Actions</th></tr></thead><tbody data-utility-table></tbody></table></div></div>`;
         const form = sec.querySelector('[data-utility-form]'); const card = sec.querySelector('.utility-entry-card'); const table = sec.querySelector('[data-utility-table]'); let editingIndex = null;
-        const read = () => { try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; } }; const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); const close = () => { card.classList.add('hidden'); form.reset(); editingIndex = null; };
-        const render = () => { const records = read(); table.innerHTML = records.length ? records.map((record, index) => `<tr><td>${escape(record.title)}</td><td>${escape(record.owner || '-')}</td><td>${escape(record.date)}</td><td><span class="badge pending">${escape(record.status)}</span></td><td>${escape(record.details || '-')}</td><td><div class="enquiry-actions"><button class="enquiry-action" type="button" data-utility-action="edit" data-index="${index}" title="Edit"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-utility-action="delete" data-index="${index}" title="Delete"><i class="fas fa-trash"></i></button><button class="enquiry-action" type="button" data-utility-action="print" data-index="${index}" title="Print"><i class="fas fa-print"></i></button></div></td></tr>`).join('') : `<tr><td colspan="6" style="text-align:center;padding:25px;color:#94a3b8;">No ${label.toLowerCase()} records yet.</td></tr>`; };
+        const utilitySummary = {
+            Calendar: [
+                ['total', 'Total Events', 'fas fa-calendar-days'],
+                ['upcoming', 'Upcoming', 'fas fa-clock'],
+                ['completed', 'Completed', 'fas fa-circle-check'],
+                ['archived', 'Archived', 'fas fa-box-archive']
+            ],
+            Documents: [
+                ['total', 'Total Documents', 'fas fa-file-lines'],
+                ['available', 'Available', 'fas fa-folder-open'],
+                ['archived', 'Archived', 'fas fa-box-archive'],
+                ['categories', 'Categories', 'fas fa-layer-group']
+            ],
+            Notifications: [
+                ['total', 'Total Notifications', 'fas fa-bell'],
+                ['open', 'Open', 'fas fa-envelope'],
+                ['read', 'Read', 'fas fa-envelope-open'],
+                ['overdue', 'Overdue', 'fas fa-triangle-exclamation']
+            ]
+        }[label];
+        if (utilitySummary) {
+            const cards = utilitySummary.map(([key, title, icon]) => `<div><span>${title}</span><strong data-utility-stat="${key}">0</strong><i class="${icon}"></i></div>`).join('');
+            card.insertAdjacentHTML('beforebegin', `<div class="report-cards-stats" aria-label="${label} summary">${cards}</div>`);
+        }
+        const renderUtilitySummary = records => {
+            if (!utilitySummary) return;
+            const today = new Date().toISOString().slice(0, 10);
+            const count = key => records.filter(record => String(record.status || '').toLowerCase() === key).length;
+            const metrics = {
+                total: records.length,
+                upcoming: records.filter(record => record.date >= today && !['completed', 'archived', 'cancelled'].includes(String(record.status || '').toLowerCase())).length,
+                completed: count('completed'),
+                archived: count('archived'),
+                available: records.filter(record => ['active', 'published'].includes(String(record.status || '').toLowerCase())).length,
+                categories: new Set(records.map(record => String(record.owner || '').trim()).filter(Boolean)).size,
+                open: records.filter(record => ['open', 'pending', 'scheduled'].includes(String(record.status || '').toLowerCase())).length,
+                read: count('read'),
+                overdue: records.filter(record => record.date && record.date < today && !['completed', 'read', 'archived', 'cancelled'].includes(String(record.status || '').toLowerCase())).length
+            };
+            utilitySummary.forEach(([key]) => {
+                sec.querySelector(`[data-utility-stat="${key}"]`).textContent = metrics[key];
+            });
+        };
+        const read = () => { try { const stored = JSON.parse(localStorage.getItem(storageKey)); const records = Array.isArray(stored) ? stored : []; renderUtilitySummary(records); return records; } catch (error) { return []; } }; const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); const close = () => { card.classList.add('hidden'); form.reset(); editingIndex = null; };
+        const render = () => { const records = read(); if (label === 'Announcements') { const statusCounts = records.reduce((counts, record) => { const status = String(record.status || '').toLowerCase(); if (status === 'published') counts.published += 1; else if (status === 'scheduled') counts.scheduled += 1; else if (status === 'draft') counts.draft += 1; return counts; }, { published: 0, scheduled: 0, draft: 0 }); sec.querySelector('[data-announcement-stat="total"]').textContent = records.length; Object.entries(statusCounts).forEach(([status, count]) => { sec.querySelector(`[data-announcement-stat="${status}"]`).textContent = count; }); } table.innerHTML = records.length ? records.map((record, index) => `<tr><td>${escape(record.title)}</td><td>${escape(record.owner || '-')}</td><td>${escape(record.date)}</td><td><span class="badge pending">${escape(record.status)}</span></td><td>${escape(record.details || '-')}</td><td><div class="enquiry-actions"><button class="enquiry-action" type="button" data-utility-action="edit" data-index="${index}" title="Edit"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-utility-action="delete" data-index="${index}" title="Delete"><i class="fas fa-trash"></i></button><button class="enquiry-action" type="button" data-utility-action="print" data-index="${index}" title="Print"><i class="fas fa-print"></i></button></div></td></tr>`).join('') : `<tr><td colspan="6" style="text-align:center;padding:25px;color:#94a3b8;">No ${label.toLowerCase()} records yet.</td></tr>`; };
         sec.querySelector('[data-utility-new]').addEventListener('click', () => { if (!card.classList.contains('hidden')) { close(); return; } card.classList.remove('hidden'); form.elements.date.value = new Date().toISOString().slice(0, 10); form.elements.title.focus(); }); sec.querySelector('[data-utility-cancel]').addEventListener('click', close);
         form.addEventListener('submit', event => { event.preventDefault(); if (!form.checkValidity()) { form.reportValidity(); return; } const records = read(); const record = Object.fromEntries(new FormData(form).entries()); record.createdAt = new Date().toISOString(); if (editingIndex === null) records.unshift(record); else records[editingIndex] = record; localStorage.setItem(storageKey, JSON.stringify(records)); close(); render(); window.dispatchEvent(new Event('front-office-data-changed')); });
         table.addEventListener('click', event => { const button = event.target.closest('[data-utility-action]'); if (!button) return; const records = read(); const index = Number(button.dataset.index); const record = records[index]; if (!record) return; if (button.dataset.utilityAction === 'delete') { if (!confirm(`Delete ${record.title || 'this record'}?`)) return; records.splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(records)); render(); return; } if (button.dataset.utilityAction === 'edit') { Object.entries(record).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; }); editingIndex = index; card.classList.remove('hidden'); return; } const printWindow = window.open('', '_blank', 'width=700,height=600'); if (!printWindow) return; printWindow.document.write(`<html><head><title>${escape(label)}</title></head><body style="font-family:Arial;padding:30px"><h1>${escape(label)}</h1>${Object.entries(record).map(([name, value]) => `<p><strong>${escape(name)}:</strong> ${escape(value || '-')}</p>`).join('')}</body></html>`); printWindow.document.close(); printWindow.print(); }); render(); return sec;
@@ -7658,6 +7701,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <button class="invoice-main-btn" type="button">+ Fee Invoices</button>
                 </div>
+                <div class="report-cards-stats" aria-label="Fee invoice summary"><div><span>Total Invoices</span><strong data-invoice-stat="total">0</strong><i class="fas fa-file-invoice"></i></div><div><span>Paid</span><strong data-invoice-stat="paid">0</strong><i class="fas fa-circle-check"></i></div><div><span>Pending</span><strong data-invoice-stat="pending">0</strong><i class="fas fa-clock"></i></div><div><span>Overdue</span><strong data-invoice-stat="overdue">0</strong><i class="fas fa-triangle-exclamation"></i></div><div><span>Outstanding Balance</span><strong data-invoice-stat="balance">UGX 0</strong><i class="fas fa-coins"></i></div></div>
                 <div class="invoice-card">
                     <div class="filter-bar">
                         <div class="filter-left">
@@ -7805,6 +7849,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveInvoices = () => localStorage.setItem(invoiceStorageKey, JSON.stringify(Object.values(invoiceData)));
         const renderInvoices = () => {
             const invoices = Object.values(invoiceData);
+            const invoiceStatusCounts = invoices.reduce((counts, invoice) => {
+                const status = String(invoice.status || '').toLowerCase();
+                if (Object.hasOwn(counts, status)) counts[status] += 1;
+                return counts;
+            }, { paid: 0, pending: 0, overdue: 0 });
+            invoiceQuery('[data-invoice-stat="total"]').textContent = invoices.length;
+            Object.entries(invoiceStatusCounts).forEach(([status, count]) => {
+                invoiceQuery(`[data-invoice-stat="${status}"]`).textContent = count;
+            });
+            invoiceQuery('[data-invoice-stat="balance"]').textContent = invoiceMoney(
+                invoices.reduce((total, invoice) => total + Number(invoice.balance || 0), 0)
+            );
             const classSelect = invoiceQuery('#invoiceClass');
             const currentClass = classSelect.value;
             classSelect.innerHTML = '<option value="">All Classes</option>' + [...new Set(invoices.map(invoice => invoice.className).filter(Boolean))].map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
@@ -8191,6 +8247,7 @@ Finance & Accounts Department
                     </div>
                     <button class="closed-po-btn" type="button" data-closed-po-refresh>✓ Closed Purchase Orders</button>
                 </div>
+                <div class="report-cards-stats" aria-label="Closed purchase order summary"><div><span>Total Closed Orders</span><strong data-closed-po-stat="total">0</strong><i class="fas fa-boxes-stacked"></i></div><div><span>Suppliers</span><strong data-closed-po-stat="suppliers">0</strong><i class="fas fa-truck"></i></div><div><span>Paid</span><strong data-closed-po-stat="paid">0</strong><i class="fas fa-circle-check"></i></div><div><span>Payment Due</span><strong data-closed-po-stat="due">0</strong><i class="fas fa-clock"></i></div></div>
                 <p class="closed-po-feedback" data-closed-po-feedback role="status" aria-live="polite" tabindex="-1"></p>
                 <div class="po-card" id="closedPOContent">
                     <div class="filter-bar">
@@ -8235,6 +8292,13 @@ Finance & Accounts Department
         const closedOrderTotal = order => (Array.isArray(order.items) ? order.items : []).reduce((sum, item) => sum + Number(item[1] || 0) * Number(item[2] || 0), 0) * 1.05;
         const renderClosedOrders = () => {
             const orders = closedOrders();
+            const paidOrders = orders.filter(order => String(order.paymentStatus || '').toLowerCase() === 'paid').length;
+            sec.querySelector('[data-closed-po-stat="total"]').textContent = orders.length;
+            sec.querySelector('[data-closed-po-stat="suppliers"]').textContent = new Set(
+                orders.map(order => String(order.vendor || order.supplier || '').trim()).filter(Boolean)
+            ).size;
+            sec.querySelector('[data-closed-po-stat="paid"]').textContent = paidOrders;
+            sec.querySelector('[data-closed-po-stat="due"]').textContent = orders.length - paidOrders;
             Object.keys(poData).forEach(number => delete poData[number]);
             const tbody = sec.querySelector('#poTable tbody');
             orders.forEach(order => {

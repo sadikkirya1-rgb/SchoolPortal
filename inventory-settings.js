@@ -215,6 +215,7 @@ function createInventorySettingsModule(optionType) {
                 <p>Manage the options available in Inventory Item Registration.</p>
             </div>
         </header>
+        <div class="report-cards-stats" aria-label="${escape(definition.title)} summary"><div><span>Total Options</span><strong data-is-stat="total">0</strong><i class="fas fa-list"></i></div><div><span>Active</span><strong data-is-stat="active">0</strong><i class="fas fa-circle-check"></i></div><div><span>Inactive</span><strong data-is-stat="inactive">0</strong><i class="fas fa-ban"></i></div><div><span>Custom Options</span><strong data-is-stat="custom">0</strong><i class="fas fa-sliders"></i></div></div>
         <div class="inventory-settings-layout">
             <div class="inventory-settings-table-card">
                 <div class="inventory-settings-table-heading">
@@ -284,7 +285,12 @@ function createInventorySettingsModule(optionType) {
     };
     const render = () => {
         const search = q('[data-is-search]').value.trim().toLowerCase();
-        const rows = allRows().filter(row => String(row.name || '').toLowerCase().includes(search));
+        const allOptions = allRows();
+        const rows = allOptions.filter(row => String(row.name || '').toLowerCase().includes(search));
+        q('[data-is-stat="total"]').textContent = allOptions.length;
+        q('[data-is-stat="active"]').textContent = allOptions.filter(row => row.active !== false).length;
+        q('[data-is-stat="inactive"]').textContent = allOptions.filter(row => row.active === false).length;
+        q('[data-is-stat="custom"]').textContent = allOptions.filter(row => !row.isDefault).length;
         q('[data-is-table]').innerHTML = rows.map((row, index) => `
             <tr>
                 <td>${index + 1}</td>
