@@ -60,6 +60,10 @@
 @media(max-width:600px){#idCardsModule .idc-record-toolbar{grid-template-columns:1fr;padding:0 14px 14px}#idCardsModule .idc-record-filters{grid-column:auto;grid-row:auto}#idCardsModule .idc-filter{flex:1;min-width:0}#idCardsModule .idc-search{grid-column:auto;grid-row:auto;max-width:none}#idCardsModule .idc-export-btn{grid-column:auto;grid-row:auto;justify-self:stretch}}
 #idCardsModule .idc-camera-frame{height:auto;aspect-ratio:4/3;max-height:560px}
 #idCardsModule .idc-scan-status{line-height:1.5}
+#idCardsModule .idc-pagination{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px;color:#475569;font-size:11px}
+#idCardsModule .idc-pagination[hidden]{display:none}
+#idCardsModule .idc-page-button{min-height:34px;padding:6px 12px;border:1px solid #dce4ef;border-radius:7px;background:#fff;color:#1459d9;font:600 11px inherit;cursor:pointer}
+#idCardsModule .idc-page-button:disabled{cursor:not-allowed;opacity:.5}
 #idCardsModule .idc-scan-controls .idc-btn{min-height:42px}
 #idCardsModule .idc-scan-controls .idc-btn:disabled{cursor:not-allowed;opacity:.55;transform:none}
 @media(max-width:600px){

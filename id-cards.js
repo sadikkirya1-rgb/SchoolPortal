@@ -218,7 +218,21 @@ function createIDCardsModule(category) {
     });
 
     const defaultLogo = '';
-    let records = []; let editingRecordId = ''; let photo = ''; let logo = defaultLogo; let schoolBrandName = ''; let schoolBrandLogo = ''; let selectedMemberRecordId = ''; const memberRecords = { students: [], teachers: [], staff: [] }; const memberRecordsLoaded = { students: false, teachers: false, staff: false }; const memberSubscriptions = []; const fields = () => Object.fromEntries([...sec.querySelectorAll('[data-idc-field]')].map(field => [field.name, field.value])); const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+    let records = []; let editingRecordId = ''; let photo = ''; let logo = defaultLogo; let schoolBrandName = ''; let schoolBrandLogo = ''; let selectedMemberRecordId = ''; const memberRecords = { students: [], teachers: [], staff: [] }; const memberRecordsLoaded = { students: false, teachers: false, staff: false }; const memberSubscriptions = []; let recordsIdentityKey = ''; let memberSubscriptionGeneration = 0; const fields = () => Object.fromEntries([...sec.querySelectorAll('[data-idc-field]')].map(field => [field.name, field.value])); const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+    let faceIndexRecords = [];
+    let faceIndexDescriptors = new Float64Array(0);
+    const rebuildFaceIndex = () => {
+        const today = localDate();
+        faceIndexRecords = records.filter(record => Array.isArray(record.faceDescriptor)
+            && record.faceDescriptor.length === 128
+            && record.faceDescriptor.every(Number.isFinite)
+            && String(record.status || 'Active').toLowerCase() === 'active'
+            && (!record.validUntil || record.validUntil >= today));
+        faceIndexDescriptors = new Float64Array(faceIndexRecords.length * 128);
+        faceIndexRecords.forEach((record, index) => {
+            faceIndexDescriptors.set(record.faceDescriptor, index * 128);
+        });
+    };
     const qrTokenField = document.createElement('input');
     qrTokenField.type = 'hidden';
     qrTokenField.name = 'qrToken';
@@ -255,6 +269,12 @@ function createIDCardsModule(category) {
         canvas.setAttribute('aria-label', `Attendance QR code for ${identity.schoolId}`);
     };
     const update = () => { const data = fields(); const valid = data.validUntil ? new Date(`${data.validUntil}T00:00:00`).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—'; sec.querySelector('[data-idc-school]').textContent = data.schoolName; sec.querySelector('[data-idc-back-school]').textContent = data.schoolName; sec.querySelector('[data-idc-name]').textContent = data.memberName || 'MEMBER NAME'; sec.querySelector('[data-idc-type]').textContent = data.memberType.toUpperCase(); sec.querySelector('[data-idc-id]').textContent = data.memberId; sec.querySelector('[data-idc-role]').textContent = data.designation; sec.querySelector('[data-idc-department]').textContent = data.department; sec.querySelector('[data-idc-division]').textContent = data.division; sec.querySelector('[data-idc-valid]').textContent = valid; sec.querySelector('[data-idc-back-id]').textContent = data.memberId; sec.querySelector('[data-idc-barcode]').textContent = data.memberId; sec.querySelector('[data-idc-emergency]').textContent = data.emergency; sec.querySelector('[data-idc-address]').innerHTML = `${escape(data.schoolName)}<br>${escape(data.schoolAddress)}`; sec.querySelectorAll('.id-card').forEach(card => card.style.background = `radial-gradient(circle at 90% 0%,${data.secondary},transparent 30%),linear-gradient(145deg,${data.primary},${data.secondary})`); };
+    let recordPage = 0;
+    const recordsPerPage = 100;
+    const recordPagination = document.createElement('nav');
+    recordPagination.className = 'idc-pagination';
+    recordPagination.setAttribute('aria-label', 'ID card record pages');
+    sec.querySelector('.idc-table-wrap').append(recordPagination);
     const render = () => {
         const query = sec.querySelector('[data-idc-search]').value.trim().toLowerCase();
         const memberType = sec.querySelector('[data-idc-filter-type]').value;
@@ -265,13 +285,43 @@ function createIDCardsModule(category) {
             && [record.memberName, record.memberId, record.memberType, record.department, record.designation, record.division]
                 .some(value => String(value || '').toLowerCase().includes(query))
         );
+        const pageCount = Math.max(1, Math.ceil(filtered.length / recordsPerPage));
+        recordPage = Math.min(recordPage, pageCount - 1);
+        const pageStart = recordPage * recordsPerPage;
+        const pageRecords = filtered.slice(pageStart, pageStart + recordsPerPage);
         const table = sec.querySelector('[data-idc-table]');
-        table.innerHTML = filtered.map(({ record, index }, row) => {
+        table.innerHTML = pageRecords.map(({ record, index }, row) => {
             const hasFace = Array.isArray(record.faceDescriptor) && record.faceDescriptor.length === 128;
             const hasQr = Boolean(record.qrToken);
             const signInMethod = hasFace && hasQr ? 'Face and QR' : hasFace ? 'Face only' : 'QR only';
-            return `<tr><td>${row + 1}</td><td><div class="idc-member-cell">${record.photo ? `<img class="idc-table-photo" src="${record.photo}" alt="">` : '<span class="idc-table-photo">👤</span>'}<strong>${escape(record.memberName)}</strong></div></td><td>${escape(record.memberId)}</td><td><span class="idc-badge">${escape(record.memberType)}</span></td><td>${escape(record.designation)}</td><td><span class="idc-badge ${hasFace ? 'idc-face-enrolled' : ''}">${signInMethod}</span></td><td>${escape(record.department)}</td><td>${escape(record.division)}</td><td>${escape(record.validUntil || '—')}</td><td><span class="idc-badge idc-status">${escape(record.status)}</span></td><td><div class="idc-actions"><button class="idc-action idc-view" data-action="view" data-index="${index}">View</button><button class="idc-action idc-edit" data-action="edit" data-index="${index}">Edit</button><button class="idc-action idc-delete" data-action="delete" data-index="${index}">Delete</button></div></td></tr>`;
+            return `<tr><td>${pageStart + row + 1}</td><td><div class="idc-member-cell">${record.photo ? `<img class="idc-table-photo" src="${record.photo}" alt="">` : '<span class="idc-table-photo">👤</span>'}<strong>${escape(record.memberName)}</strong></div></td><td>${escape(record.memberId)}</td><td><span class="idc-badge">${escape(record.memberType)}</span></td><td>${escape(record.designation)}</td><td><span class="idc-badge ${hasFace ? 'idc-face-enrolled' : ''}">${signInMethod}</span></td><td>${escape(record.department)}</td><td>${escape(record.division)}</td><td>${escape(record.validUntil || '—')}</td><td><span class="idc-badge idc-status">${escape(record.status)}</span></td><td><div class="idc-actions"><button class="idc-action idc-view" data-action="view" data-index="${index}">View</button><button class="idc-action idc-edit" data-action="edit" data-index="${index}">Edit</button><button class="idc-action idc-delete" data-action="delete" data-index="${index}">Delete</button></div></td></tr>`;
         }).join('');
+        recordPagination.hidden = filtered.length <= recordsPerPage;
+        if (filtered.length > recordsPerPage) {
+            const previous = document.createElement('button');
+            previous.type = 'button';
+            previous.className = 'idc-page-button';
+            previous.textContent = 'Previous';
+            previous.disabled = recordPage === 0;
+            previous.addEventListener('click', () => {
+                recordPage -= 1;
+                render();
+            });
+            const pageStatus = document.createElement('span');
+            pageStatus.textContent = `Showing ${pageStart + 1}-${Math.min(pageStart + recordsPerPage, filtered.length)} of ${filtered.length} (page ${recordPage + 1} of ${pageCount})`;
+            const next = document.createElement('button');
+            next.type = 'button';
+            next.className = 'idc-page-button';
+            next.textContent = 'Next';
+            next.disabled = recordPage >= pageCount - 1;
+            next.addEventListener('click', () => {
+                recordPage += 1;
+                render();
+            });
+            recordPagination.replaceChildren(previous, pageStatus, next);
+        } else {
+            recordPagination.replaceChildren();
+        }
         sec.querySelector('[data-idc-empty]').classList.toggle('hidden', filtered.length > 0);
         const statusCounts = records.reduce((counts, record) => {
             const status = String(record.status || '').toLowerCase();
@@ -333,6 +383,12 @@ function createIDCardsModule(category) {
     const clear = () => { editingRecordId = ''; selectedMemberRecordId = ''; faceDescriptor = null; updateFaceStatus(); setForm({memberType:'Student',memberName:'',memberId:'',designation:'',department:'',division:'',validUntil:'',emergency:'',status:'Active',primary:'#071b3a',secondary:'#1459d9',schoolName:schoolBrandName,schoolAddress:''}); sec.querySelector('[data-idc-editing]').textContent='New Record'; };
     const memberTypeSelect = sec.querySelector('[name="memberType"]');
     const memberRecordSelect = sec.querySelector('[data-idc-member-record]');
+    const memberRecordSearch = document.createElement('input');
+    memberRecordSearch.type = 'search';
+    memberRecordSearch.placeholder = 'Search member name or ID';
+    memberRecordSearch.setAttribute('aria-label', 'Search school members');
+    memberRecordSearch.className = 'idc-member-search';
+    memberRecordSelect.before(memberRecordSearch);
     const memberCollection = type => type === 'Student' ? 'students' : type === 'Teacher' ? 'teachers' : 'staff';
     const memberRecordKey = record => String(record.id || record.recordId || '');
     const memberRecordNumber = (record, type) => String(type === 'Student'
@@ -361,10 +417,24 @@ function createIDCardsModule(category) {
         const type = memberTypeSelect.value;
         const collection = memberCollection(type);
         const items = recordsForMemberType(type);
-        memberRecordSelect.replaceChildren(new Option(items.length
-            ? `Select ${type.toLowerCase()}`
-            : `No ${type.toLowerCase()} records available`, ''));
-        items.forEach(record => {
+        const search = memberRecordSearch.value.trim().toLowerCase();
+        const matches = items.filter(record => !search
+            || [memberRecordNumber(record, type), memberRecordName(record)]
+                .some(value => value.toLowerCase().includes(search)));
+        const visibleItems = matches.slice(0, 100);
+        const selectedRecord = items.find(record => memberRecordKey(record) === selectedMemberRecordId);
+        if (selectedRecord && !visibleItems.includes(selectedRecord)) visibleItems.unshift(selectedRecord);
+        const placeholder = !items.length
+            ? `No ${type.toLowerCase()} records available`
+            : !search && items.length > 100
+                ? `Search ${items.length.toLocaleString()} ${type.toLowerCase()} records`
+                : search && !matches.length
+                    ? 'No matching members found'
+                    : matches.length > 100
+                        ? `100 of ${matches.length.toLocaleString()} matches; refine search`
+                    : `Select ${type.toLowerCase()}`;
+        memberRecordSelect.replaceChildren(new Option(placeholder, ''));
+        visibleItems.forEach(record => {
             const id = memberRecordKey(record);
             if (!id) return;
             const number = memberRecordNumber(record, type);
@@ -377,6 +447,7 @@ function createIDCardsModule(category) {
         if (!memberRecordSelect.value && selectedMemberRecordId && memberRecordsLoaded[collection]) selectedMemberRecordId = '';
         memberRecordSelect.dataset.collection = collection;
     }
+    memberRecordSearch.addEventListener('input', refreshMemberOptions);
     const fillFromSelectedMember = () => {
         const collection = memberRecordSelect.dataset.collection;
         const record = memberRecords[collection]?.find(item => memberRecordKey(item) === memberRecordSelect.value);
@@ -412,6 +483,7 @@ function createIDCardsModule(category) {
     memberTypeSelect.addEventListener('change', () => {
         selectedMemberRecordId = '';
         memberRecordSelect.value = '';
+        memberRecordSearch.value = '';
         refreshMemberOptions();
         ['memberName', 'memberId', 'designation', 'department', 'division', 'emergency'].forEach(name => {
             const field = sec.querySelector(`[name="${name}"]`);
@@ -431,13 +503,34 @@ function createIDCardsModule(category) {
     });
     const loadMemberRecords = () => {
         const api = window.schoolPortalData;
+        const identity = api?.getIdentity?.();
+        if (!identity?.schoolId || !identity?.uid) return;
         if (typeof api?.subscribe !== 'function') {
             console.error('Unable to load member records for ID cards: school data service is unavailable.');
             toast('Member records are unavailable. Reload and try again.');
             return;
         }
+        const identityKey = `${identity.schoolId}:${identity.uid}`;
+        if (recordsIdentityKey === identityKey) return;
+        memberSubscriptionGeneration += 1;
+        const subscriptionGeneration = memberSubscriptionGeneration;
+        memberSubscriptions.forEach(unsubscribe => unsubscribe());
+        memberSubscriptions.length = 0;
+        recordsIdentityKey = identityKey;
+        records = [];
+        rebuildFaceIndex();
+        idCardsLoaded = false;
+        memberRecordSearch.value = '';
+        Object.keys(memberRecords).forEach(collection => {
+            memberRecords[collection] = [];
+            memberRecordsLoaded[collection] = false;
+        });
+        refreshMemberOptions();
+        render();
         void api.subscribe('idCards', loadedRecords => {
+            if (subscriptionGeneration !== memberSubscriptionGeneration) return;
             records = loadedRecords.filter(record => record.deleted !== true);
+            rebuildFaceIndex();
             idCardsLoaded = true;
             render();
             const identity = api.getIdentity?.();
@@ -447,7 +540,9 @@ function createIDCardsModule(category) {
                 records.filter(record => record.id && !record.qrToken).forEach(record => {
                     const migratedRecord = { ...record, qrToken: crypto.randomUUID() };
                     void api.saveRecord('idCards', record.id, migratedRecord).then(() => {
+                        if (subscriptionGeneration !== memberSubscriptionGeneration) return;
                         records = records.map(item => item.id === record.id ? migratedRecord : item);
+                        rebuildFaceIndex();
                         render();
                     }).catch(error => {
                         console.warn(`Unable to add attendance QR to ID card ${record.id}.`, error);
@@ -455,19 +550,27 @@ function createIDCardsModule(category) {
                 });
             }
         }).then(unsubscribe => {
-            if (typeof unsubscribe === 'function') memberSubscriptions.push(unsubscribe);
+            if (typeof unsubscribe !== 'function') return;
+            if (subscriptionGeneration !== memberSubscriptionGeneration) unsubscribe();
+            else memberSubscriptions.push(unsubscribe);
         }).catch(error => {
+            if (subscriptionGeneration !== memberSubscriptionGeneration) return;
+            recordsIdentityKey = '';
             console.error('Unable to load saved ID cards.', error);
             toast('Unable to load saved ID cards.');
         });
         Object.keys(memberRecords).forEach(collection => {
             void api.subscribe(collection, loadedRecords => {
+                if (subscriptionGeneration !== memberSubscriptionGeneration) return;
                 memberRecords[collection] = loadedRecords.filter(record => record.deleted !== true);
                 memberRecordsLoaded[collection] = true;
                 refreshMemberOptions();
             }).then(unsubscribe => {
-                if (typeof unsubscribe === 'function') memberSubscriptions.push(unsubscribe);
+                if (typeof unsubscribe !== 'function') return;
+                if (subscriptionGeneration !== memberSubscriptionGeneration) unsubscribe();
+                else memberSubscriptions.push(unsubscribe);
             }).catch(error => {
+                if (subscriptionGeneration !== memberSubscriptionGeneration) return;
                 memberRecordsLoaded[collection] = true;
                 console.error(`Unable to load ${collection} records for ID cards.`, error);
                 refreshMemberOptions();
@@ -663,18 +766,25 @@ function createIDCardsModule(category) {
         const api = window.schoolPortalData;
         const identity = api?.getIdentity?.();
         if (!identity || !attendanceAccess(identity) || typeof api?.subscribe !== 'function') return;
-        const identityKey = `${identity.schoolId}:${identity.uid}`;
+        const attendanceDate = localDate();
+        const identityKey = `${identity.schoolId}:${identity.uid}:${attendanceDate}`;
         if (attendanceIdentityKey === identityKey) return;
         attendanceSubscription?.();
         attendanceIdentityKey = identityKey;
         attendanceRecordsLoaded = false;
         try {
-            attendanceSubscription = await api.subscribe('attendance', loadedRecords => {
+            const unsubscribe = await api.subscribe('attendance', loadedRecords => {
                 if (attendanceIdentityKey !== identityKey) return;
                 attendanceRecords = loadedRecords.filter(record => record.deleted !== true);
                 attendanceRecordsLoaded = true;
-            });
+            }, [{ field: 'data.date', operator: '==', value: attendanceDate }]);
+            if (attendanceIdentityKey !== identityKey) {
+                unsubscribe?.();
+                return;
+            }
+            attendanceSubscription = unsubscribe;
         } catch (error) {
+            if (attendanceIdentityKey === identityKey) attendanceIdentityKey = '';
             console.error('Unable to load attendance for the QR scanner.', error);
             scanStatus('Attendance records could not be loaded. Check your attendance access.');
         }
@@ -855,23 +965,39 @@ function createIDCardsModule(category) {
         }).finally(() => { scanInProgress = false; });
     };
     const nearestEnrolledFace = descriptor => {
-        const candidates = records.filter(record => Array.isArray(record.faceDescriptor)
-            && record.faceDescriptor.length === 128
-            && String(record.status || 'Active').toLowerCase() === 'active'
-            && (!record.validUntil || record.validUntil >= localDate()))
-            .map(record => {
-                const distance = Math.sqrt(record.faceDescriptor.reduce((total, value, index) =>
-                    total + (value - descriptor[index]) ** 2, 0));
-                return { record, distance };
-            })
-            .sort((left, right) => left.distance - right.distance);
-        if (!candidates.length || candidates[0].distance > 0.48) return null;
-        if (candidates[1] && candidates[1].distance - candidates[0].distance < 0.08) {
+        if (descriptor.length !== 128 || faceIndexRecords.length === 0) return null;
+        let closestIndex = -1;
+        let closestDistanceSquared = Infinity;
+        let secondClosestDistanceSquared = Infinity;
+        for (let candidateIndex = 0; candidateIndex < faceIndexRecords.length; candidateIndex += 1) {
+            const descriptorOffset = candidateIndex * 128;
+            let distanceSquared = 0;
+            for (let coordinate = 0; coordinate < 128; coordinate += 1) {
+                const difference = faceIndexDescriptors[descriptorOffset + coordinate] - descriptor[coordinate];
+                distanceSquared += difference * difference;
+            }
+            if (distanceSquared < closestDistanceSquared) {
+                secondClosestDistanceSquared = closestDistanceSquared;
+                closestDistanceSquared = distanceSquared;
+                closestIndex = candidateIndex;
+            } else if (distanceSquared < secondClosestDistanceSquared) {
+                secondClosestDistanceSquared = distanceSquared;
+            }
+        }
+        if (closestIndex < 0) return null;
+        const closestDistance = Math.sqrt(closestDistanceSquared);
+        if (closestDistance > 0.48) return null;
+        if (Number.isFinite(secondClosestDistanceSquared)
+            && Math.sqrt(secondClosestDistanceSquared) - closestDistance < 0.08) {
             return { ambiguous: true };
         }
-        return candidates[0];
+        return { record: faceIndexRecords[closestIndex], distance: closestDistance };
     };
     const scanFaceFrame = async () => {
+        if (!faceIndexRecords.length) {
+            scanStatus('No face profiles are enrolled for this school. Use a member QR code.');
+            return;
+        }
         const faceApi = await loadFaceModels();
         const detections = await faceApi.detectAllFaces(scannerVideo,
             new faceApi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.55 }))
@@ -895,7 +1021,7 @@ function createIDCardsModule(category) {
             return;
         }
         if (!match) {
-            scanStatus('No enrolled member matched that face. Try QR sign-in or enroll the member first.');
+            scanStatus('No face match. Face the camera in good light and move closer, or use QR sign-in.');
             return;
         }
         if (!match.record.qrToken) {
@@ -968,25 +1094,15 @@ function createIDCardsModule(category) {
             scanStatus('Camera scanning is unavailable in this browser. Use an up-to-date browser with camera access.');
             return;
         }
-        try {
-            await loadFaceModels();
-        } catch (error) {
-            if (startId !== cameraStartId) return;
-            scanStatus(error.message || 'Face matching is unavailable.');
-            return;
-        }
-        if (startId !== cameraStartId) return;
         void prepareScannerAudio();
-        if (!attendanceRecordsLoaded) await connectAttendanceRecords();
-        if (startId !== cameraStartId) return;
         let stream;
         try {
             stream = await navigator.mediaDevices.getUserMedia({
                 audio: false,
                 video: {
                     facingMode: { ideal: sec.querySelector('[data-idc-camera-facing].is-selected').dataset.idcCameraFacing },
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
                 }
             });
             if (startId !== cameraStartId) {
@@ -994,6 +1110,15 @@ function createIDCardsModule(category) {
                 return;
             }
             cameraStream = stream;
+            const faceModelsPromise = faceIndexRecords.length
+                ? loadFaceModels().then(
+                    () => ({ error: null }),
+                    error => ({ error })
+                )
+                : Promise.resolve({ error: null });
+            const attendancePromise = attendanceRecordsLoaded
+                ? Promise.resolve()
+                : connectAttendanceRecords();
             await configureCamera(stream);
             if (startId !== cameraStartId || cameraStream !== stream) {
                 stream.getTracks().forEach(track => track.stop());
@@ -1002,6 +1127,14 @@ function createIDCardsModule(category) {
             scannerVideo.srcObject = stream;
             await scannerVideo.play();
             if (startId !== cameraStartId || cameraStream !== stream) return;
+            scanStatus('Camera connected. Preparing face recognition…');
+            const [{ error: modelError }] = await Promise.all([faceModelsPromise, attendancePromise]);
+            if (startId !== cameraStartId || cameraStream !== stream) return;
+            if (modelError) {
+                stopCamera();
+                scanStatus(modelError.message || 'Face matching is unavailable.');
+                return;
+            }
             scannerFrame.classList.add('is-scanning');
             sec.querySelector('[data-idc-camera-start]').disabled = true;
             sec.querySelector('[data-idc-camera-stop]').disabled = false;
@@ -1010,7 +1143,9 @@ function createIDCardsModule(category) {
             const guideHint = scannerFrame.querySelector('.idc-camera-guide-hint');
             guideLabel.textContent = 'Show a member QR code or center one enrolled face';
             guideHint.textContent = 'QR and face matching run automatically in this browser';
-            scanStatus('Looking for a QR code or enrolled face.');
+            scanStatus(faceIndexRecords.length
+                ? 'Looking for a QR code or enrolled face.'
+                : 'No face profiles enrolled. Looking for a QR code.');
             cameraTimer = setTimeout(scanCameraFrame, 0);
         } catch (error) {
             if (startId !== cameraStartId) {
@@ -1072,12 +1207,31 @@ function createIDCardsModule(category) {
         stopFaceEnrollmentCamera();
     });
     window.addEventListener('school-portal-identity-ready', () => {
+        loadMemberRecords();
         renderQr(sec.querySelector('[data-idc-qr]'), qrTokenField.value);
         void connectAttendanceRecords();
     });
     window.addEventListener('school-portal-identity-cleared', () => {
         stopCamera();
         stopFaceEnrollmentCamera();
+        memberSubscriptionGeneration += 1;
+        memberSubscriptions.forEach(unsubscribe => unsubscribe());
+        memberSubscriptions.length = 0;
+        recordsIdentityKey = '';
+        records = [];
+        rebuildFaceIndex();
+        idCardsLoaded = false;
+        memberRecordSearch.value = '';
+        sec.querySelector('[data-idc-search]').value = '';
+        sec.querySelector('[data-idc-filter-type]').value = '';
+        sec.querySelector('[data-idc-filter-status]').value = '';
+        recordPage = 0;
+        Object.keys(memberRecords).forEach(collection => {
+            memberRecords[collection] = [];
+            memberRecordsLoaded[collection] = false;
+        });
+        refreshMemberOptions();
+        render();
         attendanceSubscription?.();
         attendanceSubscription = null;
         attendanceIdentityKey = '';
@@ -1085,7 +1239,14 @@ function createIDCardsModule(category) {
         attendanceRecords = [];
         lastScannedToken = '';
     });
-    sec.querySelectorAll('[data-idc-field]').forEach(field => { field.addEventListener('input', update); field.addEventListener('change', update); }); sec.querySelector('[data-idc-new]').addEventListener('click', () => { sec.querySelector('[data-idc-editor]').classList.remove('hidden'); clear(); sec.querySelector('[data-idc-editor]').scrollIntoView({behavior:'smooth'}); }); sec.querySelector('[data-idc-close]').addEventListener('click', () => sec.querySelector('[data-idc-editor]').classList.add('hidden')); sec.querySelector('[data-idc-clear]').addEventListener('click', clear); sec.querySelector('[data-idc-toggle]').addEventListener('click', event => { const area = sec.querySelector('[data-idc-preview]'); const hidden = area.classList.toggle('hidden'); event.currentTarget.textContent = hidden ? 'Show Preview' : 'Hide Preview'; }); sec.querySelector('[data-idc-search]').addEventListener('input', render); sec.querySelector('[data-idc-filter-type]').addEventListener('change', render); sec.querySelector('[data-idc-filter-status]').addEventListener('change', render);
+    sec.querySelectorAll('[data-idc-field]').forEach(field => { field.addEventListener('input', update); field.addEventListener('change', update); }); sec.querySelector('[data-idc-new]').addEventListener('click', () => { sec.querySelector('[data-idc-editor]').classList.remove('hidden'); clear(); sec.querySelector('[data-idc-editor]').scrollIntoView({behavior:'smooth'}); }); sec.querySelector('[data-idc-close]').addEventListener('click', () => sec.querySelector('[data-idc-editor]').classList.add('hidden')); sec.querySelector('[data-idc-clear]').addEventListener('click', clear); sec.querySelector('[data-idc-toggle]').addEventListener('click', event => { const area = sec.querySelector('[data-idc-preview]'); const hidden = area.classList.toggle('hidden'); event.currentTarget.textContent = hidden ? 'Show Preview' : 'Hide Preview'; });
+    const resetRecordPage = () => {
+        recordPage = 0;
+        render();
+    };
+    sec.querySelector('[data-idc-search]').addEventListener('input', resetRecordPage);
+    sec.querySelector('[data-idc-filter-type]').addEventListener('change', resetRecordPage);
+    sec.querySelector('[data-idc-filter-status]').addEventListener('change', resetRecordPage);
     sec.addEventListener('click', event => {
         const target = event.target.closest('[data-idc-save], [data-action="delete"]');
         if (!target) return;
@@ -1132,6 +1293,7 @@ function createIDCardsModule(category) {
                     const cloudRecord = await api.saveRecord('idCards', recordId, savedRecord);
                     const confirmedRecord = { ...savedRecord, ...(cloudRecord || {}), id: recordId };
                     records = [confirmedRecord, ...records.filter(record => record.id !== recordId)];
+                    rebuildFaceIndex();
                     render();
                     editingRecordId = '';
                     sec.querySelector('[data-idc-editing]').textContent = 'New Record';
@@ -1157,6 +1319,7 @@ function createIDCardsModule(category) {
         }
         void api.deleteRecord('idCards', record.id).then(() => {
             records = records.filter(item => item.id !== record.id);
+            rebuildFaceIndex();
             render();
             toast('ID card deleted; cloud sync is pending.');
         }).catch(error => {
