@@ -821,42 +821,43 @@ function createIDCardsModule(category) {
         return date.toISOString().slice(0, 10);
     };
     const formatScanTime = value => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const scanOutcome = (message, speechMessage = message) => {
+    const scanOutcome = (message, speechMessage = message, scanMethod = 'QR') => {
         scanStatus(message);
-        return { recorded: false, message, speechMessage };
+        return { recorded: false, message, speechMessage: `${scanMethod} scan. ${speechMessage}` };
     };
     const cardAvailabilityMessage = card => {
         if (String(card.status || 'Active').toLowerCase() !== 'active') return 'This ID card is inactive.';
         if (card.validUntil && card.validUntil < localDate()) return 'This ID card has expired.';
         return '';
     };
-    const recordAttendanceScan = async decodedText => {
+    const recordAttendanceScan = async (decodedText, scanMethod = 'QR') => {
+        const outcome = message => scanOutcome(message, message, scanMethod);
         const [prefix, encodedSchoolId, token, extra] = decodedText.split('|');
         if (prefix !== 'EDU1' || !encodedSchoolId || !token || extra !== undefined) {
-            return scanOutcome('That QR code is not a school attendance card.');
+            return outcome('That QR code is not a school attendance card.');
         }
         let schoolId;
         try {
             schoolId = decodeURIComponent(encodedSchoolId);
         } catch {
-            return scanOutcome('That QR code is not valid. Try again.');
+            return outcome('That QR code is not valid. Try again.');
         }
         const identity = window.schoolPortalData?.getIdentity?.();
         if (!identity || schoolId !== identity.schoolId || !attendanceAccess(identity)) {
-            return scanOutcome('This card belongs to another school or your account cannot record attendance.');
+            return outcome('This card belongs to another school or your account cannot record attendance.');
         }
         if (!attendanceRecordsLoaded || !idCardsLoaded) {
-            return scanOutcome('School records are still loading. Wait a moment, then scan again.');
+            return outcome('School records are still loading. Wait a moment, then scan again.');
         }
         const card = records.find(record => record.qrToken === token || String(record.id || '') === token);
         if (!card) {
-            return scanOutcome('No saved ID card matches this QR code.');
+            return outcome('No saved ID card matches this QR code.');
         }
         const availabilityMessage = cardAvailabilityMessage(card);
-        if (availabilityMessage) return scanOutcome(availabilityMessage);
+        if (availabilityMessage) return outcome(availabilityMessage);
         const rosterRecord = attendanceMemberForCard(card);
         if (!rosterRecord) {
-            return scanOutcome('Link this ID card to a saved student, teacher, or staff record first.');
+            return outcome('Link this ID card to a saved student, teacher, or staff record first.');
         }
         const memberType = card.memberType === 'Student' ? 'Students'
             : card.memberType === 'Teacher' ? 'Teachers' : 'Staff';
@@ -875,16 +876,16 @@ function createIDCardsModule(category) {
                 ? ` in the ${timeOfDay(alreadySignedInAt)}`
                 : '';
             const message = `Good ${timeOfDay(scannedAt)}, ${designation}. Already signed in at ${formatAnnouncementTime(alreadySignedInAt)}.`;
-            return scanOutcome(message, `${designation}. Already signed in at ${formatAnnouncementTime(alreadySignedInAt)}${signedInPeriod}.`);
+            return scanOutcome(message, `${designation}. Already signed in at ${formatAnnouncementTime(alreadySignedInAt)}${signedInPeriod}.`, scanMethod);
         }
         if (action === 'check-in' && existing?.checkOutAt) {
-            return scanOutcome(`${card.memberName} has completed attendance for today.`);
+            return outcome(`${card.memberName} has completed attendance for today.`);
         }
         if (action === 'check-out' && !existing?.checkInAt) {
-            return scanOutcome(`${card.memberName} must check in before checking out.`);
+            return outcome(`${card.memberName} must check in before checking out.`);
         }
         if (action === 'check-out' && existing?.checkOutAt) {
-            return scanOutcome(`${card.memberName} already checked out at ${formatScanTime(existing.checkOutAt)}.`);
+            return outcome(`${card.memberName} already checked out at ${formatScanTime(existing.checkOutAt)}.`);
         }
         const timestamp = new Date().toISOString();
         const record = {
@@ -907,7 +908,7 @@ function createIDCardsModule(category) {
         };
         const api = window.schoolPortalData;
         if (typeof api?.saveRecord !== 'function') {
-            return scanOutcome('Attendance saving is unavailable. Reload the portal and try again.');
+            return outcome('Attendance saving is unavailable. Reload the portal and try again.');
         }
         await api.saveRecord('attendance', record.id, record);
         void api.sync?.();
@@ -924,9 +925,9 @@ function createIDCardsModule(category) {
         const speechMessage = action === 'check-in'
             ? `${designation}. Welcome. Signed in.`
             : `${designation}. Signed out.`;
-        return { recorded: true, message, speechMessage };
+        return { recorded: true, message, speechMessage: `${scanMethod} scan. ${speechMessage}` };
     };
-    const handleCameraQr = decodedText => {
+    const handleCameraQr = (decodedText, scanMethod = 'QR') => {
         if (!decodedText) {
             const now = Date.now();
             if (now - lastQrSeenAt > 1500) {
@@ -977,7 +978,7 @@ function createIDCardsModule(category) {
             ? `${memberName} is signing in…`
             : `${memberName} is signing out…`);
         scanInProgress = true;
-        void recordAttendanceScan(decodedText).then(recorded => {
+        void recordAttendanceScan(decodedText, scanMethod).then(recorded => {
             if (recorded?.recorded) {
                 markScannerRecognition();
                 showCameraMessage(recorded.message);
@@ -995,7 +996,7 @@ function createIDCardsModule(category) {
             const message = error.message || 'Attendance could not be saved. Check your access and try again.';
             scanStatus(message);
             showCameraMessage(message);
-            speakScanMessage('Attendance could not be saved. Please try again.');
+            speakScanMessage(`${scanMethod} scan. Attendance could not be saved. Please try again.`);
         }).finally(() => { scanInProgress = false; });
     };
     const nearestEnrolledFace = descriptor => {
@@ -1069,7 +1070,7 @@ function createIDCardsModule(category) {
             lastScannedToken = faceRecordToken;
             scanStatus(availabilityMessage);
             showCameraMessage(availabilityMessage);
-            speakScanMessage(availabilityMessage);
+            speakScanMessage(`Face scan. ${availabilityMessage}`);
             void playScanSuccessSound();
             return;
         }
@@ -1079,13 +1080,13 @@ function createIDCardsModule(category) {
             const message = 'This member card needs a QR token before it can record attendance.';
             scanStatus(message);
             showCameraMessage(message);
-            speakScanMessage(message);
+            speakScanMessage(`Face scan. ${message}`);
             return;
         }
         const schoolId = window.schoolPortalData?.getIdentity?.()?.schoolId;
         if (!schoolId) return;
         scanStatus(`Face recognized: ${match.record.memberName || 'member'}. Recording attendance…`);
-        handleCameraQr(`EDU1|${encodeURIComponent(schoolId)}|${match.record.qrToken}`);
+        handleCameraQr(`EDU1|${encodeURIComponent(schoolId)}|${match.record.qrToken}`, 'Face');
     };
     const scanCameraFrame = async () => {
         if (frameScanInProgress || scanInProgress || scannerVideo.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA
