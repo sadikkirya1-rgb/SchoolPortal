@@ -236,7 +236,8 @@ exports.createSchool = onCall(async request => {
 
 exports.listPlatformSchools = onCall(async request => {
     requirePlatformAdmin(request);
-    const pageSize = 50;
+    const requestedPageSize = Number(request.data?.pageSize);
+    const pageSize = [10, 25, 50, 100, 200].includes(requestedPageSize) ? requestedPageSize : 50;
     const afterSchoolId = String(request.data?.afterSchoolId || '');
     let query = db.collection('schools').orderBy(FieldPath.documentId()).limit(pageSize + 1);
     if (afterSchoolId) query = query.startAfter(afterSchoolId);
@@ -269,7 +270,8 @@ exports.listPlatformSchoolAccounts = onCall(async request => {
     const schoolId = validateSchoolId(request.data?.schoolId);
     const schoolSnapshot = await db.doc(`schools/${schoolId}`).get();
     if (!schoolSnapshot.exists) throw new HttpsError('not-found', 'School not found.');
-    const pageSize = 200;
+    const requestedPageSize = Number(request.data?.pageSize);
+    const pageSize = [10, 25, 50, 100, 200].includes(requestedPageSize) ? requestedPageSize : 200;
     const afterUid = String(request.data?.afterUid || '');
     let query = db.collection(`schools/${schoolId}/members`).orderBy(FieldPath.documentId()).limit(pageSize + 1);
     if (afterUid) query = query.startAfter(db.doc(`schools/${schoolId}/members/${afterUid}`));

@@ -61,6 +61,8 @@ let schoolPageCursor = null;
 let accountPageCursor = null;
 let schoolCursorHistory = [];
 let accountCursorHistory = [];
+let schoolPageSize = 25;
+let accountPageSize = 25;
 let accountEditUid = null;
 let schoolCount = 0;
 let accountCount = 0;
@@ -183,8 +185,9 @@ function renderSchools() {
     const visibleSchools = schools.filter(school =>
         `${school.name} ${school.id} ${school.countryCode} ${school.status}`.toLowerCase().includes(term)
     );
-    schoolTableBody.innerHTML = visibleSchools.length ? visibleSchools.map(school => `
+    schoolTableBody.innerHTML = visibleSchools.length ? visibleSchools.map((school, index) => `
         <tr>
+            <td>${index + 1}</td>
             <td><div class="school-name-cell">${school.logoURL
                 ? `<img src="${escapeHTML(school.logoURL)}" alt="" loading="lazy">`
                 : '<span class="school-logo-fallback" aria-hidden="true">SCH</span>'}
@@ -197,7 +200,7 @@ function renderSchools() {
                 <button class="table-action" type="button" data-school-action="accounts" data-school-id="${escapeHTML(school.id)}">Accounts</button>
                 <button class="table-action ${school.status === 'active' ? 'danger' : ''}" type="button" data-school-action="status" data-school-id="${escapeHTML(school.id)}" data-status="${school.status === 'active' ? 'suspended' : 'active'}">${school.status === 'active' ? 'Suspend' : 'Activate'}</button>
             </div></td>
-        </tr>`).join('') : '<tr><td colspan="6">No schools match this search.</td></tr>';
+        </tr>`).join('') : '<tr><td colspan="7">No schools match this search.</td></tr>';
     document.getElementById('schoolTotal').textContent = String(schoolCount);
     document.getElementById('activeSchoolTotal').textContent = String(schools.filter(school => school.status === 'active').length);
     document.getElementById('nextSchoolsButton').disabled = !schoolAfterId;
@@ -205,8 +208,8 @@ function renderSchools() {
 }
 
 async function loadSchools(afterSchoolId = schoolPageCursor) {
-    schoolTableBody.innerHTML = '<tr><td colspan="6">Loading schools…</td></tr>';
-    const response = await listPlatformSchools({ afterSchoolId: afterSchoolId || '' });
+    schoolTableBody.innerHTML = '<tr><td colspan="7">Loading schools…</td></tr>';
+    const response = await listPlatformSchools({ afterSchoolId: afterSchoolId || '', pageSize: schoolPageSize });
     schoolPageCursor = afterSchoolId || null;
     schools = response.data.schools;
     schoolAfterId = response.data.nextAfterSchoolId;
@@ -219,8 +222,9 @@ function renderAccounts() {
     const visibleAccounts = accounts.filter(account =>
         `${account.fullName} ${account.email} ${account.role} ${account.userId} ${account.status}`.toLowerCase().includes(term)
     );
-    accountTableBody.innerHTML = visibleAccounts.length ? visibleAccounts.map(account => `
+    accountTableBody.innerHTML = visibleAccounts.length ? visibleAccounts.map((account, index) => `
         <tr>
+            <td>${index + 1}</td>
             <td><strong>${escapeHTML(account.fullName || 'Unnamed account')}</strong><small class="sub-cell">${escapeHTML(account.uid)}</small></td>
             <td>${escapeHTML(account.email || '—')}</td>
             <td>${escapeHTML(account.role)}</td>
@@ -232,7 +236,7 @@ function renderAccounts() {
                    <button class="table-action ${account.status === 'active' ? 'danger' : ''}" type="button" data-account-action="status" data-uid="${escapeHTML(account.uid)}" data-status="${account.status === 'active' ? 'disabled' : 'active'}">${account.status === 'active' ? 'Suspend' : 'Activate'}</button>
                 <button class="table-action danger" type="button" data-account-action="delete" data-uid="${escapeHTML(account.uid)}">Delete</button>
             </div></td>
-        </tr>`).join('') : '<tr><td colspan="6">No accounts match this search.</td></tr>';
+        </tr>`).join('') : '<tr><td colspan="7">No accounts match this search.</td></tr>';
     document.getElementById('accountTotal').textContent = String(accountCount);
     document.getElementById('nextAccountsButton').disabled = !accountAfterUid;
     document.getElementById('previousAccountsButton').disabled = accountCursorHistory.length === 0;
@@ -240,10 +244,11 @@ function renderAccounts() {
 
 async function loadAccounts(afterUid = accountPageCursor) {
     if (!selectedSchool) return;
-    accountTableBody.innerHTML = '<tr><td colspan="6">Loading school accounts…</td></tr>';
+    accountTableBody.innerHTML = '<tr><td colspan="7">Loading school accounts…</td></tr>';
     const response = await listPlatformSchoolAccounts({
         schoolId: selectedSchool.id,
-        afterUid: afterUid || ''
+        afterUid: afterUid || '',
+        pageSize: accountPageSize
     });
     accountPageCursor = afterUid || null;
     accounts = response.data.accounts;
@@ -434,6 +439,16 @@ schoolTableBody.addEventListener('click', async event => {
 });
 
 document.getElementById('schoolSearch').addEventListener('input', renderSchools);
+document.getElementById('schoolPageSize').addEventListener('change', async event => {
+    schoolPageSize = Number(event.target.value);
+    schoolCursorHistory = [];
+    schoolPageCursor = null;
+    try {
+        await loadSchools();
+    } catch (error) {
+        showError(createMessage, error, 'Unable to load schools for the selected page size.');
+    }
+});
 document.getElementById('previousSchoolsButton').addEventListener('click', async () => {
     const previous = schoolCursorHistory.pop() || null;
     try {
@@ -486,6 +501,17 @@ accountForm.elements.linkedRecordId.addEventListener('change', () => {
         : 'Choose an existing record or leave the staff account unlinked.';
 });
 document.getElementById('accountSearch').addEventListener('input', renderAccounts);
+document.getElementById('accountPageSize').addEventListener('change', async event => {
+    accountPageSize = Number(event.target.value);
+    accountCursorHistory = [];
+    accountPageCursor = null;
+    if (!selectedSchool) return;
+    try {
+        await loadAccounts();
+    } catch (error) {
+        showError(accountMessage, error, 'Unable to load accounts for the selected page size.');
+    }
+});
 
 accountForm.addEventListener('submit', async event => {
     event.preventDefault();

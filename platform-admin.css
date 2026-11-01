@@ -73,7 +73,9 @@ tbody tr:hover { background: #f8fbff; }
 .table-action.danger { color: #a33232; }
 .status-pill { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #edf8f0; color: #267647; font-size: .74rem; font-weight: 700; text-transform: capitalize; }
 .status-pill.suspended, .status-pill.disabled { background: #fff1f1; color: #a33232; }
-.list-pager, .form-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 12px; }
+.list-pager, .form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; margin-top: 12px; }
+.list-pager label { display: inline-flex; align-items: center; gap: 7px; color: var(--muted, #64748b); font-size: 12px; }
+.list-pager select { min-height: 36px; padding: 6px 9px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #334155; font: inherit; }
 .account-add-heading { margin-top: 20px; }
 .account-add-heading > span { max-width: 70%; line-height: 1.5; }
 .account-editor .form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
