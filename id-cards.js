@@ -222,12 +222,10 @@ function createIDCardsModule(category) {
     let faceIndexRecords = [];
     let faceIndexDescriptors = new Float64Array(0);
     const rebuildFaceIndex = () => {
-        const today = localDate();
         faceIndexRecords = records.filter(record => Array.isArray(record.faceDescriptor)
             && record.faceDescriptor.length === 128
             && record.faceDescriptor.every(Number.isFinite)
-            && String(record.status || 'Active').toLowerCase() === 'active'
-            && (!record.validUntil || record.validUntil >= today));
+            && record.deleted !== true);
         faceIndexDescriptors = new Float64Array(faceIndexRecords.length * 128);
         faceIndexRecords.forEach((record, index) => {
             faceIndexDescriptors.set(record.faceDescriptor, index * 128);
@@ -585,6 +583,8 @@ function createIDCardsModule(category) {
     let cameraStream = null;
     let cameraStartId = 0;
     let cameraTimer = null;
+    let recognitionTimer = null;
+    let lastFrameErrorAt = 0;
     let frameScanInProgress = false;
     let cameraMessageTimer = null;
     let scannerAudioContext = null;
@@ -616,6 +616,7 @@ function createIDCardsModule(category) {
         if (stopButton) stopButton.disabled = sec.querySelector('[data-idc-camera-stop]').disabled;
     };
     let qrDetector = null;
+    let qrFallbackFrame = 0;
     if (typeof window.BarcodeDetector === 'function') {
         try {
             qrDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
@@ -628,6 +629,14 @@ function createIDCardsModule(category) {
         scannerStatus.textContent = message;
         scannerResult.classList.add('hidden');
     };
+    const markScannerRecognition = () => {
+        lastQrSeenAt = Date.now();
+        scannerFrame.classList.add('is-qr-detected');
+        clearTimeout(recognitionTimer);
+        recognitionTimer = setTimeout(() => {
+            scannerFrame.classList.remove('is-qr-detected');
+        }, 1400);
+    };
     const showCameraMessage = message => {
         clearTimeout(cameraMessageTimer);
         scannerMessage.textContent = message;
@@ -639,14 +648,20 @@ function createIDCardsModule(category) {
     };
     const speakScanMessage = message => {
         if (!('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance !== 'function') return;
-        window.speechSynthesis.cancel();
-        const utterance = new window.SpeechSynthesisUtterance(message);
-        const femaleVoice = window.speechSynthesis.getVoices().find(voice =>
-            /female|woman|samantha|victoria|karen|moira|tessa|fiona|serena|susan|zira|jenny|aria|ava/i.test(voice.name)
-        );
-        if (femaleVoice) utterance.voice = femaleVoice;
-        utterance.pitch = 1.15;
-        window.speechSynthesis.speak(utterance);
+        try {
+            const speech = window.speechSynthesis;
+            speech.cancel();
+            const utterance = new window.SpeechSynthesisUtterance(message);
+            const femaleVoice = speech.getVoices().find(voice =>
+                /female|woman|samantha|victoria|karen|moira|tessa|fiona|serena|susan|zira|jenny|aria|ava/i.test(voice.name)
+            );
+            if (femaleVoice) utterance.voice = femaleVoice;
+            utterance.pitch = 1.15;
+            utterance.onerror = event => console.warn('Attendance confirmation speech failed.', event.error);
+            speech.speak(utterance);
+        } catch (error) {
+            console.warn('Unable to speak the attendance confirmation.', error);
+        }
     };
     const timeOfDay = date => {
         const hour = date.getHours();
@@ -742,9 +757,12 @@ function createIDCardsModule(category) {
     const stopCamera = () => {
         cameraStartId += 1;
         clearTimeout(cameraTimer);
+        clearTimeout(recognitionTimer);
         cameraTimer = null;
+        recognitionTimer = null;
         lastScannedToken = '';
         lastQrSeenAt = 0;
+        lastFrameErrorAt = 0;
         frameScanInProgress = false;
         cameraStream?.getTracks().forEach(track => track.stop());
         cameraStream = null;
@@ -803,42 +821,42 @@ function createIDCardsModule(category) {
         return date.toISOString().slice(0, 10);
     };
     const formatScanTime = value => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const scanOutcome = (message, speechMessage = message) => {
+        scanStatus(message);
+        return { recorded: false, message, speechMessage };
+    };
+    const cardAvailabilityMessage = card => {
+        if (String(card.status || 'Active').toLowerCase() !== 'active') return 'This ID card is inactive.';
+        if (card.validUntil && card.validUntil < localDate()) return 'This ID card has expired.';
+        return '';
+    };
     const recordAttendanceScan = async decodedText => {
         const [prefix, encodedSchoolId, token, extra] = decodedText.split('|');
         if (prefix !== 'EDU1' || !encodedSchoolId || !token || extra !== undefined) {
-            scanStatus('That QR code is not a school attendance card.');
-            return;
+            return scanOutcome('That QR code is not a school attendance card.');
         }
         let schoolId;
         try {
             schoolId = decodeURIComponent(encodedSchoolId);
         } catch {
-            scanStatus('That QR code is not valid. Try again.');
-            return;
+            return scanOutcome('That QR code is not valid. Try again.');
         }
         const identity = window.schoolPortalData?.getIdentity?.();
         if (!identity || schoolId !== identity.schoolId || !attendanceAccess(identity)) {
-            scanStatus('This card belongs to another school or your account cannot record attendance.');
-            return;
+            return scanOutcome('This card belongs to another school or your account cannot record attendance.');
         }
         if (!attendanceRecordsLoaded || !idCardsLoaded) {
-            scanStatus('School records are still loading. Wait a moment, then scan again.');
-            return;
+            return scanOutcome('School records are still loading. Wait a moment, then scan again.');
         }
         const card = records.find(record => record.qrToken === token || String(record.id || '') === token);
         if (!card) {
-            scanStatus('No saved ID card matches this QR code.');
-            return;
+            return scanOutcome('No saved ID card matches this QR code.');
         }
-        if (String(card.status || 'Active').toLowerCase() !== 'active'
-            || (card.validUntil && card.validUntil < localDate())) {
-            scanStatus('This ID card is inactive or expired.');
-            return;
-        }
+        const availabilityMessage = cardAvailabilityMessage(card);
+        if (availabilityMessage) return scanOutcome(availabilityMessage);
         const rosterRecord = attendanceMemberForCard(card);
         if (!rosterRecord) {
-            scanStatus('Link this ID card to a saved student, teacher, or staff record first.');
-            return;
+            return scanOutcome('Link this ID card to a saved student, teacher, or staff record first.');
         }
         const memberType = card.memberType === 'Student' ? 'Students'
             : card.memberType === 'Teacher' ? 'Teachers' : 'Staff';
@@ -856,23 +874,17 @@ function createIDCardsModule(category) {
             const signedInPeriod = ['morning', 'afternoon'].includes(timeOfDay(alreadySignedInAt))
                 ? ` in the ${timeOfDay(alreadySignedInAt)}`
                 : '';
-            return {
-                recorded: false,
-                message: `Good ${timeOfDay(scannedAt)}, ${designation}. Already signed in at ${formatAnnouncementTime(alreadySignedInAt)}.`,
-                speechMessage: `${designation}. Already signed in at ${formatAnnouncementTime(alreadySignedInAt)}${signedInPeriod}.`
-            };
+            const message = `Good ${timeOfDay(scannedAt)}, ${designation}. Already signed in at ${formatAnnouncementTime(alreadySignedInAt)}.`;
+            return scanOutcome(message, `${designation}. Already signed in at ${formatAnnouncementTime(alreadySignedInAt)}${signedInPeriod}.`);
         }
         if (action === 'check-in' && existing?.checkOutAt) {
-            scanStatus(`${card.memberName} has completed attendance for today.`);
-            return;
+            return scanOutcome(`${card.memberName} has completed attendance for today.`);
         }
         if (action === 'check-out' && !existing?.checkInAt) {
-            scanStatus(`${card.memberName} must check in before checking out.`);
-            return;
+            return scanOutcome(`${card.memberName} must check in before checking out.`);
         }
         if (action === 'check-out' && existing?.checkOutAt) {
-            scanStatus(`${card.memberName} already checked out at ${formatScanTime(existing.checkOutAt)}.`);
-            return;
+            return scanOutcome(`${card.memberName} already checked out at ${formatScanTime(existing.checkOutAt)}.`);
         }
         const timestamp = new Date().toISOString();
         const record = {
@@ -895,8 +907,7 @@ function createIDCardsModule(category) {
         };
         const api = window.schoolPortalData;
         if (typeof api?.saveRecord !== 'function') {
-            scanStatus('Attendance saving is unavailable. Reload the portal and try again.');
-            return;
+            return scanOutcome('Attendance saving is unavailable. Reload the portal and try again.');
         }
         await api.saveRecord('attendance', record.id, record);
         void api.sync?.();
@@ -917,7 +928,6 @@ function createIDCardsModule(category) {
     };
     const handleCameraQr = decodedText => {
         if (!decodedText) {
-            scannerFrame.classList.remove('is-qr-detected');
             const now = Date.now();
             if (now - lastQrSeenAt > 1500) {
                 lastScannedToken = '';
@@ -927,20 +937,39 @@ function createIDCardsModule(category) {
             }
             return;
         }
-        lastQrSeenAt = Date.now();
-        scannerFrame.classList.add('is-qr-detected');
-        const token = decodedText.split('|')[2] || decodedText;
+        const [prefix, encodedSchoolId, token, extra] = decodedText.split('|');
+        if (prefix !== 'EDU1' || !encodedSchoolId || !token || extra !== undefined) {
+            scanStatus('QR code detected, but it is not a school attendance code.');
+            return;
+        }
+        let schoolId;
+        try {
+            schoolId = decodeURIComponent(encodedSchoolId);
+        } catch {
+            scanStatus('QR code detected, but its school ID is invalid.');
+            return;
+        }
+        if (schoolId !== window.schoolPortalData?.getIdentity?.()?.schoolId) {
+            scanStatus('QR code detected, but it belongs to another school.');
+            return;
+        }
         if (token === lastScannedToken) return;
+        scanStatus('School QR code detected. Checking the member record…');
         if (!attendanceRecordsLoaded || !idCardsLoaded) {
             scanStatus('QR code detected. Loading attendance records before registering…');
             return;
         }
-        const matchedCard = records.find(record => record.qrToken === token);
-        const rosterCollection = matchedCard && memberCollection(matchedCard.memberType);
-        if (rosterCollection && !memberRecordsLoaded[rosterCollection]) {
+        const matchedCard = records.find(record => record.qrToken === token || String(record.id || '') === token);
+        if (!matchedCard) {
+            scanStatus('QR code detected, but no matching ID card was found.');
+            return;
+        }
+        const rosterCollection = memberCollection(matchedCard.memberType);
+        if (!memberRecordsLoaded[rosterCollection]) {
             scanStatus('QR code detected. Loading the member record before registering…');
             return;
         }
+        markScannerRecognition();
         lastScannedToken = token;
         const scanAction = sec.querySelector('[data-idc-scan-mode].is-selected').dataset.idcScanMode;
         const memberName = matchedCard.memberName || 'Member';
@@ -950,6 +979,7 @@ function createIDCardsModule(category) {
         scanInProgress = true;
         void recordAttendanceScan(decodedText).then(recorded => {
             if (recorded?.recorded) {
+                markScannerRecognition();
                 showCameraMessage(recorded.message);
                 speakScanMessage(recorded.speechMessage);
                 void playScanSuccessSound();
@@ -961,7 +991,11 @@ function createIDCardsModule(category) {
             }
         }).catch(error => {
             console.error('Unable to save QR attendance.', error);
-            scanStatus(error.message || 'Attendance could not be saved. Check your access and try again.');
+            lastScannedToken = '';
+            const message = error.message || 'Attendance could not be saved. Check your access and try again.';
+            scanStatus(message);
+            showCameraMessage(message);
+            speakScanMessage('Attendance could not be saved. Please try again.');
         }).finally(() => { scanInProgress = false; });
     };
     const nearestEnrolledFace = descriptor => {
@@ -988,7 +1022,7 @@ function createIDCardsModule(category) {
         const closestDistance = Math.sqrt(closestDistanceSquared);
         if (closestDistance > 0.48) return null;
         if (Number.isFinite(secondClosestDistanceSquared)
-            && Math.sqrt(secondClosestDistanceSquared) - closestDistance < 0.08) {
+            && Math.sqrt(secondClosestDistanceSquared) - closestDistance < 0.025) {
             return { ambiguous: true };
         }
         return { record: faceIndexRecords[closestIndex], distance: closestDistance };
@@ -1000,17 +1034,20 @@ function createIDCardsModule(category) {
         }
         const faceApi = await loadFaceModels();
         const detections = await faceApi.detectAllFaces(scannerVideo,
-            new faceApi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.55 }))
+            new faceApi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 }))
             .withFaceLandmarks(true)
             .withFaceDescriptors();
         if (!detections.length) {
             if (Date.now() - lastQrSeenAt > 1600) {
                 lastScannedToken = '';
-                scannerFrame.classList.remove('is-qr-detected');
+                if (!scannerStatus.textContent.startsWith('Looking for')
+                    && !scannerStatus.textContent.startsWith('No face match')) {
+                    scanStatus('Looking for a face. Center it in the guide and use good lighting.');
+                }
             }
             return;
         }
-        lastQrSeenAt = Date.now();
+        scanStatus('Face detected. Checking enrolled members…');
         if (detections.length !== 1) {
             scanStatus('Only one face should be visible to sign in.');
             return;
@@ -1024,13 +1061,30 @@ function createIDCardsModule(category) {
             scanStatus('No face match. Face the camera in good light and move closer, or use QR sign-in.');
             return;
         }
+        const faceRecordToken = match.record.qrToken || String(match.record.id || '');
+        if (faceRecordToken && faceRecordToken === lastScannedToken) return;
+        const availabilityMessage = cardAvailabilityMessage(match.record);
+        if (availabilityMessage) {
+            markScannerRecognition();
+            lastScannedToken = faceRecordToken;
+            scanStatus(availabilityMessage);
+            showCameraMessage(availabilityMessage);
+            speakScanMessage(availabilityMessage);
+            void playScanSuccessSound();
+            return;
+        }
         if (!match.record.qrToken) {
-            scanStatus('This member card needs a QR token before it can record attendance.');
+            markScannerRecognition();
+            lastScannedToken = faceRecordToken;
+            const message = 'This member card needs a QR token before it can record attendance.';
+            scanStatus(message);
+            showCameraMessage(message);
+            speakScanMessage(message);
             return;
         }
         const schoolId = window.schoolPortalData?.getIdentity?.()?.schoolId;
         if (!schoolId) return;
-        scannerFrame.classList.add('is-qr-detected');
+        scanStatus(`Face recognized: ${match.record.memberName || 'member'}. Recording attendance…`);
         handleCameraQr(`EDU1|${encodeURIComponent(schoolId)}|${match.record.qrToken}`);
     };
     const scanCameraFrame = async () => {
@@ -1042,16 +1096,23 @@ function createIDCardsModule(category) {
         frameScanInProgress = true;
         try {
             let decodedText = '';
+            let shouldTryQrFallback = !qrDetector;
             if (qrDetector) {
                 try {
                     const detections = await qrDetector.detect(scannerVideo);
                     decodedText = detections[0]?.rawValue || '';
+                    if (decodedText) qrFallbackFrame = 0;
+                    else {
+                        qrFallbackFrame += 1;
+                        shouldTryQrFallback = qrFallbackFrame % 3 === 0;
+                    }
                 } catch (error) {
                     console.warn('Native QR detection failed; switching to the compatibility decoder.', error);
                     qrDetector = null;
+                    shouldTryQrFallback = true;
                 }
             }
-            if (!qrDetector && typeof window.jsQR === 'function') {
+            if (!decodedText && shouldTryQrFallback && typeof window.jsQR === 'function') {
                 const width = Math.min(scannerVideo.videoWidth, 1280);
                 const height = Math.round(scannerVideo.videoHeight * width / scannerVideo.videoWidth);
                 if (scannerCanvas.width !== width || scannerCanvas.height !== height) {
@@ -1068,9 +1129,11 @@ function createIDCardsModule(category) {
                 await scanFaceFrame();
             }
         } catch (error) {
-            console.error('Unable to read a frame from the attendance camera.', error);
-            scanStatus('The camera image could not be read. Stop and restart the camera.');
-            stopCamera();
+            if (Date.now() - lastFrameErrorAt > 5000) {
+                lastFrameErrorAt = Date.now();
+                console.error('Unable to read a frame from the attendance camera. Scanning will continue.', error);
+                scanStatus('A camera frame could not be processed. Scanning will retry automatically.');
+            }
         } finally {
             frameScanInProgress = false;
             if (cameraStream) cameraTimer = setTimeout(scanCameraFrame, qrDetector ? 220 : 260);
@@ -1093,6 +1156,11 @@ function createIDCardsModule(category) {
         if (!navigator.mediaDevices?.getUserMedia || (!qrDetector && typeof window.jsQR !== 'function')) {
             scanStatus('Camera scanning is unavailable in this browser. Use an up-to-date browser with camera access.');
             return;
+        }
+        try {
+            window.speechSynthesis?.resume();
+        } catch (error) {
+            console.warn('Unable to prepare attendance confirmation speech.', error);
         }
         void prepareScannerAudio();
         let stream;
