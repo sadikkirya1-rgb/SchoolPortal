@@ -24,7 +24,7 @@
         <div class="students-card students-stat"><div><p>Female Students</p><h2 id="femaleStudents">0</h2></div><div class="students-stat-icon students-green"><i class="fas fa-child-dress"></i></div></div>
         <div class="students-card students-stat"><div><p>Present Today</p><h2 id="presentStudents">0</h2></div><div class="students-stat-icon students-orange"><i class="fas fa-check"></i></div></div>
       </section>
-      <div class="students-section-head"><div><h2>Students</h2><p>Student directory and records</p></div><div class="students-toolbar"><label class="students-search"><i class="fas fa-search"></i><input id="studentSearch" placeholder="Search student..."></label><button class="students-btn students-btn-light" id="studentExport"><i class="fas fa-download"></i> Export</button><button class="students-btn students-btn-primary" data-student-add><i class="fas fa-plus"></i> Add Student</button></div></div>
+      <div class="students-section-head"><div><h2>Students</h2><p>Student directory and records</p></div><div class="students-toolbar"><label class="students-search"><i class="fas fa-search"></i><input id="studentSearch" placeholder="Search student..."></label><input id="studentImportFile" class="students-file-input" type="file" accept=".csv,text/csv" hidden><button class="students-btn students-btn-light" id="studentImport" type="button"><i class="fas fa-file-import"></i> Import CSV</button><button class="students-btn students-btn-light" id="studentTemplate" type="button"><i class="fas fa-file-arrow-down"></i> Template</button><button class="students-btn students-btn-light" id="studentExport"><i class="fas fa-download"></i> Export</button><button class="students-btn students-btn-primary" data-student-add><i class="fas fa-plus"></i> Add Student</button></div></div><p class="students-import-status" id="studentImportStatus" role="status" aria-live="polite"></p>
       <div class="students-card students-table-card"><div class="students-table-wrap"><table><thead><tr><th>Student</th><th>Admission No.</th><th>Class</th><th>Gender</th><th>Parent Phone</th><th>Status</th><th>Actions</th></tr></thead><tbody id="studentTable"></tbody></table></div></div>`;
   }
   function render() { const query = ($('studentSearch')?.value || '').toLowerCase().trim(), rows = students.filter(s => [s.firstName,s.lastName,s.admissionNo,s.className,s.section,s.guardianPhone,s.guardianEmail].join(' ').toLowerCase().includes(query)); $('studentTable').innerHTML = rows.length ? rows.map(s => `<tr><td><div class="students-student"><img class="students-img" src="${s.photo || avatar(s)}" alt="Student"><div><strong>${escape(s.firstName)} ${escape(s.lastName)}</strong></div></div></td><td><strong>${escape(s.admissionNo)}</strong></td><td>${escape(s.className)} - ${escape(s.section)}</td><td>${escape(s.gender)}</td><td>${escape(s.guardianPhone || '-')}</td><td><span class="students-badge ${s.status === 'Active' ? 'students-active' : s.status === 'Inactive' ? 'students-inactive' : 'students-closed'}">${escape(s.status)}</span></td><td><div class="students-actions"><button class="students-action" title="Preview" data-preview="${s.id}"><i class="fas fa-eye"></i></button><button class="students-action" title="Edit" data-edit="${s.id}"><i class="fas fa-pen"></i></button><button class="students-action" title="Delete" data-delete="${s.id}"><i class="fas fa-trash"></i></button></div></td></tr>`).join('') : '<tr><td colspan="7"><div class="students-empty"><i class="fas fa-graduation-cap fa-2x"></i><h3>No students found</h3><p>Add a new student or change your search.</p></div></td></tr>'; $('totalStudents').textContent=students.length; $('maleStudents').textContent=students.filter(s=>s.gender==='Male').length; $('femaleStudents').textContent=students.filter(s=>s.gender==='Female').length; $('presentStudents').textContent=students.filter(s=>s.status==='Active').length; }
@@ -143,8 +143,144 @@
     value('printAddress', safe(student.address));
     value('printNotes', safe(student.notes, 'No special notes.'));
   }
-  function exportCSV() { const headers=['Admission No','First Name','Last Name','Gender','Date of Birth','Class','Section','Roll No','Guardian','Phone','Email','Status']; const csv=[headers,...students.map(s=>[s.admissionNo,s.firstName,s.lastName,s.gender,s.dob,s.className,s.section,s.rollNo,s.fatherName,s.guardianPhone,s.guardianEmail,s.status])].map(row=>row.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n'); const link=document.createElement('a'); link.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); link.download='students.csv'; link.click(); URL.revokeObjectURL(link.href); }
-  document.addEventListener('DOMContentLoaded', () => { const module=$('studentsModule'), oldModal=$('studentModal'); if(!module)return; module.innerHTML=moduleMarkup(); oldModal.className='students-modal'; oldModal.innerHTML=formMarkup(); const previewModal=document.createElement('div'); previewModal.id='studentPrintPreview'; previewModal.className='students-preview'; previewModal.innerHTML=`<div class="students-preview-container"><div class="students-preview-toolbar"><button class="students-btn students-btn-light" id="studentPrint"><i class="fas fa-print"></i> Print</button><button class="students-btn students-btn-light" id="studentPreviewClose">Close</button></div><div class="students-document"><div class="students-print-content"><div class="students-print-head"><img id="printLogo" class="students-print-logo"><div><h1>SMART SCHOOL</h1><h2>Student Information Record</h2><p>Excellence | Character | Knowledge</p></div></div><div class="students-document-title"><h2>STUDENT PROFILE</h2></div><div class="students-print-top"><table class="students-info-table"><tr><th>Admission No.</th><td id="printAdmission">-</td><th>Academic Year</th><td id="printYear">-</td></tr><tr><th>Student Name</th><td id="printName">-</td><th>Gender</th><td id="printGender">-</td></tr><tr><th>Date of Birth</th><td id="printDob">-</td><th>Blood Group</th><td id="printBlood">-</td></tr><tr><th>Class</th><td id="printClass">-</td><th>Roll Number</th><td id="printRoll">-</td></tr><tr><th>Status</th><td id="printStatus">-</td></tr></table><img id="printPhoto" class="students-print-photo"></div><div class="students-print-title">PARENT / GUARDIAN INFORMATION</div><table class="students-info-table"><tr><th>Father / Guardian</th><td id="printGuardian">-</td><th>Mother</th><td id="printMother">-</td></tr><tr><th>Phone</th><td id="printPhone">-</td><th>Email</th><td id="printEmail">-</td></tr><tr><th>Address</th><td colspan="3" id="printAddress">-</td></tr></table><div class="students-print-title">MEDICAL / SPECIAL NOTES</div><table class="students-info-table"><tr><td id="printNotes">-</td></tr></table><div class="students-signatures"><div class="students-signature"><div class="students-signature-line"></div><strong>Parent / Guardian</strong><span>Signature & Date</span></div><div class="students-signature"><div class="students-signature-line"></div><strong>Class Teacher</strong><span>Signature & Date</span></div><div class="students-signature"><div class="students-signature-line"></div><strong>Principal / Head of School</strong><span>Signature & Official Stamp</span></div></div></div><div class="students-print-footer">This document is an official student record generated by the School Management System.</div></div></div>`; document.body.appendChild(previewModal); render(); module.addEventListener('click',e=>{const button=e.target.closest('button');if(!button)return;if(button.matches('[data-student-add]'))openForm();if(button.dataset.edit)openForm(students.find(s=>s.id==button.dataset.edit));if(button.dataset.preview)preview(students.find(s=>s.id==button.dataset.preview));if(button.dataset.delete){const s=students.find(x=>x.id==button.dataset.delete);if(s&&confirm(`Delete ${s.firstName} ${s.lastName}?`)){students=students.filter(x=>x.id!=button.dataset.delete);save();render();}}}); $('studentSearch').addEventListener('input',render); $('studentExport').addEventListener('click',exportCSV); oldModal.addEventListener('click',e=>{if(e.target===oldModal||e.target.closest('[data-student-close]'))closeForm();}); const studentForm=$('studentsForm'); studentForm.addEventListener('input',updateStudentSummary); studentForm.addEventListener('change',updateStudentSummary); studentForm.addEventListener('submit',e=>{e.preventDefault();const data=Object.fromEntries(fields.map(id=>[id,$(id).value.trim()]));data.id=editingId || Date.now();data.photo=$('studentPhotoPreview').dataset.photo || '';if(editingId)students[students.findIndex(s=>s.id===editingId)]=data;else students.push(data);save();render();closeForm();}); $('photo').addEventListener('change',()=>readImage($('photo'),src=>{$('studentPhotoPreview').src=src;$('studentPhotoPreview').dataset.photo=src;updateStudentSummary();})); $('studentPrint').addEventListener('click',()=>window.print()); $('studentPreviewClose').addEventListener('click',()=>previewModal.classList.remove('show')); window.openStudentsModal=openForm; window.renderStudents=render; });
+  function exportCSV() { downloadCSV('students.csv', [csvHeaders, ...students.map(s => [s.admissionNo,s.firstName,s.lastName,s.gender,s.dob,s.className,s.section,s.rollNo,s.fatherName,s.guardianPhone,s.guardianEmail,s.status])]); }
+  const csvHeaders = ['Admission No','First Name','Last Name','Gender','Date of Birth','Class','Section','Roll No','Guardian','Phone','Email','Status'];
+  function downloadCSV(filename, rows) {
+    const csv = rows.map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function parseCSV(text) {
+    const rows = [];
+    let row = [], field = '', quoted = false;
+    for (let index = 0; index < text.length; index += 1) {
+      const character = text[index];
+      if (quoted) {
+        if (character === '"' && text[index + 1] === '"') { field += '"'; index += 1; }
+        else if (character === '"') quoted = false;
+        else field += character;
+      } else if (character === '"' && field === '') quoted = true;
+      else if (character === ',') { row.push(field); field = ''; }
+      else if (character === '\n' || character === '\r') {
+        if (character === '\r' && text[index + 1] === '\n') index += 1;
+        row.push(field); field = '';
+        if (row.some(value => value.trim())) rows.push(row);
+        row = [];
+      } else field += character;
+    }
+    if (quoted) throw new Error('The CSV contains an unclosed quoted field.');
+    row.push(field);
+    if (row.some(value => value.trim())) rows.push(row);
+    return rows;
+  }
+  function csvHeader(value) { return String(value || '').replace(/^\uFEFF/, '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+  async function importCSV(file) {
+    const status = $('studentImportStatus');
+    const identity = window.schoolPortalData?.getIdentity();
+    if (!canManageSchoolData(identity)) throw new Error('Only school administrators can import student records.');
+    if (file.size > 5 * 1024 * 1024) throw new Error('CSV files must be 5 MB or smaller.');
+    const rows = parseCSV(await file.text());
+    if (rows.length < 2) throw new Error('The CSV needs a header row and at least one student row.');
+    const headerAliases = {
+      admissionNo: ['admissionno','admissionnumber','studentid'],
+      firstName: ['firstname','givenname'],
+      lastName: ['lastname','surname','familyname'],
+      gender: ['gender'],
+      dob: ['dateofbirth','dob'],
+      className: ['class','classname','grade'],
+      section: ['section','stream'],
+      rollNo: ['rollno','rollnumber'],
+      fatherName: ['guardian','fathername','guardianname'],
+      guardianPhone: ['phone','guardianphone','parentphone'],
+      guardianEmail: ['email','guardianemail','parentemail'],
+      status: ['status']
+    };
+    const headers = rows[0].map(csvHeader);
+    const columns = Object.fromEntries(Object.entries(headerAliases).map(([field, aliases]) => [
+      field,
+      headers.findIndex(header => aliases.includes(header))
+    ]));
+    const required = ['admissionNo','firstName','lastName','className'];
+    const missing = required.filter(field => columns[field] < 0);
+    if (missing.length) throw new Error(`Missing required CSV columns: ${missing.join(', ')}.`);
+    const dataRows = rows.slice(1);
+    if (dataRows.length > 500) throw new Error('Import up to 500 students per CSV file.');
+    const existingAdmissionNos = new Set(students.map(student => String(student.admissionNo || '').trim().toLowerCase()));
+    const importedAdmissionNos = new Set();
+    const validRecords = [];
+    const validRowNumbers = [];
+    const rowErrors = [];
+    dataRows.forEach((values, index) => {
+      const get = field => columns[field] < 0 ? '' : String(values[columns[field]] || '').trim();
+      const admissionNo = get('admissionNo');
+      const firstName = get('firstName');
+      const lastName = get('lastName');
+      const className = get('className');
+      const rowNumber = index + 2;
+      if (!admissionNo || !firstName || !lastName || !className) {
+        rowErrors.push(`Row ${rowNumber}: admission number, first name, last name, and class are required.`);
+        return;
+      }
+      const admissionKey = admissionNo.toLowerCase();
+      if (existingAdmissionNos.has(admissionKey) || importedAdmissionNos.has(admissionKey)) {
+        rowErrors.push(`Row ${rowNumber}: admission number "${admissionNo}" is already present.`);
+        return;
+      }
+      const gender = get('gender');
+      const statusValue = get('status');
+      const validStatuses = ['Active','Inactive','Graduated','Transferred'];
+      const status = validStatuses.find(value => value.toLowerCase() === statusValue.toLowerCase()) || 'Active';
+      validRecords.push({
+        id: crypto.randomUUID(),
+        admissionNo,
+        firstName,
+        lastName,
+        gender: ['Male','Female','Other'].find(value => value.toLowerCase() === gender.toLowerCase()) || '',
+        dob: get('dob'),
+        className,
+        section: get('section'),
+        rollNo: get('rollNo'),
+        fatherName: get('fatherName'),
+        guardianPhone: get('guardianPhone'),
+        guardianEmail: get('guardianEmail'),
+        status,
+        academicYear: `${new Date().getFullYear()} - ${new Date().getFullYear() + 1}`
+      });
+      validRowNumbers.push(rowNumber);
+      importedAdmissionNos.add(admissionKey);
+    });
+    if (!validRecords.length) throw new Error(rowErrors.slice(0, 5).join(' ') || 'No valid student records were found.');
+    if (!window.confirm(`Import ${validRecords.length} student record(s) into ${identity.schoolId}? This uploads student and guardian details.`)) {
+      status.textContent = 'Import canceled.';
+      return;
+    }
+    status.textContent = `Importing ${validRecords.length} student records…`;
+    const imported = [];
+    const syncErrors = [];
+    for (let offset = 0; offset < validRecords.length; offset += 10) {
+      const batch = validRecords.slice(offset, offset + 10);
+      const results = await Promise.allSettled(batch.map(record => window.schoolPortalStudentCloud.sync(record)));
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') imported.push(batch[index]);
+        else syncErrors.push(`Row ${validRowNumbers[offset + index]}: ${result.reason?.message || 'cloud sync failed'}`);
+      });
+      status.textContent = `Imported ${imported.length} of ${validRecords.length} student records…`;
+    }
+    const recordsById = new Map(students.map(student => [String(student.id), student]));
+    imported.forEach(student => recordsById.set(String(student.id), student));
+    students = [...recordsById.values()];
+    save();
+    render();
+    const messages = [`Imported ${imported.length} of ${validRecords.length} records.`];
+    if (rowErrors.length) messages.push(`${rowErrors.length} row(s) skipped: ${rowErrors.slice(0, 3).join(' ')}`);
+    if (syncErrors.length) messages.push(`${syncErrors.length} record(s) failed to sync: ${syncErrors.slice(0, 3).join(' ')}`);
+    status.textContent = messages.join(' ');
+  }
+  document.addEventListener('DOMContentLoaded', () => { const module=$('studentsModule'), oldModal=$('studentModal'); if(!module)return; module.innerHTML=moduleMarkup(); oldModal.className='students-modal'; oldModal.innerHTML=formMarkup(); const previewModal=document.createElement('div'); previewModal.id='studentPrintPreview'; previewModal.className='students-preview'; previewModal.innerHTML=`<div class="students-preview-container"><div class="students-preview-toolbar"><button class="students-btn students-btn-light" id="studentPrint"><i class="fas fa-print"></i> Print</button><button class="students-btn students-btn-light" id="studentPreviewClose">Close</button></div><div class="students-document"><div class="students-print-content"><div class="students-print-head"><img id="printLogo" class="students-print-logo"><div><h1>SMART SCHOOL</h1><h2>Student Information Record</h2><p>Excellence | Character | Knowledge</p></div></div><div class="students-document-title"><h2>STUDENT PROFILE</h2></div><div class="students-print-top"><table class="students-info-table"><tr><th>Admission No.</th><td id="printAdmission">-</td><th>Academic Year</th><td id="printYear">-</td></tr><tr><th>Student Name</th><td id="printName">-</td><th>Gender</th><td id="printGender">-</td></tr><tr><th>Date of Birth</th><td id="printDob">-</td><th>Blood Group</th><td id="printBlood">-</td></tr><tr><th>Class</th><td id="printClass">-</td><th>Roll Number</th><td id="printRoll">-</td></tr><tr><th>Status</th><td id="printStatus">-</td></tr></table><img id="printPhoto" class="students-print-photo"></div><div class="students-print-title">PARENT / GUARDIAN INFORMATION</div><table class="students-info-table"><tr><th>Father / Guardian</th><td id="printGuardian">-</td><th>Mother</th><td id="printMother">-</td></tr><tr><th>Phone</th><td id="printPhone">-</td><th>Email</th><td id="printEmail">-</td></tr><tr><th>Address</th><td colspan="3" id="printAddress">-</td></tr></table><div class="students-print-title">MEDICAL / SPECIAL NOTES</div><table class="students-info-table"><tr><td id="printNotes">-</td></tr></table><div class="students-signatures"><div class="students-signature"><div class="students-signature-line"></div><strong>Parent / Guardian</strong><span>Signature & Date</span></div><div class="students-signature"><div class="students-signature-line"></div><strong>Class Teacher</strong><span>Signature & Date</span></div><div class="students-signature"><div class="students-signature-line"></div><strong>Principal / Head of School</strong><span>Signature & Official Stamp</span></div></div></div><div class="students-print-footer">This document is an official student record generated by the School Management System.</div></div></div>`; document.body.appendChild(previewModal); render(); module.addEventListener('click',e=>{const button=e.target.closest('button');if(!button)return;if(button.matches('[data-student-add]'))openForm();if(button.dataset.edit)openForm(students.find(s=>s.id==button.dataset.edit));if(button.dataset.preview)preview(students.find(s=>s.id==button.dataset.preview));if(button.dataset.delete){const s=students.find(x=>x.id==button.dataset.delete);if(s&&confirm(`Delete ${s.firstName} ${s.lastName}?`)){students=students.filter(x=>x.id!=button.dataset.delete);save();render();}}}); $('studentSearch').addEventListener('input',render); $('studentExport').addEventListener('click',exportCSV); $('studentImport').addEventListener('click',()=>$('studentImportFile').click()); $('studentTemplate').addEventListener('click',()=>downloadCSV('students-import-template.csv',[csvHeaders])); $('studentImportFile').addEventListener('change',async event=>{const file=event.target.files?.[0];if(!file)return;$('studentImportStatus').textContent='Checking CSV…';try{await importCSV(file);}catch(error){console.error('Student CSV import failed.',error);$('studentImportStatus').textContent=error.message||'Unable to import this CSV file.';}finally{event.target.value='';}}); oldModal.addEventListener('click',e=>{if(e.target===oldModal||e.target.closest('[data-student-close]'))closeForm();}); const studentForm=$('studentsForm'); studentForm.addEventListener('input',updateStudentSummary); studentForm.addEventListener('change',updateStudentSummary); studentForm.addEventListener('submit',e=>{e.preventDefault();const data=Object.fromEntries(fields.map(id=>[id,$(id).value.trim()]));data.id=editingId || Date.now();data.photo=$('studentPhotoPreview').dataset.photo || '';if(editingId)students[students.findIndex(s=>s.id===editingId)]=data;else students.push(data);save();render();closeForm();}); $('photo').addEventListener('change',()=>readImage($('photo'),src=>{$('studentPhotoPreview').src=src;$('studentPhotoPreview').dataset.photo=src;updateStudentSummary();})); $('studentPrint').addEventListener('click',()=>window.print()); $('studentPreviewClose').addEventListener('click',()=>previewModal.classList.remove('show')); window.openStudentsModal=openForm; window.renderStudents=render; });
 })();
 
 document.addEventListener('DOMContentLoaded', () => {

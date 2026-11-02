@@ -301,8 +301,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const dashboardCollections = ['students', 'teachers', 'parents', 'fees', 'expenses', 'notices', 'calendarEvents', 'attendance'];
     const dashboardData = Object.fromEntries(dashboardCollections.map(name => [name, { loaded: false, records: [], error: false }]));
+    const studentPortalCollections = ['students', 'attendance', 'assessments', 'reportCards', 'examResults', 'timetables', 'studyMaterials', 'quizzes', 'notices', 'libraryLoans'];
+    const studentPortalData = Object.fromEntries(studentPortalCollections.map(name => [
+        name,
+        { loaded: false, records: [], error: false }
+    ]));
     let dashboardSubscriptions = [];
     let dashboardIdentityKey = '';
+    let studentPortalIdentityKey = '';
     let notificationUnsubscribe = null;
     let notificationIdentityKey = '';
     let notificationItems = [];
@@ -2747,12 +2753,177 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.key === 'Escape') closeCalendarMenu();
     });
 
+    function renderStudentPortalDashboard() {
+        const portal = document.getElementById('studentPortalHome');
+        if (!portal) return;
+        const identity = window.schoolPortalData?.getIdentity?.();
+        const user = loadSession()?.user || {};
+        const permissions = identity?.permissions || user.permissions || user.perms || {};
+        const student = studentPortalData.students.records[0];
+        const welcomeTitle = portal.querySelector('[data-student-welcome-title]');
+        if (welcomeTitle) welcomeTitle.textContent = `Welcome, ${student?.firstName
+            ? `${student.firstName} ${student.lastName || ''}`.trim()
+            : identity?.fullName || identity?.name || user.fullName || user.name || 'Student'}`;
+        const schoolId = portal.querySelector('[data-student-school-id]');
+        if (schoolId) schoolId.textContent = identity?.schoolId || '';
+        const status = portal.querySelector('[data-student-portal-status]');
+        const permittedCollections = studentPortalCollections.filter(collection => permissions[collection]?.view === true);
+        const errors = permittedCollections.filter(collection => studentPortalData[collection].error);
+        const loading = permittedCollections.some(collection => !studentPortalData[collection].loaded && !studentPortalData[collection].error);
+        if (status) {
+            status.textContent = errors.length
+                ? 'Some student information could not be loaded. Check your connection or contact your school administrator.'
+                : loading
+                    ? 'Loading your school information…'
+                    : student
+                        ? `Student record${student.className ? ` · ${student.className}${student.section ? ` ${student.section}` : ''}` : ''}`
+                        : 'No student record is linked to this account yet. Ask your school administrator to check your account setup.';
+        }
+        const recordCount = collection => studentPortalData[collection].loaded
+            ? studentPortalData[collection].records.length.toLocaleString()
+            : studentPortalData[collection].error ? 'Unavailable' : '—';
+        portal.querySelectorAll('[data-student-count]').forEach(element => {
+            const name = element.dataset.studentCount;
+            const collection = name === 'results' ? 'reportCards' : name;
+            element.closest('article').hidden = permissions[collection]?.view !== true
+                && !(name === 'results' && permissions.examResults?.view === true);
+            element.textContent = name === 'results'
+                ? (studentPortalData.reportCards.loaded || studentPortalData.examResults.loaded
+                    ? (studentPortalData.reportCards.records.length + studentPortalData.examResults.records.length).toLocaleString()
+                    : recordCount(collection))
+                : recordCount(collection);
+        });
+
+        const linkDefinitions = [
+            ['Timetable', 'fa-calendar-days', 'Timetables', 'timetables'],
+            ['Assignments', 'fa-book-open', 'Assignments', 'assessments'],
+            ['Results', 'fa-square-poll-vertical', 'Report Cards', 'reportCards'],
+            ['Study materials', 'fa-folder-open', 'Study Materials', 'studyMaterials'],
+            ['Online quizzes', 'fa-circle-question', 'Online Quizzes', 'quizzes'],
+            ['Library', 'fa-book', 'Library', 'libraryLoans']
+        ];
+        const quickLinks = portal.querySelector('[data-student-quick-links]');
+        if (quickLinks) {
+            quickLinks.replaceChildren();
+            linkDefinitions.forEach(([label, icon, target, collection]) => {
+                if (permissions[collection]?.view !== true) return;
+                const link = [...document.querySelectorAll('.nav-links a:not(.parent-sidebar-link)')].find(item => {
+                    const itemLabel = (item.querySelector('.menu-item-label, span:not(.menu-item-icon)')?.textContent
+                        || item.textContent).trim();
+                    return itemLabel.toLowerCase() === target.toLowerCase()
+                        && !item.closest('.account-access-hidden')
+                        && !item.closest('[hidden]');
+                });
+                if (!link) return;
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.innerHTML = `<i class="fas ${icon}" aria-hidden="true"></i>`;
+                const text = document.createElement('span');
+                text.textContent = label;
+                button.append(text);
+                button.addEventListener('click', () => link.click());
+                quickLinks.append(button);
+            });
+            if (!quickLinks.childElementCount) {
+                const empty = document.createElement('p');
+                empty.className = 'student-portal-empty';
+                empty.textContent = 'No learning sections are enabled for this account yet.';
+                quickLinks.append(empty);
+            }
+        }
+
+        const resultRecords = [
+            ...studentPortalData.reportCards.records.map(item => ({ ...item, _portalLabel: 'Report card' })),
+            ...studentPortalData.examResults.records.map(item => ({ ...item, _portalLabel: 'Exam result' }))
+        ];
+        const studentNotices = studentPortalData.notices.records.filter(notice => {
+            const audience = notice.audienceRoles || notice.targetRoles || notice.targetAudience || notice.audience;
+            if (!audience) return true;
+            const audienceText = (Array.isArray(audience) ? audience : [audience]).join(' ').toLowerCase();
+            return /\b(student|students|school community|general|all|everyone)\b/.test(audienceText);
+        });
+        const recentBySection = {
+            assessments: studentPortalData.assessments.records,
+            results: resultRecords,
+            notices: studentNotices
+        };
+        Object.entries(recentBySection).forEach(([section, records]) => {
+            const target = portal.querySelector(`[data-student-recent="${section}"]`);
+            if (!target) return;
+            target.replaceChildren();
+            const permitted = section === 'results'
+                ? permissions.reportCards?.view === true || permissions.examResults?.view === true
+                : permissions[section]?.view === true;
+            if (!permitted) {
+                target.textContent = 'This section is not enabled for your account.';
+                target.className = 'student-portal-empty';
+                return;
+            }
+            const list = document.createElement('ul');
+            const recentRecords = [...records].sort((left, right) => {
+                const leftDate = parseDashboardDate(left.dueDate || left.date || left.createdAt || left.updatedAt);
+                const rightDate = parseDashboardDate(right.dueDate || right.date || right.createdAt || right.updatedAt);
+                return (rightDate?.getTime() || 0) - (leftDate?.getTime() || 0);
+            });
+            recentRecords.slice(0, 4).forEach(record => {
+                const row = document.createElement('li');
+                const title = record.title || record.name || record.subject || record._portalLabel || 'School update';
+                const date = record.dueDate || record.date || record.createdAt || record.updatedAt;
+                const parsedDate = date ? parseDashboardDate(date) : null;
+                row.textContent = `${title}${parsedDate && !Number.isNaN(parsedDate.getTime())
+                    ? ` · ${parsedDate.toLocaleDateString()}`
+                    : ''}`;
+                list.append(row);
+            });
+            target.className = records.length ? '' : 'student-portal-empty';
+            if (records.length) target.append(list);
+            else target.textContent = studentPortalData[section === 'results' ? 'reportCards' : section].error
+                ? 'Updates could not be loaded.'
+                : 'No updates to show yet.';
+        });
+    }
+
     async function startDashboardData(userData) {
         const api = window.schoolPortalData;
         const identity = api?.getIdentity();
         if (!api || !identity) return;
         const identityKey = `${identity.schoolId}:${identity.uid}`;
         subscribeToAccountNotifications(identity, identityKey);
+        if (String(userData.role || '').toLowerCase() === 'student') {
+            if (dashboardIdentityKey === `${identityKey}:student-portal`) return;
+            dashboardSubscriptions.forEach(unsubscribe => unsubscribe());
+            dashboardSubscriptions = [];
+            dashboardIdentityKey = `${identityKey}:student-portal`;
+            dashboardSubscribedCollections = new Set();
+            studentPortalIdentityKey = identityKey;
+            studentPortalCollections.forEach(collection => {
+                studentPortalData[collection] = { loaded: false, records: [], error: false };
+            });
+            const permissions = identity.permissions || userData.permissions || userData.perms || {};
+            const permittedCollections = studentPortalCollections.filter(collection => permissions[collection]?.view === true);
+            dashboardSubscribedCollections = new Set(permittedCollections);
+            renderStudentPortalDashboard();
+            const subscriptions = permittedCollections.map(async collection => {
+                const unsubscribe = await api.subscribe(collection, records => {
+                    studentPortalData[collection] = { loaded: true, records, error: false };
+                    renderStudentPortalDashboard();
+                });
+                if (dashboardIdentityKey === `${identityKey}:student-portal`) {
+                    dashboardSubscriptions.push(unsubscribe);
+                } else {
+                    unsubscribe();
+                }
+            });
+            const results = await Promise.allSettled(subscriptions);
+            results.forEach((result, index) => {
+                if (result.status !== 'rejected') return;
+                const collection = permittedCollections[index];
+                studentPortalData[collection] = { loaded: false, records: [], error: true };
+                console.error(`Unable to load student portal ${collection} records.`, result.reason);
+            });
+            renderStudentPortalDashboard();
+            return;
+        }
         if (String(userData.role || '').toLowerCase() === 'parent') {
             if (dashboardIdentityKey === `${identityKey}:parent-portal`) return;
             dashboardSubscriptions.forEach(unsubscribe => unsubscribe());
@@ -2857,6 +3028,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('school-portal-sync-error', event => {
         const collection = event.detail?.collection;
+        if (studentPortalIdentityKey && studentPortalCollections.includes(collection)) {
+            studentPortalData[collection] = { ...studentPortalData[collection], error: true };
+            renderStudentPortalDashboard();
+        }
         if (parentPortalIdentityKey && parentPortalCollections.includes(collection)) {
             parentPortalData[collection] = { ...parentPortalData[collection], error: true };
             renderParentPortalDashboard();
@@ -2868,6 +3043,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('school-portal-sync-update', () => {
         dashboardLastUpdated = new Date();
         renderDashboardData();
+        renderStudentPortalDashboard();
     });
     window.addEventListener('online', renderDashboardData);
     window.addEventListener('offline', renderDashboardData);
@@ -2885,6 +3061,7 @@ document.addEventListener('DOMContentLoaded', () => {
         notificationError = false;
         renderNotificationUi();
         dashboardIdentityKey = '';
+        studentPortalIdentityKey = '';
         parentPortalIdentityKey = '';
         parentCertificatesExpanded = false;
         dashboardSubscribedCollections = new Set();
@@ -2896,7 +3073,11 @@ document.addEventListener('DOMContentLoaded', () => {
             parentPortalData[collection] = { loaded: false, records: [], error: false };
         });
         parentDashboardSummary = { loaded: false, records: null, error: false };
+        studentPortalCollections.forEach(collection => {
+            studentPortalData[collection] = { loaded: false, records: [], error: false };
+        });
         renderDashboardData();
+        renderStudentPortalDashboard();
         renderParentPortalDashboard();
     });
 
@@ -2990,6 +3171,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const unrestrictedRole = isPrivilegedRole(userData.role);
         const canView = unrestrictedRole || userData.perms?.view !== false;
         const isParentAccount = String(userData.role || '').toLowerCase() === 'parent';
+        const isStudentAccount = String(userData.role || '').toLowerCase() === 'student';
         document.documentElement.classList.toggle('parent-portal-active', isParentAccount);
         const dashboardLink = document.getElementById('dashboardBtn');
         const dashboardHeading = dashboardLink?.closest('.nav-links')?.previousElementSibling;
@@ -2998,9 +3180,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 .find(node => node.nodeType === Node.TEXT_NODE)?.textContent.trim() || 'Main';
             dashboardLink.dataset.defaultLabel ||= dashboardLink.querySelector('span')?.textContent.trim() || 'Dashboard';
             const headingText = Array.from(dashboardHeading.childNodes).find(node => node.nodeType === Node.TEXT_NODE);
-            if (headingText) headingText.textContent = ` ${isParentAccount ? 'Parent Portal' : dashboardHeading.dataset.defaultLabel}`;
+            if (headingText) headingText.textContent = ` ${isParentAccount ? 'Parent Portal' : isStudentAccount ? 'Student Portal' : dashboardHeading.dataset.defaultLabel}`;
             const dashboardLabel = dashboardLink.querySelector('span');
-            if (dashboardLabel) dashboardLabel.textContent = isParentAccount ? 'Home' : dashboardLink.dataset.defaultLabel;
+            if (dashboardLabel) dashboardLabel.textContent = isParentAccount || isStudentAccount ? 'Home' : dashboardLink.dataset.defaultLabel;
         }
         document.querySelectorAll('.sidebar > .menu-title').forEach(title => {
             const group = title.nextElementSibling;
@@ -3013,8 +3195,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!link) return;
                 const isParentHomeLink = String(userData.role || '').toLowerCase() === 'parent'
                     && link.id === 'dashboardBtn';
+                const isStudentHomeLink = String(userData.role || '').toLowerCase() === 'student'
+                    && link.id === 'dashboardBtn';
                 const adminOnlyPortalLink = link.dataset.portalAdminOnly === 'true' && unrestrictedRole;
-                const canShow = canView && (isParentHomeLink || adminOnlyPortalLink
+                const canShow = canView && (isParentHomeLink || isStudentHomeLink || adminOnlyPortalLink
                     || (link.dataset.portalAdminOnly !== 'true'
                         && (unrestrictedRole || departmentAllowed || isSectionGranted(grants, title, link))));
                 item.classList.toggle('account-access-hidden', !canShow);
@@ -3049,7 +3233,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ['enquiries', 'enquiries'], ['visitors', 'visitors'], ['appointments', 'appointments'],
         ['call logs', 'callLogs'], ['documents', 'schoolDocuments'], ['user roles', 'members'],
         ['audit logs', 'auditEvents'], ['library', 'libraryBooks'], ['library books', 'libraryBooks'],
-        ['library loans', 'libraryLoans']
+        ['library loans', 'libraryLoans'], ['admissions', 'admissions'], ['applications', 'applications'],
+        ['interviews', 'interviews'], ['admission letters', 'admissionLetters'], ['waiting list', 'waitingList'],
+        ['student transfers', 'studentTransfers']
     ]);
     const mutationActionPattern = /\b(add|new|create|edit|delete|remove|save|submit|update|send|issue|record|mark|approve|reject|pay|post|invite|upload|import)\b/i;
     let activeNavigationCollection = '';
@@ -4886,6 +5072,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (session?.user) renderMobileRoleNav(session.user);
     }
 
+    function showStudentPortalHome({ persist = true } = {}) {
+        hideAllContentAreas();
+        document.getElementById('studentPortalHome')?.classList.remove('hidden');
+        renderStudentPortalDashboard();
+        setApplicationPage('Student Home');
+        updateBreadcrumb(['Student Portal', 'Home']);
+        if (persist) persistDashboardSection();
+        const session = loadSession();
+        if (session?.user) renderMobileRoleNav(session.user);
+    }
+
     function showDashboard({ persist = true } = {}){
         hideAllContentAreas();
         document.querySelectorAll('.main > .dashboard-toolbar, .main > .dashboard-quick-actions, .main > .dashboard-shell, .main > .table-card, .main > .modules, .main > .charts').forEach(section => {
@@ -6429,7 +6626,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const personToVisitSelect = form.elements.personToVisit;
         const normalizedDepartment = value => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         const departmentAliases = {
-            frontofficedepartment: ['front desk', 'front office', 'reception', 'receptionist', 'administration', 'admissions'],
+            frontofficedepartment: ['front desk', 'front office', 'reception', 'receptionist', 'administration'],
+            admissionsdepartment: ['admissions'],
             academicdepartment: ['academic', 'academics', 'teaching', 'mathematics', 'science', 'english', 'arabic', 'social studies', 'ict', 'ict / computer', 'languages', 'physical education', 'islamic studies', 'library'],
             elearningdepartment: ['e-learning', 'elearning', 'online learning'],
             operationsdepartment: ['operations', 'transport', 'health', 'health / infirmary', 'infirmary', 'boarding', 'inventory'],
@@ -8565,7 +8763,9 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
             setApplicationPage(linkText);
 
             if (link.id === 'dashboardBtn' || link.dataset.menuId === 'dashboard') {
-                if (String(activeAccountPermissions?.role || '').toLowerCase() === 'parent') {
+                if (String(activeAccountPermissions?.role || '').toLowerCase() === 'student') {
+                    showStudentPortalHome();
+                } else if (String(activeAccountPermissions?.role || '').toLowerCase() === 'parent') {
                     showParentPortalHome();
                 } else {
                     showDashboard();
@@ -8602,10 +8802,24 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
                 return;
             }
 
-            if (linkText === 'Students') {
+            if (linkText === 'Students' || linkText === 'Student Registration') {
                 showSection('studentsModule');
-                updateBreadcrumb(['Academic Department', 'Students']);
+                updateBreadcrumb([linkText === 'Students' ? 'Academic Department' : 'Admissions Department', linkText]);
                 return;
+            }
+
+            if (window.openAdmissionsSection?.(linkText)) {
+                let admissionsModule = document.getElementById('admissionsModule');
+                if (!admissionsModule) {
+                    admissionsModule = window.createAdmissionsModule?.();
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
+                    if (admissionsModule && dashboardEl) dashboardEl.parentNode.insertBefore(admissionsModule, dashboardEl);
+                }
+                if (admissionsModule) {
+                    showSection('admissionsModule');
+                    updateBreadcrumb(['Admissions Department', linkText]);
+                    return;
+                }
             }
 
             if (linkText === 'Run Payroll') {

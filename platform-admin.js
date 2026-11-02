@@ -18,6 +18,8 @@ const createSchool = call('createSchool');
 const listPlatformSchools = call('listPlatformSchools');
 const listPlatformSchoolAccounts = call('listPlatformSchoolAccounts');
 const setPlatformSchoolStatus = call('setPlatformSchoolStatus');
+const updatePlatformSchool = call('updatePlatformSchool');
+const generateSchoolUserPasswordResetLink = call('generateSchoolUserPasswordResetLink');
 const createSchoolUser = call('createSchoolUser');
 const updateSchoolUser = call('updateSchoolUser');
 const setSchoolUserStatus = call('setSchoolUserStatus');
@@ -31,6 +33,7 @@ const schoolCreateCard = document.getElementById('schoolCreateCard');
 const signInMessage = document.getElementById('signInMessage');
 const createMessage = document.getElementById('createMessage');
 const createForm = document.getElementById('createSchoolForm');
+const schoolEditorForm = document.getElementById('schoolEditorForm');
 const createdSchool = document.getElementById('createdSchool');
 const schoolIdOutput = document.getElementById('createdSchoolId');
 const schoolNameOutput = document.getElementById('createdSchoolName');
@@ -38,6 +41,9 @@ const copySchoolIdButton = document.getElementById('copySchoolIdButton');
 const signOutButton = document.getElementById('signOutButton');
 const signedInAs = document.getElementById('signedInAs');
 const schoolTableBody = document.getElementById('schoolTableBody');
+const schoolSearch = document.getElementById('schoolSearch');
+const accountSearch = document.getElementById('accountSearch');
+const schoolSearchSummary = document.getElementById('schoolSearchSummary');
 const accountTableBody = document.getElementById('accountTableBody');
 const schoolAccountsSection = document.getElementById('schoolAccountsSection');
 const accountForm = document.getElementById('schoolAccountForm');
@@ -56,7 +62,11 @@ let schools = [];
 let accounts = [];
 let selectedSchool = null;
 let schoolAfterId = null;
+let schoolNextPageOffset = null;
+let schoolCurrentPageOffset = 0;
 let accountAfterUid = null;
+let accountNextPageOffset = null;
+let accountCurrentPageOffset = 0;
 let schoolPageCursor = null;
 let accountPageCursor = null;
 let schoolCursorHistory = [];
@@ -65,9 +75,12 @@ let schoolPageSize = 25;
 let accountPageSize = 25;
 let accountEditUid = null;
 let schoolCount = 0;
+let schoolMatchCount = 0;
+let activeSchoolCount = 0;
 let accountCount = 0;
 let selectedSchoolClasses = [];
 let passwordResetAccount = null;
+let lastCreatedAccount = null;
 let linkedRecordRequest = 0;
 const selectedSchoolRecords = new Map();
 
@@ -85,6 +98,11 @@ function setBusy(form, busy, buttonText) {
     button.disabled = busy;
     button.dataset.originalText ||= button.textContent;
     button.textContent = busy ? buttonText : button.dataset.originalText;
+}
+
+function makeTemporaryPassword() {
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    return Array.from(bytes, byte => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[byte % 62]).join('');
 }
 
 function showError(target, error, fallback) {
@@ -181,11 +199,7 @@ async function renderLinkedRecordOptions(role, selectedId = '') {
 }
 
 function renderSchools() {
-    const term = document.getElementById('schoolSearch').value.trim().toLowerCase();
-    const visibleSchools = schools.filter(school =>
-        `${school.name} ${school.id} ${school.countryCode} ${school.status}`.toLowerCase().includes(term)
-    );
-    schoolTableBody.innerHTML = visibleSchools.length ? visibleSchools.map((school, index) => `
+    schoolTableBody.innerHTML = schools.length ? schools.map((school, index) => `
         <tr>
             <td>${index + 1}</td>
             <td><div class="school-name-cell">${school.logoURL
@@ -194,35 +208,49 @@ function renderSchools() {
                 <strong>${escapeHTML(school.name)}</strong></div></td>
             <td><code>${escapeHTML(school.id)}</code></td>
             <td><span class="status-pill ${escapeHTML(school.status)}">${escapeHTML(school.status)}</span></td>
+            <td><span class="status-pill ${escapeHTML(school.subscriptionStatus)}">${escapeHTML(school.subscriptionPlan)} · ${escapeHTML(school.subscriptionStatus)}</span><small class="sub-cell">${school.renewalDate ? `Renewal: ${escapeHTML(school.renewalDate)}` : 'No renewal date set'}</small></td>
+            <td><span class="school-setup-state ${school.schoolAdminCount > 0 ? 'ready' : ''}">${school.schoolAdminCount > 0 ? 'Admin ready' : 'Needs admin'}</span></td>
             <td>${school.memberCount}</td>
             <td>${escapeHTML(school.createdAt ? new Date(school.createdAt).toLocaleDateString() : '—')}</td>
             <td><div class="table-actions">
                 <button class="table-action" type="button" data-school-action="accounts" data-school-id="${escapeHTML(school.id)}">Accounts</button>
+                <button class="table-action" type="button" data-school-action="edit" data-school-id="${escapeHTML(school.id)}">Edit</button>
                 <button class="table-action ${school.status === 'active' ? 'danger' : ''}" type="button" data-school-action="status" data-school-id="${escapeHTML(school.id)}" data-status="${school.status === 'active' ? 'suspended' : 'active'}">${school.status === 'active' ? 'Suspend' : 'Activate'}</button>
             </div></td>
-        </tr>`).join('') : '<tr><td colspan="7">No schools match this search.</td></tr>';
+        </tr>`).join('') : '<tr><td colspan="9">No schools match this search.</td></tr>';
     document.getElementById('schoolTotal').textContent = String(schoolCount);
-    document.getElementById('activeSchoolTotal').textContent = String(schools.filter(school => school.status === 'active').length);
-    document.getElementById('nextSchoolsButton').disabled = !schoolAfterId;
+    document.getElementById('activeSchoolTotal').textContent = String(activeSchoolCount);
+    schoolSearchSummary.textContent = schoolSearch.value.trim()
+        ? `Showing ${schools.length ? schoolCurrentPageOffset + 1 : 0}–${schoolCurrentPageOffset + schools.length} of ${schoolMatchCount} matching schools.`
+        : '';
+    document.getElementById('nextSchoolsButton').disabled = schoolSearch.value.trim()
+        ? schoolNextPageOffset === null
+        : !schoolAfterId;
     document.getElementById('previousSchoolsButton').disabled = schoolCursorHistory.length === 0;
 }
 
-async function loadSchools(afterSchoolId = schoolPageCursor) {
-    schoolTableBody.innerHTML = '<tr><td colspan="7">Loading schools…</td></tr>';
-    const response = await listPlatformSchools({ afterSchoolId: afterSchoolId || '', pageSize: schoolPageSize });
+async function loadSchools(afterSchoolId = schoolPageCursor, pageOffset = 0) {
+    schoolTableBody.innerHTML = '<tr><td colspan="9">Loading schools…</td></tr>';
+    const searchTerm = schoolSearch.value.trim();
+    const response = await listPlatformSchools({
+        afterSchoolId: searchTerm ? '' : afterSchoolId || '',
+        pageOffset: searchTerm ? pageOffset : 0,
+        searchTerm,
+        pageSize: schoolPageSize
+    });
     schoolPageCursor = afterSchoolId || null;
+    schoolCurrentPageOffset = searchTerm ? pageOffset : 0;
     schools = response.data.schools;
     schoolAfterId = response.data.nextAfterSchoolId;
+    schoolNextPageOffset = response.data.nextPageOffset;
     schoolCount = response.data.totalCount;
+    schoolMatchCount = response.data.matchingCount;
+    activeSchoolCount = response.data.activeSchoolCount;
     renderSchools();
 }
 
 function renderAccounts() {
-    const term = document.getElementById('accountSearch').value.trim().toLowerCase();
-    const visibleAccounts = accounts.filter(account =>
-        `${account.fullName} ${account.email} ${account.role} ${account.userId} ${account.status}`.toLowerCase().includes(term)
-    );
-    accountTableBody.innerHTML = visibleAccounts.length ? visibleAccounts.map((account, index) => `
+    accountTableBody.innerHTML = accounts.length ? accounts.map((account, index) => `
         <tr>
             <td>${index + 1}</td>
             <td><strong>${escapeHTML(account.fullName || 'Unnamed account')}</strong><small class="sub-cell">${escapeHTML(account.uid)}</small></td>
@@ -238,21 +266,28 @@ function renderAccounts() {
             </div></td>
         </tr>`).join('') : '<tr><td colspan="7">No accounts match this search.</td></tr>';
     document.getElementById('accountTotal').textContent = String(accountCount);
-    document.getElementById('nextAccountsButton').disabled = !accountAfterUid;
+    document.getElementById('nextAccountsButton').disabled = accountSearch.value.trim()
+        ? accountNextPageOffset === null
+        : !accountAfterUid;
     document.getElementById('previousAccountsButton').disabled = accountCursorHistory.length === 0;
 }
 
-async function loadAccounts(afterUid = accountPageCursor) {
+async function loadAccounts(afterUid = accountPageCursor, pageOffset = 0) {
     if (!selectedSchool) return;
     accountTableBody.innerHTML = '<tr><td colspan="7">Loading school accounts…</td></tr>';
+    const searchTerm = accountSearch.value.trim();
     const response = await listPlatformSchoolAccounts({
         schoolId: selectedSchool.id,
-        afterUid: afterUid || '',
+        afterUid: searchTerm ? '' : afterUid || '',
+        pageOffset: searchTerm ? pageOffset : 0,
+        searchTerm,
         pageSize: accountPageSize
     });
     accountPageCursor = afterUid || null;
+    accountCurrentPageOffset = searchTerm ? pageOffset : 0;
     accounts = response.data.accounts;
     accountAfterUid = response.data.nextAfterUid;
+    accountNextPageOffset = response.data.nextPageOffset;
     accountCount = response.data.totalCount;
     renderAccounts();
 }
@@ -263,13 +298,19 @@ function openSchoolAccounts(school) {
     selectedSchoolRecords.clear();
     accountCursorHistory = [];
     accountPageCursor = null;
+    accountCurrentPageOffset = 0;
     accountAfterUid = null;
+    accountNextPageOffset = null;
+    accountSearch.value = '';
     accounts = [];
     accountForm.classList.add('hidden');
     schoolAdminLoginLink.classList.add('hidden');
     schoolAdminLoginLink.removeAttribute('href');
     accountInvitationPanel.classList.add('hidden');
     accountInvitationLink.value = '';
+    accountInvitationLink.classList.add('hidden');
+    document.getElementById('copyAccountInvitation').classList.add('hidden');
+    lastCreatedAccount = null;
     accountMessage.textContent = '';
     accountEditUid = null;
     schoolAccountsSection.classList.remove('hidden');
@@ -283,6 +324,20 @@ function openSchoolAccounts(school) {
     }).catch(error => showError(accountMessage, error, 'Unable to load assignable classes.'));
 }
 
+function openSchoolEditor(school) {
+    schoolEditorForm.elements.schoolId.value = school.id;
+    schoolEditorForm.elements.name.value = school.name || '';
+    schoolEditorForm.elements.countryCode.value = school.countryCode || 'UG';
+    schoolEditorForm.elements.logoURL.value = school.logoURL || '';
+    schoolEditorForm.elements.subscriptionPlan.value = school.subscriptionPlan || 'Starter';
+    schoolEditorForm.elements.subscriptionStatus.value = school.subscriptionStatus || 'trialing';
+    schoolEditorForm.elements.billingCycle.value = school.billingCycle || 'annual';
+    schoolEditorForm.elements.renewalDate.value = school.renewalDate || '';
+    schoolEditorForm.classList.remove('hidden');
+    schoolEditorForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    schoolEditorForm.elements.name.focus();
+}
+
 function resetAccountForm() {
     accountForm.reset();
     accountEditUid = null;
@@ -292,12 +347,13 @@ function resetAccountForm() {
     accountForm.elements.manualLinkedRecordId.value = '';
     accountForm.elements.manualLinkedRecordId.required = false;
     accountForm.elements.manualLinkedRecordId.classList.add('hidden');
-    accountForm.elements.temporaryPassword.required = true;
-    accountForm.querySelector('.account-temporary-password').classList.remove('hidden');
     accountForm.querySelector('button[type="submit"]').textContent = 'Create account';
     accountForm.classList.add('hidden');
     accountInvitationPanel.classList.add('hidden');
     accountInvitationLink.value = '';
+    accountInvitationLink.classList.add('hidden');
+    document.getElementById('copyAccountInvitation').classList.add('hidden');
+    document.getElementById('generateAccountInvitation').textContent = 'Generate secure setup link';
 }
 
 async function editAccount(account) {
@@ -310,8 +366,6 @@ async function editAccount(account) {
     accountForm.elements.role.value = account.role;
     accountForm.elements.role.disabled = true;
     await renderLinkedRecordOptions(account.role, account.linkedRecordId);
-    accountForm.elements.temporaryPassword.required = false;
-    accountForm.querySelector('.account-temporary-password').classList.add('hidden');
     renderAssignedClassOptions(account.assignedClassIds || []);
     accountForm.querySelector('button[type="submit"]').textContent = 'Save account changes';
     accountForm.classList.remove('hidden');
@@ -367,6 +421,37 @@ document.getElementById('showCreateSchoolButton').addEventListener('click', () =
     createForm.elements.name.focus();
 });
 
+document.getElementById('cancelSchoolEditButton').addEventListener('click', () => {
+    schoolEditorForm.reset();
+    schoolEditorForm.classList.add('hidden');
+});
+
+schoolEditorForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    setBusy(schoolEditorForm, true, 'Saving…');
+    createMessage.textContent = '';
+    const data = new FormData(schoolEditorForm);
+    try {
+        await updatePlatformSchool({
+            schoolId: data.get('schoolId'),
+            name: data.get('name').trim(),
+            countryCode: data.get('countryCode').trim().toUpperCase(),
+            logoURL: data.get('logoURL').trim(),
+            subscriptionPlan: data.get('subscriptionPlan'),
+            subscriptionStatus: data.get('subscriptionStatus'),
+            billingCycle: data.get('billingCycle'),
+            renewalDate: data.get('renewalDate')
+        });
+        schoolEditorForm.classList.add('hidden');
+        await loadSchools(schoolPageCursor, schoolCurrentPageOffset);
+        createMessage.textContent = 'School details and subscription tracking were updated.';
+    } catch (error) {
+        showError(createMessage, error, 'Unable to save school changes.');
+    } finally {
+        setBusy(schoolEditorForm, false);
+    }
+});
+
 createForm.addEventListener('submit', async event => {
     event.preventDefault();
     setBusy(createForm, true, 'Creating school…');
@@ -384,7 +469,10 @@ createForm.addEventListener('submit', async event => {
         createdSchool.classList.remove('hidden');
         createForm.reset();
         createForm.elements.countryCode.value = 'UG';
-        await loadSchools();
+        schoolSearch.value = '';
+        schoolCursorHistory = [];
+        schoolCurrentPageOffset = 0;
+        await loadSchools(null, 0);
         const school = schools.find(item => item.id === response.data.schoolId) || {
             id: response.data.schoolId,
             name: response.data.name,
@@ -423,12 +511,16 @@ schoolTableBody.addEventListener('click', async event => {
         openSchoolAccounts(school);
         return;
     }
+    if (button.dataset.schoolAction === 'edit') {
+        openSchoolEditor(school);
+        return;
+    }
     const nextStatus = button.dataset.status;
     if (!confirm(`${nextStatus === 'suspended' ? 'Suspend' : 'Reactivate'} ${school.name}?`)) return;
     button.disabled = true;
     try {
         await setPlatformSchoolStatus({ schoolId: school.id, status: nextStatus });
-        await loadSchools(schoolPageCursor);
+        await loadSchools(schoolPageCursor, schoolCurrentPageOffset);
         if (selectedSchool?.id === school.id) {
             selectedSchool = { ...selectedSchool, status: nextStatus };
             document.getElementById('selectedSchoolSummary').textContent = `School ID: ${school.id} · ${nextStatus}`;
@@ -438,30 +530,42 @@ schoolTableBody.addEventListener('click', async event => {
     }
 });
 
-document.getElementById('schoolSearch').addEventListener('input', renderSchools);
+let schoolSearchTimer;
+schoolSearch.addEventListener('input', () => {
+    clearTimeout(schoolSearchTimer);
+    schoolCursorHistory = [];
+    schoolPageCursor = null;
+    schoolCurrentPageOffset = 0;
+    schoolSearchTimer = setTimeout(() => {
+        loadSchools(null, 0).catch(error => showError(createMessage, error, 'Unable to search all schools.'));
+    }, 250);
+});
 document.getElementById('schoolPageSize').addEventListener('change', async event => {
     schoolPageSize = Number(event.target.value);
     schoolCursorHistory = [];
     schoolPageCursor = null;
+    schoolCurrentPageOffset = 0;
     try {
-        await loadSchools();
+        await loadSchools(null, 0);
     } catch (error) {
         showError(createMessage, error, 'Unable to load schools for the selected page size.');
     }
 });
 document.getElementById('previousSchoolsButton').addEventListener('click', async () => {
-    const previous = schoolCursorHistory.pop() || null;
+    const previous = schoolCursorHistory.pop();
+    if (!previous) return;
     try {
-        await loadSchools(previous);
+        await loadSchools(previous.cursor, previous.offset);
     } catch (error) {
         showError(createMessage, error, 'Unable to load the previous school page.');
     }
 });
 document.getElementById('nextSchoolsButton').addEventListener('click', async () => {
-    if (!schoolAfterId) return;
-    schoolCursorHistory.push(schoolPageCursor || '');
+    const searching = Boolean(schoolSearch.value.trim());
+    if (searching ? schoolNextPageOffset === null : !schoolAfterId) return;
+    schoolCursorHistory.push({ cursor: schoolPageCursor || null, offset: schoolCurrentPageOffset });
     try {
-        await loadSchools(schoolAfterId);
+        await loadSchools(searching ? null : schoolAfterId, searching ? schoolNextPageOffset : 0);
     } catch (error) {
         schoolCursorHistory.pop();
         showError(createMessage, error, 'Unable to load the next school page.');
@@ -500,11 +604,21 @@ accountForm.elements.linkedRecordId.addEventListener('change', () => {
         ? 'Enter the staff record ID. This does not create a staff profile; it only stores the ID on this account.'
         : 'Choose an existing record or leave the staff account unlinked.';
 });
-document.getElementById('accountSearch').addEventListener('input', renderAccounts);
+let accountSearchTimer;
+accountSearch.addEventListener('input', () => {
+    clearTimeout(accountSearchTimer);
+    accountCursorHistory = [];
+    accountPageCursor = null;
+    accountCurrentPageOffset = 0;
+    accountSearchTimer = setTimeout(() => {
+        loadAccounts(null, 0).catch(error => showError(accountMessage, error, 'Unable to search school accounts.'));
+    }, 250);
+});
 document.getElementById('accountPageSize').addEventListener('change', async event => {
     accountPageSize = Number(event.target.value);
     accountCursorHistory = [];
     accountPageCursor = null;
+    accountCurrentPageOffset = 0;
     if (!selectedSchool) return;
     try {
         await loadAccounts();
@@ -517,13 +631,8 @@ accountForm.addEventListener('submit', async event => {
     event.preventDefault();
     if (!selectedSchool) return;
     const data = new FormData(accountForm);
-    const temporaryPassword = accountEditUid ? '' : String(data.get('temporaryPassword') || '');
-    if (!accountEditUid && (temporaryPassword.length < 8 || temporaryPassword.length > 128)) {
-        accountMessage.textContent = 'Temporary passwords must be between 8 and 128 characters. Letters or numbers alone are accepted.';
-        return;
-    }
-    setBusy(accountForm, true, accountEditUid ? 'Saving…' : 'Creating…');
-    accountMessage.textContent = '';
+    const creatingAccount = !accountEditUid;
+    const temporaryPassword = creatingAccount ? makeTemporaryPassword() : '';
     const linkedRecordId = accountForm.elements.linkedRecordId.value === '__manual__'
         ? accountForm.elements.manualLinkedRecordId.value.trim()
         : accountForm.elements.linkedRecordId.value.trim();
@@ -531,6 +640,8 @@ accountForm.addEventListener('submit', async event => {
         accountMessage.textContent = 'Enter the staff record ID or choose an existing record.';
         return;
     }
+    setBusy(accountForm, true, accountEditUid ? 'Saving…' : 'Creating…');
+    accountMessage.textContent = '';
     const account = {
         schoolId: selectedSchool.id,
         uid: accountEditUid,
@@ -548,19 +659,22 @@ accountForm.addEventListener('submit', async event => {
         ...(!accountEditUid ? { temporaryPassword } : {})
     };
     try {
-        if (accountEditUid) await updateSchoolUser(account);
-        else await createSchoolUser(account);
-        if (!accountEditUid && account.role === 'schoolAdmin') {
+        if (creatingAccount) await createSchoolUser(account);
+        else await updateSchoolUser(account);
+        if (creatingAccount && account.role === 'schoolAdmin') {
             schoolAdminLoginLink.href = `./index.html?schoolId=${encodeURIComponent(selectedSchool.id)}`;
             schoolAdminLoginLink.classList.remove('hidden');
-            accountMessage.textContent = 'School administrator account created. Share the temporary password privately, then continue to school sign-in.';
+            accountMessage.textContent = 'School administrator account created. Generate a secure password setup link, then continue to school sign-in.';
         }
         resetAccountForm();
-        if (!accountEditUid) {
-            accountInvitationLink.value = temporaryPassword;
+        if (creatingAccount) {
+            lastCreatedAccount = { email: account.email, role: account.role };
             accountInvitationPanel.classList.remove('hidden');
         }
-        await loadAccounts(accountPageCursor);
+        accountSearch.value = creatingAccount ? account.email : accountSearch.value;
+        accountCursorHistory = [];
+        await loadAccounts(null, 0);
+        if (creatingAccount) await loadSchools(schoolPageCursor, schoolCurrentPageOffset);
     } catch (error) {
         showError(accountMessage, error, 'Unable to save the school account.');
     } finally {
@@ -572,14 +686,45 @@ document.getElementById('copyAccountInvitation').addEventListener('click', async
     try {
         await navigator.clipboard.writeText(accountInvitationLink.value);
         document.getElementById('copyAccountInvitation').textContent = 'Copied';
+        setTimeout(() => { document.getElementById('copyAccountInvitation').textContent = 'Copy setup link'; }, 1800);
     } catch (error) {
-        console.error('Unable to copy the temporary password.', error);
+        console.error('Unable to copy the secure setup link.', error);
         accountInvitationLink.focus();
         accountInvitationLink.select();
-        showError(accountMessage, error, 'Select and copy the temporary password manually.');
+        showError(accountMessage, error, 'Select and copy the secure setup link manually.');
     }
 });
 
+document.getElementById('generateAccountInvitation').addEventListener('click', async event => {
+    if (!selectedSchool || !lastCreatedAccount) return;
+    const button = event.currentTarget;
+    button.disabled = true;
+    button.textContent = 'Generating…';
+    accountMessage.textContent = '';
+    try {
+        const searchTerm = accountSearch.value;
+        accountSearch.value = lastCreatedAccount.email;
+        await loadAccounts(null, 0);
+        const createdAccount = accounts.find(account => account.email.toLowerCase() === lastCreatedAccount.email);
+        if (!createdAccount) throw new Error('The newly created account could not be located. Refresh the account list and try again.');
+        const response = await generateSchoolUserPasswordResetLink({
+            schoolId: selectedSchool.id,
+            uid: createdAccount.uid
+        });
+        accountInvitationLink.value = response.data.invitationUrl;
+        accountInvitationLink.classList.remove('hidden');
+        document.getElementById('copyAccountInvitation').classList.remove('hidden');
+        button.textContent = 'Generate a new setup link';
+        accountMessage.textContent = `Secure password setup link generated for ${lastCreatedAccount.email}. Deliver it privately.`;
+        accountSearch.value = searchTerm;
+        await loadAccounts(null, 0);
+    } catch (error) {
+        showError(accountMessage, error, 'Unable to generate the secure setup link.');
+        button.textContent = 'Retry setup link';
+    } finally {
+        button.disabled = false;
+    }
+});
 function closePasswordResetDialog() {
     passwordResetDialog.classList.add('hidden');
     passwordResetForm.reset();
@@ -654,19 +799,20 @@ accountTableBody.addEventListener('click', async event => {
 });
 
 document.getElementById('previousAccountsButton').addEventListener('click', async () => {
-    const previous = accountCursorHistory.pop() || null;
+    const previous = accountCursorHistory.pop();
+    if (!previous) return;
     try {
-        await loadAccounts(previous);
+        await loadAccounts(previous.cursor, previous.offset);
     } catch (error) {
         showError(accountMessage, error, 'Unable to load the previous account page.');
     }
 });
 document.getElementById('nextAccountsButton').addEventListener('click', async () => {
-    if (!accountAfterUid) return;
-    accountCursorHistory.push(accountPageCursor || '');
-    const nextPageCursor = accountAfterUid;
+    const searching = Boolean(accountSearch.value.trim());
+    if (searching ? accountNextPageOffset === null : !accountAfterUid) return;
+    accountCursorHistory.push({ cursor: accountPageCursor || null, offset: accountCurrentPageOffset });
     try {
-        await loadAccounts(nextPageCursor);
+        await loadAccounts(searching ? null : accountAfterUid, searching ? accountNextPageOffset : 0);
     } catch (error) {
         accountCursorHistory.pop();
         showError(accountMessage, error, 'Unable to load the next account page.');

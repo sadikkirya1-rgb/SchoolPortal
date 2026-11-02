@@ -195,6 +195,8 @@ exports.createSchool = onCall(async request => {
     }
 
     const dateSuffix = schoolIdDate(new Date());
+    const trialEndsAt = new Date();
+    trialEndsAt.setUTCDate(trialEndsAt.getUTCDate() + 30);
     const counterRef = db.doc('platformMetadata/schoolSequence');
     const schoolId = await db.runTransaction(async transaction => {
         const counterSnapshot = await transaction.get(counterRef);
@@ -225,6 +227,10 @@ exports.createSchool = onCall(async request => {
             countryCode,
             logoURL,
             status: 'active',
+            subscriptionPlan: 'Starter',
+            subscriptionStatus: 'trialing',
+            billingCycle: 'annual',
+            renewalDate: trialEndsAt.toISOString().slice(0, 10),
             createdAt: FieldValue.serverTimestamp(),
             createdBy: request.auth.uid
         });
@@ -239,29 +245,67 @@ exports.listPlatformSchools = onCall(async request => {
     const requestedPageSize = Number(request.data?.pageSize);
     const pageSize = [10, 25, 50, 100, 200].includes(requestedPageSize) ? requestedPageSize : 50;
     const afterSchoolId = String(request.data?.afterSchoolId || '');
-    let query = db.collection('schools').orderBy(FieldPath.documentId()).limit(pageSize + 1);
-    if (afterSchoolId) query = query.startAfter(afterSchoolId);
-    const snapshot = await query.get();
-    const hasMore = snapshot.docs.length > pageSize;
-    const schools = snapshot.docs.slice(0, pageSize);
-    const result = await Promise.all(schools.map(async schoolSnapshot => {
+    const searchTerm = String(request.data?.searchTerm || '').trim().toLowerCase().slice(0, 120);
+    const pageOffset = Number.isSafeInteger(Number(request.data?.pageOffset))
+        ? Math.max(0, Math.min(1_000_000, Number(request.data.pageOffset)))
+        : 0;
+    const activeSchoolCount = (await db.collection('schools').where('status', '==', 'active').count().get()).data().count;
+    let matchingDocs;
+    let pageDocs;
+    let hasMore;
+    if (searchTerm) {
+        const allSchools = await db.collection('schools').orderBy(FieldPath.documentId()).get();
+        matchingDocs = allSchools.docs.filter(snapshot => {
+            const school = snapshot.data();
+            return [
+                snapshot.id,
+                school.name,
+                school.schoolName,
+                school.countryCode,
+                school.status,
+                school.subscriptionPlan,
+                school.subscriptionStatus
+            ].some(value => String(value || '').toLowerCase().includes(searchTerm));
+        });
+        pageDocs = matchingDocs.slice(pageOffset, pageOffset + pageSize);
+        hasMore = pageOffset + pageDocs.length < matchingDocs.length;
+    } else {
+        let query = db.collection('schools').orderBy(FieldPath.documentId()).limit(pageSize + 1);
+        if (afterSchoolId) query = query.startAfter(afterSchoolId);
+        const snapshot = await query.get();
+        hasMore = snapshot.docs.length > pageSize;
+        pageDocs = snapshot.docs.slice(0, pageSize);
+    }
+    const result = await Promise.all(pageDocs.map(async schoolSnapshot => {
         const school = schoolSnapshot.data();
-        const count = await schoolSnapshot.ref.collection('members').count().get();
+        const members = schoolSnapshot.ref.collection('members');
+        const [count, admins] = await Promise.all([
+            members.count().get(),
+            members.where('role', '==', 'schoolAdmin').count().get()
+        ]);
         return {
             id: schoolSnapshot.id,
             name: school.name || school.schoolName || schoolSnapshot.id,
             countryCode: school.countryCode || '',
             status: school.status || 'unknown',
             logoURL: school.logoURL || '',
+            subscriptionPlan: school.subscriptionPlan || 'Starter',
+            subscriptionStatus: school.subscriptionStatus || 'trialing',
+            billingCycle: school.billingCycle || 'annual',
+            renewalDate: school.renewalDate || '',
             createdAt: school.createdAt?.toDate?.().toISOString() || '',
-            memberCount: count.data().count
+            memberCount: count.data().count,
+            schoolAdminCount: admins.data().count
         };
     }));
     const totalCount = await db.collection('schools').count().get();
     return {
         schools: result,
-        nextAfterSchoolId: hasMore ? schools[schools.length - 1].id : null,
-        totalCount: totalCount.data().count
+        nextAfterSchoolId: searchTerm ? null : hasMore ? pageDocs[pageDocs.length - 1].id : null,
+        nextPageOffset: searchTerm && hasMore ? pageOffset + pageDocs.length : null,
+        totalCount: totalCount.data().count,
+        matchingCount: searchTerm ? matchingDocs.length : totalCount.data().count,
+        activeSchoolCount
     };
 });
 
@@ -273,12 +317,38 @@ exports.listPlatformSchoolAccounts = onCall(async request => {
     const requestedPageSize = Number(request.data?.pageSize);
     const pageSize = [10, 25, 50, 100, 200].includes(requestedPageSize) ? requestedPageSize : 200;
     const afterUid = String(request.data?.afterUid || '');
-    let query = db.collection(`schools/${schoolId}/members`).orderBy(FieldPath.documentId()).limit(pageSize + 1);
-    if (afterUid) query = query.startAfter(db.doc(`schools/${schoolId}/members/${afterUid}`));
-    const snapshot = await query.get();
-    const hasMore = snapshot.docs.length > pageSize;
+    const searchTerm = String(request.data?.searchTerm || '').trim().toLowerCase().slice(0, 120);
+    const pageOffset = Number.isSafeInteger(Number(request.data?.pageOffset))
+        ? Math.max(0, Math.min(1_000_000, Number(request.data.pageOffset)))
+        : 0;
+    let pageSnapshots;
+    let hasMore;
+    let matchingCount;
+    if (searchTerm) {
+        const snapshot = await db.collection(`schools/${schoolId}/members`).orderBy(FieldPath.documentId()).get();
+        const matches = snapshot.docs.filter(memberSnapshot => {
+            const member = memberSnapshot.data();
+            return [
+                member.fullName,
+                member.email,
+                member.role,
+                member.userId,
+                member.status,
+                memberSnapshot.id
+            ].some(value => String(value || '').toLowerCase().includes(searchTerm));
+        });
+        matchingCount = matches.length;
+        pageSnapshots = matches.slice(pageOffset, pageOffset + pageSize);
+        hasMore = pageOffset + pageSnapshots.length < matches.length;
+    } else {
+        let query = db.collection(`schools/${schoolId}/members`).orderBy(FieldPath.documentId()).limit(pageSize + 1);
+        if (afterUid) query = query.startAfter(db.doc(`schools/${schoolId}/members/${afterUid}`));
+        const snapshot = await query.get();
+        hasMore = snapshot.docs.length > pageSize;
+        pageSnapshots = snapshot.docs.slice(0, pageSize);
+    }
     const totalCount = await db.collection(`schools/${schoolId}/members`).count().get();
-    const accounts = snapshot.docs.slice(0, pageSize).map(memberSnapshot => {
+    const accounts = pageSnapshots.map(memberSnapshot => {
         const member = memberSnapshot.data();
         return {
             uid: memberSnapshot.id,
@@ -295,9 +365,65 @@ exports.listPlatformSchoolAccounts = onCall(async request => {
     });
     return {
         accounts,
-        nextAfterUid: hasMore ? accounts[accounts.length - 1].uid : null,
-        totalCount: totalCount.data().count
+        nextAfterUid: searchTerm ? null : hasMore ? accounts[accounts.length - 1].uid : null,
+        nextPageOffset: searchTerm && hasMore ? pageOffset + accounts.length : null,
+        totalCount: totalCount.data().count,
+        matchingCount: searchTerm ? matchingCount : totalCount.data().count
     };
+});
+
+exports.updatePlatformSchool = onCall(async request => {
+    requirePlatformAdmin(request);
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    const name = String(request.data?.name || '').trim();
+    const countryCode = String(request.data?.countryCode || '').trim().toUpperCase();
+    const logoURL = String(request.data?.logoURL || '').trim();
+    const subscriptionPlan = String(request.data?.subscriptionPlan || '');
+    const subscriptionStatus = String(request.data?.subscriptionStatus || '');
+    const billingCycle = String(request.data?.billingCycle || '');
+    const renewalDate = String(request.data?.renewalDate || '').trim();
+    if (name.length < 2 || name.length > 120) {
+        throw new HttpsError('invalid-argument', 'Enter a school name between 2 and 120 characters.');
+    }
+    if (!/^[A-Z]{2}$/.test(countryCode)) {
+        throw new HttpsError('invalid-argument', 'Enter a two-letter ISO country code, such as UG.');
+    }
+    if (logoURL) {
+        let parsedLogo;
+        try {
+            parsedLogo = new URL(logoURL);
+        } catch {
+            throw new HttpsError('invalid-argument', 'Enter a valid HTTPS logo URL.');
+        }
+        if (parsedLogo.protocol !== 'https:') {
+            throw new HttpsError('invalid-argument', 'School logo URLs must use HTTPS.');
+        }
+    }
+    if (!['Starter', 'Standard', 'Enterprise'].includes(subscriptionPlan)
+        || !['trialing', 'active', 'past_due', 'canceled'].includes(subscriptionStatus)
+        || !['monthly', 'annual'].includes(billingCycle)) {
+        throw new HttpsError('invalid-argument', 'Choose a supported subscription plan, status, and billing cycle.');
+    }
+    if (renewalDate && (!/^\d{4}-\d{2}-\d{2}$/.test(renewalDate)
+        || Number.isNaN(Date.parse(`${renewalDate}T00:00:00.000Z`))
+        || new Date(`${renewalDate}T00:00:00.000Z`).toISOString().slice(0, 10) !== renewalDate)) {
+        throw new HttpsError('invalid-argument', 'Enter a valid renewal date.');
+    }
+    const schoolRef = db.doc(`schools/${schoolId}`);
+    const schoolSnapshot = await schoolRef.get();
+    if (!schoolSnapshot.exists) throw new HttpsError('not-found', 'School not found.');
+    await schoolRef.update({
+        name,
+        countryCode,
+        logoURL,
+        subscriptionPlan,
+        subscriptionStatus,
+        billingCycle,
+        renewalDate,
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: request.auth.uid
+    });
+    return { schoolId, name, countryCode, logoURL, subscriptionPlan, subscriptionStatus, billingCycle, renewalDate };
 });
 
 exports.setPlatformSchoolStatus = onCall(async request => {

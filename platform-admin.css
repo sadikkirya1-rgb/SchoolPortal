@@ -58,7 +58,11 @@ code { padding: 2px 5px; border-radius: 5px; background: #edf4fc; color: #1455a0
 .section-heading h3 { margin: 0 0 4px; font-size: 1rem; }
 .section-heading p, .section-heading > span { margin: 0; color: #71819a; font-size: .82rem; }
 .compact-button { min-height: 36px; padding: 8px 12px; white-space: nowrap; }
-.inline-create-form, .account-editor { margin: 14px 0 20px; padding: 17px; border: 1px solid #e0e9f4; border-radius: 12px; background: #f8fbff; }
+.inline-create-form, .school-editor, .account-editor { margin: 14px 0 20px; padding: 17px; border: 1px solid #e0e9f4; border-radius: 12px; background: #f8fbff; }
+.school-editor { display: grid; gap: 14px; }
+.school-subscription-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.school-editor select { min-height: 44px; padding: 10px 12px; border: 1px solid #cad7e8; border-radius: 9px; background: #fff; color: #172c4c; font: inherit; }
+.form-note { margin: 0; color: #71819a; font-size: .8rem; line-height: 1.5; }
 .table-wrap { overflow-x: auto; border: 1px solid #e3ebf5; border-radius: 10px; }
 table { width: 100%; border-collapse: collapse; white-space: nowrap; font-size: .84rem; }
 th, td { padding: 11px 12px; border-bottom: 1px solid #e9eff6; text-align: left; }
@@ -78,6 +82,13 @@ tbody tr:hover { background: #f8fbff; }
 .list-pager select { min-height: 36px; padding: 6px 9px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #334155; font: inherit; }
 .account-add-heading { margin-top: 20px; }
 .account-add-heading > span { max-width: 70%; line-height: 1.5; }
+.onboarding-steps { margin: 4px 0 8px; padding-left: 22px; color: #52725d; font-size: .84rem; line-height: 1.7; }
+.school-setup-state { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px; background: #fff6df; color: #8a5b00; font-size: .74rem; font-weight: 700; }
+.school-setup-state.ready { background: #edf8f0; color: #267647; }
+.invitation-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+#accountInvitationPanel input { margin-bottom: 0; }
+.status-pill.trialing { background: #fff6df; color: #8a5b00; }
+.status-pill.past_due, .status-pill.canceled { background: #fff1f1; color: #a33232; }
 .account-editor .form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .account-temporary-password small, .password-reset-dialog small { color: #71819a; font-size: .78rem; font-weight: 400; }
 .account-editor select { min-height: 44px; padding: 10px 12px; border: 1px solid #cad7e8; border-radius: 9px; background: white; color: #172c4c; font: inherit; }
@@ -102,6 +113,7 @@ footer { padding: 14px 4px; color: #71819a; font-size: .8rem; line-height: 1.5; 
     .admin-shell { padding-top: 22px; }
     .admin-heading { margin-top: 27px; }
     .form-row { grid-template-columns: 1fr; }
+    .school-subscription-fields { grid-template-columns: 1fr; }
     .dashboard-stats { grid-template-columns: 1fr; }
     .account-editor .form-row { grid-template-columns: 1fr; }
     .section-heading { align-items: flex-start; }

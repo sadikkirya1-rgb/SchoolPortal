@@ -67,6 +67,7 @@ if ('serviceWorker' in navigator) {
 <link rel="stylesheet" type="text/css" href="./discipline-cases.css">
 <link rel="stylesheet" type="text/css" href="./clubs-societies.css">
 <link rel="stylesheet" type="text/css" href="./students.css">
+<link rel="stylesheet" type="text/css" href="./admissions.css">
 <link rel="stylesheet" type="text/css" href="./teachers.css">
 <link rel="stylesheet" type="text/css" href="./classes.css">
 <link rel="stylesheet" type="text/css" href="./subjects.css">
@@ -460,6 +461,17 @@ if ('serviceWorker' in navigator) {
     <li><a><i class="fas fa-folder"></i><span>Documents</span></a></li>
 </ul>
 
+<p class="menu-title" data-access-section="Admissions Department"><i class="fas fa-user-plus"></i>Admissions</p>
+<ul class="nav-links">
+    <li><a><i class="fas fa-list"></i><span>Admissions</span></a></li>
+    <li><a><i class="fas fa-file-alt"></i><span>Applications</span></a></li>
+    <li><a><i class="fas fa-clipboard-check"></i><span>Interviews</span></a></li>
+    <li><a><i class="fas fa-envelope"></i><span>Admission Letters</span></a></li>
+    <li><a><i class="fas fa-clock"></i><span>Waiting List</span></a></li>
+    <li><a><i class="fas fa-id-card"></i><span>Student Registration</span></a></li>
+    <li><a><i class="fas fa-sync"></i><span>Student Transfers</span></a></li>
+</ul>
+
 <p class="menu-title" data-access-section="Academic Department"><i class="fas fa-graduation-cap"></i>Academic</p>
 <ul class="nav-links">
     <li><a><i class="fas fa-user-graduate"></i><span>Students</span></a></li>
@@ -533,9 +545,9 @@ if ('serviceWorker' in navigator) {
 <ul class="nav-links">
     <li><a><i class="fas fa-file-circle-plus"></i><span>Purchase Request</span></a></li>
     <li><a><i class="fas fa-file-lines"></i><span>Quotations</span></a></li>
-    <li><a data-access-key="Purchase Comparisons"><i class="fas fa-code-compare"></i><span>Compasions</span></a></li>
+    <li><a data-access-key="Purchase Comparisons"><i class="fas fa-code-compare"></i><span>Purchase Comparisons</span></a></li>
     <li><a><i class="fas fa-cart-shopping"></i><span>Purchase Orders</span></a></li>
-    <li><a data-access-key="Goods Receipt (GRN)"><i class="fas fa-truck-ramp-box"></i><span>Goods Recieved</span></a></li>
+    <li><a data-access-key="Goods Receipt (GRN)"><i class="fas fa-truck-ramp-box"></i><span>Goods Receipt (GRN)</span></a></li>
     <li><a><i class="fas fa-file-invoice-dollar"></i><span>Supplier Invoices</span></a></li>
     <li><a><i class="fas fa-truck-fast"></i><span>Suppliers</span></a></li>
 </ul>
@@ -552,6 +564,8 @@ if ('serviceWorker' in navigator) {
     <li><a><i class="fas fa-qrcode"></i><span>QR &amp; Face</span></a></li>
     <li><a><i class="fas fa-chart-line"></i><span>Analytics</span></a></li>
     <li><a id="userRolesBtn"><i class="fas fa-user-shield"></i><span>Users &amp; Access</span></a></li>
+    <li><a><i class="fas fa-clipboard-list"></i><span>Audit Logs</span></a></li>
+    <li><a><i class="fas fa-database"></i><span>Backups</span></a></li>
     <li><a><i class="fas fa-gear"></i><span>Settings</span></a></li>
     <li><a id="parentPortalPreviewBtn" data-portal-admin-only="true"><i class="fas fa-people-roof"></i><span>Parent Portal</span></a></li>
 </ul>
@@ -907,6 +921,32 @@ if ('serviceWorker' in navigator) {
             <div class="parent-detail-title-row"><button class="parent-detail-back" type="button" data-parent-detail-back><i class="fas fa-arrow-left" aria-hidden="true"></i><span>Back to home</span></button><span class="parent-detail-icon" data-parent-detail-icon aria-hidden="true"><i class="fas fa-folder-open"></i></span><div><h3 data-parent-detail-title></h3><p data-parent-detail-description></p></div></div>
         </header>
         <div class="parent-detail-content" data-parent-detail-content></div>
+    </section>
+</section>
+
+<section id="studentPortalHome" class="student-portal-home module hidden" aria-label="Student portal">
+    <header class="student-portal-welcome">
+        <div><p>STUDENT PORTAL</p><h1 data-student-welcome-title>Welcome</h1><span>Learning, progress, and school updates in one place.</span></div>
+        <span class="student-portal-school"><i class="fas fa-school" aria-hidden="true"></i> <span data-student-school-id></span></span>
+    </header>
+    <p class="student-portal-status" data-student-portal-status role="status" aria-live="polite">Loading your school information…</p>
+    <section class="student-portal-metrics" aria-label="Your learning at a glance">
+        <article><span>Attendance records</span><strong data-student-count="attendance">—</strong><i class="fas fa-calendar-check" aria-hidden="true"></i></article>
+        <article><span>Assignments</span><strong data-student-count="assessments">—</strong><i class="fas fa-book-open" aria-hidden="true"></i></article>
+        <article><span>Published results</span><strong data-student-count="results">—</strong><i class="fas fa-square-poll-vertical" aria-hidden="true"></i></article>
+        <article><span>Timetable entries</span><strong data-student-count="timetables">—</strong><i class="fas fa-clock" aria-hidden="true"></i></article>
+    </section>
+    <section class="student-portal-section">
+        <div class="student-portal-section-heading"><div><h2>Quick access</h2><p>Open the school sections enabled for your account.</p></div></div>
+        <div class="student-portal-quick-links" data-student-quick-links></div>
+    </section>
+    <section class="student-portal-section student-portal-recent">
+        <div class="student-portal-section-heading"><div><h2>Latest updates</h2><p>Recent learning activity linked to your student account.</p></div></div>
+        <div class="student-portal-update-grid">
+            <article><h3>Assignments</h3><div data-student-recent="assessments"></div></article>
+            <article><h3>Results</h3><div data-student-recent="results"></div></article>
+            <article><h3>School notices</h3><div data-student-recent="notices"></div></article>
+        </div>
     </section>
 </section>
 
@@ -1421,6 +1461,7 @@ Developer: Sadik Kirya | Contact: sadikkirya@gmail.com
 <script src="discipline-cases.js"></script>
 <script src="clubs-societies.js"></script>
 <script src="students.js"></script>
+<script src="admissions.js"></script>
 <script src="teachers.js"></script>
 <script src="classes.js"></script>
 <script src="subjects.js"></script>
