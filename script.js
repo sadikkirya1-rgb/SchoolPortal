@@ -5568,6 +5568,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const examResultForm = examResultsPanel.querySelector('[data-exam-result-form]');
         const examResultRows = examResultsPanel.querySelector('[data-exam-result-rows]');
         const examResultFeedback = examResultsPanel.querySelector('[data-exam-feedback]');
+        const examEntryPanel = examResultsPanel.querySelector('.report-exam-entry');
+        const examEntryHeading = examEntryPanel.querySelector('.report-exam-heading');
+        const examListHeading = examResultsPanel.querySelector('.report-exam-list .report-exam-heading');
+        const closeExamFormButton = document.createElement('button');
+        closeExamFormButton.type = 'button';
+        closeExamFormButton.className = 'btn-secondary report-exam-toggle';
+        closeExamFormButton.dataset.examFormToggle = 'close';
+        closeExamFormButton.setAttribute('aria-label', 'Close marks form');
+        closeExamFormButton.innerHTML = '<i class="fas fa-xmark" aria-hidden="true"></i> Close form';
+        examEntryHeading.append(closeExamFormButton);
+        const openExamFormButton = document.createElement('button');
+        openExamFormButton.type = 'button';
+        openExamFormButton.className = 'btn-secondary report-exam-toggle';
+        openExamFormButton.dataset.examFormToggle = 'open';
+        openExamFormButton.innerHTML = '<i class="fas fa-plus" aria-hidden="true"></i> Enter marks';
+        openExamFormButton.hidden = true;
+        examListHeading.append(openExamFormButton);
+        const setExamFormVisible = visible => {
+            examEntryPanel.hidden = !visible;
+            closeExamFormButton.hidden = !visible;
+            openExamFormButton.hidden = visible;
+        };
         const getStudentName = student => student.fullName || student.name || student.studentName
             || [student.firstName, student.lastName].filter(Boolean).join(' ') || 'Student';
         const getStudentAdmission = student => String(student.admissionNo || student.admissionNumber
@@ -5904,6 +5926,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         examResultsPanel.addEventListener('click', event => {
+            const formToggle = event.target.closest('[data-exam-form-toggle]');
+            if (formToggle) {
+                const isOpening = formToggle.dataset.examFormToggle === 'open';
+                setExamFormVisible(isOpening);
+                (isOpening ? examResultForm.elements.studentId : openExamFormButton).focus();
+                return;
+            }
             const saveButton = event.target.closest('[data-exam-save]');
             if (saveButton) {
                 void saveExamResult(saveButton.dataset.examSave);
@@ -5918,6 +5947,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const record = examResultRecords.find(item => String(item.id) === actionButton.dataset.recordId);
             if (!record) return;
             if (actionButton.dataset.examResultAction === 'edit') {
+                setExamFormVisible(true);
                 examResultForm.elements.recordId.value = record.id;
                 refreshExamStudentOptions(record.studentId);
                 refreshExamSubjectOptions(record.subjectId || record.subjectName);
