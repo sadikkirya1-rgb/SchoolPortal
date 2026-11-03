@@ -694,6 +694,31 @@ if ('serviceWorker' in navigator) {
         <p>Your School Admin account has full access by default; sections, classes, and individual permissions do not limit administrator accounts. Use <strong>Add User</strong> to create staff, parent, student, or another School Admin account. Admins you create also have full access; only the App Admin can edit, suspend, or delete administrator accounts.</p>
     </div>
 
+    <section class="role-management-panel" aria-labelledby="roleManagementHeading">
+        <div class="role-management-header">
+            <div>
+                <h3 id="roleManagementHeading">Role Management</h3>
+                <p>Choose from existing system roles or add a role using one of their permission templates.</p>
+            </div>
+            <button class="btn-secondary" id="toggleRoleManagement" type="button" aria-expanded="false">Manage Roles</button>
+        </div>
+        <div id="roleManagementContent" class="hidden">
+            <div id="roleManagementList" class="role-management-list" aria-live="polite"></div>
+            <form id="addRoleForm" class="add-role-form">
+                <div class="form-group">
+                    <label for="newRoleName">New role name</label>
+                    <input id="newRoleName" type="text" maxlength="40" placeholder="e.g. Teaching Assistant" required>
+                </div>
+                <div class="form-group">
+                    <label for="newRoleTemplate">Permission template</label>
+                    <select id="newRoleTemplate" required></select>
+                </div>
+                <button class="btn-primary" type="submit"><i class="fas fa-plus" aria-hidden="true"></i> Add Role</button>
+            </form>
+            <p id="roleManagementMessage" class="role-management-message" role="status" aria-live="polite"></p>
+        </div>
+    </section>
+
     <div id="accountInvitationPanel" class="account-invitation-panel hidden" role="status" aria-live="polite">
         <div>
             <strong id="accountInvitationHeading">Account created — share the temporary password privately.</strong>
@@ -705,16 +730,31 @@ if ('serviceWorker' in navigator) {
     </div>
 
     <div class="user-roles-content">
-        <form id="addUserForm" class="user-form hidden" style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
+        <form id="addUserForm" class="user-form hidden">
             <p class="account-demo-notice"><i class="fas fa-circle-info" aria-hidden="true"></i> Set a temporary password and share it privately. Users must change it at first sign-in and can change it again anytime. Sections, class assignments, and data permissions are enforced by Firebase.</p>
-            <div class="form-group temporary-password-field">
-                <label for="temporaryAccountPassword">Temporary password</label>
-                <input id="temporaryAccountPassword" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required>
-                <p>Use 8–128 characters; letters or numbers alone are accepted. Share it privately. The user must change it at first sign-in.</p>
-            </div>
-            <div class="form-row">
+
+            <fieldset class="account-form-section">
+                <legend>Account details</legend>
+                <div class="account-user-fields">
+                    <div class="form-group">
+                        <label for="accountUserMemberType">User member type</label>
+                        <select id="accountUserMemberType">
+                            <option value="student">Student</option>
+                            <option value="teacher">Teacher</option>
+                            <option value="staff">Staff</option>
+                            <option value="parent">Parent</option>
+                            <option value="visitor">Visitor</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="accountUserMemberId">User member</label>
+                        <select id="accountUserMemberId">
+                            <option value="">Select a user member type first</option>
+                        </select>
+                        <small id="accountUserMemberHelp">Select a member to fill in their name and User ID.</small>
+                    </div>
                 <div class="form-group">
-                    <label for="fullNameInput">Full Name</label>
+                    <label for="fullNameInput">Full name</label>
                     <input id="fullNameInput" type="text" placeholder="e.g. Jane Doe">
                 </div>
                 <div class="form-group">
@@ -722,26 +762,8 @@ if ('serviceWorker' in navigator) {
                     <input id="userIdInputNew" type="text" placeholder="e.g. jdoe">
                 </div>
                 <div class="form-group">
-                    <label for="profilePhotoInput">Profile Photo</label>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <input id="profilePhotoInput" type="file" accept="image/*" style="padding: 8px; font-size: 12px;">
-                        <img id="photoPreview" src="" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; display: none;">
-                    </div>
-                </div>
-                <div class="form-group">
                     <label for="roleSelect">Role</label>
                     <select id="roleSelect"></select>
-                </div>
-            </div>
-
-            <div class="account-link-fields">
-                <div class="form-group">
-                    <label for="accountRecordId">Linked system record</label>
-                    <select id="accountRecordId">
-                        <option value="">Select a role first</option>
-                    </select>
-                    <input id="manualAccountRecordId" class="hidden" type="text" maxlength="120" autocomplete="off" placeholder="Enter staff record ID">
-                    <small id="accountRecordHelp">Choose a record from the school's existing records.</small>
                 </div>
                 <div class="form-group">
                     <label for="accountEmail">Email</label>
@@ -751,20 +773,48 @@ if ('serviceWorker' in navigator) {
                     <label for="accountPhone">Mobile number</label>
                     <input id="accountPhone" type="tel" autocomplete="tel" placeholder="+256...">
                 </div>
-            </div>
-
-            <fieldset class="account-notification-preferences">
-                <legend>Notice notification preferences</legend>
-                <p>Record the channels this account can use. Messages are not sent from this preview.</p>
-                <div>
-                    <label><input type="checkbox" id="accountNotifyWhatsApp"> WhatsApp</label>
-                    <label><input type="checkbox" id="accountNotifySms"> SMS</label>
-                    <label><input type="checkbox" id="accountNotifyEmail"> Email</label>
-                    <label><input type="checkbox" id="accountNotifyPush"> Browser push</label>
+                <div class="form-group">
+                    <label for="profilePhotoInput">Profile Photo</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input id="profilePhotoInput" type="file" accept="image/*" style="padding: 8px; font-size: 12px;">
+                        <img id="photoPreview" src="" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; display: none;">
+                    </div>
+                </div>
+                    <div class="form-group temporary-password-field">
+                        <label for="temporaryAccountPassword">Temporary password</label>
+                        <input id="temporaryAccountPassword" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters" required>
+                        <small>Use 8–128 characters. The user must change it at first sign-in.</small>
+                    </div>
                 </div>
             </fieldset>
 
-            <div class="form-row">
+            <fieldset class="account-form-section">
+                <legend>Linked system record</legend>
+                <div class="account-link-fields">
+                <div class="form-group">
+                    <label for="accountMemberType">Linked record type</label>
+                    <select id="accountMemberType">
+                        <option value="students">Student</option>
+                        <option value="teachers">Teacher</option>
+                        <option value="staff">Staff</option>
+                        <option value="parents">Parent</option>
+                        <option value="visitors">Visitor</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="accountRecordId">Linked system record</label>
+                    <select id="accountRecordId">
+                        <option value="">Select a member type first</option>
+                    </select>
+                    <input id="manualAccountRecordId" class="hidden" type="text" maxlength="120" autocomplete="off" placeholder="Enter staff record ID">
+                    <small id="accountRecordHelp">Choose a record from the school's existing records.</small>
+                </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="account-form-section">
+                <legend>Access settings</legend>
+                <div class="form-row">
                 <div class="form-group sections-group">
                     <label>Portal section access</label>
                     <div id="sectionsContainer" class="sections-list"></div>
@@ -779,7 +829,18 @@ if ('serviceWorker' in navigator) {
                     <p>Control whether the account may view, edit, or delete records. These permissions are separate from portal section access.</p>
                     <div id="dataPermissionsContainer" class="data-permissions-list" aria-live="polite"></div>
                 </div>
-            </div>
+                </div>
+            </fieldset>
+            <fieldset class="account-notification-preferences">
+                <legend>Notice notification preferences</legend>
+                <p>Record the channels this account can use. Messages are not sent from this preview.</p>
+                <div>
+                    <label><input type="checkbox" id="accountNotifyWhatsApp"> WhatsApp</label>
+                    <label><input type="checkbox" id="accountNotifySms"> SMS</label>
+                    <label><input type="checkbox" id="accountNotifyEmail"> Email</label>
+                    <label><input type="checkbox" id="accountNotifyPush"> Browser push</label>
+                </div>
+            </fieldset>
             <p id="adminAccountAccessNotice" class="user-roles-guidance hidden">School Admin accounts have full access to every school section and data area. Section, class, and data permission settings do not apply to this role.</p>
 
             <div class="form-row actions-row" style="display: flex; gap: 12px;">
@@ -791,7 +852,7 @@ if ('serviceWorker' in navigator) {
         <div class="users-table-wrap">
             <h3>Existing Users</h3>
             <table class="users-table" id="usersTable">
-                <thead><tr><th>Photo</th><th>Name</th><th>User ID</th><th>Role</th><th>Linked Record</th><th>Contact</th><th>Sections</th><th>Assigned Classes</th><th>Perms</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Photo</th><th>Name</th><th>User ID</th><th>User Type</th><th>Role</th><th>Linked Record</th><th>Contact</th><th>Sections</th><th>Assigned Classes</th><th>Perms</th><th>Actions</th></tr></thead>
                 <tbody id="usersTableBody"></tbody>
             </table>
         </div>

@@ -3944,7 +3944,28 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 }
 .user-roles-guidance{margin:14px 0;padding:14px 16px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a}
 .user-roles-guidance p{margin:5px 0 0;font-size:13px;line-height:1.55}
+.role-management-panel{margin:16px 0;padding:16px;border:1px solid #dbe3ee;border-radius:10px;background:#fff}
+.role-management-header{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.role-management-header h3{margin:0;color:#172033;font-size:16px}
+.role-management-header p{margin:4px 0 0;color:#64748b;font-size:12px;line-height:1.45}
+.role-management-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin:14px 0}
+.role-management-item{display:flex;min-width:0;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc}
+.role-management-item>div{display:grid;min-width:0;gap:3px}
+.role-management-item strong{overflow:hidden;color:#1e293b;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.role-management-item small{color:#64748b;font-size:10px}
+.role-remove-button{flex:none;padding:7px 9px!important}
+.add-role-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:end;gap:10px;padding-top:12px;border-top:1px solid #e2e8f0}
+.add-role-form .form-group{min-width:0;margin:0}
+.role-management-message{min-height:16px;margin:8px 0 0;color:#475569;font-size:11px}
 .account-protected-note{display:inline-block;color:#64748b;font-size:11px;line-height:1.4}
+.user-form{display:grid;gap:14px;margin-bottom:30px;padding:20px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}
+.user-form[hidden]{display:none}
+.account-form-section{min-width:0;margin:0;padding:14px;border:1px solid #e2e8f0;border-radius:9px;background:#fff}
+.account-form-section>legend{padding:0 7px;color:#334155;font-size:13px;font-weight:700}
+.account-user-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.account-user-fields .form-group,.account-link-fields .form-group{min-width:0;margin:0}
+.account-user-fields input,.account-user-fields select,.account-link-fields input,.account-link-fields select{width:100%;min-width:0;box-sizing:border-box}
+.account-user-fields small,.account-link-fields small{display:block;margin-top:5px;color:#64748b;font-size:11px;line-height:1.4}
 .user-form .form-row{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .user-form .form-group{flex:1;min-width:160px}
 .account-invitation-panel{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:16px 0;padding:16px;border:1px solid #86efac;border-radius:10px;background:#f0fdf4;color:#14532d}
@@ -3953,6 +3974,15 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .assigned-classes-group .sections-list{max-height:240px;overflow:auto}
 .dark .account-invitation-panel{background:#052e16;border-color:#166534;color:#dcfce7}
 .dark .user-roles-guidance{background:#172554;border-color:#1e40af;color:#dbeafe}
+.dark .role-management-panel{border-color:#334155;background:#111827}
+.dark .role-management-header h3,.dark .role-management-item strong{color:#e2e8f0}
+.dark .role-management-header p,.dark .role-management-item small,.dark .role-management-message{color:#aebdd0}
+.dark .role-management-item{border-color:#334155;background:#172033}
+.dark .add-role-form{border-color:#334155}
+.dark .user-form{border-color:#334155;background:#0f172a}
+.dark .account-form-section{border-color:#334155;background:#111827}
+.dark .account-form-section>legend{color:#e2e8f0}
+.dark .account-user-fields small,.dark .account-link-fields small{color:#aebdd0}
 .dark #sectionsContainer,.dark .section-access-group,.dark .account-no-section-access{background:#111827;border-color:#334155}
 .dark .section-access-heading h4,.dark .sections-group>label,.dark .perms-group>label,.dark .assigned-classes-group>label,.dark .section-access-department{color:#e2e8f0}
 .dark .section-access-toolbar{background:#1e293b;border-color:#334155}
@@ -4039,7 +4069,7 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .account-field-hint{color:#64748b;font-size:11px;font-weight:400}
 .account-link-fields{
     display:grid;
-    grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-columns:repeat(2,minmax(0,1fr));
     gap:12px;
 }
 .account-link-fields .form-group{min-width:0}
@@ -4056,6 +4086,9 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .account-notification-preferences label{display:inline-flex;align-items:center;gap:7px;font-size:13px}
 .account-notification-preferences input{accent-color:var(--primary)}
 @media(max-width:768px){
+    .add-role-form{grid-template-columns:1fr}
+    .account-user-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .role-management-header{align-items:flex-start;flex-direction:column}
     #sectionsContainer{padding:11px}
     .section-access-toolbar{align-items:flex-start;flex-direction:column}
     .section-access-grants{grid-template-columns:1fr}
@@ -5295,6 +5328,11 @@ input:checked + .slider:before {
 @media(max-width:760px){
     .topbar{
         gap:8px;
+@media(max-width:520px){
+    .user-form{padding:14px}
+    .account-form-section{padding:11px}
+    .account-user-fields{grid-template-columns:minmax(0,1fr)}
+}
         padding:10px;
         align-items:center;
     }

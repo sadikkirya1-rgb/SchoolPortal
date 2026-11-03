@@ -56,6 +56,17 @@ const editableCollections = {
 };
 const normalizeRole = role => roleAliases[String(role || '').trim().toLowerCase().replace(/[\s_-]+/g, '')] || '';
 const assignableRoles = new Set(Object.keys(rolePermissions));
+const userMemberTypes = new Set(['student', 'teacher', 'staff', 'parent', 'visitor']);
+const defaultUserMemberType = role => role === 'student' ? 'student'
+    : role === 'parent' ? 'parent'
+        : ['teacher', 'deputyHeadTeacher'].includes(role) ? 'teacher' : 'staff';
+const validateUserMemberType = (value, role) => {
+    const userType = String(value || defaultUserMemberType(role)).trim().toLowerCase();
+    if (!userMemberTypes.has(userType)) {
+        throw new HttpsError('invalid-argument', 'Choose a supported user member type.');
+    }
+    return userType;
+};
 const buildPermissions = role => Object.fromEntries((rolePermissions[role] || []).map(collection => [
     collection,
     { view: true, edit: (editableCollections[role] || []).includes(collection) }
@@ -650,8 +661,8 @@ async function requireSchoolAdmin(request, schoolId) {
     return caller;
 }
 
-function sanitizeAccount(data, { allowSchoolAdmin = false } = {}) {
-    const role = normalizeRole(data.role);
+function sanitizeAccount(data, { allowSchoolAdmin = false, roleDefinition } = {}) {
+    const role = roleDefinition?.baseRole || normalizeRole(data.role);
     if (!assignableRoles.has(role) && !(allowSchoolAdmin && role === 'schoolAdmin')) {
         throw new HttpsError('invalid-argument', 'Choose a supported role.');
     }
@@ -665,12 +676,29 @@ function sanitizeAccount(data, { allowSchoolAdmin = false } = {}) {
     if (linkedRecordId.length > 120) {
         throw new HttpsError('invalid-argument', 'Linked record IDs must be 120 characters or fewer.');
     }
-    const linkedRecordType = role === 'student' ? 'student' : role === 'parent' ? 'parent' : 'staff';
-    if (['student', 'parent'].includes(role) && !linkedRecordId) {
+    const memberType = ['students', 'teachers', 'staff', 'parents', 'visitors'].includes(data.memberType)
+        ? data.memberType
+        : roleDefinition?.memberType || (role === 'student' ? 'students'
+            : role === 'parent' ? 'parents'
+                : role === 'teacher' || role === 'deputyHeadTeacher' ? 'teachers' : 'staff');
+    const linkedRecordType = ({
+        students: 'student',
+        teachers: 'teacher',
+        staff: 'staff',
+        parents: 'parent',
+        visitors: 'visitor'
+    })[memberType];
+    if (['student', 'parent'].includes(role)
+        && ['students', 'parents'].includes(memberType) && !linkedRecordId) {
         throw new HttpsError('invalid-argument', `A linked ${role} record ID is required.`);
     }
     return {
         role,
+        roleId: roleDefinition?.id || role,
+        roleLabel: roleDefinition?.label || builtInRoleLabels[role] || role,
+        userMemberType: validateUserMemberType(data.userMemberType, role),
+            userMemberRecordId: String(data.userMemberRecordId || '').trim().slice(0, 120),
+        memberType,
         email,
         fullName,
         userId,
@@ -746,6 +774,69 @@ function rolePermissionOptions() {
     ]));
 }
 
+const builtInRoleLabels = {
+    deputyHeadTeacher: 'Deputy Head Teacher',
+    bursar: 'Bursar',
+    teacher: 'Teacher',
+    librarian: 'Librarian',
+    hrOfficer: 'HR Officer',
+    storeManager: 'Store Manager',
+    parent: 'Parent',
+    student: 'Student'
+};
+const schoolAdminRoleDefinition = {
+    id: 'schoolAdmin',
+    label: 'School Admin',
+    baseRole: 'schoolAdmin',
+    memberType: 'staff',
+    system: true,
+    protected: true
+};
+
+function builtInRoleDefinitions() {
+    return Object.entries(builtInRoleLabels).map(([baseRole, label]) => ({
+        id: baseRole,
+        label,
+        baseRole,
+        memberType: baseRole === 'student' ? 'students'
+            : baseRole === 'parent' ? 'parents'
+                : baseRole === 'teacher' || baseRole === 'deputyHeadTeacher' ? 'teachers' : 'staff',
+        system: true,
+        protected: true
+    }));
+}
+
+async function getSchoolRoleDefinitions(schoolId) {
+    const snapshot = await db.doc(`schools/${schoolId}/settings/accessRoles`).get();
+    const customRoles = Array.isArray(snapshot.data()?.roles) ? snapshot.data().roles : [];
+    return [...builtInRoleDefinitions(), schoolAdminRoleDefinition, ...customRoles];
+}
+
+async function resolveSchoolRole(schoolId, data, { allowSchoolAdmin = false } = {}) {
+    const definitions = await getSchoolRoleDefinitions(schoolId);
+    const requestedRoleId = String(data.roleId || '').trim();
+    const normalizedRole = normalizeRole(data.role);
+    const definition = requestedRoleId
+        ? definitions.find(item => item.id === requestedRoleId)
+        : definitions.find(item => item.id === normalizedRole || item.baseRole === normalizedRole);
+    if (!definition || (requestedRoleId && normalizedRole && normalizedRole !== definition.baseRole)) {
+        throw new HttpsError('invalid-argument', 'Choose a role from Role Management.');
+    }
+    if (definition.baseRole === 'schoolAdmin' && !allowSchoolAdmin) {
+        throw new HttpsError('permission-denied', 'Only a School Admin can create another School Admin account.');
+    }
+    if (!assignableRoles.has(definition.baseRole) && definition.baseRole !== 'schoolAdmin') {
+        throw new HttpsError('invalid-argument', 'Choose a supported role.');
+    }
+    return definition;
+}
+
+function customRoleId(label) {
+    const slug = String(label || '').trim().toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    return `custom_${slug}`;
+}
+
 function sanitizePermissions(role, permissions) {
     if (permissions === undefined) return buildPermissions(role);
     if (!permissions || typeof permissions !== 'object' || Array.isArray(permissions)) {
@@ -787,6 +878,66 @@ exports.getAssignableSchoolPermissions = onCall(async request => {
     return rolePermissionOptions();
 });
 
+exports.getAssignableSchoolRoles = onCall(async request => {
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    await requireSchoolAdmin(request, schoolId);
+    return getSchoolRoleDefinitions(schoolId);
+});
+
+exports.saveAssignableSchoolRoles = onCall(async request => {
+    const schoolId = validateSchoolId(request.data?.schoolId);
+    await requireSchoolAdmin(request, schoolId);
+    const roles = request.data?.roles;
+    if (!Array.isArray(roles) || roles.length > 50) {
+        throw new HttpsError('invalid-argument', 'Provide up to 50 custom roles.');
+    }
+    const seenLabels = new Set([
+        ...Object.values(builtInRoleLabels),
+        schoolAdminRoleDefinition.label
+    ].map(label => label.toLowerCase()));
+    const customRoles = roles.map(role => {
+        const label = String(role?.label || '').trim().replace(/\s+/g, ' ');
+        const baseRole = normalizeRole(role?.baseRole);
+        const memberType = ['students', 'teachers', 'staff', 'parents', 'visitors'].includes(role?.memberType)
+            ? role.memberType
+            : baseRole === 'student' ? 'students'
+                : baseRole === 'parent' ? 'parents'
+                    : baseRole === 'teacher' || baseRole === 'deputyHeadTeacher' ? 'teachers' : 'staff';
+        const normalizedLabel = label.toLowerCase();
+        if (label.length < 2 || label.length > 40 || seenLabels.has(normalizedLabel)) {
+            throw new HttpsError('invalid-argument', 'Role names must be unique and between 2 and 40 characters.');
+        }
+        if (!assignableRoles.has(baseRole)) {
+            throw new HttpsError('invalid-argument', 'Choose a supported permission template for each role.');
+        }
+        seenLabels.add(normalizedLabel);
+        return { id: customRoleId(label), label, baseRole, memberType, system: false, protected: false };
+    });
+    if (new Set(customRoles.map(role => role.id)).size !== customRoles.length) {
+        throw new HttpsError('invalid-argument', 'Role names must produce unique IDs.');
+    }
+    const rolesRef = db.doc(`schools/${schoolId}/settings/accessRoles`);
+    const existingRolesSnapshot = await rolesRef.get();
+    const existingRoles = Array.isArray(existingRolesSnapshot.data()?.roles)
+        ? existingRolesSnapshot.data().roles
+        : [];
+    const retainedRoleIds = new Set(customRoles.map(role => role.id));
+    for (const role of existingRoles) {
+        if (retainedRoleIds.has(role.id)) continue;
+        const assignedAccounts = await db.collection(`schools/${schoolId}/members`)
+            .where('roleId', '==', role.id).limit(1).get();
+        if (!assignedAccounts.empty) {
+            throw new HttpsError('failed-precondition', `${role.label} is assigned to an account and cannot be removed.`);
+        }
+    }
+    await rolesRef.set({
+        roles: customRoles,
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: request.auth.uid
+    }, { merge: true });
+    return [...builtInRoleDefinitions(), schoolAdminRoleDefinition, ...customRoles];
+});
+
 exports.getAssignableSchoolClasses = onCall(async request => {
     const schoolId = validateSchoolId(request.data?.schoolId);
     await requireSchoolAdmin(request, schoolId);
@@ -807,17 +958,26 @@ exports.getAssignableSchoolRecords = onCall(async request => {
     const schoolId = validateSchoolId(request.data?.schoolId);
     await requireSchoolAdmin(request, schoolId);
     const recordType = request.data?.recordType;
-    if (!['students', 'staff'].includes(recordType)) {
-        throw new HttpsError('invalid-argument', 'Choose students or staff records.');
+    const supportedRecordTypes = ['students', 'teachers', 'staff', 'parents', 'visitors'];
+    if (!supportedRecordTypes.includes(recordType)) {
+        throw new HttpsError('invalid-argument', 'Choose a supported member type.');
     }
-    const snapshot = await db.collection(`schools/${schoolId}/${recordType}`).get();
-    return snapshot.docs
-        .map(item => {
+    const collections = recordType === 'visitors' ? ['visitors', 'visitorLogs'] : [recordType];
+    const snapshots = await Promise.all(collections.map(collectionName =>
+        db.collection(`schools/${schoolId}/${collectionName}`).get()
+    ));
+    const records = snapshots.flatMap(snapshot => snapshot.docs.map(item => {
             const document = item.data();
             const record = document.data || document;
             if (document.deleted === true || record.deleted === true) return null;
+            const linkedStudentId = String(record.studentRecordId || record.studentId || record.linkedStudentId || '').trim();
+            if (recordType === 'parents' && !linkedStudentId) return null;
+            const parentName = String(record.parentName || record.parentFullName || record.guardianName || record.fatherName || '').trim();
+            const visitorId = String(record.visitorId || item.id).trim();
             const name = String(
-                record.fullName
+                (recordType === 'parents' ? parentName : '')
+                || (recordType === 'visitors' ? record.visitorName : '')
+                || record.fullName
                 || record.name
                 || record.studentName
                 || record.staffName
@@ -825,12 +985,16 @@ exports.getAssignableSchoolRecords = onCall(async request => {
                 || item.id
             ).trim();
             return {
-                id: item.id,
+                id: recordType === 'parents' ? linkedStudentId : recordType === 'visitors' ? visitorId : item.id,
+                memberId: recordType === 'parents' ? item.id : visitorId,
                 displayId: String(
-                    record.admissionNo
+                    (recordType === 'parents' ? record.parentId : '')
+                    || (recordType === 'visitors' ? visitorId : '')
+                    || record.admissionNo
                     || record.studentId
                     || record.staffId
                     || record.employeeId
+                    || record.employeeNo
                     || item.id
                 ),
                 name,
@@ -840,9 +1004,22 @@ exports.getAssignableSchoolRecords = onCall(async request => {
                     || record.staffDepartment
                     || ''
                 ).trim(),
-                group: String(record.className || record.class || record.section || '').trim()
+                email: String(record.email || record.emailAddress || record.contactEmail || record.staffEmail || '').trim(),
+                phone: String(record.phone || record.mobile || record.mobileNumber || record.contactNumber || '').trim(),
+                parentName: recordType === 'parents' ? name : String(record.parentName || record.parentFullName || record.guardianName || record.fatherName || '').trim(),
+                parentEmail: recordType === 'parents'
+                    ? String(record.email || record.emailAddress || '').trim()
+                    : String(record.parentEmail || record.guardianEmail || record.fatherEmail || '').trim(),
+                parentPhone: recordType === 'parents'
+                    ? String(record.mobile || record.phone || '').trim()
+                    : String(record.parentPhone || record.guardianPhone || record.fatherPhone || record.parentMobile || '').trim(),
+                group: recordType === 'parents'
+                    ? `Student: ${String(record.studentName || linkedStudentId)}`
+                    : String(record.className || record.class || record.section || '').trim()
             };
-        })
+        }));
+    const uniqueRecords = new Map(records.filter(Boolean).map(record => [`${recordType}:${record.id}`, record]));
+    return Array.from(uniqueRecords.values())
         .filter(Boolean)
         .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
 });
@@ -1261,17 +1438,17 @@ exports.createSchoolUser = onCall(async request => {
     if (!(await db.doc(`schools/${schoolId}`).get()).exists) {
         throw new HttpsError('not-found', 'The school has not been provisioned.');
     }
-    const account = sanitizeAccount(request.data, {
-        allowSchoolAdmin: caller.platformAdmin === true || caller.role === 'schoolAdmin'
-    });
+    const allowSchoolAdmin = caller.platformAdmin === true || caller.role === 'schoolAdmin';
+    const roleDefinition = await resolveSchoolRole(schoolId, request.data, { allowSchoolAdmin });
+    const account = sanitizeAccount(request.data, { allowSchoolAdmin, roleDefinition });
     account.assignedClassIds = await validateAssignedClassIds(schoolId, account.role, account.assignedClassIds);
     const matchingUserId = await db.collection(`schools/${schoolId}/members`).where('userId', '==', account.userId).limit(1).get();
     if (!matchingUserId.empty) throw new HttpsError('already-exists', 'That User ID is already used at this school.');
-    if (account.role === 'parent') {
+    if (account.role === 'parent' && ['students', 'parents'].includes(account.memberType)) {
         const linkedStudent = await db.doc(`schools/${schoolId}/students/${account.linkedRecordId}`).get();
         if (!linkedStudent.exists) throw new HttpsError('not-found', 'The linked student record was not found in this school.');
     }
-    if (account.role === 'student') {
+    if (account.role === 'student' && account.memberType === 'students') {
         const linkedStudent = await db.doc(`schools/${schoolId}/students/${account.linkedRecordId}`).get();
         if (!linkedStudent.exists) throw new HttpsError('not-found', 'The linked student record was not found in this school.');
     }
@@ -1286,6 +1463,11 @@ exports.createSchoolUser = onCall(async request => {
         });
         const member = {
             role: account.role,
+            roleId: account.roleId,
+            roleLabel: account.roleLabel,
+            userMemberType: account.userMemberType,
+            userMemberRecordId: account.userMemberRecordId,
+            memberType: account.memberType,
             status: 'active',
             fullName: account.fullName,
             userId: account.userId,
@@ -1306,7 +1488,7 @@ exports.createSchoolUser = onCall(async request => {
         };
         const batch = db.batch();
         batch.set(db.doc(`schools/${schoolId}/members/${createdUser.uid}`), member);
-        if (account.role === 'parent') {
+        if (account.role === 'parent' && ['students', 'parents'].includes(account.memberType)) {
             batch.set(db.doc(`schools/${schoolId}/members/${createdUser.uid}/linkedStudents/${account.linkedRecordId}`), {
                 studentId: account.linkedRecordId,
                 createdAt: FieldValue.serverTimestamp()
@@ -1347,9 +1529,21 @@ exports.updateSchoolUser = onCall(async request => {
         throw new HttpsError('permission-denied', 'Administrator accounts cannot be changed from this form.');
     }
     const currentMember = memberSnapshot.data();
-    const role = normalizeRole(request.data?.role === undefined ? currentMember.role : request.data.role);
-    if (!assignableRoles.has(role)) {
-        throw new HttpsError('invalid-argument', 'Choose a supported role.');
+    const roleDefinition = await resolveSchoolRole(schoolId, {
+        role: request.data?.role === undefined ? currentMember.role : request.data.role,
+        roleId: request.data?.roleId === undefined ? currentMember.roleId : request.data.roleId,
+        memberType: request.data?.memberType === undefined ? currentMember.memberType : request.data.memberType
+    });
+    const role = roleDefinition.baseRole;
+    const userMemberType = validateUserMemberType(
+        request.data?.userMemberType === undefined ? currentMember.userMemberType : request.data.userMemberType,
+        role
+    );
+    const userMemberRecordId = String(
+        request.data?.userMemberRecordId === undefined ? currentMember.userMemberRecordId || '' : request.data.userMemberRecordId || ''
+    ).trim();
+    if (userMemberRecordId.length > 120) {
+        throw new HttpsError('invalid-argument', 'User member record IDs must be 120 characters or fewer.');
     }
     const fullName = String(request.data?.fullName || '').trim();
     const email = String(request.data?.email || '').trim().toLowerCase();
@@ -1360,7 +1554,16 @@ exports.updateSchoolUser = onCall(async request => {
     if (linkedRecordId !== (memberSnapshot.data().linkedRecordId || '')) {
         throw new HttpsError('failed-precondition', 'Linked student, parent, or staff records must be changed through an approved linking workflow.');
     }
-    const linkedRecordType = role === 'student' ? 'student' : role === 'parent' ? 'parent' : 'staff';
+    const memberType = ['students', 'teachers', 'staff', 'parents', 'visitors'].includes(request.data?.memberType)
+        ? request.data.memberType
+        : roleDefinition.memberType;
+    const linkedRecordType = ({
+        students: 'student',
+        teachers: 'teacher',
+        staff: 'staff',
+        parents: 'parent',
+        visitors: 'visitor'
+    })[memberType];
     if (linkedRecordId && linkedRecordType !== (currentMember.linkedRecordType || 'staff')) {
         throw new HttpsError('failed-precondition', 'The assigned role is incompatible with this linked record.');
     }
@@ -1383,6 +1586,11 @@ exports.updateSchoolUser = onCall(async request => {
         userId,
         email,
         role,
+        roleId: roleDefinition.id,
+        roleLabel: roleDefinition.label,
+        userMemberType,
+        userMemberRecordId,
+        memberType,
         permissions,
         assignedClassIds,
         phone: String(request.data?.phone || '').trim(),

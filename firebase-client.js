@@ -248,6 +248,8 @@ async function changeOwnPassword(schoolId, currentPassword, newPassword) {
 
 const createSchoolUser = httpsCallable(functions, 'createSchoolUser');
 const getAssignableSchoolPermissions = httpsCallable(functions, 'getAssignableSchoolPermissions');
+const getAssignableSchoolRoles = httpsCallable(functions, 'getAssignableSchoolRoles');
+const saveAssignableSchoolRoles = httpsCallable(functions, 'saveAssignableSchoolRoles');
 const getAssignableNoticeRecipients = httpsCallable(functions, 'getAssignableNoticeRecipients');
 const updateSchoolUser = httpsCallable(functions, 'updateSchoolUser');
 const generateSchoolUserPasswordResetLink = httpsCallable(functions, 'generateSchoolUserPasswordResetLink');
@@ -390,6 +392,9 @@ window.schoolPortalFirebase = {
         (await getParentPortalDashboardSummary({ schoolId })).data,
     createSchoolUser,
     getAssignableSchoolPermissions: async schoolId => (await getAssignableSchoolPermissions({ schoolId })).data,
+    getAssignableSchoolRoles: async schoolId => (await getAssignableSchoolRoles({ schoolId })).data,
+    saveAssignableSchoolRoles: async (schoolId, roles) =>
+        (await saveAssignableSchoolRoles({ schoolId, roles })).data,
     updateSchoolUser,
     generateSchoolUserPasswordResetLink,
     setSchoolUserStatus,

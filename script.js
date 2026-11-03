@@ -4706,6 +4706,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const adminAccountAccessNotice = document.getElementById('adminAccountAccessNotice');
     const dataPermissionsContainerEl = document.getElementById('dataPermissionsContainer');
     const accountRecordSelect = document.getElementById('accountRecordId');
+    const accountMemberTypeSelect = document.getElementById('accountMemberType');
+    const accountUserMemberTypeSelect = document.getElementById('accountUserMemberType');
+    const accountUserMemberSelect = document.getElementById('accountUserMemberId');
+    const accountUserMemberHelp = document.getElementById('accountUserMemberHelp');
+    const accountMemberTypeGroup = accountMemberTypeSelect?.closest('.form-group');
     const manualAccountRecordId = document.getElementById('manualAccountRecordId');
     const accountRecordHelp = document.getElementById('accountRecordHelp');
     const accountRecordGroup = accountRecordSelect?.closest('.form-group');
@@ -4720,12 +4725,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const invitationScopeNotice = document.getElementById('accountInvitationScopeNotice');
     const temporaryPasswordField = document.querySelector('.temporary-password-field');
     const temporaryAccountPassword = document.getElementById('temporaryAccountPassword');
+    const roleManagementContent = document.getElementById('roleManagementContent');
+    const roleManagementList = document.getElementById('roleManagementList');
+    const roleManagementMessage = document.getElementById('roleManagementMessage');
+    const roleTemplateSelect = document.getElementById('newRoleTemplate');
     let assignablePermissionOptions = null;
     let permissionOptionsSchoolId = '';
+    let schoolRoleDefinitions = [];
     let assignableClasses = null;
     let classOptionsSchoolId = '';
     let linkedRecordRequest = 0;
+    let userMemberRequest = 0;
     const assignableRecords = new Map();
+    const userMemberCollections = {
+        student: 'students',
+        teacher: 'teachers',
+        staff: 'staff',
+        parent: 'parents',
+        visitor: 'visitors'
+    };
     const roleKeysByLabel = {
         'School Admin': 'schoolAdmin',
         'Deputy Head Teacher': 'deputyHeadTeacher',
@@ -4737,31 +4755,50 @@ document.addEventListener('DOMContentLoaded', () => {
         Parent: 'parent',
         Student: 'student'
     };
-    const roleKeyForSelection = role => roleKeysByLabel[role] || role;
-    const recordCollectionForRole = role => ['student', 'parent'].includes(roleKeyForSelection(role))
-        ? 'students'
-        : roleKeyForSelection(role) === 'schoolAdmin' ? '' : 'staff';
-    const updateLinkedRecordOptions = async (role, selectedId = accountRecordSelect?.value || '') => {
+    const roleKeyForSelection = role => schoolRoleDefinitions.find(item => item.id === role)?.baseRole
+        || roleKeysByLabel[role]
+        || role;
+    const roleDefinitionForSelection = role => schoolRoleDefinitions.find(item => item.id === role)
+        || schoolRoleDefinitions.find(item => item.baseRole === roleKeyForSelection(role));
+    const userMemberTypeForRole = role => {
+        const roleKey = roleKeyForSelection(role);
+        if (roleKey === 'student') return 'student';
+        if (roleKey === 'parent') return 'parent';
+        return ['teacher', 'deputyHeadTeacher'].includes(roleKey) ? 'teacher' : 'staff';
+    };
+    const defaultMemberTypeForRole = () => 'staff';
+    const roleLabelForMember = member => member.roleLabel
+        || schoolRoleDefinitions.find(role => role.id === member.roleId)?.label
+        || Object.entries(roleKeysByLabel).find(([, key]) => key === member.role)?.[0]
+        || member.role;
+    const updateLinkedRecordOptions = async (role, selectedId = accountRecordSelect?.value || '', memberType = accountMemberTypeSelect?.value) => {
         if (!accountRecordSelect) return;
         const requestId = ++linkedRecordRequest;
         const roleKey = roleKeyForSelection(role);
-        const recordType = recordCollectionForRole(role);
-        const isRequired = ['student', 'parent'].includes(roleKey);
-        accountRecordGroup?.classList.toggle('hidden', !recordType);
+        const recordType = memberType;
+        const isRequired = ['student', 'parent'].includes(roleKey)
+            && ['students', 'parents'].includes(recordType);
+        const isAdministrator = roleKey === 'schoolAdmin';
+        accountRecordGroup?.classList.toggle('hidden', isAdministrator);
+        accountMemberTypeGroup?.classList.toggle('hidden', isAdministrator);
         accountRecordSelect.required = isRequired;
-        accountRecordSelect.disabled = !recordType;
-        if (!recordType) {
+        accountRecordSelect.disabled = isAdministrator || !recordType;
+        if (isAdministrator || !recordType) {
             accountRecordSelect.replaceChildren(new Option('Not applicable', ''));
             manualAccountRecordId.classList.add('hidden');
             manualAccountRecordId.required = false;
             manualAccountRecordId.value = '';
-            accountRecordHelp.textContent = 'School administrators do not need a linked record.';
+            accountRecordHelp.textContent = isAdministrator
+                ? 'School administrators do not need a linked record.'
+                : 'Select a member type to load school records.';
             return;
         }
         accountRecordSelect.replaceChildren(new Option('Loading records…', ''));
         accountRecordHelp.textContent = isRequired
-            ? 'Select the student record this account belongs to.'
-            : 'Select the matching staff record, if one exists.';
+            ? roleKey === 'parent' && recordType === 'parents'
+                ? 'Select the parent contact; its linked student will be connected to the parent portal.'
+                : `Select a ${recordType} record for this account.`
+            : `Select a ${recordType} record, if one exists.`;
         const schoolId = loadSession()?.schoolId;
         if (!schoolId) {
             accountRecordSelect.replaceChildren(new Option('Sign in to load records', ''));
@@ -4787,7 +4824,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 record.id
             ));
         });
-        if (recordType === 'staff') {
+        if (['staff', 'teachers'].includes(recordType)) {
             accountRecordSelect.add(new Option('Enter staff record ID manually…', '__manual__'));
         }
         if (selectedId && !records.some(record => record.id === selectedId)) {
@@ -4798,18 +4835,80 @@ document.addEventListener('DOMContentLoaded', () => {
         manualAccountRecordId.required = accountRecordSelect.value === '__manual__';
         if (!records.length) {
             accountRecordHelp.textContent = isRequired
-                ? 'No student records are available. Add a student record before creating this account.'
-                : 'No staff records are available. Choose manual entry to add a staff record ID, or leave it unlinked.';
+                ? `No ${recordType} records are available for this account.`
+                : `No ${recordType} records are available. Choose manual entry if available, or leave it unlinked.`;
         }
     };
+    const updateUserMemberOptions = async (selectedId = accountUserMemberSelect?.value || '') => {
+        if (!accountUserMemberSelect) return;
+        const requestId = ++userMemberRequest;
+        const userMemberType = accountUserMemberTypeSelect.value;
+        const recordType = userMemberCollections[userMemberType];
+        accountUserMemberSelect.disabled = true;
+        accountUserMemberSelect.replaceChildren(new Option('Loading members…', ''));
+        const schoolId = loadSession()?.schoolId;
+        if (!schoolId || !recordType) {
+            accountUserMemberSelect.replaceChildren(new Option('Sign in to load members', ''));
+            accountUserMemberHelp.textContent = 'Sign in to load school members.';
+            return;
+        }
+        const cacheKey = `${schoolId}:${recordType}`;
+        if (!assignableRecords.has(cacheKey)) {
+            assignableRecords.set(cacheKey, await getFirebase().getAssignableSchoolRecords(schoolId, recordType));
+        }
+        if (requestId !== userMemberRequest) return;
+        const records = assignableRecords.get(cacheKey);
+        accountUserMemberSelect.replaceChildren(new Option(
+            records.length ? 'Select a member…' : 'No members available',
+            ''
+        ));
+        records.forEach(record => {
+            accountUserMemberSelect.add(new Option(
+                `${record.displayId || record.memberId || record.id} — ${record.name}`,
+                record.memberId || record.id
+            ));
+        });
+        if (selectedId && !records.some(record => (record.memberId || record.id) === selectedId)) {
+            accountUserMemberSelect.add(new Option(`${selectedId} — member record unavailable`, selectedId));
+        }
+        accountUserMemberSelect.value = selectedId;
+        accountUserMemberSelect.disabled = false;
+        accountUserMemberHelp.textContent = records.length
+            ? 'Select a member to fill in their name and User ID.'
+            : `No ${userMemberType} members are available for this school.`;
+    };
+    accountUserMemberSelect?.addEventListener('change', () => {
+        const userMemberType = accountUserMemberTypeSelect.value;
+        const recordType = userMemberCollections[userMemberType];
+        const schoolId = loadSession()?.schoolId;
+        const records = assignableRecords.get(`${schoolId}:${recordType}`) || [];
+        const selectedRecord = records.find(record => (record.memberId || record.id) === accountUserMemberSelect.value);
+        if (!selectedRecord) return;
+        document.getElementById('fullNameInput').value = selectedRecord.name || '';
+        const suggestedUserId = selectedRecord.email?.split('@')[0]
+            || selectedRecord.name?.toLowerCase().trim().replace(/[^a-z0-9]+/g, '.')
+            || selectedRecord.displayId || selectedRecord.memberId || selectedRecord.id || '';
+        document.getElementById('userIdInputNew').value = String(suggestedUserId)
+            .replace(/^[.-]+|[.-]+$/g, '').slice(0, 120);
+        document.getElementById('accountEmail').value = selectedRecord.email || '';
+        document.getElementById('accountPhone').value = selectedRecord.phone || '';
+    });
+    accountUserMemberTypeSelect?.addEventListener('change', () => {
+        void updateUserMemberOptions('');
+    });
     accountRecordSelect?.addEventListener('change', () => {
         const manualMode = accountRecordSelect.value === '__manual__';
         manualAccountRecordId.classList.toggle('hidden', !manualMode);
         manualAccountRecordId.required = manualMode;
         if (!manualMode) manualAccountRecordId.value = '';
+        const recordType = accountMemberTypeSelect?.value;
+        const schoolId = loadSession()?.schoolId;
         accountRecordHelp.textContent = manualMode
-            ? 'Enter the staff record ID. This does not create a staff profile; it only stores the ID on this account.'
-            : 'Choose an existing record or leave the staff account unlinked.';
+            ? 'Enter the staff or teacher record ID. This does not create a profile; it only stores the ID on this account.'
+            : 'Choose an existing record or leave the account unlinked.';
+    });
+    accountMemberTypeSelect?.addEventListener('change', () => {
+        void updateLinkedRecordOptions(roleSelectEl.value, '', accountMemberTypeSelect.value);
     });
     const updateAccountRoleFields = role => {
         const isAdministrator = roleKeyForSelection(role) === 'schoolAdmin';
@@ -4834,6 +4933,43 @@ document.addEventListener('DOMContentLoaded', () => {
         permissionOptionsSchoolId = schoolId;
         return assignablePermissionOptions;
     };
+    const loadAssignableSchoolRoles = async schoolId => {
+        schoolRoleDefinitions = await getFirebase().getAssignableSchoolRoles(schoolId);
+        populateRoleOptions();
+        return schoolRoleDefinitions;
+    };
+    function renderRoleManagementList() {
+        if (!roleManagementList) return;
+        roleManagementList.replaceChildren();
+        if (!schoolRoleDefinitions.length) {
+            roleManagementList.textContent = 'Load roles by opening this panel while signed in.';
+            return;
+        }
+        const roleLabels = Object.fromEntries(Object.entries(roleKeysByLabel).map(([label, key]) => [key, label]));
+        schoolRoleDefinitions.forEach(role => {
+            const row = document.createElement('div');
+            row.className = 'role-management-item';
+            const copy = document.createElement('div');
+            const name = document.createElement('strong');
+            name.textContent = role.label;
+            const details = document.createElement('small');
+            details.textContent = role.protected
+                ? (role.baseRole === 'schoolAdmin' ? 'Protected administrator role' : 'Built-in system role')
+                : `Uses ${roleLabels[role.baseRole] || role.baseRole} permissions`;
+            copy.append(name, details);
+            row.appendChild(copy);
+            if (!role.system) {
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'btn-secondary role-remove-button';
+                remove.dataset.removeRole = role.id;
+                remove.setAttribute('aria-label', `Remove ${role.label} role`);
+                remove.innerHTML = '<i class="fas fa-trash" aria-hidden="true"></i>';
+                row.appendChild(remove);
+            }
+            roleManagementList.appendChild(row);
+        });
+    }
     const loadAssignableClasses = async schoolId => {
         if (assignableClasses && classOptionsSchoolId === schoolId) return assignableClasses;
         assignableClasses = await getFirebase().getAssignableSchoolClasses(schoolId);
@@ -4959,15 +5095,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isHidden) {
             assignableRecords.clear();
             addUserForm.classList.remove('hidden');
-            clearForm();
             const session = loadSession();
             try {
                 await Promise.all([
+                    loadAssignableSchoolRoles(session.schoolId),
                     loadAssignablePermissionOptions(session.schoolId),
                     loadAssignableClasses(session.schoolId)
                 ]);
+                clearForm();
                 updateAccountRoleFields(roleSelectEl.value);
-                await updateLinkedRecordOptions(roleSelectEl.value, '');
+                await Promise.all([
+                    updateLinkedRecordOptions(roleSelectEl.value, '', accountMemberTypeSelect.value),
+                    updateUserMemberOptions('')
+                ]);
             } catch (error) {
                 console.error('Unable to load account form options.', error);
                 accountRecordHelp.textContent = error.message || 'Unable to load linked records.';
@@ -4975,6 +5115,61 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             addUserForm.classList.add('hidden');
+        }
+    });
+
+    document.getElementById('toggleRoleManagement')?.addEventListener('click', async event => {
+        const button = event.currentTarget;
+        const opening = roleManagementContent.classList.contains('hidden');
+        roleManagementContent.classList.toggle('hidden', !opening);
+        button.setAttribute('aria-expanded', String(opening));
+        if (!opening) return;
+        roleManagementMessage.textContent = 'Loading roles…';
+        try {
+            await loadAssignableSchoolRoles(loadSession().schoolId);
+            roleManagementMessage.textContent = '';
+        } catch (error) {
+            roleManagementMessage.textContent = error.message || 'Unable to load roles.';
+        }
+    });
+
+    document.getElementById('addRoleForm')?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const label = document.getElementById('newRoleName').value.trim().replace(/\s+/g, ' ');
+        const baseRole = roleTemplateSelect.value;
+        const memberType = baseRole === 'student' ? 'students'
+            : baseRole === 'parent' ? 'parents'
+                : ['teacher', 'deputyHeadTeacher'].includes(baseRole) ? 'teachers' : 'staff';
+        const roles = schoolRoleDefinitions.filter(role => !role.system).map(({ label: roleLabel, baseRole: templateRole, memberType: type }) => ({
+            label: roleLabel,
+            baseRole: templateRole,
+            memberType: type
+        }));
+        roles.push({ label, baseRole, memberType });
+        try {
+            schoolRoleDefinitions = await getFirebase().saveAssignableSchoolRoles(loadSession().schoolId, roles);
+            populateRoleOptions();
+            form.reset();
+            roleManagementMessage.textContent = `${label} role added.`;
+        } catch (error) {
+            roleManagementMessage.textContent = error.message || 'Unable to add this role.';
+        }
+    });
+
+    roleManagementList?.addEventListener('click', async event => {
+        const button = event.target.closest('[data-remove-role]');
+        if (!button) return;
+        const roleToRemove = schoolRoleDefinitions.find(role => role.id === button.dataset.removeRole);
+        if (!roleToRemove || !confirm(`Remove ${roleToRemove.label} from available roles?`)) return;
+        const roles = schoolRoleDefinitions.filter(role => !role.system && role.id !== roleToRemove.id)
+            .map(({ label, baseRole, memberType }) => ({ label, baseRole, memberType }));
+        try {
+            schoolRoleDefinitions = await getFirebase().saveAssignableSchoolRoles(loadSession().schoolId, roles);
+            populateRoleOptions();
+            roleManagementMessage.textContent = `${roleToRemove.label} role removed.`;
+        } catch (error) {
+            roleManagementMessage.textContent = error.message || 'Unable to remove this role.';
         }
     });
 
@@ -7145,16 +7340,40 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function populateRoleOptions(){
-        const roles = ['Deputy Head Teacher', 'Bursar', 'Teacher', 'Librarian', 'HR Officer', 'Store Manager', 'Parent', 'Student'];
-        if (loadSession()?.user?.role === 'schoolAdmin') roles.unshift('School Admin');
-        roleSelectEl.innerHTML = '';
-        roles.forEach(r => {
-            const opt = document.createElement('option'); opt.value = r; opt.textContent = r; roleSelectEl.appendChild(opt);
+        const selectedRole = roleSelectEl.value;
+        const roles = schoolRoleDefinitions.length ? schoolRoleDefinitions : Object.entries(roleKeysByLabel)
+            .filter(([, baseRole]) => baseRole !== 'schoolAdmin')
+            .map(([label, baseRole]) => ({
+                id: baseRole,
+                label,
+                baseRole,
+                memberType: baseRole === 'student' ? 'students'
+                    : baseRole === 'parent' ? 'parents'
+                        : ['teacher', 'deputyHeadTeacher'].includes(baseRole) ? 'teachers' : 'staff',
+                system: true,
+                protected: true
+            }));
+        const canAssignSchoolAdmin = loadSession()?.user?.role === 'schoolAdmin';
+        roleSelectEl.replaceChildren();
+        roles.filter(role => role.baseRole !== 'schoolAdmin' || canAssignSchoolAdmin).forEach(role => {
+            roleSelectEl.add(new Option(role.label, role.id));
         });
+        if (Array.from(roleSelectEl.options).some(option => option.value === selectedRole)) {
+            roleSelectEl.value = selectedRole;
+        } else if (roleSelectEl.querySelector('option[value="teacher"]')) {
+            roleSelectEl.value = 'teacher';
+        }
+        renderRoleManagementList();
+        if (roleTemplateSelect) {
+            const templates = new Map(roles.filter(role => role.system && role.baseRole !== 'schoolAdmin')
+                .map(role => [role.baseRole, role.label]));
+            roleTemplateSelect.replaceChildren(...Array.from(templates, ([value, label]) => new Option(label, value)));
+        }
     }
 
     function applyRoleDefaults(role){
-        if (role === 'School Admin') {
+        const roleKey = roleKeyForSelection(role);
+        if (roleKey === 'schoolAdmin') {
             const sectionCheckboxes = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]'));
             sectionCheckboxes.forEach(checkbox => {
                 checkbox.checked = false;
@@ -7164,7 +7383,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectAllSections) selectAllSections.checked = false;
             return;
         }
-        const preset = rolePresets[role] || rolePresets.Teacher;
+        const roleLabels = Object.fromEntries(Object.entries(roleKeysByLabel).map(([label, key]) => [key, label]));
+        const preset = rolePresets[roleLabels[roleKey]] || rolePresets.Teacher;
         const sectionCheckboxes = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]'));
         const selectedSections = new Set(preset.sections || []);
         sectionCheckboxes.forEach(checkbox => {
@@ -7305,7 +7525,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const updateRoleHelp = () => {
-            accessHelp.textContent = roleSelectEl.value === 'Parent'
+            accessHelp.textContent = roleKeyForSelection(roleSelectEl.value) === 'parent'
                 ? 'Selected sections control the parent portal navigation; each section also requires matching record-level view access. Recommended: linked children, attendance, report cards, assignments, fees, and school notices.'
                 : accessHelp.dataset.defaultHelp;
         };
@@ -7332,11 +7552,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const session = loadSession();
         usersTableBody.innerHTML = '';
         if (!session?.schoolId || !session.userId) {
-            usersTableBody.innerHTML = '<tr><td colspan="10">Sign in to view accounts for this school.</td></tr>';
+            usersTableBody.innerHTML = '<tr><td colspan="11">Sign in to view accounts for this school.</td></tr>';
             return;
         }
         if (!['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(session.user?.role)) {
-            usersTableBody.innerHTML = '<tr><td colspan="10">Only school administrators can view school accounts.</td></tr>';
+            usersTableBody.innerHTML = '<tr><td colspan="11">Only school administrators can view school accounts.</td></tr>';
             return;
         }
         let users;
@@ -7344,11 +7564,11 @@ document.addEventListener('DOMContentLoaded', () => {
             users = await getFirebase().listMembers(session.schoolId);
         } catch (error) {
             console.error('Unable to load school accounts from Firestore.', error);
-            usersTableBody.innerHTML = '<tr><td colspan="10">Unable to load accounts. Check your connection, then sign out and back in if administrator access was recently changed.</td></tr>';
+            usersTableBody.innerHTML = '<tr><td colspan="11">Unable to load accounts. Check your connection, then sign out and back in if administrator access was recently changed.</td></tr>';
             return;
         }
         if (!users.length) {
-            usersTableBody.innerHTML = '<tr><td colspan="10">No accounts were found for this school. Use Add User to create the first account.</td></tr>';
+            usersTableBody.innerHTML = '<tr><td colspan="11">No accounts were found for this school. Use Add User to create the first account.</td></tr>';
             return;
         }
         users.forEach(u => {
@@ -7373,7 +7593,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
                 <td>${escapeUserHTML(u.fullName)} ${u.uid === session.userId ? '<span class="badge" style="margin-left:8px; font-size:9px; padding:2px 6px; background:var(--primary); vertical-align: middle;">You</span>' : ''}</td>
                 <td>${escapeUserHTML(u.userId)}</td>
-                <td>${escapeUserHTML(u.role)}</td>
+                <td>${escapeUserHTML(u.userMemberType || userMemberTypeForRole(u.role))}</td>
+                <td>${escapeUserHTML(roleLabelForMember(u))}</td>
                 <td>${escapeUserHTML(u.linkedRecordId || '—')}</td>
                 <td>${escapeUserHTML(contactNumber)}</td>
                 <td>${isAdministrator ? 'All sections' : sectionCount}</td>
@@ -7402,6 +7623,7 @@ document.addEventListener('DOMContentLoaded', () => {
         manualAccountRecordId.classList.add('hidden');
         manualAccountRecordId.required = false;
         accountRecordSelect.disabled = false;
+        accountMemberTypeSelect.disabled = false;
         temporaryPasswordField.hidden = false;
         temporaryAccountPassword.required = true;
         if (roleSelectEl) roleSelectEl.disabled = false;
@@ -7412,7 +7634,9 @@ document.addEventListener('DOMContentLoaded', () => {
             photoPreview.style.display = 'none';
         }
         if (roleSelectEl) {
-            roleSelectEl.value = roleSelectEl.querySelector('option[value="Teacher"]') ? 'Teacher' : roleSelectEl.options[0]?.value;
+            roleSelectEl.value = roleSelectEl.querySelector('option[value="teacher"]') ? 'teacher' : roleSelectEl.options[0]?.value;
+            if (accountMemberTypeSelect) accountMemberTypeSelect.value = defaultMemberTypeForRole(roleSelectEl.value);
+            if (accountUserMemberTypeSelect) accountUserMemberTypeSelect.value = userMemberTypeForRole(roleSelectEl.value);
             applyRoleDefaults(roleSelectEl.value);
             updateAccountRoleFields(roleSelectEl.value);
         }
@@ -7424,7 +7648,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!session?.schoolId || !session.userId) return alert('Sign in to a school before creating accounts.');
         const fullName = document.getElementById('fullNameInput').value.trim();
         const userId = document.getElementById('userIdInputNew').value.trim().toLowerCase();
-        const role = document.getElementById('roleSelect').value;
+        const selectedRoleId = roleSelectEl.value;
+        const roleDefinition = roleDefinitionForSelection(selectedRoleId);
+        const role = roleDefinition?.baseRole || roleKeyForSelection(selectedRoleId);
         const sections = Array.from(sectionsContainerEl.querySelectorAll('input[type="checkbox"][value]:checked')).map(i => i.value);
         const assignedClassIds = readAssignedClassIds(role);
         const email = document.getElementById('accountEmail').value.trim().toLowerCase();
@@ -7432,7 +7658,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const linkedRecordId = accountRecordSelect.value === '__manual__'
             ? manualAccountRecordId.value.trim()
             : accountRecordSelect.value.trim();
-        const isSchoolAdminRole = roleKeyForSelection(role) === 'schoolAdmin';
+        const memberType = accountMemberTypeSelect.value;
+        const userMemberType = accountUserMemberTypeSelect.value;
+        const userMemberRecordId = accountUserMemberSelect.value.trim();
+        const isSchoolAdminRole = role === 'schoolAdmin';
         if (!fullName || !userId || !email) return alert('Provide the full name, User ID, and email address.');
         if (accountRecordSelect.value === '__manual__' && !linkedRecordId) {
             return alert('Enter the staff record ID or choose an existing record.');
@@ -7440,10 +7669,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!editingUserId && (temporaryPassword.length < 8 || temporaryPassword.length > 128)) {
             return alert('Temporary passwords must be between 8 and 128 characters. Letters or numbers alone are accepted.');
         }
-        if (['Teacher', 'Deputy Head Teacher'].includes(role) && !assignedClassIds.length) {
+        if (['teacher', 'deputyHeadTeacher'].includes(role) && !assignedClassIds.length) {
             return alert('Assign at least one class to a teaching account.');
         }
-        if (!isSchoolAdminRole && (!assignablePermissionOptions?.[roleKeyForSelection(role)] || !dataPermissionsContainerEl.querySelector('.data-permission-row'))) {
+        if (!isSchoolAdminRole && (!assignablePermissionOptions?.[role] || !dataPermissionsContainerEl.querySelector('.data-permission-row'))) {
             return alert('Role permissions are not available. Reopen the user form and try again.');
         }
         const photoInput = document.getElementById('profilePhotoInput');
@@ -7459,6 +7688,11 @@ document.addEventListener('DOMContentLoaded', () => {
             userId,
             email,
             role,
+            roleId: roleDefinition?.id || role,
+            roleLabel: roleDefinition?.label || roleLabelForMember({ role }),
+            userMemberType,
+            userMemberRecordId,
+            memberType,
             sections: isSchoolAdminRole ? [] : sections,
             assignedClassIds: isSchoolAdminRole ? [] : assignedClassIds,
             permissions: isSchoolAdminRole ? {} : readDataPermissions(),
@@ -7495,6 +7729,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         phone: accountFields.phone,
                         linkedRecordId: accountFields.linkedRecordId,
                         role,
+                        roleId: accountFields.roleId,
+                        roleLabel: accountFields.roleLabel,
+                        userMemberType: accountFields.userMemberType,
+                        userMemberRecordId: accountFields.userMemberRecordId,
+                        memberType: accountFields.memberType,
                         sections,
                         assignedClassIds,
                         permissions: accountFields.permissions,
@@ -7551,9 +7790,9 @@ document.addEventListener('DOMContentLoaded', () => {
             addUserForm.classList.remove('hidden');
             try {
                 await Promise.all([
+                    loadAssignableSchoolRoles(loadSession().schoolId),
                     loadAssignablePermissionOptions(loadSession().schoolId),
-                    loadAssignableClasses(loadSession().schoolId),
-                    updateLinkedRecordOptions(u.role, u.linkedRecordId || '')
+                    loadAssignableClasses(loadSession().schoolId)
                 ]);
             } catch (error) {
                 console.error('Unable to load role permission options for editing.', error);
@@ -7561,17 +7800,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             addUserForm.classList.remove('hidden');
+            const selectedRoleId = schoolRoleDefinitions.some(role => role.id === u.roleId) ? u.roleId : u.role;
+            roleSelectEl.value = selectedRoleId;
+            accountUserMemberTypeSelect.value = u.userMemberType || userMemberTypeForRole(selectedRoleId);
+            await updateUserMemberOptions(u.userMemberRecordId || '');
+            accountMemberTypeSelect.value = u.memberType || defaultMemberTypeForRole();
+            await updateLinkedRecordOptions(selectedRoleId, u.linkedRecordId || '', accountMemberTypeSelect.value);
             temporaryPasswordField.hidden = true;
             temporaryAccountPassword.required = false;
             const submitBtn = document.getElementById('addUserBtn');
             if (submitBtn) submitBtn.textContent = 'Update User';
             document.getElementById('fullNameInput').value = u.fullName;
             document.getElementById('userIdInputNew').value = u.userId || '';
-            const roleLabel = Object.entries(roleKeysByLabel).find(([, roleKey]) => roleKey === u.role)?.[0];
-            document.getElementById('roleSelect').value = roleLabel || u.role;
-            renderDataPermissions(document.getElementById('roleSelect').value, u.permissions || undefined);
-            renderAssignedClasses(document.getElementById('roleSelect').value, u.assignedClassIds || []);
+            renderDataPermissions(selectedRoleId, u.permissions || undefined);
+            renderAssignedClasses(selectedRoleId, u.assignedClassIds || []);
             accountRecordSelect.disabled = true;
+            accountMemberTypeSelect.disabled = true;
             document.getElementById('accountEmail').value = u.email || '';
             document.getElementById('accountPhone').value = u.phone || '';
             fillNotificationPreferences(addUserForm, u.notificationPreferences);
@@ -7623,7 +7867,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyRoleDefaults(roleSelectEl.value);
         updateAccountRoleFields(roleSelectEl.value);
         if (!addUserForm.classList.contains('hidden')) {
-            void updateLinkedRecordOptions(roleSelectEl.value, '').catch(error => {
+            void updateLinkedRecordOptions(roleSelectEl.value, '', accountMemberTypeSelect.value).catch(error => {
                 console.error('Unable to load records for account linking.', error);
                 accountRecordSelect.replaceChildren(new Option('Unable to load records', ''));
                 accountRecordHelp.textContent = error.message || 'Unable to load records for account linking.';
