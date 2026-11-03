@@ -5432,13 +5432,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="enquiry-form-grid">
                                 <div class="enquiry-form-group"><label>Visitor Type</label><select name="visitorType" required><option value="">Select visitor type</option><option>Parent / Guardian</option><option>Student</option><option>Staff Member</option><option>Supplier / Vendor</option><option>Guest</option><option>Other</option></select></div>
                                 <div class="enquiry-form-group"><label>Visit Purpose</label><select name="purpose" required><option value="">Select purpose</option><option>Admission Enquiry</option><option>Parent Meeting</option><option>Student Enquiry</option><option>Fee / Accounts</option><option>Document Collection</option><option>General Enquiry</option><option>Other</option></select></div>
-                                <div class="enquiry-form-group"><label>Full Name</label><input name="name" placeholder="Enter full name" required></div>
+                                <div class="enquiry-form-group"><label>Full Name</label><select name="name" required disabled><option value="">Select visitor type first</option></select><input type="text" data-enquiry-manual-name class="hidden" placeholder="Enter full name" disabled><small data-enquiry-name-help>Select a visitor type to load names from school records.</small></div>
                                 <div class="enquiry-form-group"><label>Mobile Number</label><input name="mobile" placeholder="+256 700 000000" required></div>
                                 <div class="enquiry-form-group full"><label>Address</label><textarea name="address" placeholder="Visitor's home or postal address"></textarea></div>
                                 <div class="enquiry-form-group"><label>Student ID</label><select name="studentId"><option value="">Select student (optional)</option></select></div>
                                 <div class="enquiry-form-group"><label>Department / Person</label><select name="department"><option value="">Select department</option><option>Principal's Office</option><option>Administration</option><option>Admissions</option><option>Accounts / Finance</option><option>Human Resources</option><option>Academic</option><option>Student Affairs</option><option>Transport</option><option>IT</option><option>Reception</option><option>Other</option></select></div>
                                 <div class="enquiry-form-group"><label>Appointment Date</label><input name="appointmentDate" type="date"></div>
-                                <div class="enquiry-form-group"><label>Assigned To</label><input name="assignedTo" placeholder="Staff member responsible"></div>
+                                <div class="enquiry-form-group"><label>Assigned To</label><select name="assignedTo" disabled><option value="">Select department first</option></select></div>
                                 <div class="enquiry-form-group"><label>Next Follow-up</label><input name="followUpDate" type="date"></div>
                                 <div class="enquiry-form-group"><label>Enquiry Status</label><select name="status"><option>New</option><option>In Progress</option><option>Waiting for Visitor</option><option>Resolved</option><option>Closed</option></select></div>
                                 <div class="enquiry-form-group"><label>Priority</label><select name="priority"><option>Normal</option><option>Important</option><option>Urgent</option></select></div>
@@ -5501,21 +5501,161 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
         const studentIdSelect = form.elements.studentId;
-        const refreshStudentOptions = selectedId => {
-            let students = [];
+        const departmentSelect = form.elements.department;
+        const assignedToSelect = form.elements.assignedTo;
+        const visitorTypeSelect = form.elements.visitorType;
+        const nameSelect = form.elements.name;
+        const manualNameInput = form.querySelector('[data-enquiry-manual-name]');
+        const nameHelp = form.querySelector('[data-enquiry-name-help]');
+        let currentNameOptions = [];
+        const readLocalRecords = key => {
             try {
-                const stored = JSON.parse(localStorage.getItem('school_students'));
-                students = Array.isArray(stored) ? stored : [];
-            } catch (error) {}
-            const studentOptions = students.filter(student => student.admissionNo).map(student => {
-                const name = [student.firstName, student.lastName].filter(Boolean).join(' ');
-                return `<option value="${escape(student.admissionNo)}">${escape(student.admissionNo)}${name ? ` - ${escape(name)}` : ''}</option>`;
+                const records = JSON.parse(localStorage.getItem(key) || '[]');
+                return Array.isArray(records) ? records.filter(record => record && record.deleted !== true) : [];
+            } catch (error) {
+                return [];
+            }
+        };
+        const studentRecords = () => readLocalRecords('school_students');
+        const studentName = student => String(student.fullName || student.name || student.studentName
+            || [student.firstName, student.middleName, student.lastName].filter(Boolean).join(' ')).trim();
+        const studentKeys = student => [student.id, student.recordId, student.studentRecordId, student.admissionNo,
+            student.admissionNumber, student.studentCode, student.studentId].map(value => String(value || '').trim()).filter(Boolean);
+        const studentDisplayId = student => String(student.admissionNo || student.admissionNumber || student.studentCode || student.studentId || student.id || '').trim();
+        const normalizeContact = value => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        const parentStudents = parent => {
+            const parents = readLocalRecords('schoolParentContacts');
+            const sameContact = candidate => candidate === parent
+                || (parent.familyReference && candidate.familyReference === parent.familyReference)
+                || (parent.email && normalizeContact(candidate.email) === normalizeContact(parent.email))
+                || (parent.mobile && normalizeContact(candidate.mobile) === normalizeContact(parent.mobile))
+                || (!parent.familyReference && !parent.email && !parent.mobile
+                    && normalizeContact(candidate.parentName) === normalizeContact(parent.parentName));
+            const related = parents.filter(sameContact);
+            const ids = new Set();
+            const names = new Set();
+            related.forEach(record => {
+                [record.studentRecordId, record.studentId].forEach(value => {
+                    if (value) ids.add(normalizeContact(value));
+                });
+                [record.studentName, ...(String(record.additionalStudents || '').split(/[,;\n]+/))].forEach(value => {
+                    if (value) names.add(normalizeContact(value));
+                });
             });
-            studentIdSelect.innerHTML = `<option value="">${studentOptions.length ? 'Select student (optional)' : 'No student records available'}</option>${studentOptions.join('')}`;
-            if (selectedId && !students.some(student => student.admissionNo === selectedId)) {
-                studentIdSelect.insertAdjacentHTML('beforeend', `<option value="${escape(selectedId)}">${escape(selectedId)} (not in student records)</option>`);
+            return studentRecords().filter(student =>
+                studentKeys(student).some(value => ids.has(normalizeContact(value)))
+                || names.has(normalizeContact(studentName(student)))
+            );
+        };
+        const directoryMembers = visitorType => {
+            if (visitorType === 'Parent / Guardian') {
+                return readLocalRecords('schoolParentContacts').map((record, index) => ({
+                    id: String(record.parentId || record.id || `${record.parentName || 'parent'}-${index}`),
+                    name: String(record.parentName || record.fullName || record.name || '').trim(),
+                    displayId: String(record.parentId || '').trim(),
+                    mobile: record.mobile || record.phone || '',
+                    email: record.email || '',
+                    address: record.address || '',
+                    record
+                })).filter(member => member.name);
+            }
+            if (visitorType === 'Student') {
+                return studentRecords().map((record, index) => ({
+                    id: String(record.id || record.recordId || record.admissionNo || record.studentId || `student-${index}`),
+                    name: studentName(record),
+                    displayId: studentDisplayId(record),
+                    mobile: record.mobile || record.phone || record.parentPhone || '',
+                    email: record.email || '',
+                    address: record.address || '',
+                    record
+                })).filter(member => member.name);
+            }
+            if (visitorType === 'Staff Member') {
+                const people = [
+                    ...readLocalRecords('school_teachers').map(record => ({ ...record, directoryType: 'Teacher' })),
+                    ...readLocalRecords('school_staff').map(record => ({ ...record, directoryType: 'Staff' }))
+                ];
+                const seen = new Set();
+                return people.map((record, index) => {
+                    const name = String(record.fullName || record.name || record.staffName
+                        || [record.firstName, record.middleName, record.lastName].filter(Boolean).join(' ')).trim();
+                    const id = String(record.id || record.staffId || record.employeeNo || record.employeeId || `${record.directoryType}-${index}`);
+                    const key = normalizeContact(record.email || record.phone || name);
+                    if (!name || seen.has(key)) return null;
+                    seen.add(key);
+                    return { id, name, displayId: String(record.staffId || record.employeeNo || record.employeeId || record.id || '').trim(), mobile: record.phone || record.mobile || '', email: record.email || '', address: record.address || '', record };
+                }).filter(Boolean);
+            }
+            if (visitorType === 'Supplier / Vendor') {
+                return readLocalRecords('schoolSupplierDirectory').map((record, index) => ({
+                    id: String(record.id || record.supplierId || record.code || `${record.name || 'supplier'}-${index}`),
+                    name: String(record.name || record.supplierName || record.companyName || '').trim(),
+                    displayId: String(record.id || record.supplierId || record.code || '').trim(),
+                    mobile: record.phone || record.mobile || record.contactPhone || '',
+                    email: record.email || record.contactEmail || '',
+                    address: [record.address, record.city, record.country].filter(Boolean).join(', '),
+                    record
+                })).filter(member => member.name);
+            }
+            return [];
+        };
+        const refreshStudentOptions = (selectedId = '', availableStudents = null) => {
+            const students = availableStudents || studentRecords();
+            studentIdSelect.replaceChildren(new Option(
+                students.length ? 'Select student (optional)' : 'No linked student records',
+                ''
+            ));
+            students.forEach(student => {
+                const displayId = studentDisplayId(student);
+                const name = studentName(student);
+                if (!displayId) return;
+                studentIdSelect.add(new Option(`${displayId}${name ? ` — ${name}` : ''}`, displayId));
+            });
+            if (selectedId && !Array.from(studentIdSelect.options).some(option => option.value === selectedId)) {
+                studentIdSelect.add(new Option(`${selectedId} — linked record unavailable`, selectedId));
             }
             studentIdSelect.value = selectedId || '';
+        };
+        const refreshNameOptions = (visitorType = visitorTypeSelect.value, selectedId = '', selectedName = '') => {
+            const manualEntry = Boolean(visitorType)
+                && !['Parent / Guardian', 'Student', 'Staff Member', 'Supplier / Vendor'].includes(visitorType);
+            manualNameInput.classList.toggle('hidden', !manualEntry);
+            manualNameInput.disabled = !manualEntry;
+            manualNameInput.required = manualEntry;
+            nameSelect.disabled = manualEntry || !visitorType;
+            nameSelect.required = !manualEntry && Boolean(visitorType);
+            currentNameOptions = directoryMembers(visitorType);
+            nameSelect.replaceChildren(new Option(
+                manualEntry ? 'Manual name entry' : currentNameOptions.length ? 'Select a name…' : 'No matching records available',
+                ''
+            ));
+            currentNameOptions.forEach(member => {
+                const label = `${member.name}${member.displayId ? ` — ${member.displayId}` : ''}`;
+                nameSelect.add(new Option(label, member.id));
+            });
+            const matchingMember = currentNameOptions.find(member => member.id === selectedId)
+                || currentNameOptions.find(member => member.name === selectedName);
+            if (selectedId && !matchingMember) nameSelect.add(new Option(`${selectedName || selectedId} — record unavailable`, selectedId));
+            nameSelect.value = matchingMember?.id || (selectedId && !matchingMember ? selectedId : '');
+            if (manualEntry) manualNameInput.value = selectedName || selectedId || '';
+            nameHelp.textContent = manualEntry
+                ? 'Enter the visitor name.'
+                : currentNameOptions.length ? 'Select a name from the school records.' : 'No records found for this visitor type.';
+        };
+        const updateStudentOptionsForSelectedName = (selectedStudentId = '') => {
+            const selectedMember = currentNameOptions.find(member => member.id === nameSelect.value);
+            const visitorType = visitorTypeSelect.value;
+            if (visitorType === 'Parent / Guardian') {
+                const linkedStudents = selectedMember ? parentStudents(selectedMember.record) : [];
+                refreshStudentOptions(selectedStudentId, linkedStudents);
+                studentIdSelect.disabled = !selectedMember || !linkedStudents.length;
+            } else if (visitorType === 'Student' && selectedMember) {
+                refreshStudentOptions(selectedStudentId || selectedMember.displayId);
+                studentIdSelect.disabled = false;
+            } else {
+                refreshStudentOptions(selectedStudentId);
+                studentIdSelect.disabled = false;
+            }
         };
         const enquiryStatuses = ['New', 'In Progress', 'Waiting for Visitor', 'Resolved', 'Closed'];
         const normalizeEnquiryStatus = status => status === 'Open' ? 'New' : status === 'Completed' ? 'Resolved' : enquiryStatuses.includes(status) ? status : 'New';
@@ -5526,6 +5666,36 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 return 'Front Desk';
             }
+        };
+        const refreshAssignedToOptions = (selectedName = '') => {
+            const department = departmentSelect.value.trim();
+            assignedToSelect.replaceChildren(new Option(
+                department ? 'Select a person…' : 'Select department first',
+                ''
+            ));
+            if (!department) {
+                assignedToSelect.disabled = true;
+                return;
+            }
+            assignedToSelect.disabled = false;
+            const normalizeDepartment = value => String(value || '').toLowerCase()
+                .replace(/\b(department|office)\b/g, '')
+                .replace(/[^a-z0-9]/g, '');
+            const departmentKey = normalizeDepartment(department);
+            const staffMembers = directoryMembers('Staff Member');
+            const departmentStaff = staffMembers.filter(member => {
+                const recordDepartment = normalizeDepartment(member.record.department
+                    || member.record.departmentName || member.record.staffDepartment);
+                return recordDepartment && (recordDepartment === departmentKey
+                    || recordDepartment.includes(departmentKey) || departmentKey.includes(recordDepartment));
+            });
+            if (!departmentStaff.length) {
+                assignedToSelect.replaceChildren(new Option('No staff members in this department', ''));
+                assignedToSelect.disabled = true;
+                return;
+            }
+            departmentStaff.forEach(member => assignedToSelect.add(new Option(member.name, member.name)));
+            assignedToSelect.value = departmentStaff.some(member => member.name === selectedName) ? selectedName : '';
         };
         const formatWorkflowTime = value => {
             const date = new Date(value);
@@ -5639,16 +5809,50 @@ document.addEventListener('DOMContentLoaded', () => {
         const updateSummary = () => renderNamedFormSummary(form, sec.querySelector('.enquiry-summary'));
         form.addEventListener('input', updateSummary);
         form.addEventListener('change', updateSummary);
-        form.addEventListener('reset', () => setTimeout(updateSummary));
+        departmentSelect.addEventListener('change', () => {
+            refreshAssignedToOptions();
+            updateSummary();
+        });
+        visitorTypeSelect.addEventListener('change', () => {
+            manualNameInput.value = '';
+            form.elements.mobile.value = '';
+            form.elements.address.value = '';
+            refreshNameOptions(visitorTypeSelect.value);
+            updateStudentOptionsForSelectedName('');
+            updateSummary();
+        });
+        nameSelect.addEventListener('change', () => {
+            const member = currentNameOptions.find(option => option.id === nameSelect.value);
+            if (member) {
+                form.elements.mobile.value = member.mobile || '';
+                form.elements.address.value = member.address || '';
+            }
+            updateStudentOptionsForSelectedName(
+                visitorTypeSelect.value === 'Student' ? member?.displayId || '' : ''
+            );
+            updateSummary();
+        });
+        manualNameInput.addEventListener('input', updateSummary);
+        form.addEventListener('reset', () => setTimeout(() => {
+            refreshNameOptions('', '');
+            refreshStudentOptions('');
+            refreshAssignedToOptions();
+            studentIdSelect.disabled = false;
+            updateSummary();
+        }, 0));
         form.addEventListener('submit', event => {
             event.preventDefault();
             const data = Object.fromEntries(new FormData(form).entries());
+            const selectedMember = currentNameOptions.find(member => member.id === nameSelect.value);
+            data.name = selectedMember?.name || manualNameInput.value.trim();
+            data.contactRecordId = selectedMember?.id || '';
+            data.contactRecordType = visitorTypeSelect.value;
             const entries = readEntries();
             const existing = editingIndex === null ? null : entries[editingIndex];
             const timestamp = new Date().toISOString();
             data.id = existing?.id || data.id || Date.now().toString();
             data.status = existing ? normalizeEnquiryStatus(data.status || existing.status) : 'New';
-            data.assignedTo = (data.assignedTo || '').trim() || existing?.assignedTo || currentActor();
+            data.assignedTo = (data.assignedTo || '').trim() || existing?.assignedTo || '';
             data.createdAt = existing?.createdAt || timestamp;
             data.updatedAt = timestamp;
             data.statusHistory = Array.isArray(existing?.statusHistory) ? existing.statusHistory : existing ? [{ status: normalizeEnquiryStatus(existing.status), by: existing.createdBy || 'Front Desk', at: existing.createdAt || timestamp }] : [];
@@ -5663,6 +5867,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             localStorage.setItem(storageKey, JSON.stringify(entries));
             form.reset();
+            refreshNameOptions('', '');
+            refreshStudentOptions('');
             editingIndex = null;
             sec.querySelector('.enquiry-entry-card').classList.add('hidden');
             sec.querySelector('.enquiry-summary-card').classList.add('hidden');
@@ -5674,6 +5880,8 @@ document.addEventListener('DOMContentLoaded', () => {
             entryCard.classList.add('hidden');
             sec.querySelector('.enquiry-summary-card').classList.add('hidden');
             form.reset();
+            refreshNameOptions('', '');
+            refreshStudentOptions('');
             form.elements.status.disabled = true;
             editingIndex = null;
             updateSummary();
@@ -5688,9 +5896,10 @@ document.addEventListener('DOMContentLoaded', () => {
             form.reset();
             form.elements.status.value = 'New';
             form.elements.status.disabled = true;
-            form.elements.assignedTo.value = currentActor();
+            refreshAssignedToOptions();
+            refreshNameOptions('', '');
             refreshStudentOptions();
-            form.querySelector('[name="name"]').focus();
+            visitorTypeSelect.focus();
             updateSummary();
         });
         sec.querySelector('[data-enquiry-cancel]').addEventListener('click', closeForm);
@@ -5753,17 +5962,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (actionButton.dataset.enquiryAction === 'edit') {
-                refreshStudentOptions(entry.studentId);
+                visitorTypeSelect.value = entry.visitorType || '';
+                refreshNameOptions(entry.visitorType || '', entry.contactRecordId || '', entry.name || '');
                 Object.entries(entry).forEach(([name, value]) => {
+                    if (['visitorType', 'name', 'studentId', 'assignedTo', 'contactRecordId', 'contactRecordType'].includes(name)) return;
                     const field = form.elements[name];
                     if (field) field.value = value;
                 });
+                if (!nameSelect.disabled) updateStudentOptionsForSelectedName(entry.studentId || '');
+                else refreshStudentOptions(entry.studentId || '');
+                refreshAssignedToOptions(entry.assignedTo || '');
+                if (manualNameInput.required) manualNameInput.value = entry.name || '';
                 form.elements.status.value = normalizeEnquiryStatus(entry.status);
                 form.elements.status.disabled = false;
-                form.elements.assignedTo.value = entry.assignedTo || '';
                 entryCard.classList.remove('hidden');
                 sec.querySelector('.enquiry-summary-card').classList.remove('hidden');
-                form.querySelector('[name="name"]').focus();
+                (nameSelect.disabled ? manualNameInput : nameSelect).focus();
                 updateSummary();
                 editingIndex = Number(actionButton.dataset.enquiryIndex);
                 return;
