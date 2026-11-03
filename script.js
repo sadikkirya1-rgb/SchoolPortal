@@ -3933,6 +3933,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const unlockDashboard = (userData) => {
         applyAccountSectionAccess(userData);
         renderMobileRoleNav(userData);
+        document.documentElement.classList.remove('portal-login-screen');
         referenceLoginPage?.classList.add('hidden');
         if (loginScreen) {
             loginScreen.classList.remove('active');

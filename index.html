@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="portal-login-screen">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -23,7 +23,7 @@ if (!location.hostname.endsWith('.app.github.dev')) {
 <script>
 try {
     const savedSession = JSON.parse(localStorage.getItem('edumasterAdminSession'));
-    if (savedSession?.authenticated && savedSession.schoolId && savedSession.userId) {
+    if (savedSession?.authenticated && savedSession.schoolId) {
         document.documentElement.classList.add('session-bootstrap');
     }
 } catch (error) {
@@ -32,15 +32,25 @@ try {
 </script>
 <link rel="preload" as="image" href="./assets/Smart School Management Login.png">
 <style>
-html, body {
-    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat fixed;
+html.portal-login-screen,
+html.portal-login-screen body,
+html.portal-login-screen .reference-login-page,
+html.portal-login-screen .reference-login-stage,
+html.session-bootstrap .session-bootstrap-screen {
+    background-color: #f1f5f9 !important;
+    background-image: url("./assets/Smart School Management Login.png") !important;
+    background-position: center center !important;
+    background-size: cover !important;
+    background-repeat: no-repeat !important;
 }
-html.session-bootstrap, html.session-bootstrap body {
+html.portal-login-screen,
+html.portal-login-screen body,
+html.session-bootstrap,
+html.session-bootstrap body {
     min-height: 100vh;
     min-height: 100svh;
-    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat fixed;
 }
-html.session-bootstrap body { transition: none; }
+html.portal-login-screen body { transition: none !important; }
 html.session-bootstrap .reference-login-page { display: none !important; }
 .session-bootstrap-screen { display: none; }
 html.session-bootstrap .session-bootstrap-screen {
@@ -50,7 +60,6 @@ html.session-bootstrap .session-bootstrap-screen {
     display: grid;
     place-items: center;
     padding: 24px;
-    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat fixed;
     color: #1e293b;
 }
 </style>
