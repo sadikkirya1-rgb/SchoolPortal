@@ -5535,10 +5535,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const ids = new Set();
             const names = new Set();
             related.forEach(record => {
-                [record.studentRecordId, record.studentId].forEach(value => {
+                const recordIds = [
+                    ...(Array.isArray(record.studentRecordIds) ? record.studentRecordIds : []),
+                    ...(Array.isArray(record.studentIds) ? record.studentIds : []),
+                    record.studentRecordId,
+                    record.studentId
+                ];
+                recordIds.forEach(value => {
                     if (value) ids.add(normalizeContact(value));
                 });
-                [record.studentName, ...(String(record.additionalStudents || '').split(/[,;\n]+/))].forEach(value => {
+                const recordNames = [
+                    ...(Array.isArray(record.studentNames) ? record.studentNames : []),
+                    record.studentName,
+                    ...(String(record.additionalStudents || '').split(/[,;\n]+/))
+                ];
+                recordNames.forEach(value => {
                     if (value) names.add(normalizeContact(value));
                 });
             });

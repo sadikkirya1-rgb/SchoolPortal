@@ -15,7 +15,7 @@ function createParentsModule() {
                     <label>National ID<input name="nationalId" placeholder="Identification number"></label><label>Occupation<input name="occupation" placeholder="Occupation / designation"></label><label>Company<input name="company" placeholder="Company name"></label>
                 </div>
                 <h4 class="pa-section-title">Student / Family Details</h4><div class="pa-grid">
-                    <label>Student Name<input name="studentName" required placeholder="Select a student" readonly></label><label>Student ID<select name="studentRecordId" required disabled><option value="">Loading students...</option></select><input name="studentId" type="hidden"><small data-pa-student-status role="status" aria-live="polite">Loading school student records...</small></label><label>Grade / Class<input name="className" placeholder="Select a student" readonly></label>
+                        <div class="pa-full pa-student-picker-field"><label for="paStudentPicker">Select enrolled students</label><div class="pa-student-picker"><select id="paStudentPicker" aria-describedby="paStudentHelp"><option value="">Choose a student</option></select><button class="pa-button pa-light" type="button" data-pa-add-student><i class="fas fa-plus" aria-hidden="true"></i> Add</button></div><div class="pa-selected-students" data-pa-selected-students aria-live="polite"></div><small id="paStudentHelp">Choose a student, then select Add. Repeat to add more than one.</small><small data-pa-student-status role="status" aria-live="polite">Loading school student records...</small></div><input name="studentRecordIds" type="hidden"><input name="studentRecordId" type="hidden"><input name="studentId" type="hidden"><input name="studentIds" type="hidden"><label>Student Name(s)<input name="studentName" required placeholder="Select enrolled students" readonly></label><label>Grade / Class<input name="className" placeholder="Select enrolled students" readonly></label>
                     <label>Additional Students<input name="additionalStudents" placeholder="Other children enrolled"></label><label>Family Reference<input name="familyReference" placeholder="Family reference number"></label><label>Parent Status<select name="status"><option>Active</option><option>Inactive</option><option>Pending Verification</option></select></label>
                 </div>
                 <h4 class="pa-section-title">Contact Information</h4><div class="pa-grid">
@@ -31,7 +31,7 @@ function createParentsModule() {
                     <label>Receive Marketing / Events<select name="marketing"><option>No</option><option>Yes</option></select></label><label>Consent Verified<select name="consent"><option>Yes</option><option>Pending</option><option>No</option></select></label><label>Last Contact Date<input name="lastContact" type="date"></label>
                     <label class="pa-full">Communication Notes<textarea name="notes" placeholder="Add communication notes, preferences, concerns or instructions..."></textarea></label><label class="pa-full">Internal Remarks<textarea name="remarks" placeholder="Internal department remarks..."></textarea></label>
                 </div></div><aside class="pa-live-summary" aria-label="Parent record summary"><h4>Parent Summary</h4><p>Review the record as you fill out the form.</p><div class="pa-live-summary-list">
-                    ${[['Parent ID', 'parentId'], ['Parent Name', 'parentName'], ['Relationship', 'relationship'], ['Student', 'studentName'], ['Student ID', 'studentId'], ['Grade / Class', 'className'], ['Mobile', 'mobile'], ['Email', 'email'], ['Preferred Channel', 'preferredChannel'], ['Language', 'language'], ['Status', 'status']].map(([label, name]) => `<div class="pa-live-summary-row"><span>${label}</span><strong data-pa-summary="${name}">—</strong></div>`).join('')}
+                    ${[['Parent ID', 'parentId'], ['Parent Name', 'parentName'], ['Relationship', 'relationship'], ['Student(s)', 'studentName'], ['Student ID(s)', 'studentIds'], ['Grade / Class', 'className'], ['Mobile', 'mobile'], ['Email', 'email'], ['Preferred Channel', 'preferredChannel'], ['Language', 'language'], ['Status', 'status']].map(([label, name]) => `<div class="pa-live-summary-row"><span>${label}</span><strong data-pa-summary="${name}">—</strong></div>`).join('')}
                 </div></aside><footer class="pa-modal-actions"><button class="pa-button pa-light" type="button" data-pa-cancel>Cancel</button><button class="pa-button pa-primary" type="submit">Save Parent</button></footer></div>
             </form>
         </section></div>
@@ -61,9 +61,11 @@ function createParentsModule() {
     const initials = name => String(name || '').split(/\s+/).filter(Boolean).map(part => part[0]).join('').slice(0, 2).toUpperCase();
     const save = () => localStorage.setItem(storageKey, JSON.stringify(parents));
     const parentIdInput = q('[name="parentId"]');
-    const studentSelect = q('[name="studentRecordId"]');
+    const studentSelect = q('#paStudentPicker');
+    const addStudentButton = q('[data-pa-add-student]');
+    const selectedStudentsContainer = q('[data-pa-selected-students]');
     const studentStatus = q('[data-pa-student-status]');
-    const formSummaryFields = ['parentId', 'parentName', 'relationship', 'studentName', 'studentId', 'className', 'mobile', 'email', 'preferredChannel', 'language', 'status'];
+    const formSummaryFields = ['parentId', 'parentName', 'relationship', 'studentName', 'studentIds', 'className', 'mobile', 'email', 'preferredChannel', 'language', 'status'];
     const updateFormSummary = () => {
         const form = q('[data-pa-form]');
         formSummaryFields.forEach(name => {
@@ -71,10 +73,24 @@ function createParentsModule() {
         });
     };
     let studentRecords = [];
+    let selectedStudentIds = [];
     const studentRecordId = student => String(student.id || student.admissionNo || student.admissionNumber || student.studentId || '').trim();
     const studentDisplayId = student => String(student.admissionNo || student.admissionNumber || student.studentCode || student.studentId || student.id || '').trim();
     const studentName = student => String(student.fullName || student.name || student.studentName || [student.firstName, student.middleName, student.lastName].filter(Boolean).join(' ') || '').trim();
     const studentForId = value => studentRecords.find(student => studentRecordId(student) === String(value) || studentDisplayId(student) === String(value));
+        const parentStudentRecordIds = parent => {
+            const ids = Array.isArray(parent.studentRecordIds) && parent.studentRecordIds.length
+                ? parent.studentRecordIds
+                : parent.studentRecordId ? [parent.studentRecordId]
+                    : Array.isArray(parent.studentIds) && parent.studentIds.length ? parent.studentIds : [parent.studentId];
+            return [...new Set(ids.map(value => String(value || '').trim()).filter(Boolean))];
+        };
+        const parentStudentNames = parent => Array.isArray(parent.studentNames) && parent.studentNames.length
+            ? parent.studentNames.join(', ')
+            : String(parent.studentName || '').trim();
+        const parentStudentIds = parent => Array.isArray(parent.studentIds) && parent.studentIds.length
+            ? parent.studentIds.join(', ')
+            : String(parent.studentId || '').trim();
     const nextParentId = () => {
         const year = new Date().getFullYear();
         const prefix = `PAR-${year}-`;
@@ -84,33 +100,72 @@ function createParentsModule() {
         }, 0);
         return `${prefix}${String(highestSequence + 1).padStart(3, '0')}`;
     };
-    const applyStudentDetails = student => {
+    const applyStudentDetails = (students, fallback = {}) => {
         const form = q('[data-pa-form]');
-        form.elements.studentRecordId.value = student ? studentRecordId(student) : '';
-        form.elements.studentId.value = student ? studentDisplayId(student) : '';
-        form.elements.studentName.value = student ? studentName(student) : '';
-        const className = String(student?.className || student?.class || student?.grade || student?.gradeName || '').trim();
-        const studentSection = String(student?.section || '').trim();
-        const classIncludesSection = className.split(/\s*-\s*/).some(part => part.toLowerCase() === studentSection.toLowerCase());
-        form.elements.className.value = studentSection && className && !classIncludesSection
-            ? `${className} - ${studentSection}`
-            : className || studentSection;
+        const selectedStudents = Array.isArray(students) ? students : students ? [students] : [];
+        const primaryStudent = selectedStudents[0];
+        form.elements.studentRecordId.value = primaryStudent ? studentRecordId(primaryStudent) : fallback.studentRecordId || '';
+        form.elements.studentId.value = primaryStudent ? studentDisplayId(primaryStudent) : fallback.studentId || '';
+        form.elements.studentIds.value = selectedStudents.length
+            ? selectedStudents.map(studentDisplayId).filter(Boolean).join(', ')
+            : fallback.studentIds || fallback.studentId || '';
+        form.elements.studentName.value = selectedStudents.length
+            ? selectedStudents.map(studentName).filter(Boolean).join(', ')
+            : fallback.studentName || '';
+        const classes = [...new Set(selectedStudents.map(student => {
+            const className = String(student.className || student.class || student.grade || student.gradeName || '').trim();
+            const studentSection = String(student.section || '').trim();
+            const classIncludesSection = className.split(/\s*-\s*/).some(part => part.toLowerCase() === studentSection.toLowerCase());
+            return studentSection && className && !classIncludesSection
+                ? `${className} - ${studentSection}`
+                : className || studentSection;
+        }).filter(Boolean))];
+        form.elements.className.value = classes.length ? classes.join(', ') : fallback.className || '';
     };
-    const refreshStudentOptions = () => {
-        const selectedId = studentSelect.value || q('[data-pa-form]').elements.studentRecordId.value;
-        studentSelect.replaceChildren(new Option('Select student', ''));
+    const refreshStudentOptions = (candidateId = '') => {
+        const currentCandidateId = candidateId || studentSelect.value;
+        const selectedIdSet = new Set(selectedStudentIds.map(String));
+        studentSelect.replaceChildren(new Option(studentRecords.length ? 'Choose a student' : 'No student records available', ''));
         studentRecords
             .filter(student => studentRecordId(student))
             .sort((left, right) => studentName(left).localeCompare(studentName(right)))
             .forEach(student => {
-                studentSelect.add(new Option(`${studentDisplayId(student)} — ${studentName(student) || 'Student'}`, studentRecordId(student)));
+                const option = new Option(`${studentDisplayId(student)} — ${studentName(student) || 'Student'}`, studentRecordId(student));
+                option.disabled = selectedIdSet.has(option.value);
+                studentSelect.add(option);
             });
-        if (selectedId && !Array.from(studentSelect.options).some(option => option.value === selectedId)) {
-            const student = studentForId(selectedId);
-            studentSelect.add(new Option(`${student ? studentDisplayId(student) : selectedId} — ${student ? studentName(student) : 'Student record unavailable'}`, selectedId));
+        studentSelect.value = selectedIdSet.has(currentCandidateId) ? '' : currentCandidateId;
+        if (!Array.from(studentSelect.options).some(option => option.value === studentSelect.value)) studentSelect.value = '';
+        studentSelect.disabled = !studentRecords.length;
+        addStudentButton.disabled = !studentSelect.value;
+    };
+    const renderSelectedStudents = () => {
+        selectedStudentsContainer.replaceChildren();
+        const form = q('[data-pa-form]');
+        form.elements.studentRecordIds.value = JSON.stringify(selectedStudentIds);
+        if (!selectedStudentIds.length) {
+            const empty = document.createElement('span');
+            empty.className = 'pa-student-selection-empty';
+            empty.textContent = 'No students added yet.';
+            selectedStudentsContainer.appendChild(empty);
+            return;
         }
-        studentSelect.value = selectedId;
-        studentSelect.disabled = !studentRecords.length && !selectedId;
+        selectedStudentIds.forEach(id => {
+            const student = studentForId(id);
+            const row = document.createElement('div');
+            row.className = 'pa-selected-student';
+            const details = document.createElement('span');
+            details.textContent = `${student ? studentDisplayId(student) : id} — ${student ? studentName(student) : 'Student record unavailable'}`;
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'pa-remove-student';
+            remove.dataset.removeStudentId = id;
+            remove.setAttribute('aria-label', `Remove ${student ? studentName(student) : 'student'} from this parent`);
+            remove.title = 'Remove student';
+            remove.innerHTML = '<i class="fas fa-xmark" aria-hidden="true"></i>';
+            row.append(details, remove);
+            selectedStudentsContainer.appendChild(row);
+        });
     };
     const toast = message => {
         const element = q('[data-pa-toast]');
@@ -141,19 +196,16 @@ function createParentsModule() {
     const openForm = parent => {
         const form = q('[data-pa-form]');
         form.reset();
+        selectedStudentIds = parent ? parentStudentRecordIds(parent) : [];
         refreshStudentOptions();
+        renderSelectedStudents();
         editingId = parent?.parentId ?? null;
         q('#pa-form-title').textContent = parent ? 'Edit Parent' : 'Add Parent';
         parentIdInput.value = parent?.parentId || nextParentId();
         if (parent) {
-            ['parentName', 'relationship', 'nationalId', 'occupation', 'company', 'studentName', 'studentId', 'className', 'additionalStudents', 'familyReference', 'status', 'mobile', 'altPhone', 'email', 'address', 'city', 'country', 'preferredChannel', 'language', 'whatsapp', 'emailNotifications', 'smsNotifications', 'phoneCalls', 'primaryContact', 'emergencyContact', 'announcements', 'marketing', 'consent', 'lastContact', 'notes', 'remarks'].forEach(field => { form.elements[field].value = parent[field] ?? ''; });
-            const linkedStudent = studentForId(parent.studentRecordId || parent.studentId);
-            const savedStudentId = linkedStudent ? studentRecordId(linkedStudent) : parent.studentRecordId || parent.studentId || '';
-            if (savedStudentId && !Array.from(studentSelect.options).some(option => option.value === savedStudentId)) {
-                studentSelect.add(new Option(`${parent.studentId || savedStudentId} — ${parent.studentName || 'Student record unavailable'}`, savedStudentId));
-            }
-            studentSelect.value = savedStudentId;
-            if (linkedStudent) applyStudentDetails(linkedStudent);
+            ['parentName', 'relationship', 'nationalId', 'occupation', 'company', 'additionalStudents', 'familyReference', 'status', 'mobile', 'altPhone', 'email', 'address', 'city', 'country', 'preferredChannel', 'language', 'whatsapp', 'emailNotifications', 'smsNotifications', 'phoneCalls', 'primaryContact', 'emergencyContact', 'announcements', 'marketing', 'consent', 'lastContact', 'notes', 'remarks'].forEach(field => { form.elements[field].value = parent[field] ?? ''; });
+            const selectedStudents = selectedStudentIds.map(studentForId).filter(Boolean);
+            applyStudentDetails(selectedStudents, parent);
         }
         updateFormSummary();
         q('[data-pa-form-overlay]').classList.add('is-open');
@@ -165,8 +217,15 @@ function createParentsModule() {
         void api.subscribe('students', records => {
             studentRecords = records.filter(student => student.deleted !== true);
             refreshStudentOptions();
+            renderSelectedStudents();
+            if (q('[data-pa-form-overlay]').classList.contains('is-open')) {
+                const parent = parents.find(item => item.parentId === editingId);
+                const selectedStudents = selectedStudentIds.map(studentForId).filter(Boolean);
+                applyStudentDetails(selectedStudents, parent || {});
+                updateFormSummary();
+            }
             studentStatus.textContent = studentRecords.length
-                ? 'Choose a student to fill in their name and class.'
+                ? 'Choose one or more students to fill in their names and classes.'
                 : 'No student records are available for this school.';
         }).catch(error => {
             console.error('Unable to load student records for parent entry.', error);
@@ -181,18 +240,32 @@ function createParentsModule() {
         studentStatus.textContent = 'Unable to load student records. Check access and connectivity, then retry.';
     });
     studentSelect.addEventListener('change', () => {
-        const student = studentForId(studentSelect.value);
-        if (!student) {
-            applyStudentDetails(null);
-            return;
-        }
-        applyStudentDetails(student);
+        addStudentButton.disabled = !studentSelect.value;
+    });
+    addStudentButton.addEventListener('click', () => {
+        const selectedId = studentSelect.value;
+        if (!selectedId || selectedStudentIds.includes(selectedId)) return;
+        selectedStudentIds.push(selectedId);
+        refreshStudentOptions();
+        renderSelectedStudents();
+        const selectedStudents = selectedStudentIds.map(studentForId).filter(Boolean);
+        applyStudentDetails(selectedStudents);
+        updateFormSummary();
+    });
+    selectedStudentsContainer.addEventListener('click', event => {
+        const removeButton = event.target.closest('[data-remove-student-id]');
+        if (!removeButton) return;
+        selectedStudentIds = selectedStudentIds.filter(id => id !== removeButton.dataset.removeStudentId);
+        refreshStudentOptions();
+        renderSelectedStudents();
+        applyStudentDetails(selectedStudentIds.map(studentForId).filter(Boolean));
+        updateFormSummary();
     });
     q('[data-pa-form]').addEventListener('input', updateFormSummary);
     q('[data-pa-form]').addEventListener('change', updateFormSummary);
     const detailContent = parent => `<header class="pa-detail-header"><div class="pa-profile"><span class="pa-avatar">${escape(initials(parent.parentName))}</span><div><h2>${escape(parent.parentName)}</h2><p>${escape(parent.relationship)} · Parent ID: ${escape(parent.parentId)} · Student: ${escape(parent.studentName)}</p></div></div><span class="pa-badge ${escape(statusClass(parent.status))}">${escape(parent.status)}</span></header>
         <div class="pa-summary-grid">${[['Parent ID', parent.parentId], ['Relationship', parent.relationship], ['Student', parent.studentName], ['Class', parent.className], ['Primary Contact', parent.primaryContact], ['Preferred Channel', parent.preferredChannel], ['Language', parent.language], ['Last Contact', formatDate(parent.lastContact)]].map(([label, value]) => `<div class="pa-summary-box"><span>${escape(label)}</span><strong>${escape(value || '—')}</strong></div>`).join('')}</div>
-        <h4 class="pa-section-title">Parent &amp; Family Information</h4><table class="pa-info-table"><tbody>${[['Full Name', parent.parentName], ['Relationship', parent.relationship], ['National ID', parent.nationalId], ['Occupation', parent.occupation], ['Company', parent.company], ['Student', parent.studentName], ['Student ID', parent.studentId], ['Grade / Class', parent.className], ['Additional Students', parent.additionalStudents], ['Family Reference', parent.familyReference]].map(([label, value]) => `<tr><th>${escape(label)}</th><td>${escape(value || '—')}</td></tr>`).join('')}</tbody></table>
+        <h4 class="pa-section-title">Parent &amp; Family Information</h4><table class="pa-info-table"><tbody>${[['Full Name', parent.parentName], ['Relationship', parent.relationship], ['National ID', parent.nationalId], ['Occupation', parent.occupation], ['Company', parent.company], ['Students', parentStudentNames(parent)], ['Student IDs', parentStudentIds(parent)], ['Grade / Class', parent.className], ['Additional Students', parent.additionalStudents], ['Family Reference', parent.familyReference]].map(([label, value]) => `<tr><th>${escape(label)}</th><td>${escape(value || '—')}</td></tr>`).join('')}</tbody></table>
         <h4 class="pa-section-title">Contact Information</h4><table class="pa-info-table"><tbody>${[['Mobile', parent.mobile], ['Alternative Phone', parent.altPhone], ['Email', parent.email], ['Address', parent.address], ['City', parent.city], ['Country', parent.country]].map(([label, value]) => `<tr><th>${escape(label)}</th><td>${escape(value || '—')}</td></tr>`).join('')}</tbody></table>
         <h4 class="pa-section-title">Communication Preferences</h4><table class="pa-info-table"><tbody>${[['Preferred Channel', parent.preferredChannel], ['Preferred Language', parent.language], ['WhatsApp', parent.whatsapp], ['Email Notifications', parent.emailNotifications], ['SMS Notifications', parent.smsNotifications], ['Phone Calls', parent.phoneCalls], ['School Announcements', parent.announcements], ['Marketing / Events', parent.marketing], ['Consent Verified', parent.consent], ['Emergency Contact', parent.emergencyContact]].map(([label, value]) => `<tr><th>${escape(label)}</th><td>${escape(value || '—')}</td></tr>`).join('')}</tbody></table>
         <section class="pa-communication"><h4>Quick Communication</h4><div class="pa-quick-actions"><button class="pa-button pa-primary" type="button" data-pa-message="Email"><i class="fas fa-envelope"></i> Email</button><button class="pa-button pa-success" type="button" data-pa-message="WhatsApp"><i class="fab fa-whatsapp"></i> WhatsApp</button><button class="pa-button pa-light" type="button" data-pa-message="Phone"><i class="fas fa-phone"></i> Call</button></div></section><div class="pa-notes"><strong>Communication Notes</strong><p>${escape(parent.notes || 'No communication notes.')}</p></div><div class="pa-notes"><strong>Internal Remarks</strong><p>${escape(parent.remarks || 'No internal remarks.')}</p></div>`;
@@ -205,7 +278,7 @@ function createParentsModule() {
         printWindow.print();
     };
     const printParent = parent => {
-        const meta = [['Parent', parent.parentName], ['Relationship', parent.relationship], ['Student', parent.studentName], ['Student ID', parent.studentId], ['Class', parent.className], ['Primary Contact', parent.primaryContact], ['Mobile', parent.mobile], ['Email', parent.email], ['Preferred Channel', parent.preferredChannel], ['Language', parent.language], ['WhatsApp', parent.whatsapp], ['Email Notifications', parent.emailNotifications], ['Last Contact', formatDate(parent.lastContact)], ['Consent', parent.consent]];
+        const meta = [['Parent', parent.parentName], ['Relationship', parent.relationship], ['Students', parentStudentNames(parent)], ['Student IDs', parentStudentIds(parent)], ['Class', parent.className], ['Primary Contact', parent.primaryContact], ['Mobile', parent.mobile], ['Email', parent.email], ['Preferred Channel', parent.preferredChannel], ['Language', parent.language], ['WhatsApp', parent.whatsapp], ['Email Notifications', parent.emailNotifications], ['Last Contact', formatDate(parent.lastContact)], ['Consent', parent.consent]];
         const rows = [['Occupation', parent.occupation], ['Company', parent.company], ['National ID', parent.nationalId], ['Additional Students', parent.additionalStudents], ['Address', parent.address], ['Alternative Phone', parent.altPhone], ['SMS Notifications', parent.smsNotifications], ['School Announcements', parent.announcements], ['Emergency Contact', parent.emergencyContact], ['Communication Notes', parent.notes], ['Internal Remarks', parent.remarks]];
         const html = `<header class="head"><div><h1>Parent Information Record</h1><p>Communication Department</p></div><div><strong>${escape(parent.parentId)}</strong><br>Status: ${escape(parent.status)}</div></header><div class="meta">${meta.map(([label, value]) => `<div><strong>${escape(label)}</strong>${escape(value || '—')}</div>`).join('')}</div><table><thead><tr><th>Information</th><th>Details</th></tr></thead><tbody>${rows.map(([label, value]) => `<tr><td>${escape(label)}</td><td>${escape(value || '—')}</td></tr>`).join('')}</tbody></table><div class="signatures"><span>Parent / Guardian</span><span>Communication Officer</span><span>Department Manager</span></div>`;
         printDocument(parent.parentId, html);
@@ -236,13 +309,26 @@ function createParentsModule() {
         event.preventDefault();
         const form = event.currentTarget;
         const parent = Object.fromEntries(new FormData(form).entries());
-        if (!parent.studentRecordId) return toast('Select a student from the school records.');
-        const selectedStudent = studentForId(parent.studentRecordId);
-        if (!selectedStudent && !editingId) return toast('Select a valid student from the school records.');
+        const selectedRecordIds = [...selectedStudentIds];
+        if (!selectedRecordIds.length) return toast('Add at least one student from the school records.');
+        const selectedStudents = selectedRecordIds.map(studentForId);
+        if (selectedStudents.some(student => !student)) {
+            return toast('One or more selected students are no longer available. Update the selection and try again.');
+        }
+        const primaryStudent = selectedStudents[0];
         parent.parentId = editingId || nextParentId();
-        parent.studentName = selectedStudent ? studentName(selectedStudent) : parent.studentName;
-        parent.studentId = selectedStudent ? studentDisplayId(selectedStudent) : parent.studentId;
-        parent.className = selectedStudent ? form.elements.className.value : parent.className;
+        parent.studentRecordIds = selectedRecordIds;
+        parent.studentIds = selectedStudents.map(studentDisplayId);
+        parent.studentNames = selectedStudents.map(studentName);
+        parent.studentRecordId = studentRecordId(primaryStudent);
+        parent.studentId = studentDisplayId(primaryStudent);
+        parent.studentName = parent.studentNames.join(', ');
+        parent.className = [...new Set(selectedStudents.map(student => {
+            const className = String(student.className || student.class || student.grade || student.gradeName || '').trim();
+            const studentSection = String(student.section || '').trim();
+            const classIncludesSection = className.split(/\s*-\s*/).some(part => part.toLowerCase() === studentSection.toLowerCase());
+            return studentSection && className && !classIncludesSection ? `${className} - ${studentSection}` : className || studentSection;
+        }).filter(Boolean))].join(', ');
         if (parents.some(item => String(item.parentId || '').toLowerCase() === parent.parentId.toLowerCase() && item.parentId !== editingId)) return toast('Parent ID already exists.');
         const existing = parents.find(item => item.parentId === editingId);
         if (existing) parents = parents.map(item => item.parentId === editingId ? parent : item);
