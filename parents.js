@@ -31,7 +31,7 @@ function createParentsModule() {
                     <label>Receive Marketing / Events<select name="marketing"><option>No</option><option>Yes</option></select></label><label>Consent Verified<select name="consent"><option>Yes</option><option>Pending</option><option>No</option></select></label><label>Last Contact Date<input name="lastContact" type="date"></label>
                     <label class="pa-full">Communication Notes<textarea name="notes" placeholder="Add communication notes, preferences, concerns or instructions..."></textarea></label><label class="pa-full">Internal Remarks<textarea name="remarks" placeholder="Internal department remarks..."></textarea></label>
                 </div></div><aside class="pa-live-summary" aria-label="Parent record summary"><h4>Parent Summary</h4><p>Review the record as you fill out the form.</p><div class="pa-live-summary-list">
-                    ${[['Parent ID', 'parentId'], ['Parent Name', 'parentName'], ['Relationship', 'relationship'], ['Student(s)', 'studentName'], ['Student ID(s)', 'studentIds'], ['Grade / Class', 'className'], ['Mobile', 'mobile'], ['Email', 'email'], ['Preferred Channel', 'preferredChannel'], ['Language', 'language'], ['Status', 'status']].map(([label, name]) => `<div class="pa-live-summary-row"><span>${label}</span><strong data-pa-summary="${name}">—</strong></div>`).join('')}
+                    ${[['Parent ID', 'parentId'], ['Full Name', 'parentName'], ['Relationship', 'relationship'], ['National ID', 'nationalId'], ['Occupation', 'occupation'], ['Company', 'company'], ['Student(s)', 'studentName'], ['Student ID(s)', 'studentIds'], ['Grade / Class', 'className'], ['Additional Students', 'additionalStudents'], ['Family Reference', 'familyReference'], ['Parent Status', 'status'], ['Mobile Number', 'mobile'], ['Alternative Phone', 'altPhone'], ['Email Address', 'email'], ['Home Address', 'address'], ['City', 'city'], ['Country', 'country'], ['Preferred Channel', 'preferredChannel'], ['Preferred Language', 'language'], ['WhatsApp', 'whatsapp'], ['Email Notifications', 'emailNotifications'], ['SMS Notifications', 'smsNotifications'], ['Phone Calls', 'phoneCalls'], ['Primary Contact', 'primaryContact'], ['Emergency Contact', 'emergencyContact'], ['School Announcements', 'announcements'], ['Marketing / Events', 'marketing'], ['Consent Verified', 'consent'], ['Last Contact Date', 'lastContact'], ['Communication Notes', 'notes'], ['Internal Remarks', 'remarks']].map(([label, name]) => `<div class="pa-live-summary-row"><span>${label}</span><strong data-pa-summary="${name}">—</strong></div>`).join('')}
                 </div></aside><footer class="pa-modal-actions"><button class="pa-button pa-light" type="button" data-pa-cancel>Cancel</button><button class="pa-button pa-primary" type="submit">Save Parent</button></footer></div>
             </form>
         </section></div>
@@ -65,11 +65,21 @@ function createParentsModule() {
     const addStudentButton = q('[data-pa-add-student]');
     const selectedStudentsContainer = q('[data-pa-selected-students]');
     const studentStatus = q('[data-pa-student-status]');
-    const formSummaryFields = ['parentId', 'parentName', 'relationship', 'studentName', 'studentIds', 'className', 'mobile', 'email', 'preferredChannel', 'language', 'status'];
+    const formSummaryFields = [
+        'parentId', 'parentName', 'relationship', 'nationalId', 'occupation', 'company',
+        'studentName', 'studentIds', 'className', 'additionalStudents', 'familyReference', 'status',
+        'mobile', 'altPhone', 'email', 'address', 'city', 'country', 'preferredChannel',
+        'language', 'whatsapp', 'emailNotifications', 'smsNotifications', 'phoneCalls',
+        'primaryContact', 'emergencyContact', 'announcements', 'marketing', 'consent',
+        'lastContact', 'notes', 'remarks'
+    ];
     const updateFormSummary = () => {
         const form = q('[data-pa-form]');
         formSummaryFields.forEach(name => {
-            q(`[data-pa-summary="${name}"]`).textContent = String(form.elements[name].value || '').trim() || '—';
+            const control = form.elements[name];
+            const summary = q(`[data-pa-summary="${name}"]`);
+            if (!control || !summary) return;
+            summary.textContent = String(control.value || '').trim() || '—';
         });
     };
     let studentRecords = [];
