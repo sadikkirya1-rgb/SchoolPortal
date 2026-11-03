@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title>App Admin | SmartSkool</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="platform-admin.css">
     <link rel="stylesheet" href="table-pagination.css">
 </head>
-<body>
+<body class="admin-sign-in admin-auth-checking">
     <main class="admin-shell">
         <a class="back-link" href="./index.html">&larr; Return to school sign in</a>
         <header class="admin-heading">
@@ -20,33 +23,114 @@
             </div>
         </header>
 
-        <section class="admin-card" id="signInCard">
-            <h2>Secure sign in</h2>
-            <p>Only accounts explicitly authorized as App Admin can access the platform dashboard.</p>
-            <form id="adminSignInForm">
-                <label>Email address<input name="email" type="email" autocomplete="username" required></label>
-                <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
-                <button class="primary-button" type="submit">Sign in</button>
-            </form>
-            <p class="status-message" id="signInMessage" role="status" aria-live="polite"></p>
+        <div class="admin-session-bootstrap" role="status" aria-live="polite">
+            <div class="admin-session-bootstrap-card">
+                <span class="admin-session-bootstrap-mark" aria-hidden="true">SS</span>
+                <strong>Restoring your workspace</strong>
+                <span>Your App Admin portal will be ready shortly.</span>
+            </div>
+        </div>
+
+        <section class="admin-card login-card" id="signInCard">
+            <div class="login-promo">
+                <span class="login-promo-mark" aria-hidden="true">SS</span>
+                <p class="login-promo-kicker">SMARTSKOOL · PLATFORM CONTROL</p>
+                <h2>Your schools,<br>all in one place.</h2>
+                <p class="login-promo-copy">A secure workspace for managing school setups, subscriptions, and access across your platform.</p>
+                <div class="login-promo-footer"><span class="login-security-icon" aria-hidden="true">✓</span><span><strong>Private admin access</strong><small>Only authorized App Admins can sign in</small></span></div>
+                <span class="login-orbit login-orbit-one" aria-hidden="true"></span>
+                <span class="login-orbit login-orbit-two" aria-hidden="true"></span>
+            </div>
+            <div class="login-form-panel">
+                <div class="login-inline-brand"><span aria-hidden="true">SS</span><strong>SmartSkool</strong><small>Management</small></div>
+                <div class="login-form-heading">
+                    <span class="login-lock-icon" aria-hidden="true">⌑</span>
+                    <p class="eyebrow">WELCOME BACK</p>
+                    <h2>Sign in to App Admin</h2>
+                    <p>Enter your administrator credentials to continue.</p>
+                </div>
+                <form id="adminSignInForm">
+                    <label>Email address<input name="email" type="email" autocomplete="username" placeholder="you@school.org" required></label>
+                    <label>Password<input name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required></label>
+                    <button class="primary-button login-submit" type="submit">Sign in securely <span aria-hidden="true">→</span></button>
+                </form>
+                <p class="status-message" id="signInMessage" role="status" aria-live="polite"></p>
+                <p class="login-help"><span aria-hidden="true">●</span> Protected platform administrator portal</p>
+            </div>
         </section>
 
-        <section class="admin-card hidden" id="schoolCreateCard">
-            <div class="signed-in-row">
-                <div><h2>Platform dashboard</h2><p id="signedInAs"></p></div>
-                <button class="secondary-button" id="signOutButton" type="button">Sign out</button>
-            </div>
+        <section class="admin-app hidden" id="schoolCreateCard">
+            <aside class="admin-sidebar" aria-label="App Admin navigation">
+                <button class="sidebar-brand" id="adminHomeButton" type="button">
+                    <span class="admin-mark" aria-hidden="true">SS</span>
+                    <span><strong>SmartSkool</strong><small>Platform admin</small></span>
+                </button>
+                <p class="sidebar-label">WORKSPACE</p>
+                <nav class="admin-nav">
+                    <button class="active" type="button" data-admin-nav="overview"><span aria-hidden="true">◫</span> Overview</button>
+                    <button type="button" data-admin-nav="schools"><span aria-hidden="true">▦</span> Schools</button>
+                    <button type="button" data-admin-nav="accounts"><span aria-hidden="true">♙</span> Accounts</button>
+                </nav>
+                <a class="sidebar-back" href="./index.html"><span aria-hidden="true">←</span> School sign in</a>
+            </aside>
+            <div class="admin-main">
+                <header class="admin-topbar">
+                    <div class="topbar-context"><span class="eyebrow">PLATFORM CONTROL</span><span class="topbar-divider">/</span><span id="currentSectionTitle">Overview</span></div>
+                    <div class="topbar-user"><span class="user-avatar" aria-hidden="true">A</span><span id="signedInAs"></span><button class="secondary-button" id="signOutButton" type="button">Sign out</button></div>
+                </header>
+                <div class="admin-content" id="adminContent">
+                    <section class="content-panel" id="overviewPanel" data-content-panel="overview">
+                    <div class="welcome-heading">
+                        <div><p class="eyebrow">OVERVIEW</p><h1>Platform dashboard</h1><p>Manage your school workspaces and their access in one place.</p></div>
+                        <button class="primary-button" id="showCreateSchoolButton" type="button"><span aria-hidden="true">＋</span> Create school</button>
+                    </div>
             <div class="dashboard-stats">
-                <article><span>Registered schools</span><strong id="schoolTotal">—</strong></article>
-                <article><span>Active schools</span><strong id="activeSchoolTotal">—</strong></article>
-                <article><span>Accounts (selected school)</span><strong id="accountTotal">—</strong></article>
+                <article class="stat-card stat-blue"><span class="stat-icon" aria-hidden="true">▦</span><span>Registered schools</span><strong id="schoolTotal">—</strong><small>Across your platform</small></article>
+                <article class="stat-card stat-green"><span class="stat-icon" aria-hidden="true">✓</span><span>Active schools</span><strong id="activeSchoolTotal">—</strong><small>Currently operational</small></article>
+                <article class="stat-card stat-violet"><span class="stat-icon" aria-hidden="true">♙</span><span>Accounts in selected school</span><strong id="accountTotal">—</strong><small>Choose a school to view accounts</small></article>
             </div>
-            <section class="directory-section">
+                    <section class="overview-grid" aria-label="School overview charts">
+                        <article class="chart-card">
+                            <div class="chart-heading"><div><h2>Schools by plan</h2><p>Breakdown of the schools on this page</p></div><span class="chart-badge">CURRENT PAGE</span></div>
+                            <div class="plan-chart" id="planChart" role="list" aria-live="polite">
+                                <p class="chart-empty">School plan data will appear when schools load.</p>
+                            </div>
+                        </article>
+                        <article class="insight-card">
+                            <span class="insight-icon" aria-hidden="true">✦</span>
+                            <p class="eyebrow">QUICK ACTION</p>
+                            <h2>Manage your workspaces</h2>
+                            <p>Create a school, review its setup, update subscription details, or manage its accounts.</p>
+                            <button class="secondary-button" id="quickCreateSchoolButton" type="button">Get started <span aria-hidden="true">→</span></button>
+                            <button class="text-action-button" id="browseSchoolsButton" type="button">Browse school directory</button>
+                        </article>
+                    </section>
+                    </section>
+                    <section class="content-panel hidden" id="schoolsPanel" data-content-panel="schools">
+            <section class="directory-section" id="schoolsSection">
                 <div class="section-heading">
                     <div><h3>Schools</h3><p>Search across all schools. Subscription fields track status only; payment processing is not connected.</p></div>
-                    <button class="primary-button compact-button" id="showCreateSchoolButton" type="button">Create school</button>
+                    <button class="primary-button compact-button" id="createSchoolFromDirectory" type="button">＋ Create school</button>
                 </div>
                 <label class="directory-search">Search all schools<input id="schoolSearch" type="search" placeholder="School name, ID, country, or status"></label>
+                <div class="school-filters" aria-label="Filter schools">
+                    <label>Status
+                        <select id="schoolStatusFilter">
+                            <option value="">All statuses</option>
+                            <option value="active">Active</option>
+                            <option value="suspended">Suspended</option>
+                        </select>
+                    </label>
+                    <label>Plan
+                        <select id="schoolPlanFilter">
+                            <option value="">All plans</option>
+                            <option value="Starter">Starter</option>
+                            <option value="Standard">Standard</option>
+                            <option value="Enterprise">Enterprise</option>
+                        </select>
+                    </label>
+                    <button class="secondary-button" id="clearSchoolFilters" type="button">Clear filters</button>
+                </div>
                 <form class="inline-create-form hidden" id="createSchoolForm">
                     <label>School name<input name="name" type="text" minlength="2" maxlength="120" autocomplete="organization" required></label>
                     <div class="form-row">
@@ -93,10 +177,24 @@
                 <button class="secondary-button" id="copySchoolIdButton" type="button">Copy School ID</button>
             </div>
             <p class="status-message" id="createMessage" role="status" aria-live="polite"></p>
+                    </section>
+                    <section class="content-panel hidden" id="accountsPanel" data-content-panel="accounts">
+                        <div class="welcome-heading">
+                            <div><p class="eyebrow">ACCESS MANAGEMENT</p><h1>School accounts</h1><p>Select a school to manage its administrators, staff, parents, and student accounts.</p></div>
+                            <button class="secondary-button" id="manageSchoolsButton" type="button">Manage schools</button>
+                        </div>
+                        <section class="directory-section account-school-picker">
+                            <div class="section-heading"><div><h3>Choose a school</h3><p>Choose from the schools on the current directory page, or find another school in the directory first.</p></div></div>
+                            <label class="directory-search">School
+                                <select id="accountSchoolSelect" aria-label="Choose a school to manage accounts">
+                                    <option value="">Select a school…</option>
+                                </select>
+                            </label>
+                        </section>
             <section class="directory-section hidden" id="schoolAccountsSection">
                 <div class="section-heading">
                     <div><h3 id="selectedSchoolHeading">School accounts</h3><p id="selectedSchoolSummary"></p></div>
-                    <button class="secondary-button" id="closeSchoolAccountsButton" type="button">Close</button>
+                    <button class="secondary-button" id="closeSchoolAccountsButton" type="button">Choose another school</button>
                 </div>
                 <label class="directory-search">Search all school accounts<input id="accountSearch" type="search" placeholder="Name, email, role, or User ID"></label>
                 <form class="account-editor hidden" id="schoolAccountForm">
@@ -167,8 +265,11 @@
                 <p class="status-message" id="accountMessage" role="status" aria-live="polite"></p>
                 <a class="primary-button compact-button hidden" id="schoolAdminLoginLink">Continue to school sign-in</a>
             </section>
+                    </section>
+                    <footer>App Admin can manage school metadata and user accounts across tenants. Student, academic, and financial records remain outside this platform account dashboard.</footer>
+                </div>
+            </div>
         </section>
-        <footer>App Admin can manage school metadata and user accounts across tenants. Student, academic, and financial records remain outside this platform account dashboard.</footer>
     </main>
     <script src="table-pagination.js"></script>
     <script type="module" src="platform-admin.js"></script>

@@ -57,6 +57,12 @@ const passwordResetInput = document.getElementById('passwordResetInput');
 const passwordResetTitle = document.getElementById('passwordResetTitle');
 const passwordResetDescription = document.getElementById('passwordResetDescription');
 const passwordResetMessage = document.getElementById('passwordResetMessage');
+const planChart = document.getElementById('planChart');
+const accountSchoolSelect = document.getElementById('accountSchoolSelect');
+const schoolStatusFilter = document.getElementById('schoolStatusFilter');
+const schoolPlanFilter = document.getElementById('schoolPlanFilter');
+const publicHeading = document.querySelector('.admin-heading');
+const returnLink = document.querySelector('.back-link');
 
 let schools = [];
 let accounts = [];
@@ -83,6 +89,22 @@ let passwordResetAccount = null;
 let lastCreatedAccount = null;
 let linkedRecordRequest = 0;
 const selectedSchoolRecords = new Map();
+
+function setActivePanel(panelName, persist = true) {
+    document.querySelectorAll('[data-content-panel]').forEach(panel => {
+        panel.classList.toggle('hidden', panel.dataset.contentPanel !== panelName);
+    });
+    document.querySelectorAll('[data-admin-nav]').forEach(button => {
+        const active = button.dataset.adminNav === panelName;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-current', active ? 'page' : 'false');
+    });
+    const titles = { overview: 'Overview', schools: 'Schools', accounts: 'Accounts' };
+    document.getElementById('currentSectionTitle').textContent = titles[panelName] || 'Overview';
+    if (persist) sessionStorage.setItem('appAdminLastPanel', panelName);
+}
+
+setActivePanel('overview', false);
 
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;',
@@ -199,7 +221,11 @@ async function renderLinkedRecordOptions(role, selectedId = '') {
 }
 
 function renderSchools() {
-    schoolTableBody.innerHTML = schools.length ? schools.map((school, index) => `
+    const visibleSchools = schools.filter(school =>
+        (!schoolStatusFilter.value || school.status === schoolStatusFilter.value)
+        && (!schoolPlanFilter.value || school.subscriptionPlan === schoolPlanFilter.value)
+    );
+    schoolTableBody.innerHTML = visibleSchools.length ? visibleSchools.map((school, index) => `
         <tr>
             <td>${index + 1}</td>
             <td><div class="school-name-cell">${school.logoURL
@@ -215,18 +241,87 @@ function renderSchools() {
             <td><div class="table-actions">
                 <button class="table-action" type="button" data-school-action="accounts" data-school-id="${escapeHTML(school.id)}">Accounts</button>
                 <button class="table-action" type="button" data-school-action="edit" data-school-id="${escapeHTML(school.id)}">Edit</button>
+                <button class="table-action" type="button" data-school-action="subscription" data-school-id="${escapeHTML(school.id)}">Plan</button>
                 <button class="table-action ${school.status === 'active' ? 'danger' : ''}" type="button" data-school-action="status" data-school-id="${escapeHTML(school.id)}" data-status="${school.status === 'active' ? 'suspended' : 'active'}">${school.status === 'active' ? 'Suspend' : 'Activate'}</button>
             </div></td>
-        </tr>`).join('') : '<tr><td colspan="9">No schools match this search.</td></tr>';
+        </tr>`).join('') : `<tr><td colspan="9">${schools.length ? 'No schools match these filters on this page.' : 'No schools match this search.'}</td></tr>`;
     document.getElementById('schoolTotal').textContent = String(schoolCount);
     document.getElementById('activeSchoolTotal').textContent = String(activeSchoolCount);
-    schoolSearchSummary.textContent = schoolSearch.value.trim()
-        ? `Showing ${schools.length ? schoolCurrentPageOffset + 1 : 0}–${schoolCurrentPageOffset + schools.length} of ${schoolMatchCount} matching schools.`
-        : '';
+    renderPlanChart(schools);
+    const filtersActive = Boolean(schoolStatusFilter.value || schoolPlanFilter.value);
+    const totalLabel = schoolSearch.value.trim()
+        ? `${schoolMatchCount} total matching the search`
+        : `${schoolCount} total registered`;
+    schoolSearchSummary.textContent = filtersActive
+        ? `Showing ${visibleSchools.length} of ${schools.length} schools on this page (${totalLabel}).`
+        : schoolSearch.value.trim()
+            ? `Showing ${schools.length ? schoolCurrentPageOffset + 1 : 0}–${schoolCurrentPageOffset + schools.length} of ${schoolMatchCount} matching schools.`
+            : `${schoolCount} registered schools`;
     document.getElementById('nextSchoolsButton').disabled = schoolSearch.value.trim()
         ? schoolNextPageOffset === null
         : !schoolAfterId;
     document.getElementById('previousSchoolsButton').disabled = schoolCursorHistory.length === 0;
+    renderAccountSchoolOptions();
+}
+
+function renderAccountSchoolOptions() {
+    const selectedId = selectedSchool?.id || accountSchoolSelect.value;
+    accountSchoolSelect.replaceChildren(new Option('Select a school…', ''));
+    schools.forEach(school => {
+        accountSchoolSelect.add(new Option(`${school.name} · ${school.id}`, school.id));
+    });
+    if (selectedId && !schools.some(school => school.id === selectedId)) {
+        accountSchoolSelect.add(new Option(`${selectedSchool.name} · ${selectedSchool.id}`, selectedSchool.id));
+    }
+    accountSchoolSelect.value = selectedId || '';
+}
+
+function renderPlanChart(schoolList) {
+    const planCounts = new Map();
+    schoolList.forEach(school => {
+        const plan = school.subscriptionPlan || 'Unassigned';
+        planCounts.set(plan, (planCounts.get(plan) || 0) + 1);
+    });
+    const preferredOrder = ['Starter', 'Standard', 'Enterprise'];
+    const plans = [...planCounts].sort(([first], [second]) => {
+        const firstRank = preferredOrder.indexOf(first);
+        const secondRank = preferredOrder.indexOf(second);
+        if (firstRank !== -1 || secondRank !== -1) {
+            return (firstRank === -1 ? preferredOrder.length : firstRank)
+                - (secondRank === -1 ? preferredOrder.length : secondRank);
+        }
+        return first.localeCompare(second);
+    });
+    planChart.replaceChildren();
+    if (!plans.length) {
+        const empty = document.createElement('p');
+        empty.className = 'chart-empty';
+        empty.textContent = 'No schools to display on this page.';
+        planChart.append(empty);
+        return;
+    }
+    const maxCount = Math.max(...plans.map(([, count]) => count));
+    plans.forEach(([plan, count]) => {
+        const row = document.createElement('div');
+        row.className = 'plan-row';
+        row.setAttribute('role', 'listitem');
+        row.setAttribute('aria-label', `${plan}: ${count} ${count === 1 ? 'school' : 'schools'}`);
+        const label = document.createElement('span');
+        label.className = 'plan-label';
+        label.textContent = plan;
+        const track = document.createElement('span');
+        track.className = 'plan-track';
+        track.setAttribute('aria-hidden', 'true');
+        const bar = document.createElement('span');
+        bar.className = 'plan-bar';
+        bar.style.width = `${Math.max(4, count / maxCount * 100)}%`;
+        track.append(bar);
+        const total = document.createElement('span');
+        total.className = 'plan-count';
+        total.textContent = String(count);
+        row.append(label, track, total);
+        planChart.append(row);
+    });
 }
 
 async function loadSchools(afterSchoolId = schoolPageCursor, pageOffset = 0) {
@@ -313,7 +408,9 @@ function openSchoolAccounts(school) {
     lastCreatedAccount = null;
     accountMessage.textContent = '';
     accountEditUid = null;
+    accountSchoolSelect.value = school.id;
     schoolAccountsSection.classList.remove('hidden');
+    setActivePanel('accounts');
     document.getElementById('selectedSchoolHeading').textContent = `${school.name} accounts`;
     document.getElementById('selectedSchoolSummary').textContent = `School ID: ${school.id} · ${school.status}`;
     schoolAccountsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -374,6 +471,10 @@ async function editAccount(account) {
 
 async function displayAdmin(user) {
     if (!user) {
+        document.body.classList.remove('admin-auth-checking');
+        document.body.classList.add('admin-sign-in');
+        publicHeading.classList.remove('hidden');
+        returnLink.classList.remove('hidden');
         signInCard.classList.remove('hidden');
         schoolCreateCard.classList.add('hidden');
         return;
@@ -381,25 +482,48 @@ async function displayAdmin(user) {
     const token = await user.getIdTokenResult(true);
     if (token.claims.appAdmin !== true) {
         await signOut(auth);
+        document.body.classList.remove('admin-auth-checking');
+        document.body.classList.add('admin-sign-in');
+        publicHeading.classList.remove('hidden');
+        returnLink.classList.remove('hidden');
         signInCard.classList.remove('hidden');
         schoolCreateCard.classList.add('hidden');
         signInMessage.textContent = 'This account is not authorized as an App Admin.';
         return;
     }
     signedInAs.textContent = `Signed in as ${user.email || 'authorized App Admin'}`;
+    document.body.classList.remove('admin-sign-in');
+    publicHeading.classList.add('hidden');
+    returnLink.classList.add('hidden');
     signInCard.classList.add('hidden');
     schoolCreateCard.classList.remove('hidden');
     signInMessage.textContent = '';
     try {
         await loadSchools();
+        const lastPanel = sessionStorage.getItem('appAdminLastPanel');
+        setActivePanel(['overview', 'schools', 'accounts'].includes(lastPanel) ? lastPanel : 'overview');
     } catch (error) {
         showError(document.getElementById('createMessage'), error, 'Unable to load registered schools.');
+    } finally {
+        document.body.classList.remove('admin-auth-checking');
     }
 }
 
 onAuthStateChanged(auth, user => {
-    displayAdmin(user).catch(error => showError(signInMessage, error, 'Unable to verify App Admin access.'));
-}, error => showError(signInMessage, error, 'Unable to restore App Admin sign-in.'));
+    displayAdmin(user).catch(error => {
+        document.body.classList.remove('admin-auth-checking');
+        signInCard.classList.remove('hidden');
+        schoolCreateCard.classList.add('hidden');
+        document.body.classList.add('admin-sign-in');
+        showError(signInMessage, error, 'Unable to verify App Admin access.');
+    });
+}, error => {
+    document.body.classList.remove('admin-auth-checking');
+    signInCard.classList.remove('hidden');
+    schoolCreateCard.classList.add('hidden');
+    document.body.classList.add('admin-sign-in');
+    showError(signInMessage, error, 'Unable to restore App Admin sign-in.');
+});
 
 signInForm.addEventListener('submit', async event => {
     event.preventDefault();
@@ -416,10 +540,54 @@ signInForm.addEventListener('submit', async event => {
     }
 });
 
-document.getElementById('showCreateSchoolButton').addEventListener('click', () => {
-    createForm.classList.toggle('hidden');
+function showSchoolCreateForm() {
+    setActivePanel('schools');
+    createForm.classList.remove('hidden');
     createForm.elements.name.focus();
+}
+
+document.getElementById('showCreateSchoolButton').addEventListener('click', showSchoolCreateForm);
+document.getElementById('createSchoolFromDirectory').addEventListener('click', showSchoolCreateForm);
+
+document.getElementById('quickCreateSchoolButton').addEventListener('click', () => {
+    setActivePanel('schools');
+    createForm.classList.remove('hidden');
+    createForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    createForm.elements.name.focus({ preventScroll: true });
 });
+
+document.getElementById('browseSchoolsButton').addEventListener('click', () => setActivePanel('schools'));
+document.getElementById('manageSchoolsButton').addEventListener('click', () => setActivePanel('schools'));
+document.getElementById('adminHomeButton').addEventListener('click', () => setActivePanel('overview'));
+
+document.querySelectorAll('[data-admin-nav]').forEach(button => {
+    button.addEventListener('click', () => {
+        setActivePanel(button.dataset.adminNav);
+        if (button.dataset.adminNav === 'accounts' && !selectedSchool) {
+            accountSchoolSelect.focus();
+        }
+    });
+});
+
+accountSchoolSelect.addEventListener('change', () => {
+    const school = schools.find(item => item.id === accountSchoolSelect.value)
+        || (selectedSchool?.id === accountSchoolSelect.value ? selectedSchool : null);
+    if (school) openSchoolAccounts(school);
+    else {
+        schoolAccountsSection.classList.add('hidden');
+        selectedSchool = null;
+    }
+});
+
+document.getElementById('clearSchoolFilters').addEventListener('click', () => {
+    schoolStatusFilter.value = '';
+    schoolPlanFilter.value = '';
+    schoolSearch.value = '';
+    schoolCursorHistory = [];
+    loadSchools(null, 0).catch(error => showError(createMessage, error, 'Unable to clear school filters.'));
+});
+schoolStatusFilter.addEventListener('change', renderSchools);
+schoolPlanFilter.addEventListener('change', renderSchools);
 
 document.getElementById('cancelSchoolEditButton').addEventListener('click', () => {
     schoolEditorForm.reset();
@@ -515,6 +683,11 @@ schoolTableBody.addEventListener('click', async event => {
         openSchoolEditor(school);
         return;
     }
+    if (button.dataset.schoolAction === 'subscription') {
+        openSchoolEditor(school);
+        schoolEditorForm.elements.subscriptionPlan.focus();
+        return;
+    }
     const nextStatus = button.dataset.status;
     if (!confirm(`${nextStatus === 'suspended' ? 'Suspend' : 'Reactivate'} ${school.name}?`)) return;
     button.disabled = true;
@@ -575,6 +748,7 @@ document.getElementById('nextSchoolsButton').addEventListener('click', async () 
 document.getElementById('closeSchoolAccountsButton').addEventListener('click', () => {
     schoolAccountsSection.classList.add('hidden');
     selectedSchool = null;
+    accountSchoolSelect.value = '';
 });
 
 document.getElementById('showAccountFormButton').addEventListener('click', () => {
