@@ -1,8 +1,14 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
 import {
     browserSessionPersistence,
+    EmailAuthProvider,
     getAuth,
+    multiFactor,
     onAuthStateChanged,
+    PhoneAuthProvider,
+    PhoneMultiFactorGenerator,
+    reauthenticateWithCredential,
+    RecaptchaVerifier,
     setPersistence,
     signInWithEmailAndPassword,
     signOut
@@ -27,6 +33,12 @@ const setSchoolUserTemporaryPassword = call('setSchoolUserTemporaryPassword');
 const deleteSchoolUser = call('deleteSchoolUser');
 const getAssignableSchoolClasses = call('getAssignableSchoolClasses');
 const getAssignableSchoolRecords = call('getAssignableSchoolRecords');
+const getPlatformAdminOverview = call('getPlatformAdminOverview');
+const listPlatformAdminAudit = call('listPlatformAdminAudit');
+const registerPlatformAdminSession = call('registerPlatformAdminSession');
+const listPlatformAdminSessions = call('listPlatformAdminSessions');
+const revokePlatformAdminSessions = call('revokePlatformAdminSessions');
+const endPlatformAdminSession = call('endPlatformAdminSession');
 const signInForm = document.getElementById('adminSignInForm');
 const signInCard = document.getElementById('signInCard');
 const schoolCreateCard = document.getElementById('schoolCreateCard');
@@ -61,8 +73,13 @@ const planChart = document.getElementById('planChart');
 const accountSchoolSelect = document.getElementById('accountSchoolSelect');
 const schoolStatusFilter = document.getElementById('schoolStatusFilter');
 const schoolPlanFilter = document.getElementById('schoolPlanFilter');
+const schoolSubscriptionFilter = document.getElementById('schoolSubscriptionFilter');
 const publicHeading = document.querySelector('.admin-heading');
 const returnLink = document.querySelector('.back-link');
+const accountRoleFilter = document.getElementById('accountRoleFilter');
+const accountStatusFilter = document.getElementById('accountStatusFilter');
+const auditTableBody = document.getElementById('auditTableBody');
+const sessionsTableBody = document.getElementById('sessionsTableBody');
 
 let schools = [];
 let accounts = [];
@@ -84,6 +101,12 @@ let schoolCount = 0;
 let schoolMatchCount = 0;
 let activeSchoolCount = 0;
 let accountCount = 0;
+let platformOverview = null;
+let schoolProfileRecord = null;
+let adminSessionId = sessionStorage.getItem('appAdminSessionId');
+let adminMfaVerifier = null;
+let adminMfaVerificationId = '';
+let adminSessionHeartbeat = null;
 let selectedSchoolClasses = [];
 let passwordResetAccount = null;
 let lastCreatedAccount = null;
@@ -99,7 +122,7 @@ function setActivePanel(panelName, persist = true) {
         button.classList.toggle('active', active);
         button.setAttribute('aria-current', active ? 'page' : 'false');
     });
-    const titles = { overview: 'Overview', schools: 'Schools', accounts: 'Accounts' };
+    const titles = { overview: 'Overview', schools: 'Schools', accounts: 'Accounts', audit: 'Audit log', security: 'Security' };
     document.getElementById('currentSectionTitle').textContent = titles[panelName] || 'Overview';
     if (persist) sessionStorage.setItem('appAdminLastPanel', panelName);
 }
@@ -113,6 +136,225 @@ const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, character =>
     '"': '&quot;',
     "'": '&#039;'
 }[character]));
+
+function formatAdminDate(value) {
+    return value ? new Date(value).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+}
+
+function renderPlatformOverview(data) {
+    platformOverview = data;
+    document.getElementById('schoolTotal').textContent = String(data.totalSchools);
+    document.getElementById('activeSchoolTotal').textContent = String(data.activeSchools);
+    document.getElementById('platformAccountTotal').textContent = String(data.totalAccounts);
+    document.getElementById('activeAccountTotal').textContent = String(data.activeAccounts);
+    document.getElementById('trialSchoolTotal').textContent = String(data.trialSchools);
+    document.getElementById('suspendedSchoolTotal').textContent = String(data.suspendedSchools);
+    document.getElementById('schoolsNeedingAdminTotal').textContent = String(data.schoolsNeedingAdmin);
+    const planChart = document.getElementById('planChart');
+    planChart.replaceChildren();
+    const planEntries = Object.entries(data.plans || {}).sort((a, b) => a[0].localeCompare(b[0]));
+    const maxPlanCount = Math.max(1, ...planEntries.map(([, count]) => count));
+    planEntries.forEach(([plan, count]) => {
+        const row = document.createElement('div');
+        row.className = 'plan-row';
+        row.setAttribute('role', 'listitem');
+        const label = document.createElement('span');
+        label.className = 'plan-label';
+        label.textContent = plan;
+        const track = document.createElement('span');
+        track.className = 'plan-track';
+        track.setAttribute('aria-hidden', 'true');
+        const bar = document.createElement('span');
+        bar.className = 'plan-bar';
+        bar.style.width = `${Math.max(4, count / maxPlanCount * 100)}%`;
+        track.append(bar);
+        const total = document.createElement('span');
+        total.className = 'plan-count';
+        total.textContent = String(count);
+        row.append(label, track, total);
+        planChart.append(row);
+    });
+    if (!planEntries.length) planChart.innerHTML = '<p class="chart-empty">No schools to display.</p>';
+
+    const registrations = document.getElementById('registrationChart');
+    registrations.replaceChildren();
+    const months = data.registrationsByMonth || [];
+    const maxRegistrations = Math.max(1, ...months.map(month => month.count));
+    months.forEach(month => {
+        const column = document.createElement('div');
+        column.className = 'registration-column';
+        column.setAttribute('role', 'listitem');
+        column.setAttribute('aria-label', `${month.label}: ${month.count} schools`);
+        const barArea = document.createElement('div');
+        barArea.className = 'registration-bar-area';
+        const bar = document.createElement('span');
+        bar.className = 'registration-bar';
+        bar.style.height = `${Math.max(3, month.count / maxRegistrations * 100)}%`;
+        barArea.append(bar);
+        const meta = document.createElement('span');
+        meta.className = 'registration-label';
+        meta.textContent = month.label;
+        column.append(barArea, meta);
+        registrations.append(column);
+    });
+
+    const subscriptions = document.getElementById('subscriptionSummary');
+    subscriptions.replaceChildren();
+    const statusEntries = Object.entries(data.subscriptionStatuses || {});
+    const maxStatusCount = Math.max(1, ...statusEntries.map(([, count]) => count));
+    statusEntries.forEach(([status, count]) => {
+        const row = document.createElement('div');
+        row.className = 'subscription-row';
+        row.setAttribute('role', 'listitem');
+        const label = document.createElement('span');
+        label.className = 'subscription-label';
+        label.textContent = status.replaceAll('_', ' ');
+        const track = document.createElement('span');
+        track.className = 'subscription-track';
+        track.setAttribute('aria-hidden', 'true');
+        const bar = document.createElement('span');
+        bar.className = 'subscription-bar';
+        bar.style.width = `${Math.max(4, count / maxStatusCount * 100)}%`;
+        track.append(bar);
+        const total = document.createElement('span');
+        total.className = 'subscription-count';
+        total.textContent = String(count);
+        row.append(label, track, total);
+        subscriptions.append(row);
+    });
+    if (!statusEntries.length) subscriptions.innerHTML = '<p class="chart-empty">No subscription data.</p>';
+
+    const activityList = document.getElementById('recentActivityList');
+    activityList.replaceChildren();
+    (data.recentActivity || []).forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'activity-item';
+        const icon = document.createElement('span');
+        icon.className = 'activity-dot';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = '•';
+        const description = document.createElement('span');
+        description.className = 'activity-description';
+        const action = document.createElement('strong');
+        action.textContent = item.action.replaceAll('.', ' ');
+        description.append(action, document.createTextNode(item.schoolId ? ` · ${item.schoolId}` : ''));
+        const time = document.createElement('time');
+        time.className = 'activity-time';
+        time.textContent = item.createdAt ? formatAdminDate(item.createdAt) : 'Just now';
+        row.append(icon, description, time);
+        activityList.append(row);
+    });
+    if (!data.recentActivity?.length) activityList.innerHTML = '<p class="chart-empty">No recent platform activity.</p>';
+}
+
+async function loadPlatformOverview() {
+    const response = await getPlatformAdminOverview();
+    renderPlatformOverview(response.data);
+}
+
+async function refreshOverviewSafely() {
+    try {
+        await loadPlatformOverview();
+    } catch (error) {
+        showError(createMessage, error, 'The operation succeeded, but dashboard metrics could not be refreshed.');
+    }
+}
+
+async function loadAuditLog() {
+    const message = document.getElementById('auditMessage');
+    message.textContent = '';
+    auditTableBody.innerHTML = '<tr><td colspan="5">Loading audit events…</td></tr>';
+    try {
+        const response = await listPlatformAdminAudit({ limit: 100 });
+        auditTableBody.innerHTML = response.data.entries.length ? response.data.entries.map(item => `
+            <tr>
+                <td><span class="status-pill">${escapeHTML(item.action.replaceAll('.', ' '))}</span></td>
+                <td>${escapeHTML(item.schoolId || '—')}</td>
+                <td><code>${escapeHTML(item.targetId || '—')}</code></td>
+                <td>${escapeHTML(item.actorEmail || item.actorUid)}</td>
+                <td>${escapeHTML(formatAdminDate(item.createdAt))}</td>
+            </tr>`).join('') : '<tr><td colspan="5">No audit activity has been recorded yet.</td></tr>';
+    } catch (error) {
+        auditTableBody.innerHTML = '<tr><td colspan="5">Unable to load audit events.</td></tr>';
+        showError(message, error, 'Unable to load platform audit events.');
+    }
+}
+
+function browserSessionId() {
+    if (!adminSessionId) {
+        adminSessionId = Array.from(crypto.getRandomValues(new Uint8Array(24)), byte => byte.toString(16).padStart(2, '0')).join('');
+        sessionStorage.setItem('appAdminSessionId', adminSessionId);
+    }
+    return adminSessionId;
+}
+
+async function registerCurrentAdminSession() {
+    await registerPlatformAdminSession({
+        sessionId: browserSessionId(),
+        userAgent: navigator.userAgent
+    });
+}
+
+async function loadAdminSecurity() {
+    const user = auth.currentUser;
+    if (!user) return;
+    const factors = multiFactor(user).enrolledFactors;
+    const mfaStatus = document.getElementById('adminMfaStatus');
+    mfaStatus.textContent = factors.length ? `${factors.length} factor${factors.length === 1 ? '' : 's'} enrolled` : 'Not enabled';
+    mfaStatus.classList.toggle('disabled', !factors.length);
+    if (factors.length) {
+        document.getElementById('adminMfaPhone').disabled = true;
+        document.getElementById('adminMfaPassword').disabled = true;
+        document.getElementById('sendAdminMfaCode').disabled = true;
+    }
+    const response = await listPlatformAdminSessions();
+    sessionsTableBody.innerHTML = response.data.sessions.length ? response.data.sessions.map(item => {
+        const current = item.id === adminSessionId && !item.endedAt;
+        const recentlyActive = Date.now() - new Date(item.lastSeenAt).getTime() < 5 * 60 * 1000;
+        const label = item.userAgent.slice(0, 140) || 'Unknown browser';
+        return `<tr><td>${escapeHTML(label)}</td><td>${escapeHTML(formatAdminDate(item.createdAt))}</td><td>${escapeHTML(formatAdminDate(item.lastSeenAt))}</td><td class="${current ? 'session-current' : ''}">${current ? 'This browser' : recentlyActive ? 'Recently active' : item.endedAt ? 'Signed out' : 'Inactive'}</td></tr>`;
+    }).join('') : '<tr><td colspan="4">No browser sessions recorded.</td></tr>';
+}
+
+function csvCell(value) {
+    const text = String(value ?? '');
+    const safeText = /^[\s]*[=+\-@]/.test(text) ? `'${text}` : text;
+    return `"${safeText.replaceAll('"', '""')}"`;
+}
+
+async function exportSchoolsCsv() {
+    const button = document.getElementById('exportSchoolsButton');
+    button.disabled = true;
+    button.textContent = 'Preparing…';
+    try {
+        const allSchools = [];
+        let afterSchoolId = '';
+        do {
+            const response = await listPlatformSchools({ afterSchoolId, pageSize: 200 });
+            allSchools.push(...response.data.schools);
+            afterSchoolId = response.data.nextAfterSchoolId || '';
+        } while (afterSchoolId);
+        const columns = ['School ID', 'School', 'Country', 'Status', 'Plan', 'Subscription status', 'Billing cycle', 'Renewal date', 'Members', 'School admins', 'Created'];
+        const rows = allSchools.map(school => [
+            school.id, school.name, school.countryCode, school.status, school.subscriptionPlan,
+            school.subscriptionStatus, school.billingCycle, school.renewalDate,
+            school.memberCount, school.schoolAdminCount, school.createdAt
+        ]);
+        const csv = [columns, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
+        const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `smartskool-schools-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        createMessage.textContent = `Exported ${allSchools.length} schools.`;
+    } catch (error) {
+        showError(createMessage, error, 'Unable to export the school directory.');
+    } finally {
+        button.disabled = false;
+        button.textContent = 'Export CSV';
+    }
+}
 
 function setBusy(form, busy, buttonText) {
     const button = form.querySelector('button[type="submit"]');
@@ -224,6 +466,7 @@ function renderSchools() {
     const visibleSchools = schools.filter(school =>
         (!schoolStatusFilter.value || school.status === schoolStatusFilter.value)
         && (!schoolPlanFilter.value || school.subscriptionPlan === schoolPlanFilter.value)
+        && (!schoolSubscriptionFilter.value || school.subscriptionStatus === schoolSubscriptionFilter.value)
     );
     schoolTableBody.innerHTML = visibleSchools.length ? visibleSchools.map((school, index) => `
         <tr>
@@ -239,16 +482,22 @@ function renderSchools() {
             <td>${school.memberCount}</td>
             <td>${escapeHTML(school.createdAt ? new Date(school.createdAt).toLocaleDateString() : '—')}</td>
             <td><div class="table-actions">
+                <button class="table-action" type="button" data-school-action="profile" data-school-id="${escapeHTML(school.id)}">Profile</button>
                 <button class="table-action" type="button" data-school-action="accounts" data-school-id="${escapeHTML(school.id)}">Accounts</button>
                 <button class="table-action" type="button" data-school-action="edit" data-school-id="${escapeHTML(school.id)}">Edit</button>
                 <button class="table-action" type="button" data-school-action="subscription" data-school-id="${escapeHTML(school.id)}">Plan</button>
                 <button class="table-action ${school.status === 'active' ? 'danger' : ''}" type="button" data-school-action="status" data-school-id="${escapeHTML(school.id)}" data-status="${school.status === 'active' ? 'suspended' : 'active'}">${school.status === 'active' ? 'Suspend' : 'Activate'}</button>
             </div></td>
         </tr>`).join('') : `<tr><td colspan="9">${schools.length ? 'No schools match these filters on this page.' : 'No schools match this search.'}</td></tr>`;
-    document.getElementById('schoolTotal').textContent = String(schoolCount);
-    document.getElementById('activeSchoolTotal').textContent = String(activeSchoolCount);
-    renderPlanChart(schools);
-    const filtersActive = Boolean(schoolStatusFilter.value || schoolPlanFilter.value);
+    if (platformOverview) {
+        document.getElementById('schoolTotal').textContent = String(platformOverview.totalSchools);
+        document.getElementById('activeSchoolTotal').textContent = String(platformOverview.activeSchools);
+    } else {
+        document.getElementById('schoolTotal').textContent = String(schoolCount);
+        document.getElementById('activeSchoolTotal').textContent = String(activeSchoolCount);
+        renderPlanChart(schools);
+    }
+    const filtersActive = Boolean(schoolStatusFilter.value || schoolPlanFilter.value || schoolSubscriptionFilter.value);
     const totalLabel = schoolSearch.value.trim()
         ? `${schoolMatchCount} total matching the search`
         : `${schoolCount} total registered`;
@@ -361,25 +610,32 @@ function renderAccounts() {
             </div></td>
         </tr>`).join('') : '<tr><td colspan="7">No accounts match this search.</td></tr>';
     document.getElementById('accountTotal').textContent = String(accountCount);
-    document.getElementById('nextAccountsButton').disabled = accountSearch.value.trim()
+    document.getElementById('nextAccountsButton').disabled = accountUsesOffsetPaging()
         ? accountNextPageOffset === null
         : !accountAfterUid;
     document.getElementById('previousAccountsButton').disabled = accountCursorHistory.length === 0;
+}
+
+function accountUsesOffsetPaging() {
+    return Boolean(accountSearch.value.trim() || accountRoleFilter.value || accountStatusFilter.value);
 }
 
 async function loadAccounts(afterUid = accountPageCursor, pageOffset = 0) {
     if (!selectedSchool) return;
     accountTableBody.innerHTML = '<tr><td colspan="7">Loading school accounts…</td></tr>';
     const searchTerm = accountSearch.value.trim();
+    const useOffsetPaging = accountUsesOffsetPaging();
     const response = await listPlatformSchoolAccounts({
         schoolId: selectedSchool.id,
-        afterUid: searchTerm ? '' : afterUid || '',
-        pageOffset: searchTerm ? pageOffset : 0,
+        afterUid: useOffsetPaging ? '' : afterUid || '',
+        pageOffset: useOffsetPaging ? pageOffset : 0,
         searchTerm,
+        role: accountRoleFilter.value,
+        status: accountStatusFilter.value,
         pageSize: accountPageSize
     });
     accountPageCursor = afterUid || null;
-    accountCurrentPageOffset = searchTerm ? pageOffset : 0;
+    accountCurrentPageOffset = useOffsetPaging ? pageOffset : 0;
     accounts = response.data.accounts;
     accountAfterUid = response.data.nextAfterUid;
     accountNextPageOffset = response.data.nextPageOffset;
@@ -433,6 +689,37 @@ function openSchoolEditor(school) {
     schoolEditorForm.classList.remove('hidden');
     schoolEditorForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
     schoolEditorForm.elements.name.focus();
+}
+
+function showSchoolProfile(school) {
+    schoolProfileRecord = school;
+    const profile = document.getElementById('schoolProfile');
+    document.getElementById('schoolProfileName').textContent = school.name || 'School details';
+    document.getElementById('schoolProfileSubtitle').textContent = `School ID: ${school.id}${school.countryCode ? ` · ${school.countryCode}` : ''}`;
+    const metrics = [
+        ['Workspace status', school.status || 'unknown'],
+        ['Subscription plan', school.subscriptionPlan || 'Unassigned'],
+        ['Subscription status', (school.subscriptionStatus || 'trialing').replaceAll('_', ' ')],
+        ['Accounts', school.memberCount ?? 0],
+        ['School admins', school.schoolAdminCount ?? 0],
+        ['Created', school.createdAt ? new Date(school.createdAt).toLocaleDateString() : '—'],
+        ['Billing cycle', school.billingCycle || '—'],
+        ['Renewal date', school.renewalDate || '—']
+    ];
+    const metricContainer = document.getElementById('schoolProfileMetrics');
+    metricContainer.replaceChildren(...metrics.map(([label, value]) => {
+        const card = document.createElement('div');
+        card.className = 'profile-metric';
+        const title = document.createElement('span');
+        title.textContent = label;
+        const detail = document.createElement('strong');
+        detail.textContent = String(value);
+        card.append(title, detail);
+        return card;
+    }));
+    profile.dataset.schoolId = school.id;
+    profile.classList.remove('hidden');
+    profile.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function resetAccountForm() {
@@ -501,7 +788,19 @@ async function displayAdmin(user) {
     try {
         await loadSchools();
         const lastPanel = sessionStorage.getItem('appAdminLastPanel');
-        setActivePanel(['overview', 'schools', 'accounts'].includes(lastPanel) ? lastPanel : 'overview');
+        setActivePanel(['overview', 'schools', 'accounts', 'audit', 'security'].includes(lastPanel) ? lastPanel : 'overview');
+        await Promise.allSettled([
+            loadPlatformOverview().catch(error => showError(createMessage, error, 'Unable to load platform-wide dashboard metrics.')),
+            registerCurrentAdminSession().catch(error => showError(createMessage, error, 'Unable to register this browser session.'))
+        ]);
+        if (adminSessionHeartbeat) clearInterval(adminSessionHeartbeat);
+        adminSessionHeartbeat = setInterval(() => {
+            if (document.visibilityState === 'visible' && auth.currentUser) {
+                registerCurrentAdminSession().catch(error => showError(createMessage, error, 'Unable to refresh this browser session.'));
+            }
+        }, 4 * 60 * 1000);
+        if (lastPanel === 'audit') await loadAuditLog();
+        if (lastPanel === 'security') await loadAdminSecurity();
     } catch (error) {
         showError(document.getElementById('createMessage'), error, 'Unable to load registered schools.');
     } finally {
@@ -563,10 +862,129 @@ document.getElementById('adminHomeButton').addEventListener('click', () => setAc
 document.querySelectorAll('[data-admin-nav]').forEach(button => {
     button.addEventListener('click', () => {
         setActivePanel(button.dataset.adminNav);
+        if (button.dataset.adminNav === 'audit') loadAuditLog().catch(error => showError(document.getElementById('auditMessage'), error, 'Unable to load platform audit events.'));
+        if (button.dataset.adminNav === 'security') loadAdminSecurity().catch(error => showError(document.getElementById('securityMessage'), error, 'Unable to load security settings.'));
         if (button.dataset.adminNav === 'accounts' && !selectedSchool) {
             accountSchoolSelect.focus();
         }
     });
+});
+
+document.getElementById('openAuditLogButton').addEventListener('click', () => {
+    setActivePanel('audit');
+    loadAuditLog().catch(error => showError(document.getElementById('auditMessage'), error, 'Unable to load platform audit events.'));
+});
+document.getElementById('refreshAuditButton').addEventListener('click', () => {
+    loadAuditLog().catch(error => showError(document.getElementById('auditMessage'), error, 'Unable to refresh platform audit events.'));
+});
+document.getElementById('exportSchoolsButton').addEventListener('click', exportSchoolsCsv);
+document.getElementById('schoolProfileAccounts').addEventListener('click', () => {
+    if (schoolProfileRecord) openSchoolAccounts(schoolProfileRecord);
+});
+document.getElementById('schoolProfileEdit').addEventListener('click', () => {
+    if (schoolProfileRecord) openSchoolEditor(schoolProfileRecord);
+});
+document.getElementById('schoolProfilePlan').addEventListener('click', () => {
+    if (schoolProfileRecord) {
+        openSchoolEditor(schoolProfileRecord);
+        schoolEditorForm.elements.subscriptionPlan.focus();
+    }
+});
+document.getElementById('closeSchoolProfile').addEventListener('click', () => {
+    document.getElementById('schoolProfile').classList.add('hidden');
+    schoolProfileRecord = null;
+});
+document.getElementById('refreshSessionsButton').addEventListener('click', () => {
+    loadAdminSecurity().catch(error => showError(document.getElementById('securityMessage'), error, 'Unable to refresh App Admin sessions.'));
+});
+
+document.getElementById('sendAdminMfaCode').addEventListener('click', async event => {
+    const button = event.currentTarget;
+    const user = auth.currentUser;
+    const message = document.getElementById('securityMessage');
+    if (!user?.email) {
+        message.textContent = 'Sign in with an email-based App Admin account to enroll a phone factor.';
+        return;
+    }
+    if (multiFactor(user).enrolledFactors.length) {
+        message.textContent = 'A multi-factor sign-in method is already enrolled for this account.';
+        return;
+    }
+    const password = document.getElementById('adminMfaPassword').value;
+    const phoneNumber = document.getElementById('adminMfaPhone').value.trim();
+    if (!password || !/^\+[1-9]\d{7,14}$/.test(phoneNumber)) {
+        message.textContent = 'Enter your current password and a valid phone number in international format.';
+        return;
+    }
+    button.disabled = true;
+    message.textContent = '';
+    try {
+        await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+        if (!adminMfaVerifier) {
+            adminMfaVerifier = new RecaptchaVerifier(auth, 'adminMfaRecaptcha', { size: 'normal' });
+        }
+        await adminMfaVerifier.render();
+        const session = await multiFactor(user).getSession();
+        adminMfaVerificationId = await new PhoneAuthProvider(auth).verifyPhoneNumber({
+            phoneNumber,
+            session
+        }, adminMfaVerifier);
+        document.getElementById('adminMfaCodeField').classList.remove('hidden');
+        document.getElementById('verifyAdminMfaCode').classList.remove('hidden');
+        document.getElementById('adminMfaCode').focus();
+        message.textContent = 'Verification code sent. Enter the SMS code to finish enrollment.';
+    } catch (error) {
+        adminMfaVerifier?.clear();
+        adminMfaVerifier = null;
+        showError(message, error, 'Unable to send an MFA verification code.');
+    } finally {
+        button.disabled = false;
+    }
+});
+
+document.getElementById('adminMfaForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const user = auth.currentUser;
+    const code = document.getElementById('adminMfaCode').value.trim();
+    const message = document.getElementById('securityMessage');
+    const button = document.getElementById('verifyAdminMfaCode');
+    if (!user || !adminMfaVerificationId || !code) {
+        message.textContent = 'Request a verification code and enter it before enabling MFA.';
+        return;
+    }
+    button.disabled = true;
+    try {
+        const phoneCredential = PhoneAuthProvider.credential(adminMfaVerificationId, code);
+        const assertion = PhoneMultiFactorGenerator.assertion(phoneCredential);
+        await multiFactor(user).enroll(assertion, document.getElementById('adminMfaPhone').value.trim());
+        message.textContent = 'Multi-factor authentication is enabled for this App Admin account.';
+        document.getElementById('adminMfaPassword').value = '';
+        adminMfaVerificationId = '';
+        adminMfaVerifier?.clear();
+        adminMfaVerifier = null;
+        await loadAdminSecurity();
+    } catch (error) {
+        showError(message, error, 'Unable to enable multi-factor authentication.');
+    } finally {
+        button.disabled = false;
+    }
+});
+
+document.getElementById('revokeSessionsButton').addEventListener('click', async event => {
+    if (!confirm('Sign out this App Admin account on every device, including this browser? You will need to sign in again.')) return;
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+        await revokePlatformAdminSessions();
+        await signOut(auth);
+        adminSessionId = null;
+        sessionStorage.removeItem('appAdminSessionId');
+        document.getElementById('securityMessage').textContent = 'All App Admin refresh tokens were revoked. Sign in again to continue.';
+    } catch (error) {
+        showError(document.getElementById('securityMessage'), error, 'Unable to revoke App Admin sessions.');
+    } finally {
+        button.disabled = false;
+    }
 });
 
 accountSchoolSelect.addEventListener('change', () => {
@@ -582,12 +1000,14 @@ accountSchoolSelect.addEventListener('change', () => {
 document.getElementById('clearSchoolFilters').addEventListener('click', () => {
     schoolStatusFilter.value = '';
     schoolPlanFilter.value = '';
+    schoolSubscriptionFilter.value = '';
     schoolSearch.value = '';
     schoolCursorHistory = [];
     loadSchools(null, 0).catch(error => showError(createMessage, error, 'Unable to clear school filters.'));
 });
 schoolStatusFilter.addEventListener('change', renderSchools);
 schoolPlanFilter.addEventListener('change', renderSchools);
+schoolSubscriptionFilter.addEventListener('change', renderSchools);
 
 document.getElementById('cancelSchoolEditButton').addEventListener('click', () => {
     schoolEditorForm.reset();
@@ -613,6 +1033,11 @@ schoolEditorForm.addEventListener('submit', async event => {
         schoolEditorForm.classList.add('hidden');
         await loadSchools(schoolPageCursor, schoolCurrentPageOffset);
         createMessage.textContent = 'School details and subscription tracking were updated.';
+        await refreshOverviewSafely();
+        if (schoolProfileRecord?.id === data.get('schoolId')) {
+            schoolProfileRecord = schools.find(item => item.id === schoolProfileRecord.id) || schoolProfileRecord;
+            showSchoolProfile(schoolProfileRecord);
+        }
     } catch (error) {
         showError(createMessage, error, 'Unable to save school changes.');
     } finally {
@@ -641,6 +1066,7 @@ createForm.addEventListener('submit', async event => {
         schoolCursorHistory = [];
         schoolCurrentPageOffset = 0;
         await loadSchools(null, 0);
+        await refreshOverviewSafely();
         const school = schools.find(item => item.id === response.data.schoolId) || {
             id: response.data.schoolId,
             name: response.data.name,
@@ -675,6 +1101,10 @@ schoolTableBody.addEventListener('click', async event => {
     if (!button) return;
     const school = schools.find(item => item.id === button.dataset.schoolId);
     if (!school) return;
+    if (button.dataset.schoolAction === 'profile') {
+        showSchoolProfile(school);
+        return;
+    }
     if (button.dataset.schoolAction === 'accounts') {
         openSchoolAccounts(school);
         return;
@@ -694,6 +1124,7 @@ schoolTableBody.addEventListener('click', async event => {
     try {
         await setPlatformSchoolStatus({ schoolId: school.id, status: nextStatus });
         await loadSchools(schoolPageCursor, schoolCurrentPageOffset);
+        await refreshOverviewSafely();
         if (selectedSchool?.id === school.id) {
             selectedSchool = { ...selectedSchool, status: nextStatus };
             document.getElementById('selectedSchoolSummary').textContent = `School ID: ${school.id} · ${nextStatus}`;
@@ -788,6 +1219,14 @@ accountSearch.addEventListener('input', () => {
         loadAccounts(null, 0).catch(error => showError(accountMessage, error, 'Unable to search school accounts.'));
     }, 250);
 });
+for (const filter of [accountRoleFilter, accountStatusFilter]) {
+    filter.addEventListener('change', () => {
+        accountCursorHistory = [];
+        accountPageCursor = null;
+        accountCurrentPageOffset = 0;
+        loadAccounts(null, 0).catch(error => showError(accountMessage, error, 'Unable to filter school accounts.'));
+    });
+}
 document.getElementById('accountPageSize').addEventListener('change', async event => {
     accountPageSize = Number(event.target.value);
     accountCursorHistory = [];
@@ -849,6 +1288,7 @@ accountForm.addEventListener('submit', async event => {
         accountCursorHistory = [];
         await loadAccounts(null, 0);
         if (creatingAccount) await loadSchools(schoolPageCursor, schoolCurrentPageOffset);
+        await refreshOverviewSafely();
     } catch (error) {
         showError(accountMessage, error, 'Unable to save the school account.');
     } finally {
@@ -965,6 +1405,7 @@ accountTableBody.addEventListener('click', async event => {
         }
         await loadAccounts(accountPageCursor);
         await loadSchools(schoolPageCursor);
+        await refreshOverviewSafely();
     } catch (error) {
         showError(accountMessage, error, 'Unable to update the school account.');
     } finally {
@@ -982,11 +1423,11 @@ document.getElementById('previousAccountsButton').addEventListener('click', asyn
     }
 });
 document.getElementById('nextAccountsButton').addEventListener('click', async () => {
-    const searching = Boolean(accountSearch.value.trim());
-    if (searching ? accountNextPageOffset === null : !accountAfterUid) return;
+    const useOffsetPaging = accountUsesOffsetPaging();
+    if (useOffsetPaging ? accountNextPageOffset === null : !accountAfterUid) return;
     accountCursorHistory.push({ cursor: accountPageCursor || null, offset: accountCurrentPageOffset });
     try {
-        await loadAccounts(searching ? null : accountAfterUid, searching ? accountNextPageOffset : 0);
+        await loadAccounts(useOffsetPaging ? null : accountAfterUid, useOffsetPaging ? accountNextPageOffset : 0);
     } catch (error) {
         accountCursorHistory.pop();
         showError(accountMessage, error, 'Unable to load the next account page.');
@@ -996,7 +1437,18 @@ document.getElementById('nextAccountsButton').addEventListener('click', async ()
 signOutButton.addEventListener('click', async () => {
     signOutButton.disabled = true;
     try {
+        if (auth.currentUser && adminSessionId) {
+            try {
+                await endPlatformAdminSession({ sessionId: adminSessionId });
+            } catch (error) {
+                showError(createMessage, error, 'Unable to mark this browser session as signed out.');
+            }
+        }
         await signOut(auth);
+        if (adminSessionHeartbeat) clearInterval(adminSessionHeartbeat);
+        adminSessionHeartbeat = null;
+        adminSessionId = null;
+        sessionStorage.removeItem('appAdminSessionId');
     } catch (error) {
         showError(createMessage, error, 'Unable to sign out.');
     } finally {

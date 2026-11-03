@@ -70,6 +70,8 @@
                     <button class="active" type="button" data-admin-nav="overview"><span aria-hidden="true">◫</span> Overview</button>
                     <button type="button" data-admin-nav="schools"><span aria-hidden="true">▦</span> Schools</button>
                     <button type="button" data-admin-nav="accounts"><span aria-hidden="true">♙</span> Accounts</button>
+                    <button type="button" data-admin-nav="audit"><span aria-hidden="true">◷</span> Audit log</button>
+                    <button type="button" data-admin-nav="security"><span aria-hidden="true">◇</span> Security</button>
                 </nav>
                 <a class="sidebar-back" href="./index.html"><span aria-hidden="true">←</span> School sign in</a>
             </aside>
@@ -87,11 +89,16 @@
             <div class="dashboard-stats">
                 <article class="stat-card stat-blue"><span class="stat-icon" aria-hidden="true">▦</span><span>Registered schools</span><strong id="schoolTotal">—</strong><small>Across your platform</small></article>
                 <article class="stat-card stat-green"><span class="stat-icon" aria-hidden="true">✓</span><span>Active schools</span><strong id="activeSchoolTotal">—</strong><small>Currently operational</small></article>
+                <article class="stat-card stat-violet"><span class="stat-icon" aria-hidden="true">♙</span><span>Platform accounts</span><strong id="platformAccountTotal">—</strong><small>All school members</small></article>
+                <article class="stat-card stat-teal"><span class="stat-icon" aria-hidden="true">●</span><span>Active accounts</span><strong id="activeAccountTotal">—</strong><small>Across all schools</small></article>
                 <article class="stat-card stat-violet"><span class="stat-icon" aria-hidden="true">♙</span><span>Accounts in selected school</span><strong id="accountTotal">—</strong><small>Choose a school to view accounts</small></article>
+                <article class="stat-card stat-amber"><span class="stat-icon" aria-hidden="true">⌛</span><span>Trial schools</span><strong id="trialSchoolTotal">—</strong><small>Subscription tracking</small></article>
+                <article class="stat-card stat-rose"><span class="stat-icon" aria-hidden="true">!</span><span>Suspended schools</span><strong id="suspendedSchoolTotal">—</strong><small>Require attention</small></article>
+                <article class="stat-card stat-teal"><span class="stat-icon" aria-hidden="true">♧</span><span>School admins missing</span><strong id="schoolsNeedingAdminTotal">—</strong><small>Workspaces not fully set up</small></article>
             </div>
                     <section class="overview-grid" aria-label="School overview charts">
                         <article class="chart-card">
-                            <div class="chart-heading"><div><h2>Schools by plan</h2><p>Breakdown of the schools on this page</p></div><span class="chart-badge">CURRENT PAGE</span></div>
+                            <div class="chart-heading"><div><h2>Schools by plan</h2><p>Platform-wide subscription mix</p></div><span class="chart-badge">ALL SCHOOLS</span></div>
                             <div class="plan-chart" id="planChart" role="list" aria-live="polite">
                                 <p class="chart-empty">School plan data will appear when schools load.</p>
                             </div>
@@ -105,15 +112,38 @@
                             <button class="text-action-button" id="browseSchoolsButton" type="button">Browse school directory</button>
                         </article>
                     </section>
+                    <section class="overview-grid overview-extra-grid" aria-label="Platform trends and activity">
+                        <article class="chart-card">
+                            <div class="chart-heading"><div><h2>New school registrations</h2><p>Monthly registrations over the last six months</p></div><span class="chart-badge">6 MONTHS</span></div>
+                            <div class="registration-chart" id="registrationChart" role="list" aria-live="polite"></div>
+                        </article>
+                        <article class="chart-card">
+                            <div class="chart-heading"><div><h2>Subscription status</h2><p>Current platform-wide breakdown</p></div><span class="chart-badge">ALL SCHOOLS</span></div>
+                            <div class="subscription-summary" id="subscriptionSummary" role="list" aria-live="polite"></div>
+                        </article>
+                    </section>
+                    <section class="directory-section activity-preview">
+                        <div class="section-heading"><div><h3>Recent platform activity</h3><p>Latest school and account management actions.</p></div><button class="text-action-button" id="openAuditLogButton" type="button">View audit log →</button></div>
+                        <div class="activity-list" id="recentActivityList"></div>
+                    </section>
                     </section>
                     <section class="content-panel hidden" id="schoolsPanel" data-content-panel="schools">
             <section class="directory-section" id="schoolsSection">
                 <div class="section-heading">
                     <div><h3>Schools</h3><p>Search across all schools. Subscription fields track status only; payment processing is not connected.</p></div>
-                    <button class="primary-button compact-button" id="createSchoolFromDirectory" type="button">＋ Create school</button>
+                    <div class="school-toolbar"><button class="secondary-button compact-button" id="exportSchoolsButton" type="button">Export CSV</button><button class="primary-button compact-button" id="createSchoolFromDirectory" type="button">＋ Create school</button></div>
                 </div>
                 <label class="directory-search">Search all schools<input id="schoolSearch" type="search" placeholder="School name, ID, country, or status"></label>
                 <div class="school-filters" aria-label="Filter schools">
+                    <label>Subscription
+                        <select id="schoolSubscriptionFilter">
+                            <option value="">All subscription statuses</option>
+                            <option value="trialing">Trial</option>
+                            <option value="active">Active</option>
+                            <option value="past_due">Past due</option>
+                            <option value="canceled">Canceled</option>
+                        </select>
+                    </label>
                     <label>Status
                         <select id="schoolStatusFilter">
                             <option value="">All statuses</option>
@@ -131,6 +161,11 @@
                     </label>
                     <button class="secondary-button" id="clearSchoolFilters" type="button">Clear filters</button>
                 </div>
+                <section class="school-profile directory-section hidden" id="schoolProfile" aria-live="polite">
+                    <div class="section-heading"><div><p class="eyebrow">SCHOOL PROFILE</p><h3 id="schoolProfileName">School details</h3><p id="schoolProfileSubtitle"></p></div><div class="school-toolbar"><button class="secondary-button compact-button" id="schoolProfileAccounts" type="button">Manage accounts</button><button class="secondary-button compact-button" id="closeSchoolProfile" type="button">Close</button></div></div>
+                    <div class="profile-metrics" id="schoolProfileMetrics"></div>
+                    <div class="profile-actions"><button class="table-action" id="schoolProfileEdit" type="button">Edit school</button><button class="table-action" id="schoolProfilePlan" type="button">Manage subscription</button></div>
+                </section>
                 <form class="inline-create-form hidden" id="createSchoolForm">
                     <label>School name<input name="name" type="text" minlength="2" maxlength="120" autocomplete="organization" required></label>
                     <div class="form-row">
@@ -165,6 +200,33 @@
                 </div>
                 <div class="list-pager"><label>Rows per page <select id="schoolPageSize" aria-label="Schools rows per page"><option>10</option><option selected>25</option><option>50</option><option>100</option><option>200</option></select></label><button class="secondary-button" id="previousSchoolsButton" type="button" disabled>Previous</button><button class="secondary-button" id="nextSchoolsButton" type="button" disabled>Next</button></div>
             </section>
+            <section class="content-panel hidden" id="auditPanel" data-content-panel="audit">
+                <div class="welcome-heading"><div><p class="eyebrow">GOVERNANCE</p><h1>Audit log</h1><p>Review recent App Admin changes to school workspaces and accounts.</p></div><button class="secondary-button" id="refreshAuditButton" type="button">Refresh activity</button></div>
+                <section class="directory-section">
+                    <div class="section-heading"><div><h3>Recent activity</h3><p>Actions are recorded by trusted server functions.</p></div><span class="chart-badge">LATEST 100 EVENTS</span></div>
+                    <div class="table-wrap"><table><thead><tr><th>Action</th><th>School</th><th>Target</th><th>Administrator</th><th>Date</th></tr></thead><tbody id="auditTableBody"><tr><td colspan="5">Open this page to load activity.</td></tr></tbody></table></div>
+                    <p class="status-message" id="auditMessage" role="status" aria-live="polite"></p>
+                </section>
+            </section>
+            <section class="content-panel hidden" id="securityPanel" data-content-panel="security">
+                <div class="welcome-heading"><div><p class="eyebrow">ACCOUNT PROTECTION</p><h1>Security</h1><p>Review your sign-in protection and active App Admin browser sessions.</p></div></div>
+                <section class="directory-section">
+                    <div class="section-heading"><div><h3>Multi-factor authentication</h3><p>Add a verified phone as a second sign-in factor for this App Admin account.</p></div><span class="status-pill" id="adminMfaStatus">Checking…</span></div>
+                    <form class="security-mfa-form" id="adminMfaForm">
+                        <label>Phone number (international format)<input id="adminMfaPhone" type="tel" autocomplete="tel" placeholder="+256…" required></label>
+                        <label>Current password (for recent sign-in)<input id="adminMfaPassword" type="password" autocomplete="current-password" required></label>
+                        <div id="adminMfaRecaptcha"></div>
+                        <button class="primary-button compact-button" id="sendAdminMfaCode" type="button">Send verification code</button>
+                        <label class="hidden" id="adminMfaCodeField">SMS verification code<input id="adminMfaCode" type="text" inputmode="numeric" autocomplete="one-time-code"></label>
+                        <button class="secondary-button hidden" id="verifyAdminMfaCode" type="submit">Verify and enable MFA</button>
+                    </form>
+                    <p class="status-message" id="securityMessage" role="status" aria-live="polite"></p>
+                </section>
+                <section class="directory-section">
+                    <div class="section-heading"><div><h3>Browser sessions</h3><p>Recent browsers used for this App Admin account. Signing out all devices will end every session.</p></div><div class="school-toolbar"><button class="secondary-button compact-button" id="refreshSessionsButton" type="button">Refresh</button><button class="table-action danger" id="revokeSessionsButton" type="button">Sign out all devices</button></div></div>
+                    <div class="table-wrap"><table><thead><tr><th>Browser / device</th><th>Started</th><th>Last seen</th><th>Status</th></tr></thead><tbody id="sessionsTableBody"><tr><td colspan="4">Loading sessions…</td></tr></tbody></table></div>
+                </section>
+            </section>
             <div class="created-school hidden" id="createdSchool" role="status" aria-live="polite">
                 <span>School created successfully</span>
                 <strong id="createdSchoolId"></strong>
@@ -197,6 +259,10 @@
                     <button class="secondary-button" id="closeSchoolAccountsButton" type="button">Choose another school</button>
                 </div>
                 <label class="directory-search">Search all school accounts<input id="accountSearch" type="search" placeholder="Name, email, role, or User ID"></label>
+                <div class="school-filters account-filters" aria-label="Filter school accounts">
+                    <label>Role<select id="accountRoleFilter"><option value="">All roles</option><option value="schoolAdmin">School Admin</option><option value="superAdmin">Super Admin</option><option value="director">Director</option><option value="headTeacher">Head Teacher</option><option value="deputyHeadTeacher">Deputy Head Teacher</option><option value="bursar">Bursar</option><option value="teacher">Teacher</option><option value="librarian">Librarian</option><option value="hrOfficer">HR Officer</option><option value="storeManager">Store Manager</option><option value="parent">Parent</option><option value="student">Student</option></select></label>
+                    <label>Status<select id="accountStatusFilter"><option value="">All statuses</option><option value="active">Active</option><option value="disabled">Suspended</option></select></label>
+                </div>
                 <form class="account-editor hidden" id="schoolAccountForm">
                     <input name="uid" type="hidden">
                     <div class="form-row">

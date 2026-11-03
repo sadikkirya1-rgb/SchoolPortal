@@ -305,7 +305,11 @@ input:focus, select:focus { border-color: #7088ef; box-shadow: 0 0 0 3px #4667e8
 .stat-blue .stat-icon { background: #eef1ff; color: #4e66dd; }
 .stat-green .stat-icon { background: #e9f8f0; color: #2e9b68; }
 .stat-violet .stat-icon { background: #f3edff; color: #8357d8; }
+.stat-amber .stat-icon { background: #fff5df; color: #ad7413; }
+.stat-rose .stat-icon { background: #fff0f1; color: #c24d62; }
+.stat-teal .stat-icon { background: #e6f8f6; color: #16877e; }
 .overview-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(220px, .9fr); gap: 15px; margin-bottom: 27px; }
+.overview-extra-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 18px; }
 .chart-card, .insight-card { min-width: 0; padding: 19px; border: 1px solid #eceef4; border-radius: 14px; background: #fff; box-shadow: 0 4px 14px #25365a06; }
 .chart-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .chart-heading h2, .insight-card h2 { margin: 0 0 5px; color: #2a3449; font-size: .97rem; letter-spacing: -.02em; }
@@ -319,6 +323,42 @@ input:focus, select:focus { border-color: #7088ef; box-shadow: 0 0 0 3px #4667e8
 .plan-row:nth-child(2) .plan-bar { background: linear-gradient(90deg, #56b98b, #86d4ad); }
 .plan-row:nth-child(3) .plan-bar { background: linear-gradient(90deg, #a27ae5, #c0a3f1); }
 .plan-count { color: #38445c; font-size: .73rem; font-weight: 750; text-align: right; }
+.registration-chart { display: grid; height: 150px; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: end; gap: 10px; margin-top: 20px; }
+.registration-column { display: grid; height: 100%; grid-template-rows: 1fr auto; justify-items: center; gap: 7px; }
+.registration-bar-area { display: flex; width: 100%; height: 100%; align-items: end; justify-content: center; border-bottom: 1px solid #e8ebf2; background: repeating-linear-gradient(to bottom, transparent 0, transparent 36px, #f1f3f7 37px); }
+.registration-bar { width: min(28px, 70%); min-height: 3px; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #7d91f1, #4c65dc); }
+.registration-label { color: #8993a5; font-size: .64rem; }
+.registration-value { color: #53617a; font-size: .65rem; font-weight: 700; }
+.subscription-summary { display: grid; gap: 12px; margin-top: 20px; }
+.subscription-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) 24px; align-items: center; gap: 9px; }
+.subscription-label { color: #66728a; font-size: .72rem; text-transform: capitalize; }
+.subscription-track { height: 8px; overflow: hidden; border-radius: 99px; background: #f0f2f7; }
+.subscription-bar { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #39a77b, #8bd1ae); }
+.subscription-row:nth-child(2) .subscription-bar { background: linear-gradient(90deg, #dfa63d, #f4d17c); }
+.subscription-row:nth-child(3) .subscription-bar { background: linear-gradient(90deg, #de6b79, #f1a4ad); }
+.subscription-row:nth-child(4) .subscription-bar { background: linear-gradient(90deg, #8590a6, #bdc3cf); }
+.subscription-count { color: #38445c; font-size: .71rem; font-weight: 750; text-align: right; }
+.activity-list { display: grid; }
+.activity-item { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid #f0f2f6; }
+.activity-item:first-child { border-top: 0; }
+.activity-dot { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 9px; background: #eef1ff; color: #536de5; font-size: .72rem; }
+.activity-description { min-width: 0; color: #526078; font-size: .73rem; }
+.activity-description strong { color: #303b51; }
+.activity-time { color: #98a1b0; font-size: .65rem; white-space: nowrap; }
+.school-toolbar, .profile-actions { display: flex; align-items: center; gap: 8px; }
+.school-profile { margin-bottom: 18px; background: linear-gradient(145deg, #fff, #fafbff); }
+.profile-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 9px; margin-top: 16px; }
+.profile-metric { padding: 12px; border: 1px solid #eceef4; border-radius: 10px; background: #fff; }
+.profile-metric span, .profile-metric strong { display: block; }
+.profile-metric span { color: #8993a5; font-size: .68rem; }
+.profile-metric strong { margin-top: 5px; color: #303b51; font-size: .86rem; }
+.profile-actions { margin-top: 13px; }
+.directory-result-count { min-height: 1.2em; color: #8791a3; font-size: .73rem; }
+.account-total-badge { margin: 0 0 12px; color: #8892a4; font-size: .75rem; }
+.security-mfa-form { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; }
+.security-mfa-form #adminMfaRecaptcha { grid-column: 1 / -1; }
+.security-mfa-form .status-message { grid-column: 1 / -1; }
+.session-current { color: #288253; font-weight: 700; }
 .chart-empty { margin: 0; color: #98a1b0; font-size: .78rem; }
 .insight-card { position: relative; padding: 21px; overflow: hidden; background: linear-gradient(145deg, #f3f5ff, #fff 80%); }
 .insight-icon { display: grid; width: 35px; height: 35px; margin-bottom: 17px; place-items: center; border-radius: 10px; background: #e7ebff; color: #566fe1; }
@@ -424,7 +464,7 @@ footer { padding: 16px 3px; color: #929bac; font-size: .72rem; line-height: 1.5;
     .sidebar-brand .admin-mark { width: 34px; height: 34px; flex-basis: 34px; border-radius: 10px; }
     .sidebar-brand small { display: none; }
     .sidebar-label, .sidebar-back { display: none; }
-    .admin-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+    .admin-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
     .admin-nav button { min-height: 39px; justify-content: center; gap: 6px; padding: 0 5px; font-size: .72rem; }
     .admin-nav button span { width: auto; font-size: .9rem; }
     .admin-topbar { min-height: 56px; padding: 9px 16px; }
@@ -440,11 +480,14 @@ footer { padding: 16px 3px; color: #929bac; font-size: .72rem; line-height: 1.5;
     .stat-card { min-height: 102px; padding: 13px 62px 12px 15px; }
     .stat-icon { top: 14px; right: 14px; }
     .overview-grid { grid-template-columns: 1fr; gap: 10px; }
+    .overview-extra-grid { grid-template-columns: 1fr; }
     .insight-card { padding: 17px; }
     .directory-section { padding: 15px 12px; }
     .section-heading { align-items: flex-start; }
     .section-heading > div { min-width: 0; }
     .school-subscription-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .security-mfa-form { grid-template-columns: 1fr; }
+    .security-mfa-form #adminMfaRecaptcha, .security-mfa-form .status-message { grid-column: auto; }
 }
 
 @media (max-width: 480px) {

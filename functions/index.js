@@ -69,16 +69,185 @@ function validateSchoolId(value) {
     return schoolId;
 }
 
-function requirePlatformAdmin(request) {
+async function requirePlatformAdmin(request) {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to the App Admin panel.');
     if (request.auth.token.appAdmin !== true) {
         throw new HttpsError('permission-denied', 'Only an authorized App Admin can create schools.');
+    }
+    const user = await auth.getUser(request.auth.uid);
+    const authTime = Number(request.auth.token.auth_time);
+    const validAfter = user.tokensValidAfterTime
+        ? Math.floor(Date.parse(user.tokensValidAfterTime) / 1000)
+        : 0;
+    if (!Number.isFinite(authTime) || authTime <= validAfter) {
+        throw new HttpsError('unauthenticated', 'Your App Admin session has expired. Sign in again.');
     }
 }
 
 function isPlatformAdmin(request) {
     return request.auth?.token?.appAdmin === true;
 }
+
+async function writePlatformAdminAudit(request, action, { schoolId = '', targetId = '', details = {} } = {}) {
+    const actor = request.auth?.token || {};
+    try {
+        await db.collection('platformAdminAudit').add({
+            action,
+            schoolId,
+            targetId,
+            details,
+            actorUid: request.auth.uid,
+            actorEmail: String(actor.email || '').slice(0, 254),
+            createdAt: FieldValue.serverTimestamp()
+        });
+    } catch (error) {
+        console.error(`Unable to record App Admin audit event for ${action}.`, error);
+        throw new HttpsError(
+            'internal',
+            `The requested action may have succeeded, but audit logging failed (${action}). Verify the current state before retrying.`
+        );
+    }
+}
+
+exports.getPlatformAdminOverview = onCall(async request => {
+    await requirePlatformAdmin(request);
+    const now = new Date();
+    const months = Array.from({ length: 6 }, (_, index) => {
+        const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (5 - index), 1));
+        return { key: date.toISOString().slice(0, 7), label: date.toLocaleString('en', { month: 'short', timeZone: 'UTC' }), count: 0 };
+    });
+    const [schoolSnapshot, accountCount, activeAccountCount, adminSnapshot] = await Promise.all([
+        db.collection('schools').get(),
+        db.collectionGroup('members').count().get(),
+        db.collectionGroup('members').where('status', '==', 'active').count().get(),
+        db.collectionGroup('members').where('role', '==', 'schoolAdmin').get()
+    ]);
+    const schools = schoolSnapshot.docs.map(snapshot => ({ id: snapshot.id, ...snapshot.data() }));
+    const plans = {};
+    const subscriptionStatuses = {};
+    let activeSchools = 0;
+    let suspendedSchools = 0;
+    let trialSchools = 0;
+    const adminSchools = new Set(adminSnapshot.docs.map(snapshot => snapshot.ref.parent.parent?.id).filter(Boolean));
+    for (const school of schools) {
+        const status = school.status || 'unknown';
+        if (status === 'active') activeSchools += 1;
+        if (status === 'suspended') suspendedSchools += 1;
+        const plan = school.subscriptionPlan || 'Unassigned';
+        plans[plan] = (plans[plan] || 0) + 1;
+        const subscriptionStatus = school.subscriptionStatus || 'trialing';
+        subscriptionStatuses[subscriptionStatus] = (subscriptionStatuses[subscriptionStatus] || 0) + 1;
+        if (subscriptionStatus === 'trialing') trialSchools += 1;
+        const createdAt = school.createdAt?.toDate?.();
+        if (createdAt) {
+            const key = `${createdAt.getUTCFullYear()}-${String(createdAt.getUTCMonth() + 1).padStart(2, '0')}`;
+            const month = months.find(item => item.key === key);
+            if (month) month.count += 1;
+        }
+    }
+    const recentAudit = await db.collection('platformAdminAudit').orderBy('createdAt', 'desc').limit(8).get();
+    return {
+        totalSchools: schools.length,
+        activeSchools,
+        suspendedSchools,
+        trialSchools,
+        totalAccounts: accountCount.data().count,
+        activeAccounts: activeAccountCount.data().count,
+        schoolsWithAdmin: adminSchools.size,
+        schoolsNeedingAdmin: Math.max(0, schools.length - adminSchools.size),
+        plans,
+        subscriptionStatuses,
+        registrationsByMonth: months,
+        recentActivity: recentAudit.docs.map(snapshot => {
+            const item = snapshot.data();
+            return {
+                action: item.action || 'Platform update',
+                schoolId: item.schoolId || '',
+                targetId: item.targetId || '',
+                actorEmail: item.actorEmail || '',
+                createdAt: item.createdAt?.toDate?.().toISOString() || ''
+            };
+        })
+    };
+});
+
+exports.listPlatformAdminAudit = onCall(async request => {
+    await requirePlatformAdmin(request);
+    const requestedLimit = Number(request.data?.limit);
+    const limit = Number.isInteger(requestedLimit) ? Math.min(100, Math.max(1, requestedLimit)) : 50;
+    const snapshot = await db.collection('platformAdminAudit').orderBy('createdAt', 'desc').limit(limit).get();
+    return {
+        entries: snapshot.docs.map(item => {
+            const data = item.data();
+            return {
+                id: item.id,
+                action: data.action || 'Platform update',
+                schoolId: data.schoolId || '',
+                targetId: data.targetId || '',
+                actorUid: data.actorUid || '',
+                actorEmail: data.actorEmail || '',
+                details: data.details || {},
+                createdAt: data.createdAt?.toDate?.().toISOString() || ''
+            };
+        })
+    };
+});
+
+exports.registerPlatformAdminSession = onCall(async request => {
+    await requirePlatformAdmin(request);
+    const sessionId = String(request.data?.sessionId || '');
+    const userAgent = String(request.data?.userAgent || '').slice(0, 240);
+    if (!/^[A-Za-z0-9_-]{20,100}$/.test(sessionId)) {
+        throw new HttpsError('invalid-argument', 'A valid browser session ID is required.');
+    }
+    const sessionRef = db.doc(`platformAdminSessions/${request.auth.uid}/sessions/${sessionId}`);
+    const existing = await sessionRef.get();
+    await sessionRef.set({
+        userAgent,
+        createdAt: existing.data()?.createdAt || FieldValue.serverTimestamp(),
+        lastSeenAt: FieldValue.serverTimestamp(),
+        endedAt: null
+    });
+    return { sessionId };
+});
+
+exports.endPlatformAdminSession = onCall(async request => {
+    await requirePlatformAdmin(request);
+    const sessionId = String(request.data?.sessionId || '');
+    if (!/^[A-Za-z0-9_-]{20,100}$/.test(sessionId)) {
+        throw new HttpsError('invalid-argument', 'A valid browser session ID is required.');
+    }
+    await db.doc(`platformAdminSessions/${request.auth.uid}/sessions/${sessionId}`).set({
+        endedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    return { success: true };
+});
+
+exports.listPlatformAdminSessions = onCall(async request => {
+    await requirePlatformAdmin(request);
+    const sessions = await db.collection(`platformAdminSessions/${request.auth.uid}/sessions`)
+        .orderBy('lastSeenAt', 'desc').limit(20).get();
+    return { sessions: sessions.docs.map(snapshot => {
+        const item = snapshot.data();
+        return {
+            id: snapshot.id,
+            userAgent: item.userAgent || '',
+            createdAt: item.createdAt?.toDate?.().toISOString() || '',
+            lastSeenAt: item.lastSeenAt?.toDate?.().toISOString() || '',
+            endedAt: item.endedAt?.toDate?.().toISOString() || ''
+        };
+    }) };
+});
+
+exports.revokePlatformAdminSessions = onCall(async request => {
+    await requirePlatformAdmin(request);
+    await auth.revokeRefreshTokens(request.auth.uid);
+    await writePlatformAdminAudit(request, 'admin.sessions.revoked', {
+        targetId: request.auth.uid,
+        details: { scope: 'all-device-sessions' }
+    });
+    return { success: true };
+});
 
 function schoolIdDate(date) {
     const day = String(date.getUTCDate()).padStart(2, '0');
@@ -172,7 +341,7 @@ exports.getSchoolAnalytics = onCall(async request => {
 });
 
 exports.createSchool = onCall(async request => {
-    requirePlatformAdmin(request);
+    await requirePlatformAdmin(request);
     const name = String(request.data?.name || '').trim();
     const countryCode = String(request.data?.countryCode || '').trim().toUpperCase();
     const logoURL = String(request.data?.logoURL || '').trim();
@@ -237,11 +406,16 @@ exports.createSchool = onCall(async request => {
         return allocatedId;
     });
 
+    await writePlatformAdminAudit(request, 'school.created', {
+        schoolId,
+        targetId: schoolId,
+        details: { name, countryCode }
+    });
     return { schoolId, name, countryCode, logoURL };
 });
 
 exports.listPlatformSchools = onCall(async request => {
-    requirePlatformAdmin(request);
+    await requirePlatformAdmin(request);
     const requestedPageSize = Number(request.data?.pageSize);
     const pageSize = [10, 25, 50, 100, 200].includes(requestedPageSize) ? requestedPageSize : 50;
     const afterSchoolId = String(request.data?.afterSchoolId || '');
@@ -310,7 +484,7 @@ exports.listPlatformSchools = onCall(async request => {
 });
 
 exports.listPlatformSchoolAccounts = onCall(async request => {
-    requirePlatformAdmin(request);
+    await requirePlatformAdmin(request);
     const schoolId = validateSchoolId(request.data?.schoolId);
     const schoolSnapshot = await db.doc(`schools/${schoolId}`).get();
     if (!schoolSnapshot.exists) throw new HttpsError('not-found', 'School not found.');
@@ -318,16 +492,23 @@ exports.listPlatformSchoolAccounts = onCall(async request => {
     const pageSize = [10, 25, 50, 100, 200].includes(requestedPageSize) ? requestedPageSize : 200;
     const afterUid = String(request.data?.afterUid || '');
     const searchTerm = String(request.data?.searchTerm || '').trim().toLowerCase().slice(0, 120);
+    const roleFilter = String(request.data?.role || '').trim().slice(0, 50);
+    const statusFilter = String(request.data?.status || '').trim().slice(0, 30);
     const pageOffset = Number.isSafeInteger(Number(request.data?.pageOffset))
         ? Math.max(0, Math.min(1_000_000, Number(request.data.pageOffset)))
         : 0;
     let pageSnapshots;
     let hasMore;
     let matchingCount;
-    if (searchTerm) {
-        const snapshot = await db.collection(`schools/${schoolId}/members`).orderBy(FieldPath.documentId()).get();
+    const accountsRef = db.collection(`schools/${schoolId}/members`);
+    const useOffsetPaging = Boolean(searchTerm || roleFilter || statusFilter);
+    if (useOffsetPaging) {
+        const snapshot = await accountsRef.orderBy(FieldPath.documentId()).get();
         const matches = snapshot.docs.filter(memberSnapshot => {
             const member = memberSnapshot.data();
+            if (roleFilter && member.role !== roleFilter) return false;
+            if (statusFilter && member.status !== statusFilter) return false;
+            if (!searchTerm) return true;
             return [
                 member.fullName,
                 member.email,
@@ -341,13 +522,16 @@ exports.listPlatformSchoolAccounts = onCall(async request => {
         pageSnapshots = matches.slice(pageOffset, pageOffset + pageSize);
         hasMore = pageOffset + pageSnapshots.length < matches.length;
     } else {
-        let query = db.collection(`schools/${schoolId}/members`).orderBy(FieldPath.documentId()).limit(pageSize + 1);
+        let query = accountsRef.orderBy(FieldPath.documentId()).limit(pageSize + 1);
         if (afterUid) query = query.startAfter(db.doc(`schools/${schoolId}/members/${afterUid}`));
         const snapshot = await query.get();
         hasMore = snapshot.docs.length > pageSize;
         pageSnapshots = snapshot.docs.slice(0, pageSize);
+        matchingCount = (await accountsRef.count().get()).data().count;
     }
-    const totalCount = await db.collection(`schools/${schoolId}/members`).count().get();
+    const totalCount = useOffsetPaging
+        ? (await accountsRef.count().get()).data().count
+        : matchingCount;
     const accounts = pageSnapshots.map(memberSnapshot => {
         const member = memberSnapshot.data();
         return {
@@ -365,15 +549,15 @@ exports.listPlatformSchoolAccounts = onCall(async request => {
     });
     return {
         accounts,
-        nextAfterUid: searchTerm ? null : hasMore ? accounts[accounts.length - 1].uid : null,
-        nextPageOffset: searchTerm && hasMore ? pageOffset + accounts.length : null,
-        totalCount: totalCount.data().count,
-        matchingCount: searchTerm ? matchingCount : totalCount.data().count
+        nextAfterUid: useOffsetPaging ? null : hasMore ? accounts[accounts.length - 1].uid : null,
+        nextPageOffset: useOffsetPaging && hasMore ? pageOffset + accounts.length : null,
+        totalCount,
+        matchingCount
     };
 });
 
 exports.updatePlatformSchool = onCall(async request => {
-    requirePlatformAdmin(request);
+    await requirePlatformAdmin(request);
     const schoolId = validateSchoolId(request.data?.schoolId);
     const name = String(request.data?.name || '').trim();
     const countryCode = String(request.data?.countryCode || '').trim().toUpperCase();
@@ -423,11 +607,20 @@ exports.updatePlatformSchool = onCall(async request => {
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: request.auth.uid
     });
+    await writePlatformAdminAudit(request, 'school.updated', {
+        schoolId,
+        targetId: schoolId,
+        details: {
+            nameChanged: schoolSnapshot.data().name !== name,
+            subscriptionPlan,
+            subscriptionStatus
+        }
+    });
     return { schoolId, name, countryCode, logoURL, subscriptionPlan, subscriptionStatus, billingCycle, renewalDate };
 });
 
 exports.setPlatformSchoolStatus = onCall(async request => {
-    requirePlatformAdmin(request);
+    await requirePlatformAdmin(request);
     const schoolId = validateSchoolId(request.data?.schoolId);
     const status = request.data?.status;
     if (!['active', 'suspended'].includes(status)) {
@@ -437,12 +630,14 @@ exports.setPlatformSchoolStatus = onCall(async request => {
     const schoolSnapshot = await schoolRef.get();
     if (!schoolSnapshot.exists) throw new HttpsError('not-found', 'School not found.');
     await schoolRef.update({ status, updatedAt: FieldValue.serverTimestamp() });
+    await writePlatformAdminAudit(request, `school.${status}`, { schoolId, targetId: schoolId });
     return { schoolId, status };
 });
 
 async function requireSchoolAdmin(request, schoolId) {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to manage school accounts.');
     if (isPlatformAdmin(request)) {
+        await requirePlatformAdmin(request);
         return { platformAdmin: true };
     }
     const callerRef = db.doc(`schools/${schoolId}/members/${request.auth.uid}`);
@@ -1130,6 +1325,13 @@ exports.createSchoolUser = onCall(async request => {
         console.error('Unable to create school member account.', error);
         throw new HttpsError('internal', 'Unable to create the account. Check the function logs for details.');
     }
+    if (caller.platformAdmin) {
+        await writePlatformAdminAudit(request, 'account.created', {
+            schoolId,
+            targetId: createdUser.uid,
+            details: { role: account.role }
+        });
+    }
     return { uid: createdUser.uid, email: account.email, role: account.role, mustChangePassword: true };
 });
 
@@ -1218,6 +1420,13 @@ exports.updateSchoolUser = onCall(async request => {
             }
         }
         throw new HttpsError('internal', 'Unable to update the account.');
+    }
+    if (isPlatformAdmin(request)) {
+        await writePlatformAdminAudit(request, 'account.updated', {
+            schoolId,
+            targetId: uid,
+            details: { role }
+        });
     }
     return { uid };
 });
@@ -1344,6 +1553,12 @@ exports.setSchoolUserStatus = onCall(async request => {
     const batch = db.batch();
     batch.update(memberRef, { status: status ? 'active' : 'disabled', updatedAt: FieldValue.serverTimestamp() });
     await batch.commit();
+    if (isPlatformAdmin(request)) {
+        await writePlatformAdminAudit(request, `account.${status ? 'activated' : 'suspended'}`, {
+            schoolId,
+            targetId: uid
+        });
+    }
     return { uid, status };
 });
 
@@ -1384,6 +1599,13 @@ exports.deleteSchoolUser = onCall(async request => {
     const batch = db.batch();
     batch.delete(memberRef);
     await batch.commit();
+    if (isPlatformAdmin(request)) {
+        await writePlatformAdminAudit(request, 'account.deleted', {
+            schoolId,
+            targetId: uid,
+            details: { role: memberSnapshot.data().role }
+        });
+    }
     return { uid };
 });
 
