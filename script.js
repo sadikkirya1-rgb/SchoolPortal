@@ -7455,6 +7455,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const groupCard = document.createElement('fieldset');
             groupCard.className = 'section-access-group';
             const legend = document.createElement('legend');
+            legend.className = 'section-access-group-heading';
             const departmentLabel = document.createElement('label');
             departmentLabel.className = 'section-access-department';
             const departmentCheckbox = document.createElement('input');
@@ -7464,12 +7465,27 @@ document.addEventListener('DOMContentLoaded', () => {
             departmentCheckbox.dataset.sectionDepartment = departmentKey;
             departmentCheckbox.dataset.departmentLabel = name;
             departmentCheckbox.id = `section_department_${groupIndex}`;
-            departmentLabel.append(departmentCheckbox, document.createTextNode(` ${name} (all modules)`));
-            legend.append(departmentLabel);
+            departmentCheckbox.setAttribute('aria-label', `Select all ${name} modules`);
+            const departmentName = document.createElement('span');
+            departmentName.className = 'section-access-department-name';
+            departmentName.textContent = name;
+            departmentLabel.append(departmentCheckbox, departmentName);
+            const moduleCount = document.createElement('span');
+            moduleCount.className = 'section-access-module-count';
+            const toggleModules = document.createElement('button');
+            toggleModules.className = 'section-access-collapse';
+            toggleModules.type = 'button';
+            toggleModules.setAttribute('aria-expanded', 'false');
+            toggleModules.setAttribute('aria-label', `Expand ${name} modules`);
+            toggleModules.innerHTML = '<i class="fas fa-chevron-down" aria-hidden="true"></i><span>Expand</span>';
+            legend.append(departmentLabel, moduleCount, toggleModules);
             groupCard.append(legend);
 
             const modules = document.createElement('div');
             modules.className = 'section-access-modules';
+            modules.id = `section_modules_${groupIndex}`;
+            modules.hidden = true;
+            toggleModules.setAttribute('aria-controls', modules.id);
             links.forEach(({ link, label }, linkIndex) => {
                 const moduleLabel = document.createElement('label');
                 moduleLabel.className = 'section-access-module';
@@ -7486,25 +7502,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 moduleLabel.append(document.createTextNode(` ${label}`));
                 modules.appendChild(moduleLabel);
             });
-            const moduleCount = document.createElement('span');
-            moduleCount.className = 'section-access-module-count';
-            moduleCount.textContent = `${links.length} ${links.length === 1 ? 'module' : 'modules'}`;
-            legend.appendChild(moduleCount);
             groupCard.appendChild(modules);
+
+            const updateModuleCount = () => {
+                const selectedCount = modules.querySelectorAll('input[data-section-grant="module"]:checked').length;
+                moduleCount.textContent = `${selectedCount}/${links.length}`;
+                moduleCount.setAttribute('aria-label', `${selectedCount} of ${links.length} modules selected`);
+            };
+            toggleModules.addEventListener('click', () => {
+                const expanded = toggleModules.getAttribute('aria-expanded') !== 'true';
+                toggleModules.setAttribute('aria-expanded', String(expanded));
+                toggleModules.setAttribute('aria-label', `${expanded ? 'Collapse' : 'Expand'} ${name} modules`);
+                modules.hidden = !expanded;
+                toggleModules.innerHTML = `<i class="fas fa-chevron-${expanded ? 'up' : 'down'}" aria-hidden="true"></i><span>${expanded ? 'Collapse' : 'Expand'}</span>`;
+            });
+            departmentCheckbox.addEventListener('click', event => event.stopPropagation());
 
             departmentCheckbox.addEventListener('change', () => {
                 modules.querySelectorAll('input[data-section-grant="module"]').forEach(checkbox => {
                     checkbox.checked = departmentCheckbox.checked;
                 });
+                updateModuleCount();
                 updateSelectAll();
             });
             modules.addEventListener('change', event => {
                 if (event.target.matches('input[data-section-grant="module"]')) {
                     const moduleCheckboxes = Array.from(modules.querySelectorAll('input[data-section-grant="module"]'));
                     departmentCheckbox.checked = moduleCheckboxes.every(checkbox => checkbox.checked);
+                    updateModuleCount();
                     updateSelectAll();
                 }
             });
+            updateModuleCount();
             grantsContainer.appendChild(groupCard);
         });
         sectionsContainerEl.appendChild(grantsContainer);
@@ -7512,6 +7541,13 @@ document.addEventListener('DOMContentLoaded', () => {
         function updateSelectAll() {
             const moduleCheckboxes = Array.from(grantsContainer.querySelectorAll('input[data-section-grant="module"]'));
             const selectedCount = moduleCheckboxes.filter(checkbox => checkbox.checked).length;
+            grantsContainer.querySelectorAll('.section-access-group').forEach(group => {
+                const groupModules = Array.from(group.querySelectorAll('input[data-section-grant="module"]'));
+                const groupSelected = groupModules.filter(checkbox => checkbox.checked).length;
+                const count = group.querySelector('.section-access-module-count');
+                count.textContent = `${groupSelected}/${groupModules.length}`;
+                count.setAttribute('aria-label', `${groupSelected} of ${groupModules.length} modules selected`);
+            });
             selectAll.checked = moduleCheckboxes.length > 0 && selectedCount === moduleCheckboxes.length;
             selectAll.indeterminate = selectedCount > 0 && !selectAll.checked;
             selectionSummary.textContent = `${selectedCount} of ${moduleCheckboxes.length} modules selected`;
