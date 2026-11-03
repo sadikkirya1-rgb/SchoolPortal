@@ -30,6 +30,30 @@ try {
     console.warn('Unable to check the saved login session.', error);
 }
 </script>
+<link rel="preload" as="image" href="./assets/Smart School Management Login.png">
+<style>
+html, body {
+    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat fixed;
+}
+html.session-bootstrap, html.session-bootstrap body {
+    min-height: 100vh;
+    min-height: 100svh;
+    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat fixed;
+}
+html.session-bootstrap body { transition: none; }
+html.session-bootstrap .reference-login-page { display: none !important; }
+.session-bootstrap-screen { display: none; }
+html.session-bootstrap .session-bootstrap-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat fixed;
+    color: #1e293b;
+}
+</style>
 
 <script>
 if ('serviceWorker' in navigator) {
