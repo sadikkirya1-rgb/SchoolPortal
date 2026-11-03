@@ -457,17 +457,17 @@ html.session-bootstrap .session-bootstrap-screen {
     min-height: 0;
     flex-direction: column;
     justify-content: center;
-    gap: 6px;
+    gap: clamp(9px, 1.35dvh, 15px);
     box-sizing: border-box;
     border: 0;
     border-radius: 0;
     background: transparent;
     color: #0f3471;
     font-family: "Poppins", sans-serif;
-    font-size: 16px;
+    font-size: clamp(21px, 2.7dvh, 25px);
     text-align: center;
-    overflow-y: auto;
-    padding: clamp(14px, 2.5vh, 24px) clamp(16px, 2vw, 32px) clamp(54px, 8vh, 76px);
+    overflow: hidden;
+    padding: clamp(12px, 2.1dvh, 25px) clamp(10px, 2vw, 28px) clamp(38px, 4.1dvh, 46px);
 }
 
 .login-usage-stats {
@@ -561,9 +561,9 @@ html.session-bootstrap .session-bootstrap-screen {
     min-width: 0;
     align-items: center;
     flex-direction: column;
-    gap: 9px;
-    margin: 1px 0 2px;
-    padding: 7px 9px;
+    gap: 5px;
+    margin: 0;
+    padding: 4px 7px;
     box-sizing: border-box;
     border: 1px solid #dce6f3;
     border-radius: 10px;
@@ -574,9 +574,9 @@ html.session-bootstrap .session-bootstrap-screen {
 .reference-school-logo,
 .reference-school-logo-fallback {
     display: grid;
-    width: 2.5em;
-    height: 2.5em;
-    min-width: 2.5em;
+    width: 2em;
+    height: 2em;
+    min-width: 2em;
     flex: 0 0 auto;
     place-items: center;
     border-radius: 8px;
@@ -619,28 +619,28 @@ html.session-bootstrap .session-bootstrap-screen {
 
 .reference-login-logo {
     display: grid;
-    width: 2.8em;
-    height: 2.3em;
+    width: 2.2em;
+    height: 1.8em;
     place-items: center;
     color: #0755bc;
-    font-size: 1.7em;
+    font-size: 1.35em;
 }
 
 .reference-login-brand strong {
-    margin-top: 4px;
-    font-size: 1.25em;
+    margin-top: 2px;
+    font-size: 1.12em;
     font-weight: 700;
 }
 
 .reference-login-brand > span:not(.reference-login-logo) {
-    margin-top: 3px;
+    margin-top: 1px;
     color: #079be4;
-    font-size: 1.1em;
+    font-size: 0.95em;
     font-weight: 700;
 }
 
 .reference-login-brand small {
-    margin-top: 6px;
+    margin-top: 3px;
     color: #315b93;
     font-size: 0.68em;
 }
@@ -651,9 +651,9 @@ html.session-bootstrap .session-bootstrap-screen {
 }
 
 .reference-login-card h3 {
-    margin: 8px 0 0;
-    font-size: 1.25em;
-    line-height: 1.3;
+    margin: 3px 0 0;
+    font-size: 1.12em;
+    line-height: 1.15;
 }
 
 .reference-login-intro {
@@ -665,11 +665,11 @@ html.session-bootstrap .session-bootstrap-screen {
 .reference-login-field {
     position: relative;
     display: flex;
-    min-height: 40px;
+    min-height: clamp(32px, 4.9dvh, 42px);
     align-items: center;
     gap: 0;
-    margin-top: 2px;
-    padding: 0 40px;
+    margin-top: 1px;
+    padding: 0 34px;
     box-sizing: border-box;
     border: 1px solid #cbdcf2;
     border-radius: 10px;
@@ -733,7 +733,7 @@ html.session-bootstrap .session-bootstrap-screen {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    margin: 2px 0;
+    margin: 1px 0;
     font-size: 0.67em;
 }
 
@@ -770,7 +770,7 @@ html.session-bootstrap .session-bootstrap-screen {
 .reference-google {
     display: flex;
     width: 100%;
-    min-height: 38px;
+    min-height: clamp(31px, 4.7dvh, 40px);
     align-items: center;
     justify-content: center;
     gap: 10px;
@@ -789,7 +789,7 @@ html.session-bootstrap .session-bootstrap-screen {
 }
 
 .reference-login-field + #referenceSchoolContinue {
-    margin-top: 8px;
+    margin-top: 4px;
 }
 
 .reference-sign-in:hover {
@@ -799,11 +799,11 @@ html.session-bootstrap .session-bootstrap-screen {
 
 .reference-admin-link {
     display: inline-flex;
-    min-height: 32px;
+    min-height: clamp(27px, 4dvh, 34px);
     align-items: center;
     justify-content: center;
     gap: 7px;
-    margin-top: 3px;
+    margin-top: 1px;
     border: 1px solid #cbdcf2;
     border-radius: 8px;
     background: #f5f9ff;
@@ -875,7 +875,7 @@ html.session-bootstrap .session-bootstrap-screen {
 }
 
 .reference-contact {
-    margin: 2px 0 0;
+    margin: 1px 0 0;
     color: #315b93;
     font-size: 0.62em;
 }
@@ -915,11 +915,11 @@ html.session-bootstrap .session-bootstrap-screen {
         width: min(100%, max(26.4vw, 46.9dvh));
         height: min(100%, max(74.7dvh, 42vw));
         min-height: 0;
-        padding: 14px 16px max(54px, calc(env(safe-area-inset-bottom) + 42px));
+        padding: 6px 12px max(34px, calc(env(safe-area-inset-bottom) + 28px));
     }
 
     .login-usage-stats {
-        bottom: calc((100% - min(100%, max(74.7dvh, 42vw))) / 2 + max(20px, 2.5dvh, env(safe-area-inset-bottom)));
+        bottom: calc((100% - min(100%, max(74.7dvh, 42vw))) / 2 + max(15px, 2dvh, env(safe-area-inset-bottom)));
         width: calc(100% - 24px);
     }
 
@@ -949,9 +949,66 @@ html.session-bootstrap .session-bootstrap-screen {
     }
 }
 
+@media (max-height: 500px) {
+    .reference-login-card {
+        font-size: clamp(13px, 2.7dvh, 15px);
+        gap: 4px;
+        padding: 4px 10px 32px;
+    }
+
+    .reference-login-brand small,
+    .reference-login-card h3,
+    .reference-login-section-title,
+    .reference-login-field,
+    .reference-sign-in,
+    .reference-admin-link {
+        margin-top: 0;
+    }
+
+    .reference-login-section-title {
+        margin-bottom: 1px;
+        padding-bottom: 2px;
+    }
+
+    .reference-login-field {
+        min-height: 32px;
+    }
+
+    .reference-sign-in,
+    .reference-google {
+        min-height: 31px;
+    }
+
+    .reference-back-school {
+        min-height: 23px;
+        margin-bottom: 0;
+    }
+
+    .reference-school-identity {
+        flex-direction: row;
+        justify-content: center;
+        text-align: left;
+    }
+
+    .reference-school-identity-copy {
+        align-items: flex-start;
+    }
+
+    .reference-contact {
+        line-height: 1.15;
+    }
+}
+
 @media (max-height: 700px) and (min-width: 641px) {
     .reference-login-stage {
-        min-height: 560px;
+        min-height: 100dvh;
+    }
+
+    .reference-login-card {
+        font-size: clamp(13px, 2dvh, 15px);
+        gap: 2px;
+        padding-top: 5px;
+        padding-bottom: 36px;
     }
 
 }
