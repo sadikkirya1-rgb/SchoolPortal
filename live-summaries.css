@@ -119,6 +119,7 @@
 .staff-directory-module .sd-form-group{gap:4px}
 .staff-directory-module .sd-form-group input,.staff-directory-module .sd-form-group select,.staff-directory-module .sd-form-group textarea{padding:8px}
 .staff-directory-module .sd-form-group textarea{min-height:48px;resize:none}
+.staff-directory-module .sd-form-group textarea[name="address"]{height:36px;min-height:36px}
 .staff-directory-module .sd-photo-upload{gap:8px}
 .staff-directory-module .sd-preview{width:50px;height:52px}
 .staff-directory-module .sd-live-summary{margin:14px 14px 14px 0;padding:12px}

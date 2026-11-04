@@ -30,7 +30,14 @@
         form.elements.staffId.readOnly = true;
         const employmentGrid = sec.querySelectorAll('.sd-form-grid')[1];
         ['phone', 'email'].forEach(name => employmentGrid.append(form.elements[name].closest('.sd-form-group')));
-        sec.querySelectorAll('.sd-form-section')[2].querySelector('h3').textContent = 'Address Information';
+        const formSections = sec.querySelectorAll('.sd-form-section');
+        const contactSection = formSections[2];
+        const additionalSection = formSections[3];
+        const addressField = form.elements.address.closest('.sd-form-group');
+        addressField.classList.remove('full');
+        additionalSection.querySelector('.sd-form-grid').prepend(addressField);
+        contactSection.remove();
+        additionalSection.querySelector('h3').textContent = 'Address & Emergency Information';
         const liveSummary = document.createElement('aside');
         liveSummary.className = 'sd-live-summary';
         liveSummary.innerHTML = '<h3>Staff Summary</h3><p>Review key details before saving.</p><div data-staff-summary></div>';
