@@ -36,21 +36,6 @@
       ]
     },
     {
-      "id": "admissions",
-      "label": "Admissions",
-      "icon": "fas fa-user-plus",
-      "roles": ["super_admin", "director", "head_teacher", "deputy_head"],
-      "children": [
-        {"id": "admission_list", "label": "Admissions", "icon": "fas fa-list", "href": "#/admissions/list"},
-        {"id": "applications", "label": "Applications", "icon": "fas fa-file-alt", "href": "#/admissions/applications", "badge": "new_count"},
-        {"id": "interviews", "label": "Interviews", "icon": "fas fa-clipboard-check", "href": "#/admissions/interviews"},
-        {"id": "letters", "label": "Admission Letters", "icon": "fas fa-envelope", "href": "#/admissions/letters"},
-        {"id": "waiting_list", "label": "Waiting List", "icon": "fas fa-clock", "href": "#/admissions/waiting-list"},
-        {"id": "registration", "label": "Student Registration", "icon": "fas fa-id-card", "href": "#/admissions/registration"},
-        {"id": "transfers", "label": "Student Transfers", "icon": "fas fa-sync", "href": "#/admissions/transfers"}
-      ]
-    },
-    {
       "id": "academic",
       "label": "Academic",
       "icon": "fas fa-graduation-cap",
