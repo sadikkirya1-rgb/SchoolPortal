@@ -130,6 +130,7 @@ SchoolPortal/
 
 ### 7. **HUMAN RESOURCES DEPARTMENT**
 - Staff Directory (searchable)
+- Staff Directory is the shared employee record; Teachers is a teaching-only view with subject and qualification details.
 - Staff Attendance (with analytics)
 - Leave Management (with approval workflow)
 - Recruitment Module

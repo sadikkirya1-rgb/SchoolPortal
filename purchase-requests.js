@@ -136,15 +136,17 @@ function createPurchaseRequestsModule() {
     const departmentSelect = form.elements.department;
     const requesterSelect = form.elements.requester;
     const staffBySource = new Map();
-    const legacyStaff = [];
-    ['school_staff_directory', 'school_staff', 'school_teachers'].forEach(key => {
-        try {
-            const records = JSON.parse(localStorage.getItem(key) || '[]');
-            if (Array.isArray(records)) legacyStaff.push(...records);
-        } catch (error) {
-            console.error(`Unable to load staff records from ${key}.`, error);
-        }
-    });
+    const legacyStaff = window.schoolStaffRecords?.migrateLegacy() || [];
+    if (!window.schoolStaffRecords) {
+        ['school_staff_directory', 'school_staff', 'school_teachers'].forEach(key => {
+            try {
+                const records = JSON.parse(localStorage.getItem(key) || '[]');
+                if (Array.isArray(records)) legacyStaff.push(...records);
+            } catch (error) {
+                console.error(`Unable to load staff records from ${key}.`, error);
+            }
+        });
+    }
     staffBySource.set('local', legacyStaff);
     const normalizedDepartment = value => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
     const departmentMatches = {
@@ -190,13 +192,22 @@ function createPurchaseRequestsModule() {
         requesterSelect.value = selectedName || '';
         requesterSelect.disabled = !department;
     };
+    window.addEventListener('school-portal-staff-records-updated', () => {
+        if (!window.schoolStaffRecords) return;
+        staffBySource.set('local', window.schoolStaffRecords.read());
+        refreshRequesterOptions(requesterSelect.value);
+    });
     departmentSelect.addEventListener('change', () => {
         refreshRequesterOptions();
         updateRequestSummary();
     });
     const staffApi = window.schoolPortalData;
     if (staffApi?.subscribe) {
-        ['staffDirectory', 'staff', 'teachers'].forEach(collection => {
+        const user = staffApi.getIdentity?.();
+        const sharedStaffAccess = administratorRoles.has(roleKey(user?.role))
+            || user?.permissions?.staff?.view === true;
+        const collections = sharedStaffAccess ? ['staff'] : ['staffDirectory', 'staff', 'teachers'];
+        collections.forEach(collection => {
             void staffApi.subscribe(collection, records => {
                 staffBySource.set(collection, records);
                 refreshRequesterOptions(requesterSelect.value);

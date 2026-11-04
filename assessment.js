@@ -202,7 +202,12 @@ function createAssessmentModule(category) {
             return [];
         }
     };
-    teachers = readLegacyRecords('school_teachers');
+    const isTeachingStaff = teacher => window.schoolStaffRecords
+        ? window.schoolStaffRecords.isTeacher(teacher)
+        : /teacher|principal|head of department/i.test(String(teacher.designation || '')) || Boolean(teacher.subject);
+    teachers = window.schoolStaffRecords
+        ? window.schoolStaffRecords.migrateLegacy().filter(isTeachingStaff)
+        : readLegacyRecords('school_teachers');
     timetables = readLegacyRecords('school_timetables');
     refreshAssignmentOptions();
     void subscribeOptions('subjects', incoming => {
@@ -215,7 +220,21 @@ function createAssessmentModule(category) {
             && !['inactive', 'deleted'].includes(String(record.status || '').toLowerCase()));
         refreshAssignmentOptions();
     });
+    void subscribeOptions('staff', incoming => {
+        teachers = incoming.filter(record => record.deleted !== true
+            && isTeachingStaff(record)
+            && !['inactive', 'resigned', 'retired'].includes(String(record.status || '').toLowerCase()));
+        refreshAssignmentOptions();
+    });
+    window.addEventListener('school-portal-staff-records-updated', () => {
+        if (!window.schoolStaffRecords) return;
+        teachers = window.schoolStaffRecords.read().filter(teacher => teacher.deleted !== true
+            && isTeachingStaff(teacher)
+            && !['inactive', 'resigned', 'retired'].includes(String(teacher.status || '').toLowerCase()));
+        refreshAssignmentOptions();
+    });
     void subscribeOptions('teachers', incoming => {
+        if (canViewCollection('staff')) return;
         teachers = incoming.filter(record => record.deleted !== true
             && !['inactive', 'resigned', 'retired'].includes(String(record.status || '').toLowerCase()));
         refreshAssignmentOptions();

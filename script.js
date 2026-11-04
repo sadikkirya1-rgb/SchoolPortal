@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         photo: membership.photoURL || membership.photo || membership.profile?.photoURL || authUser.photoURL || ''
     });
 
-    const dashboardCollections = ['students', 'teachers', 'parents', 'fees', 'expenses', 'notices', 'calendarEvents', 'attendance'];
+    const dashboardCollections = ['students', 'staff', 'parents', 'fees', 'expenses', 'notices', 'calendarEvents', 'attendance'];
     const dashboardData = Object.fromEntries(dashboardCollections.map(name => [name, { loaded: false, records: [], error: false }]));
     const studentPortalCollections = ['students', 'attendance', 'assessments', 'reportCards', 'examResults', 'timetables', 'studyMaterials', 'quizzes', 'notices', 'libraryLoans'];
     const studentPortalData = Object.fromEntries(studentPortalCollections.map(name => [
@@ -2112,7 +2112,8 @@ document.addEventListener('DOMContentLoaded', () => {
             : '—';
 
         setStat('students', availableCount('students'));
-        setStat('teachers', availableCount('teachers'));
+        const teachingStaff = recordsFor('staff').filter(record => window.schoolStaffRecords?.isTeacher(record));
+        setStat('teachers', dashboardData.staff.loaded ? teachingStaff.length.toLocaleString() : '—');
         setStat('parents', availableCount('parents'));
         setStat('notices', availableCount('notices'));
         setStat('calendarEvents', availableCount('calendarEvents'));
@@ -3025,6 +3026,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         renderDashboardData();
     }
+
+    const refreshDashboardStaff = () => {
+        if (!dashboardData.staff.loaded || !window.schoolStaffRecords) return;
+        dashboardData.staff.records = window.schoolStaffRecords.read();
+        renderDashboardData();
+    };
+    window.addEventListener('school-portal-staff-records-updated', refreshDashboardStaff);
+    window.addEventListener('school-portal-cloud-data-update', event => {
+        if (!['staff', 'teachers', 'staffDirectory'].includes(event.detail?.collection)) return;
+        window.schoolStaffRecords?.migrateLegacy();
+        refreshDashboardStaff();
+    });
 
     window.addEventListener('school-portal-sync-error', event => {
         const collection = event.detail?.collection;
@@ -5583,8 +5596,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (visitorType === 'Staff Member') {
                 const people = [
-                    ...readLocalRecords('school_teachers').map(record => ({ ...record, directoryType: 'Teacher' })),
-                    ...readLocalRecords('school_staff').map(record => ({ ...record, directoryType: 'Staff' }))
+                    ...(window.schoolStaffRecords?.migrateLegacy() || readLocalRecords('school_staff'))
+                        .map(record => ({ ...record, directoryType: window.schoolStaffRecords?.isTeacher(record) ? 'Teacher' : 'Staff' }))
                 ];
                 const seen = new Set();
                 return people.map((record, index) => {
@@ -7082,9 +7095,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const group = departmentGroups.find(item => item.value === department);
             if (!group) return [];
             const staff = [
-                ...readStaffRecords('school_staff').map(record => ({ record, isTeacher: false })),
-                ...readStaffRecords('school_staff_directory').map(record => ({ record, isTeacher: false })),
-                ...readStaffRecords('school_teachers').map(record => ({ record, isTeacher: true }))
+                ...(window.schoolStaffRecords?.migrateLegacy() || readStaffRecords('school_staff'))
+                    .map(record => ({ record, isTeacher: window.schoolStaffRecords?.isTeacher(record) || false }))
             ];
             const seenNames = new Set();
             return staff.flatMap(({ record, isTeacher }) => {
