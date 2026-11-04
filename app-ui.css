@@ -602,6 +602,10 @@ body.dark-mode,
     flex-wrap: wrap;
 }
 
+.report-cards-module .report-row-actions {
+    flex-wrap: nowrap;
+}
+
 .dark .report-cards-feedback,
 .dark .report-subject-help {
     color: #cbd5e1;
@@ -912,7 +916,8 @@ body.dark-mode,
 
     .report-cards-module .report-row-actions {
         min-width: 0;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        overflow-x: auto;
     }
 }
 
