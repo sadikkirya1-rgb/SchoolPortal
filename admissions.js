@@ -78,12 +78,6 @@
     let unsubscribe = null;
     let requestId = 0;
 
-    const escapeCsv = value => {
-        let text = String(value ?? '');
-        if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`;
-        return `"${text.replace(/"/g, '""')}"`;
-    };
-
     function createAdmissionsModule() {
         let section = document.getElementById('admissionsModule');
         if (section) return section;
@@ -92,25 +86,33 @@
         section.id = 'admissionsModule';
         section.className = 'module hidden admissions-module';
         section.innerHTML = `
-            <header class="admissions-header">
-                <div><p class="admissions-eyebrow">School operations</p><h1 data-admissions-title>Admissions</h1>
-                    <p data-admissions-description>Manage applicants and admission records.</p></div>
-                <div class="admissions-actions">
-                    <button class="btn-secondary" type="button" data-admissions-export><i class="fas fa-download" aria-hidden="true"></i> Export CSV</button>
+            <section class="admissions-summary" aria-label="Admissions summary">
+                <article class="admissions-summary-card">
+                    <span class="admissions-summary-icon" aria-hidden="true"><i class="fas fa-users"></i></span>
+                    <div><span>Total records</span><strong data-admissions-total>0</strong></div>
+                </article>
+                <article class="admissions-summary-card">
+                    <span class="admissions-summary-icon admissions-summary-pending" aria-hidden="true"><i class="fas fa-hourglass-half"></i></span>
+                    <div><span>Pending</span><strong data-admissions-pending>0</strong></div>
+                </article>
+                <article class="admissions-summary-card">
+                    <span class="admissions-summary-icon admissions-summary-complete" aria-hidden="true"><i class="fas fa-circle-check"></i></span>
+                    <div><span>Approved / completed</span><strong data-admissions-approved>0</strong></div>
+                </article>
+            </section>
+            <section class="admissions-section-panel">
+                <div class="admissions-toolbar">
+                    <label class="admissions-search"><i class="fas fa-search" aria-hidden="true"></i>
+                        <span class="sr-only">Search records</span><input type="search" data-admissions-search placeholder="Search records">
+                    </label>
                     <button class="btn-primary" type="button" data-admissions-add><i class="fas fa-plus" aria-hidden="true"></i> Add record</button>
+                    <span class="admissions-count" data-admissions-count></span>
                 </div>
-            </header>
-            <nav class="admissions-tabs" aria-label="Admissions sections"></nav>
-            <div class="admissions-toolbar">
-                <label class="admissions-search"><i class="fas fa-search" aria-hidden="true"></i>
-                    <span class="sr-only">Search records</span><input type="search" data-admissions-search placeholder="Search records">
-                </label>
-                <span class="admissions-count" data-admissions-count></span>
-            </div>
-            <p class="admissions-message" data-admissions-message role="status" aria-live="polite"></p>
-            <div class="admissions-table-wrap"><table class="admissions-table">
-                <thead><tr data-admissions-head></tr></thead><tbody data-admissions-body></tbody>
-            </table></div>
+                <p class="admissions-message" data-admissions-message role="status" aria-live="polite"></p>
+                <div class="admissions-table-wrap"><table class="admissions-table">
+                    <thead><tr data-admissions-head></tr></thead><tbody data-admissions-body></tbody>
+                </table></div>
+            </section>
             <form class="admissions-modal" data-admissions-form aria-labelledby="admissions-form-title">
                 <div class="admissions-modal-card">
                     <div class="admissions-modal-heading"><h2 id="admissions-form-title">Add record</h2>
@@ -124,19 +126,8 @@
                 </div>
             </form>`;
 
-        const tabs = section.querySelector('.admissions-tabs');
-        Object.keys(sections).forEach(label => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.textContent = label;
-            button.dataset.admissionsTab = label;
-            button.addEventListener('click', () => openAdmissionsSection(label));
-            tabs.append(button);
-        });
-
         section.querySelector('[data-admissions-search]').addEventListener('input', renderRecords);
         section.querySelector('[data-admissions-add]').addEventListener('click', () => openForm());
-        section.querySelector('[data-admissions-export]').addEventListener('click', exportRecords);
         section.querySelectorAll('[data-admissions-cancel]').forEach(button =>
             button.addEventListener('click', closeForm));
         section.querySelector('[data-admissions-form]').addEventListener('submit', saveForm);
@@ -179,18 +170,10 @@
         activeSection = label;
         records = [];
         const config = sections[label];
-        section.querySelector('[data-admissions-title]').textContent = label;
-        section.querySelector('[data-admissions-description]').textContent =
-            `Manage ${label.toLowerCase()} for this school.`;
-        section.querySelectorAll('[data-admissions-tab]').forEach(tab => {
-            const selected = tab.dataset.admissionsTab === label;
-            tab.classList.toggle('active', selected);
-            tab.setAttribute('aria-current', selected ? 'page' : 'false');
-        });
         section.querySelector('[data-admissions-search]').value = '';
         section.querySelector('[data-admissions-add]').hidden = !navigator.onLine || !canEdit(config.collection);
-        section.querySelector('[data-admissions-export]').disabled = !canView(config.collection);
         section.querySelector('[data-admissions-message]').textContent = '';
+        renderRecords();
         const currentRequest = ++requestId;
         if (!canView(config.collection)) {
             section.querySelector('[data-admissions-message]').textContent = 'You do not have permission to view this section.';
@@ -263,6 +246,16 @@
             || String(record.status || '').toLowerCase().includes(search)
             || String(record.notes || '').toLowerCase().includes(search)
         ));
+        const activeRecords = records.filter(record => !record.deleted);
+        const pendingCount = activeRecords.filter(record =>
+            String(record.status || '').trim().toLowerCase() === 'pending'
+        ).length;
+        const approvedCount = activeRecords.filter(record =>
+            ['approved', 'completed'].includes(String(record.status || '').trim().toLowerCase())
+        ).length;
+        section.querySelector('[data-admissions-total]').textContent = String(activeRecords.length);
+        section.querySelector('[data-admissions-pending]').textContent = String(pendingCount);
+        section.querySelector('[data-admissions-approved]').textContent = String(approvedCount);
         section.querySelector('[data-admissions-count]').textContent =
             `${filtered.length} ${filtered.length === 1 ? 'record' : 'records'}`;
         if (!filtered.length) {
@@ -378,22 +371,6 @@
             document.querySelector('#admissionsModule [data-admissions-message]').textContent =
                 `Unable to delete this record: ${error.message}`;
         }
-    }
-
-    function exportRecords() {
-        const config = sections[activeSection];
-        if (!canView(config.collection)) return;
-        const fields = [...config.fields.map(field => field.key), 'status', 'notes'];
-        const rows = [fields.map(escapeCsv).join(',')];
-        records.filter(record => !record.deleted).forEach(record =>
-            rows.push(fields.map(key => escapeCsv(record[key])).join(',')));
-        const blob = new Blob(['\ufeff', rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${activeSection.toLowerCase().replace(/\s+/g, '-')}.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
     }
 
     window.createAdmissionsModule = createAdmissionsModule;

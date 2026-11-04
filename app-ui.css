@@ -947,7 +947,8 @@ body.dark-mode,
     align-self: stretch;
     justify-self: stretch;
     grid-column: 1 / -1;
-    min-height: max(320px, calc(100vh - 260px));
+    min-height: max(320px, calc(100dvh - 200px));
+    flex: 1 1 auto;
 }
 
 .main > .module:not(.hidden) :not(table):not([class*="preview"]):has(table) {
@@ -977,6 +978,7 @@ body.dark-mode,
 )) {
     display: flex;
     flex-direction: column;
+    min-width: 0;
 }
 
 .main > .module:not(.hidden) :is(
@@ -1037,7 +1039,7 @@ body.dark-mode,
         [class*="view-card"],
         [class*="list-card"]
     ):not([class*="modal"]):not([class*="preview"]):not([class*="summary"]):not([class*="stat"]):not([class*="kpi"]) {
-        min-height: max(320px, calc(100vh - 220px));
+        min-height: max(320px, calc(100dvh - 200px));
     }
 
     .main > section.module:not(.hidden) :is([class*="table-footer"], [class*="pagination"]) {
