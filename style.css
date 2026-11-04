@@ -32,7 +32,7 @@ margin:0;
 html.session-bootstrap body {
     min-height: 100vh;
     min-height: 100svh;
-    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat;
+    background: #f1f5f9 url("./assets/Smart School_ Better Education, Brighter Future.png") center / cover no-repeat;
 }
 
 html.session-bootstrap .reference-login-page {
@@ -50,7 +50,7 @@ html.session-bootstrap .session-bootstrap-screen {
     display: grid;
     place-items: center;
     padding: 24px;
-    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat;
+    background: #f1f5f9 url("./assets/Smart School_ Better Education, Brighter Future.png") center / cover no-repeat;
     color: #1e293b;
 }
 
@@ -446,7 +446,7 @@ html.session-bootstrap .session-bootstrap-screen {
     height: 100dvh;
     min-height: 0;
     margin: 0 auto;
-    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat;
+    background: #f1f5f9 url("./assets/Smart School_ Better Education, Brighter Future.png") center / cover no-repeat;
 }
 
 .reference-login-card {
