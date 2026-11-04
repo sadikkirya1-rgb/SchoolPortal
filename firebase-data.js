@@ -211,6 +211,27 @@ async function prepareCloudAssets(value, collectionName, recordId, fieldPath = '
 let activeCloudWrites = 0;
 let cloudWriteErrors = 0;
 
+function isPermanentSyncFailure(error) {
+    const message = `${error?.code ?? ''} ${error?.message ?? ''}`.toLowerCase();
+    return error?.code === 'permission-denied'
+        || error?.code === 'unauthenticated'
+        || /permission|insufficient permissions|not authorized|read-only|read only/.test(message);
+}
+
+async function rejectQueuedMutation(mutation, error) {
+    const key = makeKey(mutation.schoolId, mutation.uid, mutation.collection, mutation.recordId);
+    const localRecord = await readLocal(key);
+    if (localRecord) {
+        await writeLocal({
+            ...localRecord,
+            syncState: 'rejected',
+            syncError: error?.message || 'Cloud sync is blocked by a permissions issue.',
+            updatedAt: Date.now()
+        });
+    }
+    await deleteOutbox(mutation.mutationId);
+}
+
 async function processMutation(mutation) {
     const owner = assertIdentity();
     if (mutation.schoolId !== owner.schoolId || mutation.uid !== owner.uid) return;
@@ -265,6 +286,7 @@ async function syncOutbox() {
     const owner = identity;
     syncRunning = true;
     let failed = false;
+    let permanentFailure = false;
     try {
         for (const conflict of await getConflicts()) await resolveConflict(conflict.id);
         await quarantineReadOnlyMutations(owner);
@@ -282,6 +304,11 @@ async function syncOutbox() {
                 } catch (error) {
                     console.warn('A local change remains queued for synchronization.', error);
                     failed = true;
+                    permanentFailure = isPermanentSyncFailure(error);
+                    if (permanentFailure) {
+                        cloudWriteErrors += 1;
+                        await rejectQueuedMutation(mutation, error);
+                    }
                     break;
                 }
             }
@@ -296,14 +323,14 @@ async function syncOutbox() {
         const activeHasPendingMutations = activeIdentity && (await listOutbox()).some(mutation =>
             mutation.schoolId === activeIdentity.schoolId && mutation.uid === activeIdentity.uid
         );
-        if (failed && navigator.onLine && !syncRetryTimer) {
+        if (failed && navigator.onLine && !syncRetryTimer && !permanentFailure) {
             const retryDelay = Math.min(60_000, 1000 * 2 ** Math.min(syncRetryAttempt, 6));
             syncRetryAttempt += 1;
             syncRetryTimer = setTimeout(() => {
                 syncRetryTimer = null;
                 void syncOutbox();
             }, retryDelay);
-        } else if (!failed) {
+        } else {
             syncRetryAttempt = 0;
         }
         window.dispatchEvent(new CustomEvent('school-portal-sync-status'));

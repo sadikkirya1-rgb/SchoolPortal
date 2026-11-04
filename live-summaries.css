@@ -107,3 +107,43 @@
     .teachers-module .teacher-live-summary{position:static;margin:0 24px 20px}
     .teachers-module .teacher-modal-box{width:min(100%,760px)}
 }
+
+.staff-directory-module .sd-modal{overflow:hidden;padding:14px}
+.staff-directory-module .sd-modal.show{align-items:stretch}
+.staff-directory-module .sd-modal-box{display:flex;flex-direction:column;width:min(1440px,100%);height:100%;max-height:100%;min-height:0;margin:auto}
+.staff-directory-module .sd-modal-head{flex-shrink:0;padding:14px 20px}
+.staff-directory-module .sd-modal form{display:grid;flex:1;min-height:0;grid-template-columns:minmax(0,1fr) 260px;grid-template-rows:minmax(0,1fr) auto;overflow:hidden}
+.staff-directory-module .sd-modal-body{min-width:0;min-height:0;max-height:none;overflow:hidden;padding:14px 18px}
+.staff-directory-module .sd-modal-foot{padding:10px 20px}
+.staff-directory-module .sd-form-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.staff-directory-module .sd-form-group{gap:4px}
+.staff-directory-module .sd-form-group input,.staff-directory-module .sd-form-group select,.staff-directory-module .sd-form-group textarea{padding:8px}
+.staff-directory-module .sd-form-group textarea{min-height:48px;resize:none}
+.staff-directory-module .sd-photo-upload{gap:8px}
+.staff-directory-module .sd-preview{width:50px;height:52px}
+.staff-directory-module .sd-live-summary{margin:14px 14px 14px 0;padding:12px}
+.staff-directory-module .sd-live-summary [data-staff-summary]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:10px}
+.staff-directory-module .sd-summary-row{display:block;padding:4px 0;font-size:9px}
+.staff-directory-module .sd-summary-row span,.staff-directory-module .sd-summary-row strong{display:block;text-align:left}
+.staff-directory-module .sd-summary-row span{font-size:9px}
+.staff-directory-module .sd-summary-row strong{font-size:10px}
+@media(max-width:900px){
+    .staff-directory-module .sd-modal{overflow:auto;padding:12px}
+    .staff-directory-module .sd-modal.show{align-items:flex-start}
+    .staff-directory-module .sd-modal-box{width:min(100%,760px);height:auto;max-height:none;margin:auto;display:block}
+    .staff-directory-module .sd-modal form{display:grid;flex:none;min-height:0;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto;overflow:visible}
+    .staff-directory-module .sd-modal-body{max-height:none;overflow:visible}
+    .staff-directory-module .sd-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .staff-directory-module .sd-live-summary{position:static;margin:0 18px 12px}
+}
+@media(max-width:560px){
+    .staff-directory-module .sd-form-grid{grid-template-columns:minmax(0,1fr)}
+    .staff-directory-module .sd-live-summary [data-staff-summary]{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-height:740px) and (min-width:901px){
+    .staff-directory-module .sd-modal{overflow:auto}
+    .staff-directory-module .sd-modal.show{align-items:flex-start}
+    .staff-directory-module .sd-modal-box{height:auto;max-height:none;margin:auto}
+    .staff-directory-module .sd-modal form{flex:none;grid-template-rows:auto auto;overflow:visible}
+    .staff-directory-module .sd-modal-body{overflow:visible}
+}
