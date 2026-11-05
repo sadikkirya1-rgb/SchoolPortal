@@ -32,7 +32,7 @@ margin:0;
 html.session-bootstrap body {
     min-height: 100vh;
     min-height: 100svh;
-    background: #f1f5f9 url("./assets/Smart School_ Better Education, Brighter Future.png") center / cover no-repeat;
+    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat;
 }
 
 html.session-bootstrap .reference-login-page {
@@ -49,34 +49,8 @@ html.session-bootstrap .session-bootstrap-screen {
     z-index: 99999;
     display: block;
     overflow: hidden;
-    background: #dfeaf8;
+    background: #f1f5f9;
     color: #1e293b;
-}
-
-html.session-bootstrap .session-bootstrap-screen::before {
-    content: "";
-    position: absolute;
-    inset: -6%;
-    background: url("./assets/Smart School_ Better Education, Brighter Future.png") center / cover no-repeat;
-    transform: scale(1.08);
-    animation: refreshImageDrift 18s ease-in-out infinite alternate;
-    filter: saturate(1.15) contrast(1.04);
-}
-
-html.session-bootstrap .session-bootstrap-screen::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.10), rgba(15, 23, 42, 0.28));
-}
-
-@keyframes refreshImageDrift {
-    0% {
-        transform: scale(1.08) translate3d(0, 0, 0);
-    }
-    100% {
-        transform: scale(1.16) translate3d(-10px, 8px, 0);
-    }
 }
 
 .landing-page {
@@ -437,7 +411,7 @@ html.session-bootstrap .session-bootstrap-screen::after {
     height: 100dvh;
     min-height: 0;
     margin: 0 auto;
-    background: #f1f5f9 url("./assets/Smart School_ Better Education, Brighter Future.png") center / cover no-repeat;
+    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat;
 }
 
 .reference-login-card {

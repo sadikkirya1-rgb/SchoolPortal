@@ -486,6 +486,38 @@ test('assigned data permissions limit accounts to the selected access levels', a
     await assertSucceeds(deleteDoc(doc(deleterDb, 'schools/SCH-TEST/students/STUDENT-C')));
 });
 
+test('timetable viewers can read the classroom catalog without edit access', async () => {
+    await testEnvironment.withSecurityRulesDisabled(async context => {
+        const firestore = context.firestore();
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/timetable-viewer'), {
+            role: 'teacher',
+            status: 'active',
+            permissions: { timetables: { view: true } }
+        });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/classrooms/ROOM-A'), {
+            data: { roomName: 'Science Lab', status: 'Active' },
+            version: 1,
+            updatedBy: 'admin-1',
+            updatedAt: '2026-01-01T00:00:00.000Z'
+        });
+    });
+
+    const timetableViewerDb = testEnvironment.authenticatedContext('timetable-viewer').firestore();
+    const classroomRef = doc(timetableViewerDb, 'schools/SCH-TEST/classrooms/ROOM-A');
+    await assertSucceeds(getDocs(collection(timetableViewerDb, 'schools/SCH-TEST/classrooms')));
+    await assertSucceeds(getDoc(classroomRef));
+    await assertFails(setDoc(doc(timetableViewerDb, 'schools/SCH-TEST/classrooms/ROOM-B'), {
+        data: { roomName: 'Unauthorized room' },
+        version: 1,
+        updatedBy: 'timetable-viewer',
+        updatedAt: '2026-01-01T00:00:00.000Z'
+    }));
+
+    const teacherDb = testEnvironment.authenticatedContext('teacher-1').firestore();
+    await assertFails(getDoc(doc(teacherDb, 'schools/SCH-TEST/classrooms/ROOM-A')));
+    await assertFails(getDocs(collection(teacherDb, 'schools/SCH-TEST/classrooms')));
+});
+
 test('school admins cannot read audit events', async () => {
     const firestore = administratorContext().firestore();
     await assertFails(getDoc(doc(firestore, 'schools/SCH-TEST/auditEvents/EVENT-1')));

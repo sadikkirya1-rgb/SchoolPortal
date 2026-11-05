@@ -199,6 +199,7 @@ service cloud.firestore {
     function canView(schoolId, collectionName) {
       return isSchoolAdmin(schoolId)
       || hasPermission(schoolId, collectionName, 'view')
+      || (collectionName == 'classrooms' && hasPermission(schoolId, 'timetables', 'view'))
       || (collectionName in ['purchaseRequests', 'purchaseOrders', 'purchaseComparisons']
         && hasLegacyPurchaseWorkflowAccess(schoolId, collectionName))
         || (collectionName == 'inventorySettings' && hasPermission(schoolId, 'inventory', 'view'))

@@ -73,10 +73,10 @@ body.admin-sign-in {
     height: 100svh;
     min-height: 0;
     overflow: hidden;
-    background: #f1f5f9 url("./assets/Smart School_ Better Education, Brighter Future.png") center / cover no-repeat;
+    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat;
 }
 body.admin-auth-checking {
-    background: #f4f1ee;
+    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat;
 }
 body.admin-auth-checking .admin-shell { visibility: visible; }
 body.admin-auth-checking .admin-shell > :not(.admin-session-bootstrap) { visibility: hidden; }
@@ -90,7 +90,7 @@ body.admin-auth-checking .admin-session-bootstrap {
     display: grid;
     place-items: center;
     padding: 24px;
-    background: linear-gradient(145deg, #f8fafc, #eaf1fb);
+    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat;
     color: #1e293b;
 }
 .admin-session-bootstrap-card {
