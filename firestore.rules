@@ -309,7 +309,7 @@ service cloud.firestore {
 
     function isAppCollection(collectionName) {
       return collectionName in [
-        'students', 'parents', 'staff', 'classes', 'subjects', 'attendance',
+        'students', 'parents', 'staff', 'classes', 'classrooms', 'subjects', 'attendance',
         'assessments', 'reportCards', 'examResults', 'fees', 'feeInvoices', 'expenses',
         'timetables', 'notices', 'smsAlerts', 'libraryBooks', 'libraryLoans',
         'healthRecords', 'transportRoutes', 'disciplineCases', 'clubs',

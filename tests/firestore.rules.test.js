@@ -507,7 +507,7 @@ test('push notification tokens are inaccessible to school clients', async () => 
 
 test('school admins can sync representative academic, admissions, payroll, and front-office collections', async () => {
     const firestore = administratorContext().firestore();
-    for (const collectionName of ['curriculum', 'applications', 'payrollReports', 'smsMessages']) {
+    for (const collectionName of ['curriculum', 'classrooms', 'applications', 'payrollReports', 'smsMessages']) {
         await assertSucceeds(setDoc(doc(firestore, `schools/SCH-TEST/${collectionName}/SYNC-1`), {
             data: { name: 'Test record' },
             version: 1,

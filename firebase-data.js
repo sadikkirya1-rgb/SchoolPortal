@@ -15,7 +15,7 @@ import {
 
 const db = window.schoolPortalFirebase?.db;
 const allowedCollections = new Set([
-    'students', 'parents', 'staff', 'classes', 'subjects', 'attendance',
+    'students', 'parents', 'staff', 'classes', 'classrooms', 'subjects', 'attendance',
     'assessments', 'reportCards', 'examResults', 'fees', 'feeInvoices', 'expenses',
     'timetables', 'notices', 'smsAlerts', 'libraryBooks', 'libraryLoans',
     'healthRecords', 'transportRoutes', 'disciplineCases', 'clubs',

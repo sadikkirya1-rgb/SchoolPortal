@@ -46,6 +46,7 @@
         {"id": "curriculum", "label": "Curriculum", "icon": "fas fa-book-open", "href": "#/academic/curriculum"},
         {"id": "subjects", "label": "Subjects", "icon": "fas fa-book", "href": "#/academic/subjects"},
         {"id": "classes", "label": "Classes", "icon": "fas fa-school", "href": "#/academic/classes"},
+        {"id": "classrooms", "label": "Classrooms", "icon": "fas fa-door-open", "href": "#/academic/classrooms"},
         {"id": "streams", "label": "Streams", "icon": "fas fa-layer-group", "href": "#/academic/streams"},
         {"id": "timetables", "label": "Timetables", "icon": "fas fa-calendar-alt", "href": "#/academic/timetables"},
         {"id": "lesson_plans", "label": "Lesson Plans", "icon": "fas fa-book-reader", "href": "#/academic/lesson-plans"},

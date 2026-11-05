@@ -3227,7 +3227,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const collectionForNavigationLabel = new Map([
         ['students', 'students'], ['children', 'students'], ['teachers', 'teachers'], ['staff directory', 'staffDirectory'],
-        ['curriculum', 'curriculum'], ['streams', 'streams'], ['classes', 'classes'], ['subjects', 'subjects'], ['timetables', 'timetables'],
+        ['curriculum', 'curriculum'], ['streams', 'streams'], ['classes', 'classes'], ['classrooms', 'classrooms'], ['subjects', 'subjects'], ['timetables', 'timetables'],
         ['assignments', 'assessments'], ['study materials', 'studyMaterials'], ['online quizzes', 'quizzes'],
         ['attendance', 'attendance'], ['health/infirmary', 'healthRecords'], ['boarding', 'boardingRecords'],
         ['transport', 'transportRoutes'], ['inventory', 'inventory'], ['categories', 'inventory'],
@@ -9654,6 +9654,18 @@ Total Amount: ${po.currency} ${po.total.toFixed(2)}
                 }
                 showSection('classesModule');
                 updateBreadcrumb(['Academic Department', 'Classes']);
+                return;
+            }
+
+            if (linkText === 'Classrooms') {
+                let classroomsModule = document.getElementById('classroomsModule');
+                if (!classroomsModule) {
+                    classroomsModule = window.createClassroomsModule();
+                    const dashboardEl = document.querySelector('.main > .dashboard-shell');
+                    if (dashboardEl) dashboardEl.parentNode.insertBefore(classroomsModule, dashboardEl);
+                }
+                showSection('classroomsModule');
+                updateBreadcrumb(['Academic Department', 'Classrooms']);
                 return;
             }
 
