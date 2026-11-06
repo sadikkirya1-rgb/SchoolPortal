@@ -4,7 +4,7 @@
         { key: 'school_teachers', category: 'Teaching' },
         { key: 'school_staff_directory', category: '' }
     ];
-    const teacherFields = ['subject', 'specialization', 'experience', 'academicYear'];
+    const teacherFields = ['subject', 'subjects', 'specialization', 'experience', 'academicYear'];
     const readKey = key => {
         try {
             const records = JSON.parse(localStorage.getItem(key) || '[]');

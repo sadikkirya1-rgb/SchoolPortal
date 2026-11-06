@@ -2,6 +2,15 @@
 
     const logo = 'https://via.placeholder.com/150x150.png?text=LOGO';
     const fields = ['firstName','lastName','employeeNo','dob','gender','nationality','department','subject','designation','joiningDate','employmentType','status','phone','email','emergency','address','qualification','specialization','experience','academicYear','notes'];
+    const schoolDepartments = [
+        'Front Office Department', 'Academic Department', 'E-Learning Department',
+        'Operations Department', 'Student Life Department', 'Human Resources Department',
+        'Payroll Department', 'Finance Department', 'Procurement Department',
+        'Assets & Security Department', 'Communication Department',
+        'Administration', 'Mathematics', 'Science', 'English', 'Arabic',
+        'Social Studies', 'ICT / Computer', 'Physical Education',
+        'Islamic Studies', 'Languages'
+    ];
     const escape = value => String(value || '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[char]));
     const avatar = teacher => teacher.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(`${teacher.firstName} ${teacher.lastName}`)}&background=4f46e5&color=fff`;
     const isTeacher = teacher => window.schoolStaffRecords
@@ -56,6 +65,172 @@
         employeeNoField.closest('label').childNodes[0].textContent = 'Staff ID (auto-generated)';
         sec.querySelector('.teacher-table-wrap thead th:nth-child(3)').textContent = 'Staff ID';
         sec.querySelector('.teacher-print-top th').textContent = 'Staff ID';
+        const departmentSelect = form.elements.department;
+        const refreshDepartmentOptions = () => {
+            const selected = departmentSelect.value;
+            const departments = [...new Set([
+                ...schoolDepartments,
+                ...(window.schoolStaffRecords?.read() || teachers)
+                    .map(teacher => String(teacher.department || teacher.departmentName || teacher.staffDepartment || '').trim())
+                    .filter(Boolean)
+            ])].sort((left, right) => left.localeCompare(right));
+            departmentSelect.replaceChildren(
+                new Option('Select Department', ''),
+                ...departments.map(department => new Option(department, department))
+            );
+            if (selected && !departments.includes(selected)) {
+                departmentSelect.add(new Option(selected, selected));
+            }
+            departmentSelect.value = selected;
+        };
+        refreshDepartmentOptions();
+
+        const subjectField = form.elements.subject;
+        const subjectLabel = subjectField.closest('label');
+        const subjectSelect = document.createElement('select');
+        subjectSelect.name = 'subject';
+        subjectSelect.required = true;
+        subjectSelect.setAttribute('aria-label', 'Main subject');
+        subjectSelect.add(new Option('Loading subjects…', ''));
+        subjectField.replaceWith(subjectSelect);
+        const additionalSubjects = document.createElement('div');
+        additionalSubjects.className = 'teacher-additional-subjects';
+        const additionalSubjectsLabel = document.createElement('span');
+        additionalSubjectsLabel.textContent = 'Additional subjects (optional)';
+        const additionalSubjectRows = document.createElement('div');
+        additionalSubjectRows.className = 'teacher-additional-subject-rows';
+        const addSubjectButton = document.createElement('button');
+        addSubjectButton.className = 'teacher-add-subject';
+        addSubjectButton.type = 'button';
+        addSubjectButton.textContent = '+ Add another subject';
+        additionalSubjects.append(additionalSubjectsLabel, additionalSubjectRows, addSubjectButton);
+        subjectLabel.after(additionalSubjects);
+        let subjectCatalog = [];
+        let subjectCatalogLoaded = false;
+        let subjectCatalogError = false;
+        let subjectUnsubscribe = null;
+        let destroyed = false;
+        const extraSubjectSelects = () => [...additionalSubjectRows.querySelectorAll('select')];
+        const teacherSubjects = teacher => [...new Set([
+            String(teacher?.subject || '').trim(),
+            ...(Array.isArray(teacher?.subjects) ? teacher.subjects : []),
+            ...(Array.isArray(teacher?.additionalSubjects) ? teacher.additionalSubjects : [])
+        ].map(subject => String(subject || '').trim()).filter(Boolean))];
+        const selectedSubjects = () => [...new Set([
+            subjectSelect.value,
+            ...extraSubjectSelects().map(select => select.value)
+        ].map(subject => String(subject || '').trim()).filter(Boolean))];
+        const refreshSubjectOptions = () => {
+            const controls = [subjectSelect, ...extraSubjectSelects()];
+            const activeCatalog = [...new Map(subjectCatalog
+                .filter(subject => subject.deleted !== true
+                    && String(subject.status || 'Active').toLowerCase() === 'active')
+                .map(subject => {
+                    const name = String(subject.subjectName || subject.name || '').trim();
+                    return name ? [name.toLowerCase(), name] : null;
+                })
+                .filter(Boolean)).values()].sort((left, right) => left.localeCompare(right));
+            controls.forEach(select => {
+                const selected = select.value;
+                const selectedElsewhere = new Set(controls
+                    .filter(other => other !== select)
+                    .map(other => other.value)
+                    .filter(Boolean));
+                const placeholder = select !== subjectSelect
+                    ? 'Select an additional subject'
+                    : subjectCatalogError ? 'Unable to load subjects'
+                        : subjectCatalogLoaded && !activeCatalog.length
+                            ? 'No active subjects available' : 'Select main subject';
+                select.replaceChildren(new Option(placeholder, ''));
+                activeCatalog
+                    .filter(subject => !selectedElsewhere.has(subject) || subject === selected)
+                    .forEach(subject => select.add(new Option(subject, subject)));
+                if (selected && ![...select.options].some(option => option.value === selected)) {
+                    select.add(new Option(`${selected} (not in active catalogue)`, selected));
+                }
+                select.value = selected;
+            });
+            const selected = new Set(selectedSubjects().map(subject => subject.toLowerCase()));
+            const hasEmptyAdditionalSubject = extraSubjectSelects().some(select => !select.value);
+            addSubjectButton.disabled = hasEmptyAdditionalSubject
+                || !activeCatalog.some(subject => !selected.has(subject.toLowerCase()));
+            if (subjectCatalog.length) subjectSelect.disabled = false;
+        };
+        const addAdditionalSubject = (selected = '') => {
+            const row = document.createElement('div');
+            row.className = 'teacher-additional-subject-row';
+            const select = document.createElement('select');
+            select.setAttribute('aria-label', `Additional subject ${extraSubjectSelects().length + 1}`);
+            if (selected) select.add(new Option(selected, selected));
+            const remove = document.createElement('button');
+            remove.className = 'teacher-remove-subject';
+            remove.type = 'button';
+            remove.setAttribute('aria-label', 'Remove additional subject');
+            remove.textContent = 'Remove';
+            row.append(select, remove);
+            additionalSubjectRows.append(row);
+            select.value = selected;
+            remove.addEventListener('click', () => {
+                row.remove();
+                refreshSubjectOptions();
+                updateSummary();
+            });
+            select.addEventListener('change', () => {
+                refreshSubjectOptions();
+                updateSummary();
+            });
+            refreshSubjectOptions();
+            return select;
+        };
+        subjectSelect.addEventListener('change', () => {
+            refreshSubjectOptions();
+            updateSummary();
+        });
+        addSubjectButton.addEventListener('click', () => {
+            if (addSubjectButton.disabled) return;
+            addAdditionalSubject();
+            extraSubjectSelects().at(-1)?.focus();
+            updateSummary();
+        });
+        const setSubjectCatalog = records => {
+            subjectCatalogLoaded = true;
+            subjectCatalogError = false;
+            subjectCatalog = records;
+            refreshSubjectOptions();
+        };
+        const handleSubjectSyncError = event => {
+            if (event.detail?.collection !== 'subjects') return;
+            subjectCatalogError = true;
+            refreshSubjectOptions();
+        };
+        window.addEventListener('school-portal-sync-error', handleSubjectSyncError);
+        const dataApi = window.schoolPortalData;
+        if (typeof dataApi?.subscribe === 'function') {
+            if (typeof dataApi.listLocal === 'function') {
+                Promise.resolve().then(() => dataApi.listLocal('subjects')).then(records => {
+                    if (!destroyed && !subjectCatalog.length && records.length) setSubjectCatalog(records);
+                }).catch(error => {
+                    console.warn('Unable to load cached school subjects for the teacher form.', error);
+                });
+            }
+            Promise.resolve().then(() => dataApi.subscribe('subjects', setSubjectCatalog)).then(unsubscribe => {
+                if (destroyed) unsubscribe?.();
+                else subjectUnsubscribe = unsubscribe;
+            }).catch(error => {
+                subjectCatalogError = true;
+                console.error('Unable to load the school subject catalogue for teachers.', error);
+                refreshSubjectOptions();
+            });
+        } else {
+            subjectCatalogError = true;
+            console.error('The school subject catalogue is unavailable in the teacher form.');
+            refreshSubjectOptions();
+        }
+        sec.addEventListener('remove', () => {
+            destroyed = true;
+            subjectUnsubscribe?.();
+            window.removeEventListener('school-portal-sync-error', handleSubjectSyncError);
+        }, { once: true });
         const photoField = form.elements.photo.closest('.teacher-form-group');
         photoField.classList.add('teacher-photo-field');
         form.querySelector('.teacher-form-body').prepend(photoField);
@@ -72,7 +247,7 @@
                 const value = document.createElement('strong');
                 row.className = 'teacher-summary-row';
                 label.textContent = field.closest('label')?.childNodes[0].textContent.trim() || name;
-                value.textContent = field.value || '-';
+                value.textContent = name === 'subject' ? selectedSubjects().join(', ') || '-' : field.value || '-';
                 row.append(label, value);
                 return row;
             }));
@@ -85,22 +260,47 @@
             photoRow.append(photoLabel, photoValue);
             target.append(photoRow);
         };
-        const render = () => { const query = $('[data-search]').value.toLowerCase().trim(); const filtered = teachers.filter(t => Object.values(t).join(' ').toLowerCase().includes(query)); $('[data-table]').innerHTML = filtered.length ? filtered.map(t => { const badge = ['Inactive','Resigned','Retired'].includes(t.status) ? 'teacher-badge-red' : t.status === 'On Leave' ? 'teacher-badge-orange' : 'teacher-badge-green'; return `<tr><td><div class="teacher-person"><img class="teacher-img" src="${avatar(t)}" alt="${escape(t.firstName)}"><div><strong>${escape(t.firstName)} ${escape(t.lastName)}</strong></div></div></td><td>${escape(t.email || 'No email')}</td><td><strong>${escape(t.staffId || t.employeeNo)}</strong></td><td>${escape(t.department)}</td><td>${escape(t.subject)}</td><td>${escape(t.phone || '-')}</td><td>${escape(t.address || '-')}</td><td><span class="teacher-badge ${badge}">${escape(t.status)}</span></td><td><div class="teacher-row-actions"><button class="teacher-action-btn" type="button" data-action="preview" data-id="${t.id}" title="Preview / Print">👁️</button><button class="teacher-action-btn" type="button" data-action="edit" data-id="${t.id}" title="Edit">✏️</button><button class="teacher-action-btn" type="button" data-action="delete" data-id="${t.id}" title="Delete">🗑️</button></div></td></tr>`; }).join('') : '<tr><td colspan="9"><div class="teacher-empty"><div style="font-size:40px">👨‍🏫</div><h3>No teachers found</h3><p>Add a new teacher or change your search.</p></div></td></tr>'; $('[data-stat="total"]').textContent = teachers.length; $('[data-stat="male"]').textContent = teachers.filter(t => t.gender === 'Male').length; $('[data-stat="female"]').textContent = teachers.filter(t => t.gender === 'Female').length; $('[data-stat="active"]').textContent = teachers.filter(t => t.status === 'Active').length; };
-        const resetForm = () => { form.reset(); form.elements.academicYear.value = '2026 - 2027'; $('[data-preview]').src = 'https://ui-avatars.com/api/?name=Teacher&background=e5e7eb&color=64748b'; $('[data-preview]').dataset.photo = ''; };
-        const openForm = teacher => { editingId = teacher?.id || null; $('[data-modal-title]').textContent = teacher ? 'Edit Teacher' : 'Add New Teacher'; resetForm(); if (teacher) { fields.forEach(field => { if (form.elements[field]) form.elements[field].value = teacher[field] || ''; }); employeeNoField.value = teacher.staffId || teacher.employeeNo || ''; $('[data-preview]').src = avatar(teacher); $('[data-preview]').dataset.photo = teacher.photo || ''; } else { employeeNoField.value = nextEmployeeNo(teachers); } modal.classList.add('show'); updateSummary(); };
+        const render = () => { const query = $('[data-search]').value.toLowerCase().trim(); const filtered = teachers.filter(t => Object.values(t).join(' ').toLowerCase().includes(query)); $('[data-table]').innerHTML = filtered.length ? filtered.map(t => { const badge = ['Inactive','Resigned','Retired'].includes(t.status) ? 'teacher-badge-red' : t.status === 'On Leave' ? 'teacher-badge-orange' : 'teacher-badge-green'; return `<tr><td><div class="teacher-person"><img class="teacher-img" src="${avatar(t)}" alt="${escape(t.firstName)}"><div><strong>${escape(t.firstName)} ${escape(t.lastName)}</strong></div></div></td><td>${escape(t.email || 'No email')}</td><td><strong>${escape(t.staffId || t.employeeNo)}</strong></td><td>${escape(t.department)}</td><td>${escape(teacherSubjects(t).join(', '))}</td><td>${escape(t.phone || '-')}</td><td>${escape(t.address || '-')}</td><td><span class="teacher-badge ${badge}">${escape(t.status)}</span></td><td><div class="teacher-row-actions"><button class="teacher-action-btn" type="button" data-action="preview" data-id="${t.id}" title="Preview / Print">👁️</button><button class="teacher-action-btn" type="button" data-action="edit" data-id="${t.id}" title="Edit">✏️</button><button class="teacher-action-btn" type="button" data-action="delete" data-id="${t.id}" title="Delete">🗑️</button></div></td></tr>`; }).join('') : '<tr><td colspan="9"><div class="teacher-empty"><div style="font-size:40px">👨‍🏫</div><h3>No teachers found</h3><p>Add a new teacher or change your search.</p></div></td></tr>'; $('[data-stat="total"]').textContent = teachers.length; $('[data-stat="male"]').textContent = teachers.filter(t => t.gender === 'Male').length; $('[data-stat="female"]').textContent = teachers.filter(t => t.gender === 'Female').length; $('[data-stat="active"]').textContent = teachers.filter(t => t.status === 'Active').length; };
+        const resetForm = () => { form.reset(); additionalSubjectRows.replaceChildren(); refreshSubjectOptions(); form.elements.academicYear.value = '2026 - 2027'; $('[data-preview]').src = 'https://ui-avatars.com/api/?name=Teacher&background=e5e7eb&color=64748b'; $('[data-preview]').dataset.photo = ''; };
+        const openForm = teacher => {
+            editingId = teacher?.id || null;
+            $('[data-modal-title]').textContent = teacher ? 'Edit Teacher' : 'Add New Teacher';
+            resetForm();
+            if (teacher) {
+                fields.forEach(field => {
+                    if (field !== 'subject' && form.elements[field]) form.elements[field].value = teacher[field] || '';
+                });
+                const subjects = teacherSubjects(teacher);
+                const mainSubject = subjects.shift() || '';
+                if (mainSubject && ![...subjectSelect.options].some(option => option.value === mainSubject)) {
+                    subjectSelect.add(new Option(`${mainSubject} (not in active catalogue)`, mainSubject));
+                }
+                subjectSelect.value = mainSubject;
+                subjects.forEach(subject => addAdditionalSubject(subject));
+                employeeNoField.value = teacher.staffId || teacher.employeeNo || '';
+                $('[data-preview]').src = avatar(teacher);
+                $('[data-preview]').dataset.photo = teacher.photo || '';
+            } else {
+                employeeNoField.value = nextEmployeeNo(teachers);
+            }
+            refreshSubjectOptions();
+            modal.classList.add('show');
+            updateSummary();
+        };
         const closeForm = () => { modal.classList.remove('show'); editingId = null; };
-        const printTeacher = teacher => { selectedTeacher = teacher; $('[data-print-logo]').src = localStorage.getItem('school_logo') || logo; $('[data-print-photo]').src = avatar(teacher); const values = { ...teacher, employeeNo: teacher.staffId || teacher.employeeNo, name: `${teacher.firstName || ''} ${teacher.lastName || ''}`, dob: date(teacher.dob), joiningDate: date(teacher.joiningDate) }; sec.querySelectorAll('[data-p]').forEach(el => { el.textContent = values[el.dataset.p] || '-'; }); window.print(); };
+        const printTeacher = teacher => { selectedTeacher = teacher; $('[data-print-logo]').src = localStorage.getItem('school_logo') || logo; $('[data-print-photo]').src = avatar(teacher); const values = { ...teacher, subject: teacherSubjects(teacher).join(', '), employeeNo: teacher.staffId || teacher.employeeNo, name: `${teacher.firstName || ''} ${teacher.lastName || ''}`, dob: date(teacher.dob), joiningDate: date(teacher.joiningDate) }; sec.querySelectorAll('[data-p]').forEach(el => { el.textContent = values[el.dataset.p] || '-'; }); window.print(); };
         $('[data-add]').addEventListener('click', () => openForm()); $('[data-search]').addEventListener('input', render); $('[data-close]').addEventListener('click', closeForm); $('[data-cancel]').addEventListener('click', closeForm); modal.addEventListener('click', event => { if (event.target === modal) closeForm(); });
-        $('[data-export]').addEventListener('click', () => { if (!teachers.length) return alert('No teacher records to export.'); const headers = ['Staff ID','First Name','Last Name','Gender','Department','Subject','Designation','Joining Date','Employment Type','Phone','Email','Status']; const rows = teachers.map(t => [t.staffId || t.employeeNo,t.firstName,t.lastName,t.gender,t.department,t.subject,t.designation,t.joiningDate,t.employmentType,t.phone,t.email,t.status]); const csv = [headers, ...rows].map(row => row.map(value => `"${String(value || '').replace(/"/g, '""')}"`).join(',')).join('\n'); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'teachers.csv'; link.click(); URL.revokeObjectURL(link.href); });
+        $('[data-export]').addEventListener('click', () => { if (!teachers.length) return alert('No teacher records to export.'); const headers = ['Staff ID','First Name','Last Name','Gender','Department','Subject','Designation','Joining Date','Employment Type','Phone','Email','Status']; const rows = teachers.map(t => [t.staffId || t.employeeNo,t.firstName,t.lastName,t.gender,t.department,teacherSubjects(t).join(', '),t.designation,t.joiningDate,t.employmentType,t.phone,t.email,t.status]); const csv = [headers, ...rows].map(row => row.map(value => `"${String(value || '').replace(/"/g, '""')}"`).join(',')).join('\n'); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = 'teachers.csv'; link.click(); URL.revokeObjectURL(link.href); });
         $('[data-table]').addEventListener('click', event => { const button = event.target.closest('[data-action]'); if (!button) return; const teacher = teachers.find(t => String(t.id) === button.dataset.id); if (!teacher) return; if (button.dataset.action === 'edit') openForm(teacher); if (button.dataset.action === 'preview') printTeacher(teacher); if (button.dataset.action === 'delete' && confirm(`Delete ${teacher.firstName} ${teacher.lastName}?`)) { teachers = teachers.filter(t => t.id !== teacher.id); saveTeachers(teachers); render(); } });
         $('[name="photo"]').addEventListener('change', event => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { $('[data-preview]').src = reader.result; $('[data-preview]').dataset.photo = reader.result; updateSummary(); }; reader.readAsDataURL(file); });
         form.addEventListener('input', updateSummary); form.addEventListener('change', updateSummary);
-        form.addEventListener('submit', event => { event.preventDefault(); const formData = Object.fromEntries(new FormData(form).entries()); const existingIndex = teachers.findIndex(teacher => String(teacher.id) === String(editingId)); const existing = existingIndex >= 0 ? teachers[existingIndex] : {}; const data = { ...existing, ...formData }; data.id = existing.id || editingId || Date.now(); data.staffCategory = 'Teaching'; data.staffId = existing.staffId || data.employeeNo || nextEmployeeNo(teachers); data.employeeNo = data.employeeNo || data.staffId; data.photo = $('[data-preview]').dataset.photo || existing.photo || ''; if (existingIndex >= 0) teachers[existingIndex] = data; else teachers.push(data); saveTeachers(teachers); render(); closeForm(); });
-        window.addEventListener('school-portal-staff-records-updated', () => { teachers = readTeachers(); render(); });
+        form.addEventListener('submit', event => { event.preventDefault(); const formData = Object.fromEntries(new FormData(form).entries()); const existingIndex = teachers.findIndex(teacher => String(teacher.id) === String(editingId)); const existing = existingIndex >= 0 ? teachers[existingIndex] : {}; const data = { ...existing, ...formData }; data.subjects = selectedSubjects(); data.id = existing.id || editingId || Date.now(); data.staffCategory = 'Teaching'; data.staffId = existing.staffId || data.employeeNo || nextEmployeeNo(teachers); data.employeeNo = data.employeeNo || data.staffId; data.photo = $('[data-preview]').dataset.photo || existing.photo || ''; if (existingIndex >= 0) teachers[existingIndex] = data; else teachers.push(data); saveTeachers(teachers); render(); closeForm(); });
+        window.addEventListener('school-portal-staff-records-updated', () => { teachers = readTeachers(); refreshDepartmentOptions(); render(); });
         window.addEventListener('school-portal-cloud-data-update', event => {
             if (!['staff', 'teachers', 'staffDirectory'].includes(event.detail?.collection)) return;
             window.schoolStaffRecords?.migrateLegacy();
             teachers = readTeachers();
+            refreshDepartmentOptions();
             render();
         });
         if (localStorage.getItem('school_teachers_dark') === 'true') sec.classList.add('dark'); render(); return sec;

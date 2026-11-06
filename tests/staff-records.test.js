@@ -33,6 +33,7 @@ test('legacy teacher and staff records migrate into the shared staff list', () =
             email: 'ada@example.test',
             designation: 'Teacher',
             subject: 'Mathematics',
+            subjects: ['Mathematics', 'Physics'],
             specialization: 'Algebra',
             status: 'Active'
         }]),
@@ -51,6 +52,7 @@ test('legacy teacher and staff records migrate into the shared staff list', () =
     assert.equal(employees[0].staffCategory, 'Teaching');
     assert.equal(employees[0].staffId, 'TCH-0001');
     assert.equal(employees[0].subject, 'Mathematics');
+    assert.equal(JSON.stringify(employees[0].subjects), JSON.stringify(['Mathematics', 'Physics']));
     assert.equal(staffRecords.isTeacher(employees[0]), true);
     assert.equal(employees[1].firstName, 'Grace');
     assert.equal(employees[1].lastName, 'Hopper');

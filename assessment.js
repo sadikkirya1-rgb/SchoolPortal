@@ -104,7 +104,11 @@ function createAssessmentModule(category) {
     const subjectOptions = () => [...new Set([
         ...fallbackSubjects,
         ...subjects.map(subject => String(subject.subjectName || subject.name || '').trim()).filter(Boolean),
-        ...teachers.map(teacher => String(teacher.subject || '').trim()).filter(Boolean),
+        ...teachers.flatMap(teacher => [
+            teacher.subject,
+            ...(Array.isArray(teacher.subjects) ? teacher.subjects : []),
+            ...(Array.isArray(teacher.additionalSubjects) ? teacher.additionalSubjects : [])
+        ].map(subject => String(subject || '').trim()).filter(Boolean)),
         ...timetables.map(record => String(record.subject || '').trim()).filter(Boolean)
     ])].sort((left, right) => left.localeCompare(right));
     const classOptions = () => [...new Set([
@@ -120,16 +124,29 @@ function createAssessmentModule(category) {
             const name = String(teacher.fullName || teacher.name || teacher.teacherName
                 || [teacher.firstName, teacher.lastName].filter(Boolean).join(' ')).trim();
             if (name && !['inactive', 'resigned', 'retired'].includes(String(teacher.status || '').toLowerCase())) {
-                options.set(name, { value: name, label: name, subject: String(teacher.subject || '').trim() });
+                const assignedSubjects = [...new Set([
+                    teacher.subject,
+                    ...(Array.isArray(teacher.subjects) ? teacher.subjects : []),
+                    ...(Array.isArray(teacher.additionalSubjects) ? teacher.additionalSubjects : [])
+                ].map(subject => String(subject || '').trim()).filter(Boolean))];
+                options.set(name, {
+                    value: name,
+                    label: name,
+                    subject: String(teacher.subject || '').trim(),
+                    subjects: assignedSubjects
+                });
             }
         });
         timetables.forEach(record => {
             const name = String(record.teacher || '').trim();
-            if (name && !options.has(name)) options.set(name, { value: name, label: name, subject: String(record.subject || '').trim() });
+            if (name && !options.has(name)) {
+                const subject = String(record.subject || '').trim();
+                options.set(name, { value: name, label: name, subject, subjects: subject ? [subject] : [] });
+            }
         });
         const currentTeacher = String(identity?.fullName || identity?.name || identity?.displayName || '').trim();
         if (currentTeacher && !options.has(currentTeacher)) {
-            options.set(currentTeacher, { value: currentTeacher, label: currentTeacher, subject: '' });
+            options.set(currentTeacher, { value: currentTeacher, label: currentTeacher, subject: '', subjects: [] });
         }
         return [...options.values()].sort((left, right) => left.label.localeCompare(right.label));
     };
@@ -164,7 +181,8 @@ function createAssessmentModule(category) {
     let autoFilledTeacher = '';
     const autoFillTeacherForSubject = subjectName => {
         const matchingTeachers = teacherOptions().filter(teacher =>
-            normalizeOptionText(teacher.subject) === normalizeOptionText(subjectName));
+            (teacher.subjects || [teacher.subject])
+                .some(subject => normalizeOptionText(subject) === normalizeOptionText(subjectName)));
         if (matchingTeachers.length === 1) {
             teacherSelect.value = matchingTeachers[0].value;
             autoFilledTeacher = matchingTeachers[0].value;

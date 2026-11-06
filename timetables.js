@@ -47,7 +47,7 @@
         const teacherSelect = form.elements.teacher;
         const roomSelect = form.elements.room;
         const subjectCodeInput = form.elements.subjectCode;
-        const catalog = { subjects: [], teachers: [], classrooms: [] };
+        const catalog = { subjects: [], teachers: [], staff: [], classrooms: [] };
         const catalogState = { subjects: 'loading', teachers: 'loading', classrooms: 'loading' };
         const subscriptions = [];
         let destroyed = false;
@@ -85,6 +85,40 @@
         const selectedSubject = () => catalog.subjects.find(subject =>
             normalize(subject.subjectName || subject.name) === normalize(subjectSelect.value)
         );
+        const assignedSubjects = teacher => [...new Set([
+            teacher.subject,
+            teacher.subjectName,
+            ...(Array.isArray(teacher.subjects) ? teacher.subjects : []),
+            ...(Array.isArray(teacher.additionalSubjects) ? teacher.additionalSubjects : [])
+        ].map(subject => String(subject || '').trim()).filter(Boolean))];
+        const teacherIdentity = teacher => normalize(
+            teacher.email || teacher.staffId || teacher.employeeNo || teacher.id
+            || [teacher.firstName, teacher.lastName].filter(Boolean).join(' ')
+        );
+        const isTeachingStaff = staff => {
+            const category = normalize(staff.staffCategory);
+            if (category) return ['teaching', 'teacher', 'teaching staff'].includes(category);
+            return /teacher|principal|head of department/i.test(String(staff.designation || staff.role || ''))
+                || assignedSubjects(staff).length > 0;
+        };
+        const teacherRecords = () => {
+            const merged = new Map();
+            [...catalog.teachers, ...catalog.staff.filter(isTeachingStaff)].forEach((teacher, index) => {
+                const key = teacherIdentity(teacher) || `teacher-${index}`;
+                const existing = merged.get(key);
+                if (!existing) {
+                    merged.set(key, teacher);
+                    return;
+                }
+                merged.set(key, {
+                    ...existing,
+                    ...teacher,
+                    subject: teacher.subject || existing.subject || '',
+                    subjects: [...new Set([...assignedSubjects(existing), ...assignedSubjects(teacher)])]
+                });
+            });
+            return [...merged.values()];
+        };
         const refreshSubjects = (selected = subjectSelect.value) => {
             const options = catalog.subjects
                 .map(subject => {
@@ -102,9 +136,10 @@
         };
         const refreshTeachers = (selected = teacherSelect.value) => {
             const subjectName = normalize(subjectSelect.value);
-            const options = catalog.teachers
+            const options = teacherRecords()
                 .filter(isActive)
-                .filter(teacher => normalize(teacher.subject || teacher.subjectName) === subjectName && subjectName)
+                .filter(teacher => assignedSubjects(teacher)
+                    .some(subject => normalize(subject) === subjectName) && subjectName)
                 .map(teacher => {
                     const name = String(teacher.name || [teacher.firstName, teacher.lastName]
                         .filter(Boolean).join(' ') || teacher.fullName || '').trim();
@@ -274,7 +309,39 @@
             }
         };
         void connectCatalog('subjects', () => refreshSubjects());
-        void connectCatalog('teachers', () => refreshTeachers());
+        const teacherSourceResults = { teachers: null, staff: null };
+        const connectTeacherSource = async collection => {
+            if (!api?.subscribe) {
+                teacherSourceResults[collection] = false;
+                catalogState.teachers = Object.values(teacherSourceResults).every(result => result !== null)
+                    && !Object.values(teacherSourceResults).some(Boolean) ? 'error' : 'loading';
+                updateCatalogFeedback();
+                return;
+            }
+            try {
+                const unsubscribe = await api.subscribe(collection, incoming => {
+                    if (destroyed) return;
+                    catalog[collection] = incoming.filter(record =>
+                        record.deleted !== true && isActive(record)
+                    );
+                    refreshTeachers();
+                    updateCatalogFeedback();
+                });
+                subscriptions.push(unsubscribe);
+                teacherSourceResults[collection] = true;
+            } catch (error) {
+                teacherSourceResults[collection] = false;
+                console.error(`Unable to load ${collection} for the timetable form.`, error);
+            }
+            if (Object.values(teacherSourceResults).every(result => result !== null)) {
+                catalogState.teachers = Object.values(teacherSourceResults).some(Boolean) ? 'loaded' : 'error';
+                updateCatalogFeedback();
+            }
+        };
+        void Promise.all([
+            connectTeacherSource('teachers'),
+            connectTeacherSource('staff')
+        ]);
         void connectCatalog('classrooms', () => refreshClassrooms());
         sec.addEventListener('remove', () => {
             destroyed = true;

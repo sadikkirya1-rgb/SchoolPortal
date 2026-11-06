@@ -127,9 +127,16 @@
 }
 
 .classrooms-secondary-button {
-    border-color: #94a3b8;
-    background: #e2e8f0;
+    min-width: 104px;
+    border: 2px solid #475569;
+    background: #fff;
     color: #1e293b;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 10%);
+}
+
+.classrooms-secondary-button:hover {
+    border-color: #1e293b;
+    background: #f1f5f9;
 }
 
 .classrooms-primary-button:focus-visible,
