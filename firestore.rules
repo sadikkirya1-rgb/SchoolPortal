@@ -44,6 +44,16 @@ service cloud.firestore {
         && member(schoolId).permissions[collectionName].get(permission, false) == true;
     }
 
+    function hasLegacyPermission(schoolId, collectionName, permission) {
+      let permissions = member(schoolId).get('perms', {});
+      return isMember(schoolId)
+        && !member(schoolId).keys().hasAny(['permissions'])
+        && permissions is map
+        && permissions.keys().hasAny([collectionName])
+        && permissions[collectionName] is map
+        && permissions[collectionName].get(permission, false) == true;
+    }
+
     function hasLegacyTeachingExamResultsPermission(schoolId, permission) {
       let account = member(schoolId);
       return isMember(schoolId)
@@ -200,6 +210,9 @@ service cloud.firestore {
       return isSchoolAdmin(schoolId)
       || hasPermission(schoolId, collectionName, 'view')
       || (collectionName == 'classrooms' && hasPermission(schoolId, 'timetables', 'view'))
+      || (collectionName == 'classrooms'
+        && (hasLegacyPermission(schoolId, 'classrooms', 'view')
+          || hasLegacyPermission(schoolId, 'timetables', 'view')))
       || (collectionName in ['purchaseRequests', 'purchaseOrders', 'purchaseComparisons']
         && hasLegacyPurchaseWorkflowAccess(schoolId, collectionName))
         || (collectionName == 'inventorySettings' && hasPermission(schoolId, 'inventory', 'view'))

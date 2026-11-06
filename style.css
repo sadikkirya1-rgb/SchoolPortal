@@ -32,7 +32,7 @@ margin:0;
 html.session-bootstrap body {
     min-height: 100vh;
     min-height: 100svh;
-    background: #f1f5f9 url("./assets/Smart School Management Login.png") center / cover no-repeat;
+    background: #f1f5f9;
 }
 
 html.session-bootstrap .reference-login-page {

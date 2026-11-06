@@ -494,6 +494,11 @@ test('timetable viewers can read the classroom catalog without edit access', asy
             status: 'active',
             permissions: { timetables: { view: true } }
         });
+        await setDoc(doc(firestore, 'schools/SCH-TEST/members/legacy-timetable-viewer'), {
+            role: 'teacher',
+            status: 'active',
+            perms: { timetables: { view: true } }
+        });
         await setDoc(doc(firestore, 'schools/SCH-TEST/classrooms/ROOM-A'), {
             data: { roomName: 'Science Lab', status: 'Active' },
             version: 1,
@@ -512,6 +517,9 @@ test('timetable viewers can read the classroom catalog without edit access', asy
         updatedBy: 'timetable-viewer',
         updatedAt: '2026-01-01T00:00:00.000Z'
     }));
+
+    const legacyTimetableViewerDb = testEnvironment.authenticatedContext('legacy-timetable-viewer').firestore();
+    await assertSucceeds(getDocs(collection(legacyTimetableViewerDb, 'schools/SCH-TEST/classrooms')));
 
     const teacherDb = testEnvironment.authenticatedContext('teacher-1').firestore();
     await assertFails(getDoc(doc(teacherDb, 'schools/SCH-TEST/classrooms/ROOM-A')));
