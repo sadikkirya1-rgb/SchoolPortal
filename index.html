@@ -1277,6 +1277,36 @@ if ('serviceWorker' in navigator) {
             </article>
         </div>
 
+        <div class="dashboard-events-row">
+            <div class="panel calendar-panel">
+                <div class="calendar-header">
+                    <h3>Event Calendar</h3>
+                    <div class="calendar-menu-wrap">
+                        <button class="calendar-menu-button" id="dashboardCalendarMenuToggle" type="button" aria-label="Calendar options" aria-expanded="false" aria-controls="dashboardCalendarMenu"><i class="fas fa-ellipsis"></i></button>
+                        <div class="calendar-menu hidden" id="dashboardCalendarMenu">
+                            <button type="button" id="dashboardCalendarToday">Go to today</button>
+                            <button type="button" id="dashboardCalendarNextEvent">Next event</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calendar-month">
+                    <span id="dashboardCalendarMonth"></span>
+                    <div class="calendar-nav">
+                        <button type="button" id="dashboardCalendarPrev" aria-label="Previous month"><i class="fas fa-chevron-left"></i></button>
+                        <button type="button" id="dashboardCalendarNext" aria-label="Next month"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+
+                <div class="calendar-grid" id="dashboardCalendarGrid"></div>
+            </div>
+
+            <div class="panel upcoming-events-panel">
+                <div class="panel-header"><h3>Upcoming Events</h3></div>
+                <div id="dashboardEvents" aria-live="polite"></div>
+            </div>
+        </div>
+
         <div class="analytics-row">
             <div class="panel earnings-panel">
                 <div class="panel-header">
@@ -1331,35 +1361,6 @@ if ('serviceWorker' in navigator) {
         </div>
     </div>
 
-    <aside class="dashboard-side">
-        <div class="panel calendar-panel">
-            <div class="calendar-header">
-                <h3>Event Calendar</h3>
-                <div class="calendar-menu-wrap">
-                    <button class="calendar-menu-button" id="dashboardCalendarMenuToggle" type="button" aria-label="Calendar options" aria-expanded="false" aria-controls="dashboardCalendarMenu"><i class="fas fa-ellipsis"></i></button>
-                    <div class="calendar-menu hidden" id="dashboardCalendarMenu">
-                        <button type="button" id="dashboardCalendarToday">Go to today</button>
-                        <button type="button" id="dashboardCalendarNextEvent">Next event</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="calendar-month">
-                <span id="dashboardCalendarMonth"></span>
-                <div class="calendar-nav">
-                    <button type="button" id="dashboardCalendarPrev" aria-label="Previous month"><i class="fas fa-chevron-left"></i></button>
-                    <button type="button" id="dashboardCalendarNext" aria-label="Next month"><i class="fas fa-chevron-right"></i></button>
-                </div>
-            </div>
-
-            <div class="calendar-grid" id="dashboardCalendarGrid"></div>
-        </div>
-
-        <div class="panel upcoming-events-panel">
-            <div class="panel-header"><h3>Upcoming Events</h3></div>
-            <div id="dashboardEvents" aria-live="polite"></div>
-        </div>
-    </aside>
 </section>
 
 <section id="studentsModule" class="students-module module hidden"></section>
