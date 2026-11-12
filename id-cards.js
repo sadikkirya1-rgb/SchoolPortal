@@ -33,7 +33,11 @@ function createIDCardsModule(category) {
     scannerPanel.className = 'idc-panel idc-scan-panel hidden';
     scannerPanel.dataset.idcScanPanel = '';
     scannerPanel.innerHTML = `<div class="idc-scan-heading"><div><h3>QR Attendance Scanner</h3><p>Use a member QR code or an enrolled face to record attendance.</p></div><button class="idc-btn idc-btn-light" type="button" data-idc-close-scanner aria-label="Close attendance scanner">Close</button></div><div class="idc-scan-controls"><div class="idc-scan-option"><span>Identify member</span><strong>QR or Face</strong></div><div class="idc-scan-option"><span>Camera</span><div class="idc-scan-button-group" role="group" aria-label="Choose camera"><button class="idc-btn idc-btn-light is-selected" type="button" data-idc-camera-facing="environment" aria-pressed="true"><i class="fas fa-camera" aria-hidden="true"></i> Back</button><button class="idc-btn idc-btn-light" type="button" data-idc-camera-facing="user" aria-pressed="false"><i class="fas fa-camera-rotate" aria-hidden="true"></i> Front</button></div></div><div class="idc-scan-option"><span>Attendance action</span><div class="idc-scan-button-group" role="group" aria-label="Attendance action"><button class="idc-btn idc-btn-light is-selected" type="button" data-idc-scan-mode="check-in" aria-pressed="true"><i class="fas fa-right-to-bracket" aria-hidden="true"></i> Check in</button><button class="idc-btn idc-btn-light" type="button" data-idc-scan-mode="check-out" aria-pressed="false"><i class="fas fa-right-from-bracket" aria-hidden="true"></i> Check out</button></div></div></div><div class="idc-camera-frame" data-idc-camera-frame><video data-idc-camera playsinline muted aria-label="Camera showing a member QR code or face"></video><div class="idc-camera-member hidden" data-idc-camera-member aria-live="polite"><div class="idc-camera-member-photo-box"><img data-idc-camera-member-photo alt="" hidden><span data-idc-camera-member-photo-placeholder aria-label="Saved member photo unavailable"><i class="fas fa-user" aria-hidden="true"></i><small>Photo unavailable</small></span></div><div class="idc-camera-member-details"><strong data-idc-camera-member-name></strong><span data-idc-camera-member-id></span><span data-idc-camera-member-type></span><small data-idc-camera-member-status></small></div></div><div class="idc-camera-guide"><span class="idc-camera-guide-label">Keep the full QR code visible</span><div class="idc-camera-guide-box"><div class="idc-camera-scan-line" aria-hidden="true"></div></div><span class="idc-camera-guide-hint">Hold the phone steady; scanning is automatic</span></div><div class="idc-camera-message hidden" data-idc-camera-message role="status" aria-live="polite"></div></div><div class="idc-camera-actions"><button class="idc-btn idc-btn-primary" type="button" data-idc-camera-start><i class="fas fa-camera" aria-hidden="true"></i> Start camera</button><button class="idc-btn idc-btn-light" type="button" data-idc-camera-stop disabled><i class="fas fa-stop" aria-hidden="true"></i> Stop camera</button></div><p class="idc-scan-status" data-idc-scan-status role="status" aria-live="polite">Choose check-in or check-out, then start the camera.</p><div class="idc-scan-result hidden" data-idc-scan-result role="status" aria-live="polite"><strong data-idc-result-action></strong><span class="idc-result-name"><b>Member:</b> <span data-idc-result-name></span></span><span><b>Date:</b> <span data-idc-result-date></span></span><span><b>Time:</b> <span data-idc-result-time></span></span></div>`;
-    scannerPanel.querySelector('.idc-scan-controls .idc-scan-option').remove();
+    scannerPanel.querySelector('.idc-scan-heading > div').remove();
+    const scanControls = scannerPanel.querySelector('.idc-scan-controls');
+    scanControls.querySelector('.idc-scan-option').remove();
+    const scannerHeading = scannerPanel.querySelector('.idc-scan-heading');
+    scannerHeading.insertBefore(scanControls, scannerHeading.querySelector('[data-idc-close-scanner]'));
     const idRecordsPanel = sec.querySelector('.idc-record-heading')?.closest('.idc-panel');
     const scannerClock = document.createElement('div');
     scannerClock.className = 'idc-camera-clock';
@@ -44,6 +48,22 @@ function createIDCardsModule(category) {
     const scannerTime = document.createElement('span');
     scannerClock.append(scannerDate, scannerTime);
     scannerPanel.querySelector('[data-idc-camera-frame]').append(scannerClock);
+    const scannerWorkspace = document.createElement('div');
+    scannerWorkspace.className = 'idc-scanner-workspace';
+    const cameraColumn = document.createElement('div');
+    cameraColumn.className = 'idc-camera-column';
+    const desktopRoster = document.createElement('aside');
+    desktopRoster.className = 'idc-desktop-roster';
+    desktopRoster.setAttribute('aria-labelledby', 'idc-roster-title');
+    desktopRoster.innerHTML = '<header class="idc-roster-heading"><div><h3 id="idc-roster-title">Today’s attendance</h3><p data-idc-roster-summary>Loading members…</p></div><i class="fas fa-users" aria-hidden="true"></i></header><ul class="idc-roster-list" data-idc-roster-list aria-label="Member attendance status"></ul>';
+    [
+        scannerPanel.querySelector('[data-idc-scan-result]'),
+        scannerPanel.querySelector('[data-idc-camera-frame]'),
+        scannerPanel.querySelector('.idc-camera-actions'),
+        scannerPanel.querySelector('[data-idc-scan-status]')
+    ].forEach(element => cameraColumn.append(element));
+    scannerWorkspace.append(cameraColumn, desktopRoster);
+    scannerHeading.after(scannerWorkspace);
     const cameraDateFormatter = new Intl.DateTimeFormat(undefined, {
         weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
     });
@@ -531,6 +551,7 @@ function createIDCardsModule(category) {
             rebuildFaceIndex();
             idCardsLoaded = true;
             render();
+            renderAttendanceRoster();
             const identity = api.getIdentity?.();
             const canEditCards = ['schoolAdmin', 'superAdmin', 'director', 'headTeacher'].includes(identity?.role)
                 || identity?.permissions?.idCards?.edit === true;
@@ -542,6 +563,7 @@ function createIDCardsModule(category) {
                         records = records.map(item => item.id === record.id ? migratedRecord : item);
                         rebuildFaceIndex();
                         render();
+                        renderAttendanceRoster();
                     }).catch(error => {
                         console.warn(`Unable to add attendance QR to ID card ${record.id}.`, error);
                     });
@@ -563,6 +585,7 @@ function createIDCardsModule(category) {
                 memberRecords[collection] = loadedRecords.filter(record => record.deleted !== true);
                 memberRecordsLoaded[collection] = true;
                 refreshMemberOptions();
+                renderAttendanceRoster();
             }).then(unsubscribe => {
                 if (typeof unsubscribe !== 'function') return;
                 if (subscriptionGeneration !== memberSubscriptionGeneration) unsubscribe();
@@ -572,6 +595,7 @@ function createIDCardsModule(category) {
                 memberRecordsLoaded[collection] = true;
                 console.error(`Unable to load ${collection} records for ID cards.`, error);
                 refreshMemberOptions();
+                renderAttendanceRoster();
             });
         });
     };
@@ -841,6 +865,7 @@ function createIDCardsModule(category) {
                 if (attendanceIdentityKey !== identityKey) return;
                 attendanceRecords = loadedRecords.filter(record => record.deleted !== true);
                 attendanceRecordsLoaded = true;
+                renderAttendanceRoster();
             }, [{ field: 'data.date', operator: '==', value: attendanceDate }]);
             if (attendanceIdentityKey !== identityKey) {
                 unsubscribe?.();
@@ -865,6 +890,82 @@ function createIDCardsModule(category) {
         const date = new Date();
         date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
         return date.toISOString().slice(0, 10);
+    };
+    const renderAttendanceRoster = () => {
+        const list = desktopRoster.querySelector('[data-idc-roster-list]');
+        const summary = desktopRoster.querySelector('[data-idc-roster-summary]');
+        const today = localDate();
+        const eligibleCards = records.filter(card => String(card.status || 'Active').toLowerCase() === 'active'
+            && (!card.validUntil || card.validUntil >= today)
+            && attendanceMemberForCard(card));
+        const members = eligibleCards.map(card => {
+            const rosterRecord = attendanceMemberForCard(card);
+            const memberType = card.memberType === 'Student' ? 'Students'
+                : card.memberType === 'Teacher' ? 'Teachers' : 'Staff';
+            const memberId = memberRecordKey(rosterRecord);
+            const attendance = attendanceRecords.find(record => record.date === today
+                && String(record.memberId || record.studentId || '') === memberId
+                && (!record.memberType || record.memberType === memberType));
+            const attendanceStatus = String(attendance?.status || '').trim();
+            const status = attendance?.checkOutAt ? 'Checked out'
+                : attendance?.checkInAt ? 'Present'
+                    : attendanceStatus
+                        ? attendanceStatus.replace(/\b\w/g, character => character.toUpperCase())
+                        : 'Not marked';
+            const statusClass = status.toLowerCase().includes('present') || status === 'Checked out'
+                ? 'present'
+                : status.toLowerCase() === 'late' ? 'late'
+                    : status.toLowerCase() === 'absent' ? 'absent'
+                        : status.toLowerCase() === 'excused' ? 'excused' : 'unmarked';
+            const actionTime = attendance?.checkOutAt
+                ? `Out ${formatScanTime(attendance.checkOutAt)}`
+                : attendance?.checkInAt
+                    ? `In ${formatScanTime(attendance.checkInAt)}`
+                    : '';
+            return {
+                card,
+                rosterRecord,
+                name: card.memberName || memberRecordName(rosterRecord) || 'Member',
+                id: card.memberId || memberRecordNumber(rosterRecord, card.memberType),
+                detail: card.department || rosterRecord.className || rosterRecord.class
+                    || rosterRecord.department || card.memberType || 'Member',
+                status,
+                statusClass,
+                actionTime
+            };
+        }).sort((first, second) => first.name.localeCompare(second.name));
+        const markedMembers = members.filter(member => member.statusClass !== 'unmarked').length;
+        summary.textContent = `${markedMembers} marked · ${members.length} members`;
+        if (!members.length) {
+            const message = document.createElement('li');
+            message.className = 'idc-roster-empty';
+            message.textContent = idCardsLoaded ? 'No active, linked members to show.' : 'Loading members…';
+            list.replaceChildren(message);
+            return;
+        }
+        list.replaceChildren(...members.map(member => {
+            const item = document.createElement('li');
+            item.className = 'idc-roster-member';
+            const avatar = document.createElement('span');
+            avatar.className = 'idc-roster-avatar';
+            avatar.setAttribute('aria-hidden', 'true');
+            avatar.textContent = member.name.trim().charAt(0).toUpperCase() || 'M';
+            const details = document.createElement('span');
+            details.className = 'idc-roster-details';
+            const name = document.createElement('strong');
+            name.textContent = member.name;
+            const memberInfo = document.createElement('small');
+            memberInfo.textContent = [member.id, member.detail].filter(Boolean).join(' · ');
+            details.append(name, memberInfo);
+            const status = document.createElement('span');
+            status.className = `idc-roster-status ${member.statusClass}`;
+            status.textContent = member.status;
+            const time = document.createElement('small');
+            time.className = 'idc-roster-time';
+            time.textContent = member.actionTime;
+            item.append(avatar, details, status, time);
+            return item;
+        }));
     };
     const formatScanTime = value => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const scanOutcome = (message, speechMessage = message, scanMethod = 'QR') => {
@@ -960,6 +1061,7 @@ function createIDCardsModule(category) {
         void api.sync?.();
         attendanceRecords = attendanceRecords.filter(item => item.id !== record.id);
         attendanceRecords.unshift(record);
+        renderAttendanceRoster();
         const label = action === 'check-in' ? 'Signed in' : 'Signed out';
         scanStatus(`${label}: ${record.memberName}.`);
         showScanResult(record, action, timestamp, card, rosterRecord);
@@ -1361,6 +1463,7 @@ function createIDCardsModule(category) {
         attendanceIdentityKey = '';
         attendanceRecordsLoaded = false;
         attendanceRecords = [];
+        renderAttendanceRoster();
         lastScannedToken = '';
     });
     sec.querySelectorAll('[data-idc-field]').forEach(field => { field.addEventListener('input', update); field.addEventListener('change', update); }); sec.querySelector('[data-idc-new]').addEventListener('click', () => { sec.querySelector('[data-idc-editor]').classList.remove('hidden'); clear(); sec.querySelector('[data-idc-editor]').scrollIntoView({behavior:'smooth'}); }); sec.querySelector('[data-idc-close]').addEventListener('click', () => sec.querySelector('[data-idc-editor]').classList.add('hidden')); sec.querySelector('[data-idc-clear]').addEventListener('click', clear); sec.querySelector('[data-idc-toggle]').addEventListener('click', event => { const area = sec.querySelector('[data-idc-preview]'); const hidden = area.classList.toggle('hidden'); event.currentTarget.textContent = hidden ? 'Show Preview' : 'Hide Preview'; });
@@ -1419,6 +1522,7 @@ function createIDCardsModule(category) {
                     records = [confirmedRecord, ...records.filter(record => record.id !== recordId)];
                     rebuildFaceIndex();
                     render();
+                    renderAttendanceRoster();
                     editingRecordId = '';
                     sec.querySelector('[data-idc-editing]').textContent = 'New Record';
                     toast(savedRecord.photo
@@ -1445,6 +1549,7 @@ function createIDCardsModule(category) {
             records = records.filter(item => item.id !== record.id);
             rebuildFaceIndex();
             render();
+            renderAttendanceRoster();
             toast('ID card deleted; cloud sync is pending.');
         }).catch(error => {
             console.error('Unable to delete the ID card.', error);

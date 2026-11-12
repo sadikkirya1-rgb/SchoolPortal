@@ -5498,7 +5498,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="enquiry-date-filter-message" data-enquiry-date-message aria-live="polite"></span>
                 </div>
                 <button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> New Enquiry</button>
-            </div><table><thead><tr><th>Name</th><th>Contact</th><th>Address</th><th>Type</th><th>Purpose</th><th>Student ID</th><th>Department</th><th>Assigned To</th><th>Follow-up</th><th>Appointment</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
+            </div><table><thead><tr><th>Name</th><th>Contact</th><th>Type</th><th>Purpose</th><th>Department</th><th>Assigned To</th><th>Follow-up</th><th>Appointment</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
 
         const form = sec.querySelector('[data-enquiry-form]');
         const table = sec.querySelector('[data-enquiry-table]');
@@ -5788,19 +5788,16 @@ document.addEventListener('DOMContentLoaded', () => {
             table.innerHTML = visibleEntries.length ? visibleEntries.map(({ entry, index }) => {
                 const status = normalizeEnquiryStatus(entry.status);
                 const statusClass = status.toLowerCase().replace(/[^a-z]+/g, '-');
-                const history = Array.isArray(entry.statusHistory) ? entry.statusHistory : [];
-                const lastChange = history[history.length - 1];
                 let workflowActions = '';
                 if (status === 'New') workflowActions = actionButton(index, 'start', 'fa-play', 'Start work') + actionButton(index, 'resolve', 'fa-circle-check', 'Resolve');
                 if (status === 'In Progress') workflowActions = actionButton(index, 'wait', 'fa-hourglass-half', 'Wait for visitor') + actionButton(index, 'resolve', 'fa-circle-check', 'Resolve');
                 if (status === 'Waiting for Visitor') workflowActions = actionButton(index, 'resume', 'fa-play', 'Resume work') + actionButton(index, 'resolve', 'fa-circle-check', 'Resolve');
                 if (status === 'Resolved') workflowActions = actionButton(index, 'close', 'fa-lock', 'Close enquiry') + actionButton(index, 'reopen', 'fa-rotate-left', 'Reopen enquiry');
                 if (status === 'Closed') workflowActions = actionButton(index, 'reopen', 'fa-rotate-left', 'Reopen enquiry');
-                const historyLabel = lastChange ? `${escape(lastChange.by || 'Staff')} · ${escape(formatWorkflowTime(lastChange.at))}` : '';
                 const appointmentAction = entry.appointmentDate && !entry.appointmentId ? `<button class="enquiry-action" type="button" data-enquiry-action="appointment" data-enquiry-index="${index}" title="Create linked appointment" aria-label="Create appointment from enquiry"><i class="fas fa-calendar-plus"></i></button>` : '';
                 const appointmentLabel = entry.appointmentId ? `${escape(entry.appointmentId)}<br><small>${escape(entry.appointmentStatus || 'Requested')} · ${escape(entry.appointmentDate || '')}</small>` : escape(entry.appointmentDate || '-');
-                return `<tr><td>${escape(entry.name)}</td><td>${escape(entry.mobile || '-')}</td><td>${escape(entry.address || '-')}</td><td>${escape(entry.visitorType)}</td><td>${escape(entry.purpose)}</td><td>${escape(entry.studentId || '-')}</td><td>${escape(entry.department || '-')}</td><td>${escape(entry.assignedTo || 'Unassigned')}</td><td>${escape(entry.followUpDate || '-')}</td><td>${appointmentLabel}</td><td>${escape(entry.priority || 'Normal')}</td><td><span class="enquiry-status-badge status-${statusClass}">${escape(status)}</span><small class="enquiry-status-meta">${historyLabel}</small></td><td><div class="enquiry-actions">${workflowActions}${appointmentAction}<button class="enquiry-action" type="button" data-enquiry-action="preview" data-enquiry-index="${index}" title="Preview" aria-label="Preview enquiry"><i class="fas fa-eye"></i></button><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit" aria-label="Edit enquiry"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print" aria-label="Print enquiry"><i class="fas fa-print"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete" aria-label="Delete enquiry"><i class="fas fa-trash"></i></button></div></td></tr>`;
-            }).join('') : `<tr><td colspan="13" style="text-align:center;padding:25px;color:#94a3b8;">${dateRange.message ? escape(dateRange.message) : datePeriod.value === 'all' ? 'No saved enquiries yet. Complete the form above to create a record.' : 'No enquiries found for this date range.'}</td></tr>`;
+                return `<tr><td>${escape(entry.name)}</td><td>${escape(entry.mobile || '-')}</td><td>${escape(entry.visitorType)}</td><td>${escape(entry.purpose)}</td><td>${escape(entry.department || '-')}</td><td>${escape(entry.assignedTo || 'Unassigned')}</td><td>${escape(entry.followUpDate || '-')}</td><td>${appointmentLabel}</td><td>${escape(entry.priority || 'Normal')}</td><td><span class="enquiry-status-badge status-${statusClass}">${escape(status)}</span></td><td><div class="enquiry-actions">${workflowActions}${appointmentAction}<button class="enquiry-action" type="button" data-enquiry-action="preview" data-enquiry-index="${index}" title="Preview" aria-label="Preview enquiry"><i class="fas fa-eye"></i></button><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit" aria-label="Edit enquiry"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print" aria-label="Print enquiry"><i class="fas fa-print"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete" aria-label="Delete enquiry"><i class="fas fa-trash"></i></button></div></td></tr>`;
+            }).join('') : `<tr><td colspan="11" style="text-align:center;padding:25px;color:#94a3b8;">${dateRange.message ? escape(dateRange.message) : datePeriod.value === 'all' ? 'No saved enquiries yet. Complete the form above to create a record.' : 'No enquiries found for this date range.'}</td></tr>`;
         };
         datePeriod.addEventListener('change', render);
         dateStart.addEventListener('change', render);
@@ -7032,6 +7029,189 @@ document.addEventListener('DOMContentLoaded', () => {
         const form = sec.querySelector('[data-enquiry-form]'); const table = sec.querySelector('[data-enquiry-table]'); const entryCard = sec.querySelector('.enquiry-entry-card'); const summaryCard = sec.querySelector('.enquiry-summary-card'); const storageKey = 'edumasterAppointments'; let editingIndex = null;
         const readEntries = () => { try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; } }; const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); const today = () => new Date().toISOString().slice(0, 10); const nextId = () => { const year = new Date().getFullYear(); const prefix = `APT-${year}-`; const sequence = readEntries().reduce((highest, entry) => { const match = String(entry.appointmentId || '').match(/^APT-\d{4}-(\d+)$/); return match && String(entry.appointmentId).startsWith(prefix) ? Math.max(highest, Number(match[1])) : highest; }, 0) + 1; return `${prefix}${String(sequence).padStart(5, '0')}`; }; const appointmentStatuses = ['Requested','Confirmed','Checked In','In Progress','Completed','Cancelled','No Show','Rescheduled'];
         form.elements.status.innerHTML = appointmentStatuses.map(status => `<option>${status}</option>`).join('');
+        const linkedEnquiryInput = form.elements.enquiryId;
+        const appointmentLinkGroup = linkedEnquiryInput.closest('.enquiry-form-group');
+        appointmentLinkGroup.classList.add('appointment-link-group');
+        const appointmentParentControls = document.createElement('div');
+        appointmentParentControls.className = 'appointment-parent-controls';
+        appointmentParentControls.hidden = true;
+        const parentLabel = document.createElement('label');
+        const parentSelect = document.createElement('select');
+        parentSelect.name = 'appointmentParentId';
+        parentSelect.id = 'appointmentParentSelect';
+        parentSelect.dataset.appointmentParent = '';
+        parentLabel.htmlFor = parentSelect.id;
+        parentLabel.textContent = 'Parent / Guardian';
+        const studentPicker = document.createElement('details');
+        studentPicker.className = 'appointment-student-picker';
+        studentPicker.hidden = true;
+        const studentPickerSummary = document.createElement('summary');
+        studentPickerSummary.textContent = 'Select linked students';
+        const studentOptionList = document.createElement('div');
+        studentOptionList.className = 'appointment-student-options';
+        studentOptionList.setAttribute('role', 'group');
+        studentOptionList.setAttribute('aria-label', 'Students linked to selected parent');
+        studentPicker.append(studentPickerSummary, studentOptionList);
+        appointmentParentControls.append(parentLabel, parentSelect, studentPicker);
+        appointmentLinkGroup.append(appointmentParentControls);
+        const appointmentTypeSelect = form.elements.appointmentType;
+
+        const readFamilyRecords = key => {
+            try {
+                const records = JSON.parse(localStorage.getItem(key) || '[]');
+                return Array.isArray(records) ? records.filter(record => record && record.deleted !== true) : [];
+            } catch (error) {
+                return [];
+            }
+        };
+        const normalizeFamilyValue = value => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        const appointmentStudentName = student => String(student.fullName || student.name || student.studentName
+            || [student.firstName, student.middleName, student.lastName].filter(Boolean).join(' ')).trim();
+        const appointmentStudentKeys = student => [student.id, student.recordId, student.studentRecordId,
+            student.admissionNo, student.admissionNumber, student.studentCode, student.studentId]
+            .map(value => String(value || '').trim()).filter(Boolean);
+        const appointmentStudentRecordKey = student => String(student.id || student.recordId || student.studentRecordId
+            || student.admissionNo || student.admissionNumber || student.studentCode || student.studentId || '').trim();
+        const appointmentStudentDisplayId = student => String(student.admissionNo || student.admissionNumber
+            || student.studentCode || student.studentId || student.id || '').trim();
+        let currentAppointmentParents = [];
+        let currentAppointmentParent = null;
+        const getAppointmentParents = () => {
+            const contacts = readFamilyRecords('schoolParentContacts');
+            const students = readFamilyRecords('school_students').map((record, index) => ({
+                record,
+                index,
+                name: appointmentStudentName(record),
+                key: appointmentStudentRecordKey(record) || `student-${index}`,
+                displayId: appointmentStudentDisplayId(record)
+            })).filter(student => student.name);
+            const sameParent = (left, right) => left === right
+                || (left.familyReference && left.familyReference === right.familyReference)
+                || (left.email && normalizeFamilyValue(left.email) === normalizeFamilyValue(right.email))
+                || (left.mobile && normalizeFamilyValue(left.mobile) === normalizeFamilyValue(right.mobile))
+                || (!left.familyReference && !left.email && !left.mobile
+                    && normalizeFamilyValue(left.parentName) === normalizeFamilyValue(right.parentName));
+            const uniqueParents = [];
+            contacts.forEach((record, index) => {
+                const name = String(record.parentName || record.fullName || record.name || '').trim();
+                if (!name || uniqueParents.some(parent => sameParent(parent.record, record))) return;
+                const relatedRecords = contacts.filter(candidate => sameParent(record, candidate));
+                const linkedIds = new Set();
+                const linkedNames = new Set();
+                relatedRecords.forEach(parent => {
+                    [
+                        ...(Array.isArray(parent.studentRecordIds) ? parent.studentRecordIds : []),
+                        ...(Array.isArray(parent.studentIds) ? parent.studentIds : []),
+                        parent.studentRecordId,
+                        parent.studentId
+                    ].forEach(value => {
+                        if (value) linkedIds.add(normalizeFamilyValue(value));
+                    });
+                    [
+                        ...(Array.isArray(parent.studentNames) ? parent.studentNames : []),
+                        parent.studentName,
+                        ...String(parent.additionalStudents || '').split(/[,;\n]+/)
+                    ].forEach(value => {
+                        if (value) linkedNames.add(normalizeFamilyValue(value));
+                    });
+                });
+                const linkedStudents = students.filter(student =>
+                    appointmentStudentKeys(student.record).some(value => linkedIds.has(normalizeFamilyValue(value)))
+                    || linkedNames.has(normalizeFamilyValue(student.name))
+                );
+                const parentId = String(record.parentId || record.id || normalizeFamilyValue(name) || `parent-${index}`);
+                uniqueParents.push({
+                    id: parentId,
+                    name,
+                    record,
+                    students: linkedStudents
+                });
+            });
+            return uniqueParents;
+        };
+        const renderAppointmentStudentOptions = (selectedStudentIds = []) => {
+            currentAppointmentParent = currentAppointmentParents.find(parent => parent.id === parentSelect.value) || null;
+            studentOptionList.replaceChildren();
+            studentPicker.hidden = !currentAppointmentParent;
+            studentPicker.open = false;
+            if (!currentAppointmentParent) {
+                studentPickerSummary.textContent = 'Select linked students';
+                return;
+            }
+            const selectedIds = new Set(selectedStudentIds.map(String));
+            const students = currentAppointmentParent.students;
+            if (!students.length) {
+                studentPickerSummary.textContent = 'No linked students found';
+                const emptyMessage = document.createElement('p');
+                emptyMessage.textContent = 'No students are linked to this parent.';
+                studentOptionList.append(emptyMessage);
+                return;
+            }
+            students.forEach((student, index) => {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = student.key;
+                checkbox.id = `appointment-linked-student-${index}`;
+                checkbox.dataset.studentDisplayId = student.displayId;
+                checkbox.checked = selectedIds.has(student.key) || selectedIds.has(student.displayId);
+                const option = document.createElement('label');
+                option.className = 'appointment-student-option';
+                option.htmlFor = checkbox.id;
+                const name = document.createElement('span');
+                name.textContent = student.name;
+                option.append(checkbox, name);
+                if (student.displayId && student.displayId !== student.name) {
+                    const displayId = document.createElement('small');
+                    displayId.textContent = student.displayId;
+                    option.append(displayId);
+                }
+                studentOptionList.append(option);
+            });
+            const selectedCount = studentOptionList.querySelectorAll('input:checked').length;
+            studentPickerSummary.textContent = selectedCount
+                ? `${selectedCount} student${selectedCount === 1 ? '' : 's'} selected`
+                : 'Select linked students';
+        };
+        const refreshAppointmentFamilyOptions = (selectedParentId = '', selectedStudentIds = []) => {
+            currentAppointmentParents = getAppointmentParents();
+            parentSelect.replaceChildren(new Option('Select a parent…', ''));
+            currentAppointmentParents.forEach(parent => {
+                const parentId = parent.record.parentId || parent.id;
+                parentSelect.add(new Option(`${parent.name}${parentId ? ` — ${parentId}` : ''}`, parent.id));
+            });
+            parentSelect.value = currentAppointmentParents.some(parent => parent.id === String(selectedParentId))
+                ? String(selectedParentId)
+                : '';
+            renderAppointmentStudentOptions(selectedStudentIds);
+        };
+        const selectedAppointmentStudents = () => {
+            const selectedKeys = new Set([...studentOptionList.querySelectorAll('input:checked')].map(input => input.value));
+            return (currentAppointmentParent?.students || []).filter(student => selectedKeys.has(student.key));
+        };
+        const syncAppointmentParentControls = () => {
+            const isParentAppointment = /^parent\b/i.test(appointmentTypeSelect.value.trim());
+            appointmentParentControls.hidden = !isParentAppointment;
+            parentSelect.disabled = !isParentAppointment;
+            if (!isParentAppointment) {
+                parentSelect.value = '';
+                renderAppointmentStudentOptions();
+            }
+        };
+        refreshAppointmentFamilyOptions();
+        syncAppointmentParentControls();
+        appointmentTypeSelect.addEventListener('change', () => {
+            syncAppointmentParentControls();
+            updateSummary();
+        });
+        parentSelect.addEventListener('change', () => {
+            renderAppointmentStudentOptions();
+            updateSummary();
+        });
+        studentOptionList.addEventListener('change', () => {
+            const selectedCount = studentOptionList.querySelectorAll('input:checked').length;
+            studentPickerSummary.textContent = `${selectedCount} student${selectedCount === 1 ? '' : 's'} selected`;
+            updateSummary();
+        });
         const statusFilter = sec.querySelector('[data-appointment-status-filter]');
         appointmentStatuses.forEach(status => statusFilter.add(new Option(status, status)));
         const departmentSelect = form.elements.department;
@@ -7215,12 +7395,13 @@ document.addEventListener('DOMContentLoaded', () => {
         sec.querySelector('[data-appointment-search]').addEventListener('input', render);
         statusFilter.addEventListener('change', render);
         const updateSummary = () => renderNamedFormSummary(form, summaryCard.querySelector('.enquiry-summary'));
-        const closeForm = () => { entryCard.classList.add('hidden'); summaryCard.classList.add('hidden'); form.reset(); editingIndex = null; updateSummary(); };
+        const closeForm = () => { entryCard.classList.add('hidden'); summaryCard.classList.add('hidden'); form.reset(); refreshAppointmentFamilyOptions(); syncAppointmentParentControls(); editingIndex = null; updateSummary(); };
         const openForm = () => {
             entryCard.classList.remove('hidden');
             summaryCard.classList.remove('hidden');
             if (editingIndex === null) {
                 form.reset();
+                refreshAppointmentFamilyOptions();
                 resetDepartmentOptions();
                 form.elements.appointmentId.value = nextId();
                 form.elements.appointmentDate.value = today();
@@ -7251,17 +7432,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     form.elements.enquiryId.value = '';
                 }
+                refreshAppointmentFamilyOptions(request?.parentContactId || request?.parentId || '', request?.linkedStudentRecordIds || []);
             }
+            syncAppointmentParentControls();
             updateSummary();
             form.elements.appointmentType.focus();
         };
         form.addEventListener('input', updateSummary);
         form.addEventListener('change', updateSummary);
-        form.addEventListener('reset', () => setTimeout(updateSummary));
+        form.addEventListener('reset', () => setTimeout(() => {
+            syncAppointmentParentControls();
+            updateSummary();
+        }));
         form.addEventListener('submit', event => {
             event.preventDefault();
             if (!form.checkValidity()) { form.reportValidity(); return; }
             const data = Object.fromEntries(new FormData(form).entries());
+            const selectedParent = currentAppointmentParent;
+            const linkedStudents = selectedAppointmentStudents();
+            data.appointmentParentId = parentSelect.value;
+            data.parentId = selectedParent ? String(selectedParent.record.parentId || selectedParent.id) : '';
+            data.parentName = selectedParent?.name || '';
+            data.linkedStudentRecordIds = linkedStudents.map(student => student.key);
+            data.linkedStudentIds = linkedStudents.map(student => student.displayId || student.key);
+            data.linkedStudentNames = linkedStudents.map(student => student.name);
             const entries = readEntries();
             const existing = editingIndex === null ? null : entries[editingIndex];
             const timestamp = new Date().toISOString();
@@ -7307,6 +7501,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (action === 'edit' || action === 'reschedule') {
                 resetDepartmentOptions();
+                refreshAppointmentFamilyOptions(entry.appointmentParentId || entry.parentId || '', entry.linkedStudentRecordIds || entry.linkedStudentIds || []);
                 Object.entries(entry).forEach(([name, value]) => { if (form.elements[name]) form.elements[name].value = value; });
                 selectDepartment(entry.department, true);
                 updatePeopleToVisitOptions(entry.personToVisit);

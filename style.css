@@ -4406,6 +4406,7 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 }
 .enquiry-workflow-stats,.appointment-workflow-stats{grid-template-columns:repeat(auto-fit,minmax(125px,1fr))}
 .appointments-module .enquiries-stats.appointment-workflow-stats{grid-template-columns:repeat(auto-fit,minmax(125px,1fr))}
+.appointments-module .appointment-workflow-stats .enquiry-stat span{font-size:10px;white-space:nowrap}
 .call-logs-module .enquiries-stats,
 .dispatch-module .enquiries-stats,
 .appointments-module .enquiries-stats,
@@ -4450,9 +4451,26 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .enquiry-status-meta{display:block;max-width:190px;margin-top:4px;color:#64748b;font-size:9px;white-space:normal}
 .enquiry-workflow-module .enquiries-table table{min-width:1450px}
 .appointments-module .enquiries-table table{min-width:1320px}
+.appointments-module .enquiries-table th,.appointments-module .enquiries-table td{padding:6px 8px;font-size:11px}
+.appointments-module .enquiries-table th{font-size:10px}
 .appointment-action{flex:none}
 .appointments-module .appointment-table-toolbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;min-width:1320px;margin-bottom:10px}
 .appointments-module .appointment-table-toolbar .table-title{margin:0;padding:0}
+.appointments-module .appointment-link-group{grid-column:1/-1}
+.appointments-module .appointment-parent-controls{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.appointments-module .appointment-parent-controls[hidden]{display:none}
+.appointments-module .appointment-student-picker{position:relative}
+.appointments-module .appointment-student-picker summary{padding:9px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#334155;font-size:12px;cursor:pointer;list-style:none}
+.appointments-module .appointment-student-picker summary::-webkit-details-marker{display:none}
+.appointments-module .appointment-student-picker summary::after{float:right;content:"\f078";font-family:"Font Awesome 6 Free";font-weight:900;color:#64748b}
+.appointments-module .appointment-student-picker[open] summary{border-color:#94a3b8;border-radius:8px 8px 0 0}
+.appointments-module .appointment-student-options{max-height:220px;overflow:auto;margin-top:4px;padding:6px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-shadow:0 8px 20px rgba(15,23,42,.12)}
+.appointments-module .appointment-student-option{display:flex;align-items:center;gap:8px;padding:7px;border-radius:5px;color:#334155;font-size:12px;cursor:pointer}
+.appointments-module .appointment-student-option:hover{background:#f1f5f9}
+.appointments-module .appointment-student-option input{width:15px;height:15px;flex:0 0 15px;margin:0;padding:0;border-radius:3px;accent-color:#2563eb}
+.appointments-module .appointment-student-option span{flex:1;min-width:0}
+.appointments-module .appointment-student-option small{color:#64748b;font-size:10px}
+.appointments-module .appointment-student-options p{margin:0;padding:8px;color:#64748b;font-size:11px}
 .appointment-table-controls{grid-column:2;display:flex;align-items:center;justify-content:center;gap:10px}
 .appointments-module .appointment-table-toolbar>[data-enquiry-new]{grid-column:3;justify-self:end}
 .appointment-table-search input,.appointment-table-filter select{height:36px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#334155;font:inherit;font-size:12px}

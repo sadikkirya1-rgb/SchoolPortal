@@ -25,10 +25,13 @@
 .parent-id-card-preview-content .idc-back-content .idc-card-number,.parent-id-card-preview-content .idc-back-content .idc-barcode-number{display:none}
 #idCardsModule .idc-scan-panel{padding:18px}
 #idCardsModule .idc-scan-heading,#idCardsModule .idc-scan-controls{display:flex;align-items:center;justify-content:space-between;gap:12px}
-#idCardsModule .idc-scan-heading{margin-bottom:14px}
+#idCardsModule .idc-scan-heading{justify-content:space-between;margin-bottom:14px}
 #idCardsModule .idc-scan-heading h3{font-size:15px}
 #idCardsModule .idc-scan-heading p,#idCardsModule .idc-scan-status{margin-top:4px;color:#64748b;font-size:12px}
 #idCardsModule .idc-scan-controls{justify-content:flex-start;flex-wrap:wrap;margin-bottom:12px}
+#idCardsModule .idc-scanner-workspace{display:flex;flex-direction:column;gap:16px;min-width:0}
+#idCardsModule .idc-camera-column{display:flex;min-width:0;flex-direction:column}
+#idCardsModule .idc-desktop-roster{display:none}
 #idCardsModule .idc-scan-controls label{display:grid;gap:4px;color:#475569;font-size:11px;font-weight:700}
 #idCardsModule .idc-scan-controls select{min-width:140px;height:38px;padding:0 10px;border:1px solid #dce4ef;border-radius:8px;background:#fff;color:#334155;font:inherit}
 #idCardsModule .idc-camera-frame{position:relative;width:min(100%,520px);height:min(62vw,340px);min-height:220px;margin:0 auto;overflow:hidden;border-radius:10px;background:#0f172a}
@@ -59,6 +62,31 @@
 #idCardsModule .idc-scan-result [data-idc-result-action]{font-size:16px;font-weight:900}
 #idCardsModule .idc-scan-result .idc-result-name{font-size:15px}
 #idCardsModule .idc-scan-status{text-align:center}
+#idCardsModule .idc-roster-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px;border-bottom:1px solid #e8edf4}
+#idCardsModule .idc-roster-heading h3{font-size:14px;font-weight:800}
+#idCardsModule .idc-roster-heading p{margin-top:4px;color:#64748b;font-size:11px}
+#idCardsModule .idc-roster-heading>i{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#eff6ff;color:#1459d9}
+#idCardsModule .idc-roster-list{display:grid;gap:2px;max-height:500px;margin:0;padding:6px 12px;overflow:auto;list-style:none}
+#idCardsModule .idc-roster-member{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:9px;padding:9px 4px;border-bottom:1px solid #f1f5f9}
+#idCardsModule .idc-roster-member:last-child{border-bottom:0}
+#idCardsModule .idc-roster-avatar{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#eef2ff;color:#4338ca;font-size:12px;font-weight:800}
+#idCardsModule .idc-roster-details{display:grid;min-width:0;gap:3px}
+#idCardsModule .idc-roster-details strong{overflow:hidden;color:#1e293b;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+#idCardsModule .idc-roster-details small{overflow:hidden;color:#64748b;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+#idCardsModule .idc-roster-status{padding:4px 7px;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:9px;font-weight:800;white-space:nowrap}
+#idCardsModule .idc-roster-status.present{background:#dcfce7;color:#15803d}
+#idCardsModule .idc-roster-status.late{background:#fef3c7;color:#a16207}
+#idCardsModule .idc-roster-status.absent{background:#fee2e2;color:#b91c1c}
+#idCardsModule .idc-roster-status.excused{background:#ede9fe;color:#6d28d9}
+#idCardsModule .idc-roster-time{grid-column:2/-1;margin-top:-5px;color:#64748b;font-size:9px}
+#idCardsModule .idc-roster-empty{padding:24px 12px;color:#64748b;font-size:11px;text-align:center}
+@media(min-width:1024px){
+    #idCardsModule .idc-scanner-workspace{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,1fr);align-items:stretch;gap:18px}
+    #idCardsModule .idc-desktop-roster{display:flex;min-width:0;max-height:560px;flex-direction:column;overflow:hidden;border:1px solid #dce4ef;border-radius:12px;background:#fff}
+    #idCardsModule .idc-camera-frame{width:100%;height:auto;min-height:260px;max-height:480px;margin:0;aspect-ratio:4/3}
+    #idCardsModule .idc-camera-column .idc-scan-result{width:100%;max-width:none;margin:0 0 12px}
+    #idCardsModule .idc-roster-list{min-height:0;max-height:none;flex:1}
+}
 @media(prefers-reduced-motion:reduce){#idCardsModule .idc-camera-frame.is-scanning .idc-camera-scan-line{animation:none;top:50%}}
 @media(max-width:600px){#idCardsModule .idc-header{justify-content:flex-start}#idCardsModule .idc-brand{order:-1;width:100%}#idCardsModule .idc-scan-panel{padding:14px}#idCardsModule .idc-scan-heading{align-items:flex-start}#idCardsModule .idc-scan-controls>*{flex:1}#idCardsModule .idc-scan-controls label{min-width:100%}}
 #idCardsModule .idc-record-heading{padding:16px 20px 0;margin-bottom:14px}
@@ -83,6 +111,7 @@
     #idCardsModule .idc-scan-heading{align-items:center;gap:8px}
     #idCardsModule .idc-scan-heading>div{min-width:0}
     #idCardsModule .idc-scan-heading p{line-height:1.45}
+    #idCardsModule .idc-scan-heading>[data-idc-close-scanner]{flex:none;padding:6px 8px;font-size:9px}
     #idCardsModule .idc-scan-controls{display:grid;grid-template-columns:1fr 1fr;gap:9px}
     #idCardsModule .idc-scan-controls label{grid-column:1/-1;min-width:0}
     #idCardsModule .idc-scan-controls select{width:100%;min-height:44px}
@@ -120,6 +149,9 @@
 #idCardsModule .idc-scan-controls .idc-scan-button-group .idc-btn{min-height:26px;padding:3px 6px;font-size:8px;white-space:nowrap}
 #idCardsModule .idc-scan-button-group .idc-btn i{margin-right:3px;font-size:8px}
 #idCardsModule .idc-scan-controls .idc-scan-button-group .is-selected{background:#1459d9;color:#fff}
+#idCardsModule .idc-scan-heading .idc-scan-controls{flex-wrap:nowrap;gap:6px;margin:0 auto 0 0}
+#idCardsModule .idc-scan-heading .idc-scan-option{display:flex;width:auto;min-width:0;gap:0}
+#idCardsModule .idc-scan-heading .idc-scan-option>span{display:none}
 #idCardsModule .idc-camera-actions{display:flex;justify-content:center;gap:10px;width:min(100%,520px);margin:12px auto}
 #idCardsModule .idc-camera-actions .idc-btn{flex:1;min-height:36px;padding:7px 10px;font-size:10px}
 #idCardsModule .idc-camera-actions .idc-btn:disabled{cursor:not-allowed;opacity:.55;transform:none}
@@ -136,6 +168,10 @@
     #idCardsModule .idc-search{flex-basis:180px;min-width:150px}
     #idCardsModule .idc-export-btn{justify-self:auto;margin-left:0}
     #idCardsModule .idc-scan-controls{display:flex;gap:6px}
+    #idCardsModule .idc-scan-heading .idc-scan-controls{display:flex;flex:1;justify-content:flex-end;gap:4px}
+    #idCardsModule .idc-scan-heading .idc-scan-option{flex:0 1 auto}
+    #idCardsModule .idc-scan-heading .idc-scan-button-group{width:auto;gap:3px}
+    #idCardsModule .idc-scan-heading .idc-scan-button-group .idc-btn{min-height:32px;padding:4px 5px;font-size:7px}
     #idCardsModule .idc-scan-option{width:calc(50% - 3px);min-width:0}
     #idCardsModule .idc-scan-controls .idc-scan-option{justify-items:stretch}
     #idCardsModule .idc-scan-option>span{text-align:center;font-size:9px}
@@ -180,7 +216,6 @@
     #idCardsModule.idc-scanner-open .idc-camera-actions,
     #idCardsModule.idc-scanner-open .idc-scan-status,
     #idCardsModule.idc-scanner-open .idc-scan-result{flex:none}
-    #idCardsModule.idc-scanner-open .idc-scan-heading,
     #idCardsModule.idc-scanner-open .idc-scan-status,
     #idCardsModule.idc-scanner-open .idc-scan-result:not(.is-visible),
     #idCardsModule.idc-scanner-open .idc-scan-option>span,
@@ -193,6 +228,8 @@
         max-height:none;
         aspect-ratio:auto;
     }
+    #idCardsModule.idc-scanner-open .idc-scanner-workspace{flex:1 0 auto;min-height:0}
+    #idCardsModule.idc-scanner-open .idc-camera-column{flex:1 0 auto}
     #idCardsModule.idc-scanner-open .idc-camera-guide-box{width:min(94%,500px);height:80%}
     #idCardsModule.idc-scanner-open .idc-scan-result.is-visible{
         display:flex!important;
