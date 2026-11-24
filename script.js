@@ -5482,32 +5482,30 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="enquiries-table"><div class="table-card"><div class="utility-register-heading">
                 <div class="enquiry-date-filter">
-                    <label for="enquiryDatePeriod">Filter enquiries by date</label>
-                    <select id="enquiryDatePeriod" data-enquiry-date-period>
-                        <option value="all">All</option>
-                        <option value="today">Today</option>
-                        <option value="yesterday">Yesterday</option>
-                        <option value="lastWeek">Last week</option>
-                        <option value="lastMonth">Last Month</option>
-                        <option value="custom">Custom</option>
-                    </select>
+                    <span class="enquiry-date-filter-label">Filter enquiries by date</span>
+                    <div class="enquiry-date-options" role="group" aria-label="Filter enquiries by date">
+                        <button class="enquiry-date-option is-active" type="button" data-enquiry-date-period="all" aria-pressed="true">All</button>
+                        <button class="enquiry-date-option" type="button" data-enquiry-date-period="today" aria-pressed="false">Today</button>
+                        <button class="enquiry-date-option" type="button" data-enquiry-date-period="lastWeek" aria-pressed="false">Last week</button>
+                        <button class="enquiry-date-option" type="button" data-enquiry-date-period="lastMonth" aria-pressed="false">Last month</button>
+                        <button class="enquiry-date-option" type="button" data-enquiry-date-period="custom" aria-pressed="false">Custom</button>
+                    </div>
                     <div class="enquiry-custom-date-range hidden" data-enquiry-custom-range>
                         <label>From <input type="date" data-enquiry-date-start></label>
                         <label>To <input type="date" data-enquiry-date-end></label>
                     </div>
-                    <span class="enquiry-date-filter-message" data-enquiry-date-message aria-live="polite"></span>
                 </div>
                 <button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> New Enquiry</button>
             </div><table><thead><tr><th>Name</th><th>Contact</th><th>Type</th><th>Purpose</th><th>Department</th><th>Assigned To</th><th>Follow-up</th><th>Appointment</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
 
         const form = sec.querySelector('[data-enquiry-form]');
         const table = sec.querySelector('[data-enquiry-table]');
-        const datePeriod = sec.querySelector('[data-enquiry-date-period]');
+        const datePeriodButtons = [...sec.querySelectorAll('[data-enquiry-date-period]')];
         const customDateRange = sec.querySelector('[data-enquiry-custom-range]');
         const dateStart = sec.querySelector('[data-enquiry-date-start]');
         const dateEnd = sec.querySelector('[data-enquiry-date-end]');
-        const dateMessage = sec.querySelector('[data-enquiry-date-message]');
         const storageKey = 'edumasterEnquiries';
+        let selectedDatePeriod = 'all';
         let editingIndex = null;
         const readEntries = () => {
             try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; }
@@ -5733,29 +5731,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedEnquiryDateRange = () => {
             const today = new Date();
             const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            if (datePeriod.value === 'today') return { start: localDateKey(todayStart), end: localDateKey(todayStart) };
-            if (datePeriod.value === 'yesterday') {
-                const yesterday = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() - 1);
-                return { start: localDateKey(yesterday), end: localDateKey(yesterday) };
-            }
-            if (datePeriod.value === 'lastWeek') {
+            if (selectedDatePeriod === 'today') return { start: localDateKey(todayStart), end: localDateKey(todayStart) };
+            if (selectedDatePeriod === 'lastWeek') {
                 const thisWeekStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() - ((todayStart.getDay() + 6) % 7));
                 const lastWeekStart = new Date(thisWeekStart.getFullYear(), thisWeekStart.getMonth(), thisWeekStart.getDate() - 7);
                 const lastWeekEnd = new Date(thisWeekStart.getFullYear(), thisWeekStart.getMonth(), thisWeekStart.getDate() - 1);
                 return { start: localDateKey(lastWeekStart), end: localDateKey(lastWeekEnd) };
             }
-            if (datePeriod.value === 'lastMonth') {
+            if (selectedDatePeriod === 'lastMonth') {
                 const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
                 const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
                 return { start: localDateKey(lastMonth), end: localDateKey(lastMonthEnd) };
             }
-            if (datePeriod.value === 'custom') {
+            if (selectedDatePeriod === 'custom') {
                 const startDate = dateStart.value ? new Date(`${dateStart.value}T00:00:00`) : null;
                 const endDate = dateEnd.value ? new Date(`${dateEnd.value}T00:00:00`) : null;
                 if (!startDate || !endDate || Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-                    return { start: null, end: null, invalid: true, message: 'Choose both a start and end date.' };
+                    return { start: null, end: null, invalid: true };
                 }
-                if (startDate > endDate) return { start: null, end: null, invalid: true, message: 'The end date must be on or after the start date.' };
+                if (startDate > endDate) return { start: null, end: null, invalid: true };
                 return { start: dateStart.value, end: dateEnd.value };
             }
             return { start: null, end: null };
@@ -5770,14 +5764,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().slice(0, 10);
             sec.querySelector('[data-enquiry-followups-due]').textContent = entries.filter(entry => entry.followUpDate && entry.followUpDate <= today && !['Resolved', 'Closed'].includes(normalizeEnquiryStatus(entry.status))).length;
             const dateRange = selectedEnquiryDateRange();
-            customDateRange.classList.toggle('hidden', datePeriod.value !== 'custom');
-            dateStart.required = datePeriod.value === 'custom';
-            dateEnd.required = datePeriod.value === 'custom';
-            dateStart.setAttribute('aria-invalid', String(Boolean(dateRange.invalid && datePeriod.value === 'custom')));
-            dateEnd.setAttribute('aria-invalid', String(Boolean(dateRange.invalid && datePeriod.value === 'custom')));
-            dateMessage.textContent = dateRange.message || '';
+            customDateRange.classList.toggle('hidden', selectedDatePeriod !== 'custom');
+            dateStart.required = selectedDatePeriod === 'custom';
+            dateEnd.required = selectedDatePeriod === 'custom';
+            dateStart.setAttribute('aria-invalid', String(Boolean(dateRange.invalid && selectedDatePeriod === 'custom')));
+            dateEnd.setAttribute('aria-invalid', String(Boolean(dateRange.invalid && selectedDatePeriod === 'custom')));
             const visibleEntries = entries.map((entry, index) => ({ entry, index })).filter(({ entry }) => {
-                if (datePeriod.value === 'all') return true;
+                if (selectedDatePeriod === 'all') return true;
                 if (dateRange.invalid || !entry.createdAt) return false;
                 const createdAt = new Date(entry.createdAt);
                 if (Number.isNaN(createdAt.getTime())) return false;
@@ -5796,15 +5789,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (status === 'Closed') workflowActions = actionButton(index, 'reopen', 'fa-rotate-left', 'Reopen enquiry');
                 const appointmentAction = entry.appointmentDate && !entry.appointmentId ? `<button class="enquiry-action" type="button" data-enquiry-action="appointment" data-enquiry-index="${index}" title="Create linked appointment" aria-label="Create appointment from enquiry"><i class="fas fa-calendar-plus"></i></button>` : '';
                 const appointmentLabel = entry.appointmentId ? `${escape(entry.appointmentId)}<br><small>${escape(entry.appointmentStatus || 'Requested')} · ${escape(entry.appointmentDate || '')}</small>` : escape(entry.appointmentDate || '-');
-                return `<tr><td>${escape(entry.name)}</td><td>${escape(entry.mobile || '-')}</td><td>${escape(entry.visitorType)}</td><td>${escape(entry.purpose)}</td><td>${escape(entry.department || '-')}</td><td>${escape(entry.assignedTo || 'Unassigned')}</td><td>${escape(entry.followUpDate || '-')}</td><td>${appointmentLabel}</td><td>${escape(entry.priority || 'Normal')}</td><td><span class="enquiry-status-badge status-${statusClass}">${escape(status)}</span></td><td><div class="enquiry-actions">${workflowActions}${appointmentAction}<button class="enquiry-action" type="button" data-enquiry-action="preview" data-enquiry-index="${index}" title="Preview" aria-label="Preview enquiry"><i class="fas fa-eye"></i></button><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit" aria-label="Edit enquiry"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="print" data-enquiry-index="${index}" title="Print" aria-label="Print enquiry"><i class="fas fa-print"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete" aria-label="Delete enquiry"><i class="fas fa-trash"></i></button></div></td></tr>`;
-            }).join('') : `<tr><td colspan="11" style="text-align:center;padding:25px;color:#94a3b8;">${dateRange.message ? escape(dateRange.message) : datePeriod.value === 'all' ? 'No saved enquiries yet. Complete the form above to create a record.' : 'No enquiries found for this date range.'}</td></tr>`;
+                return `<tr><td>${escape(entry.name)}</td><td>${escape(entry.mobile || '-')}</td><td>${escape(entry.visitorType)}</td><td>${escape(entry.purpose)}</td><td>${escape(entry.department || '-')}</td><td>${escape(entry.assignedTo || 'Unassigned')}</td><td>${escape(entry.followUpDate || '-')}</td><td>${appointmentLabel}</td><td>${escape(entry.priority || 'Normal')}</td><td><span class="enquiry-status-badge status-${statusClass}">${escape(status)}</span></td><td><div class="enquiry-actions">${workflowActions}${appointmentAction}<button class="enquiry-action" type="button" data-enquiry-action="preview" data-enquiry-index="${index}" title="Preview" aria-label="Preview enquiry"><i class="fas fa-eye"></i></button><button class="enquiry-action" type="button" data-enquiry-action="edit" data-enquiry-index="${index}" title="Edit" aria-label="Edit enquiry"><i class="fas fa-pen"></i></button><button class="enquiry-action" type="button" data-enquiry-action="delete" data-enquiry-index="${index}" title="Delete" aria-label="Delete enquiry"><i class="fas fa-trash"></i></button></div></td></tr>`;
+            }).join('') : `<tr><td colspan="11" style="text-align:center;padding:25px;color:#94a3b8;">${selectedDatePeriod === 'all' ? 'No saved enquiries yet. Complete the form above to create a record.' : 'No enquiries found for this date range.'}</td></tr>`;
         };
-        datePeriod.addEventListener('change', render);
+        datePeriodButtons.forEach(button => button.addEventListener('click', () => {
+            selectedDatePeriod = button.dataset.enquiryDatePeriod;
+            datePeriodButtons.forEach(option => {
+                const isActive = option === button;
+                option.classList.toggle('is-active', isActive);
+                option.setAttribute('aria-pressed', String(isActive));
+            });
+            render();
+        }));
         dateStart.addEventListener('change', render);
         dateEnd.addEventListener('change', render);
         window.addEventListener('school:enquiry-updated', render);
         window.addEventListener('storage', event => { if (event.key === storageKey) render(); });
-        const openEnquiryDocument = (entry, autoPrint = false) => {
+        const openEnquiryDocument = entry => {
             const printWindow = window.open('', '_blank', 'width=960,height=900');
             if (!printWindow) return;
             const formatDate = value => {
@@ -5822,10 +5823,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const workflowSection = `<section class="document-section"><h2>Handling &amp; history</h2><div class="details-grid"><div class="detail"><span>Assigned to</span><strong>${escape(entry.assignedTo || 'Unassigned')}</strong></div><div class="detail"><span>Next follow-up</span><strong>${escape(formatDate(entry.followUpDate))}</strong></div></div><div class="details-grid">${historyRows || '<div class="detail"><span>Status history</span><strong>No changes recorded.</strong></div>'}</div></section>`;
             const addressHtml = documentHtml.replace(`<div class="detail"><span>Mobile number</span><strong>${escape(entry.mobile || '-')}</strong></div>`, `<div class="detail"><span>Mobile number</span><strong>${escape(entry.mobile || '-')}</strong></div><div class="detail"><span>Address</span><strong>${escape(entry.address || '-')}</strong></div>`);
             const printableHtml = addressHtml.replace('<footer class="document-footer">', `${workflowSection}<footer class="document-footer">`);
-            if (autoPrint) printWindow.addEventListener('load', () => { printWindow.focus(); printWindow.print(); }, { once: true });
             printWindow.document.write(printableHtml);
             printWindow.document.close();
-            if (!autoPrint) printWindow.focus();
+            printWindow.focus();
         };
         const updateSummary = () => renderNamedFormSummary(form, sec.querySelector('.enquiry-summary'));
         form.addEventListener('input', updateSummary);
@@ -6004,7 +6004,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            openEnquiryDocument(entry, actionButton.dataset.enquiryAction === 'print');
+            openEnquiryDocument(entry);
         });
         render();
         addFrontOfficeStatIcons(sec);
@@ -7192,10 +7192,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const isParentAppointment = /^parent\b/i.test(appointmentTypeSelect.value.trim());
             appointmentParentControls.hidden = !isParentAppointment;
             parentSelect.disabled = !isParentAppointment;
-            if (!isParentAppointment) {
-                parentSelect.value = '';
-                renderAppointmentStudentOptions();
-            }
         };
         refreshAppointmentFamilyOptions();
         syncAppointmentParentControls();
@@ -7448,9 +7444,10 @@ document.addEventListener('DOMContentLoaded', () => {
             event.preventDefault();
             if (!form.checkValidity()) { form.reportValidity(); return; }
             const data = Object.fromEntries(new FormData(form).entries());
-            const selectedParent = currentAppointmentParent;
-            const linkedStudents = selectedAppointmentStudents();
-            data.appointmentParentId = parentSelect.value;
+            const isParentAppointment = /^parent\b/i.test(appointmentTypeSelect.value.trim());
+            const selectedParent = isParentAppointment ? currentAppointmentParent : null;
+            const linkedStudents = isParentAppointment ? selectedAppointmentStudents() : [];
+            data.appointmentParentId = isParentAppointment ? parentSelect.value : '';
             data.parentId = selectedParent ? String(selectedParent.record.parentId || selectedParent.id) : '';
             data.parentName = selectedParent?.name || '';
             data.linkedStudentRecordIds = linkedStudents.map(student => student.key);

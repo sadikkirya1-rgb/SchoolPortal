@@ -272,12 +272,33 @@ body.dark-mode,
 }
 
 .main > section.module table {
-    border-collapse: separate;
+    border: 1px solid #d5deea;
+    border-collapse: collapse;
     border-spacing: 0;
+    font-size: 11px;
 }
 
 .main > section.module :is(th, td) {
+    padding: 7px 9px;
+    border: 1px solid #d5deea;
+    font-size: 11px;
+    line-height: 1.35;
     vertical-align: middle;
+}
+
+.main > section.module thead th {
+    background: #3654d4;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.main > section.module tbody tr:nth-child(even) {
+    background: #f3f7fd;
+}
+
+.main > section.module tbody tr:hover {
+    background: #e8f0fe;
 }
 
 .main > section.module :is(

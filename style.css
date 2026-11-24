@@ -4477,11 +4477,22 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .enquiries-module .enquiry-summary-card.hidden,
 .enquiries-module .enquiry-entry-card.hidden{display:none !important}
 .enquiries-module [data-enquiry-new]{
+    display:inline-flex;
+    width:auto;
+    max-width:none;
+    flex:0 0 auto;
+    align-items:center;
+    gap:7px;
+    min-height:36px;
     margin-top:0;
+    padding:8px 12px;
+    border-radius:8px;
     background:var(--primary);
     color:#fff;
     border:1px solid var(--primary);
-    box-shadow:0 6px 14px rgba(79,70,229,0.22);
+    box-shadow:0 3px 8px rgba(79,70,229,0.18);
+    font-size:12px;
+    white-space:nowrap;
 }
 .enquiries-module [data-enquiry-new]:hover{
     background:#3730a3;
@@ -4493,15 +4504,9 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
     align-items:center;
     flex-wrap:wrap;
     gap:10px;
-    margin-top:16px;
-    padding:12px 14px;
-    background:#f8fafc;
-    border:1px solid #e2e8f0;
-    border-radius:10px;
 }
-.enquiry-date-filter>label,
+.enquiry-date-filter-label,
 .enquiry-custom-date-range label{color:#334155;font-size:12px;font-weight:600}
-.enquiry-date-filter select,
 .enquiry-custom-date-range input{
     min-height:36px;
     padding:7px 10px;
@@ -4512,9 +4517,13 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
     font:inherit;
     font-size:12px;
 }
-.enquiry-custom-date-range{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.enquiry-date-options{display:flex!important;flex:0 0 auto;align-items:center;flex-wrap:nowrap;gap:4px;padding:4px;border:1px solid #cbd5e1;border-radius:8px;background:#e2e8f0}
+.enquiry-date-option{display:inline-flex!important;flex:0 0 auto;align-items:center;justify-content:center;width:auto!important;max-width:none!important;min-height:26px;margin:0;padding:3px 7px;border:1px solid #2f4bbd;border-radius:5px;background:#3654d4;color:#fff;font:inherit;font-size:9px;font-weight:700;white-space:nowrap;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease}
+.enquiry-date-option:hover{border-color:#243b9b;background:#2b46b6;color:#fff}
+.enquiry-date-option.is-active{border-color:#1e3282;background:#243b9b;color:#fff;box-shadow:0 2px 5px rgba(30,50,130,.3)}
+.enquiry-date-option:focus-visible{outline:2px solid #1e40af;outline-offset:2px}
+.enquiry-custom-date-range{display:flex;flex-wrap:nowrap;align-items:center;gap:8px}
 .enquiry-custom-date-range label{display:flex;align-items:center;gap:6px}
-.enquiry-date-filter-message{color:#b42318;font-size:11px}
 .utility-module .utility-entry-card{margin-bottom:16px}
 .utility-module .table-card{box-shadow:none;border:1px solid #e2e8f0}
 .utility-module .table-card table{width:100%;min-width:650px}
@@ -4661,10 +4670,14 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .enquiries-table .table-card{box-shadow:none;border:1px solid #e2e8f0}
 .enquiries-table .table-title{margin:0;padding:12px 15px}
 .enquiries-table table{min-width:960px}
+.enquiries-module .enquiries-table .table-card{width:max-content;min-width:100%}
+.enquiries-module .enquiries-table table{width:max-content;min-width:960px}
 .appointments-module .enquiries-table .table-card{width:max-content;min-width:100%}
 .enquiries-module .enquiries-table .utility-register-heading{margin-bottom:0}
-.enquiries-module .enquiries-table .enquiry-date-filter{flex:1;min-width:0;margin:0;padding:0;border:0;border-radius:0;background:transparent}
-.enquiries-module .enquiries-table .enquiry-custom-date-range{align-items:center}
+.enquiries-module .enquiries-table .utility-register-heading{box-sizing:border-box;width:100%;min-width:960px;gap:14px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:10px;background:linear-gradient(135deg,#f8fafc,#f3f6fc)}
+.enquiries-module .enquiries-table .enquiry-date-filter{flex:1;min-width:0;flex-wrap:nowrap;margin:0;padding:0;border:0;border-radius:0;background:transparent}
+.enquiries-module .enquiries-table .enquiry-date-filter-label{white-space:nowrap}
+.enquiries-module .enquiries-table .enquiry-custom-date-range{flex-wrap:nowrap;align-items:center}
 .enquiries-table td:last-child{white-space:nowrap}
 .enquiry-actions{display:flex;gap:5px;flex-wrap:nowrap;white-space:nowrap;min-width:max-content}
 .enquiry-action{

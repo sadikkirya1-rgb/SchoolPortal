@@ -389,12 +389,12 @@ input:focus, select:focus { border-color: #7088ef; box-shadow: 0 0 0 3px #4667e8
 .school-subscription-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .form-note { margin: 0; color: #818ba0; font-size: .78rem; line-height: 1.5; }
 .form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; margin-top: 12px; }
-.table-wrap { overflow-x: auto; border: 1px solid #eaedf3; border-radius: 10px; }
-table { width: 100%; border-collapse: collapse; white-space: nowrap; font-size: .78rem; }
-th, td { padding: 11px 12px; border-bottom: 1px solid #edf0f5; text-align: left; }
-th { background: #f8f9fc; color: #818b9d; font-size: .65rem; font-weight: 750; text-transform: uppercase; letter-spacing: .055em; }
-tbody tr:last-child td { border-bottom: 0; }
-tbody tr:hover { background: #fafbfe; }
+.table-wrap { overflow-x: auto; border: 1px solid #d5deea; border-radius: 10px; }
+table { width: 100%; border: 1px solid #d5deea; border-collapse: collapse; white-space: nowrap; font-size: 11px; }
+th, td { padding: 7px 9px; border: 1px solid #d5deea; text-align: left; font-size: 11px; line-height: 1.35; }
+th { background: #3654d4; color: #fff; font-size: 10px; font-weight: 750; }
+tbody tr:nth-child(even) { background: #f3f7fd; }
+tbody tr:hover { background: #e8f0fe; }
 .school-name-cell { display: flex; align-items: center; gap: 9px; }
 .school-name-cell img, .school-logo-fallback { display: grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; border-radius: 9px; background: #eef1ff; color: #5069db; object-fit: cover; font-size: .58rem; font-weight: 800; }
 .table-action { min-height: 29px; padding: 5px 8px; border: 1px solid #e1e5ed; border-radius: 7px; background: #fff; color: #53617a; font: inherit; font-size: .71rem; font-weight: 650; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
