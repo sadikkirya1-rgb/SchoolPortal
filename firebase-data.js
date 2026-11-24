@@ -78,6 +78,7 @@ let syncRunning = false;
 let syncRetryAttempt = 0;
 let syncRetryTimer = null;
 let syncIndicator;
+let syncConflictDialog;
 
 function openDatabase() {
     if (databasePromise) return databasePromise;
@@ -160,6 +161,10 @@ function deleteOutbox(mutationId) {
     return runStoreTransaction('outbox', 'readwrite', store => store.delete(mutationId));
 }
 
+function putOutbox(mutation) {
+    return runStoreTransaction('outbox', 'readwrite', store => store.put(mutation));
+}
+
 function listOutbox() {
     return runStoreTransaction('outbox', 'readonly', store => store.getAll());
 }
@@ -177,7 +182,8 @@ async function quarantineReadOnlyMutations(owner) {
             await writeLocal({
                 ...localRecord,
                 syncState: 'rejected',
-                syncError: 'This account is read-only for school records.'
+                syncError: 'This account is read-only for school records.',
+                rejectedMutation: mutation
             });
         }
         await deleteOutbox(mutation.mutationId);
@@ -226,6 +232,7 @@ async function rejectQueuedMutation(mutation, error) {
             ...localRecord,
             syncState: 'rejected',
             syncError: error?.message || 'Cloud sync is blocked by a permissions issue.',
+            rejectedMutation: mutation,
             updatedAt: Date.now()
         });
     }
@@ -238,12 +245,27 @@ async function processMutation(mutation) {
     const cloudData = await prepareCloudAssets(mutation.data, mutation.collection, mutation.recordId);
     const recordRef = cloudRecordRef(owner, mutation.collection, mutation.recordId);
     const versionRef = doc(db, 'schools', owner.schoolId, mutation.collection, String(mutation.recordId), 'versions', mutation.mutationId);
+    const conflictRef = doc(db, 'schools', owner.schoolId, 'members', owner.uid, 'syncConflicts', mutation.mutationId);
     const result = await runTransaction(db, async transaction => {
         const currentSnapshot = await transaction.get(recordRef);
         const current = currentSnapshot.exists() ? currentSnapshot.data() : null;
         if (current?.lastMutationId === mutation.mutationId) return { state: 'synced', current };
 
         const currentVersion = current?.version || 0;
+        if (Number.isInteger(mutation.baseVersion) && mutation.baseVersion !== currentVersion) {
+            transaction.set(conflictRef, {
+                collection: mutation.collection,
+                recordId: String(mutation.recordId),
+                baseVersion: mutation.baseVersion,
+                serverVersion: currentVersion,
+                localData: cloudData,
+                remoteData: current?.data || null,
+                createdBy: owner.uid,
+                createdAt: serverTimestamp(),
+                status: 'open'
+            });
+            return { state: 'conflict', current };
+        }
         const nextVersion = currentVersion + 1;
         const next = {
             data: cloudData,
@@ -263,6 +285,27 @@ async function processMutation(mutation) {
     });
 
     const key = makeKey(owner.schoolId, owner.uid, mutation.collection, mutation.recordId);
+    if (result.state === 'conflict') {
+        await writeLocal({
+            key,
+            schoolId: owner.schoolId,
+            uid: owner.uid,
+            collection: mutation.collection,
+            recordId: String(mutation.recordId),
+            data: mutation.data,
+            remoteData: result.current?.data || null,
+            conflictId: mutation.mutationId,
+            version: result.current?.version || 0,
+            syncState: 'conflict',
+            updatedAt: Date.now()
+        });
+        await deleteOutbox(mutation.mutationId);
+        window.dispatchEvent(new CustomEvent('school-portal-sync-conflict', {
+            detail: { collection: mutation.collection, recordId: mutation.recordId, conflictId: mutation.mutationId }
+        }));
+        return { state: 'conflict' };
+    }
+
     await writeLocal({
         key,
         schoolId: owner.schoolId,
@@ -278,7 +321,7 @@ async function processMutation(mutation) {
     window.dispatchEvent(new CustomEvent('school-portal-sync-update', {
         detail: { collection: mutation.collection, recordId: mutation.recordId, mutationId: mutation.mutationId, state: result.state }
     }));
-    return result.current?.data ?? cloudData;
+    return { state: 'synced', data: result.current?.data ?? cloudData };
 }
 
 async function syncOutbox() {
@@ -288,7 +331,6 @@ async function syncOutbox() {
     let failed = false;
     let permanentFailure = false;
     try {
-        for (const conflict of await getConflicts()) await resolveConflict(conflict.id);
         await quarantineReadOnlyMutations(owner);
         while (navigator.onLine) {
             const mutations = (await listOutbox()).filter(mutation =>
@@ -300,7 +342,8 @@ async function syncOutbox() {
             mutations.sort((left, right) => left.createdAt - right.createdAt);
             for (const mutation of mutations) {
                 try {
-                    await processMutation(mutation);
+                    const result = await processMutation(mutation);
+                    if (result?.state === 'conflict') continue;
                 } catch (error) {
                     console.warn('A local change remains queued for synchronization.', error);
                     failed = true;
@@ -340,20 +383,42 @@ async function syncOutbox() {
     }
 }
 
+async function retryRejectedMutation(collectionName, recordId) {
+    const owner = assertIdentity();
+    assertCollection(collectionName);
+    if (!canEditCollection(owner, collectionName)) {
+        throw new Error('This account still does not have permission to edit this collection.');
+    }
+    const key = makeKey(owner.schoolId, owner.uid, collectionName, recordId);
+    const localRecord = await readLocal(key);
+    const mutation = localRecord?.rejectedMutation;
+    if (localRecord?.syncState !== 'rejected' || !mutation
+        || mutation.schoolId !== owner.schoolId || mutation.uid !== owner.uid) {
+        throw new Error('This rejected change is unavailable for retry.');
+    }
+    const { syncError, rejectedMutation, ...record } = localRecord;
+    await putOutbox(mutation);
+    await writeLocal({ ...record, syncState: 'pending', updatedAt: Date.now() });
+    window.dispatchEvent(new CustomEvent('school-portal-sync-status'));
+    if (navigator.onLine) void syncOutbox();
+}
+
 async function refreshSyncIndicator() {
     if (!syncIndicator) {
         const actions = document.querySelector('.top-actions');
         const languageSelector = actions?.querySelector('.header-badge');
         if (!actions) return;
-        syncIndicator = document.createElement('span');
+        syncIndicator = document.createElement('button');
+        syncIndicator.type = 'button';
         syncIndicator.className = 'portal-sync-indicator';
-        syncIndicator.setAttribute('role', 'status');
-        syncIndicator.setAttribute('aria-live', 'polite');
+        syncIndicator.setAttribute('aria-label', 'View synchronization status and pending conflicts');
         const icon = document.createElement('i');
         icon.className = 'fas fa-cloud';
         icon.setAttribute('aria-hidden', 'true');
         const label = document.createElement('span');
+        label.setAttribute('aria-live', 'polite');
         syncIndicator.append(icon, label);
+        syncIndicator.addEventListener('click', () => void openSyncConflictReview());
         if (languageSelector) {
             languageSelector.insertAdjacentElement('afterend', syncIndicator);
         } else {
@@ -375,20 +440,194 @@ async function refreshSyncIndicator() {
         return;
     }
     const pending = (await listOutbox()).filter(item => item.schoolId === identity.schoolId && item.uid === identity.uid).length;
+    const records = (await runStoreTransaction('records', 'readonly', store => store.getAll()))
+        .filter(record => record.schoolId === identity.schoolId
+            && record.uid === identity.uid
+            && ['conflict', 'rejected'].includes(record.syncState));
+    const conflictRecords = records.filter(record => record.syncState === 'conflict');
+    const rejectedRecords = records.filter(record => record.syncState === 'rejected');
     if (syncRunning || activeCloudWrites || pending || cloudWriteErrors) {
         if (icon) icon.className = 'fas fa-cloud-arrow-up';
-        if (label) label.textContent = activeCloudWrites || syncRunning || pending ? 'Syncing' : 'Sync failed';
+        if (label) label.textContent = activeCloudWrites || syncRunning
+            ? 'Syncing'
+            : pending ? `Queued: ${pending}` : 'Sync failed';
+    } else if (rejectedRecords.length) {
+        if (icon) icon.className = 'fas fa-triangle-exclamation';
+        if (label) label.textContent = `Retry required (${rejectedRecords.length})`;
+    } else if (conflictRecords.length) {
+        if (icon) icon.className = 'fas fa-code-compare';
+        if (label) label.textContent = `Review conflicts (${conflictRecords.length})`;
     } else {
         if (icon) icon.className = 'fas fa-cloud';
         if (label) label.textContent = 'Synced';
     }
-    syncIndicator.dataset.state = syncRunning || activeCloudWrites || pending || cloudWriteErrors ? 'pending' : 'synced';
+    syncIndicator.dataset.state = syncRunning || activeCloudWrites || pending || cloudWriteErrors
+    ? 'pending'
+    : rejectedRecords.length || conflictRecords.length ? 'conflict' : 'synced';
+}
+
+function getOrCreateSyncConflictDialog() {
+    if (syncConflictDialog) return syncConflictDialog;
+    syncConflictDialog = document.createElement('dialog');
+    syncConflictDialog.className = 'portal-sync-dialog';
+    syncConflictDialog.setAttribute('aria-labelledby', 'portalSyncDialogTitle');
+    const header = document.createElement('header');
+    const title = document.createElement('h2');
+    title.id = 'portalSyncDialogTitle';
+    title.textContent = 'Synchronization review';
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'portal-sync-dialog-close';
+    closeButton.textContent = 'Close';
+    closeButton.addEventListener('click', () => syncConflictDialog.close());
+    header.append(title, closeButton);
+    const status = document.createElement('p');
+    status.className = 'portal-sync-dialog-status';
+    status.setAttribute('role', 'status');
+    const list = document.createElement('div');
+    list.className = 'portal-sync-conflict-list';
+    syncConflictDialog.append(header, status, list);
+    syncConflictDialog.addEventListener('click', event => {
+        if (event.target === syncConflictDialog) syncConflictDialog.close();
+    });
+    document.body.append(syncConflictDialog);
+    return syncConflictDialog;
+}
+
+async function openSyncConflictReview() {
+    const dialog = getOrCreateSyncConflictDialog();
+    const status = dialog.querySelector('.portal-sync-dialog-status');
+    const list = dialog.querySelector('.portal-sync-conflict-list');
+    list.replaceChildren();
+    if (!dialog.open) dialog.showModal();
+    if (!identity) {
+        status.textContent = 'Sign in to review synchronization status.';
+        return;
+    }
+    const owner = identity;
+    if (!navigator.onLine) {
+        status.textContent = 'You are offline. Queued edits will sync when connectivity returns. Reconnect to review conflicts.';
+        return;
+    }
+
+    status.textContent = 'Loading synchronization status...';
+    try {
+        const conflicts = await getConflicts();
+        const [mutations, localRecords] = await Promise.all([
+            listOutbox(),
+            runStoreTransaction('records', 'readonly', store => store.getAll())
+        ]);
+        if (identity !== owner) throw new Error('Your sign-in changed. Reopen synchronization review.');
+        const ownerMutations = mutations.filter(mutation =>
+            mutation.schoolId === owner.schoolId && mutation.uid === owner.uid
+        );
+        const rejectedRecords = localRecords.filter(record =>
+            record.schoolId === owner.schoolId && record.uid === owner.uid && record.syncState === 'rejected'
+        );
+        if (ownerMutations.length) {
+            const queuedMessage = document.createElement('p');
+            queuedMessage.textContent = `${ownerMutations.length} edit${ownerMutations.length === 1 ? '' : 's'} queued for cloud sync.`;
+            list.append(queuedMessage);
+        }
+        if (rejectedRecords.length) {
+            const rejectedHeading = document.createElement('h3');
+            rejectedHeading.textContent = 'Changes needing attention';
+            list.append(rejectedHeading);
+            for (const record of rejectedRecords) {
+                const item = document.createElement('section');
+                item.className = 'portal-sync-conflict';
+                const heading = document.createElement('h4');
+                heading.textContent = `${record.collection} - ${record.recordId}`;
+                const message = document.createElement('p');
+                message.textContent = record.syncError || 'The change was rejected by the cloud.';
+                const retryButton = document.createElement('button');
+                retryButton.type = 'button';
+                retryButton.textContent = 'Retry this change';
+                retryButton.addEventListener('click', async () => {
+                    retryButton.disabled = true;
+                    status.textContent = 'Retrying the rejected change...';
+                    try {
+                        await retryRejectedMutation(record.collection, record.recordId);
+                        await openSyncConflictReview();
+                        await refreshSyncIndicator();
+                    } catch (error) {
+                        console.error('Unable to retry the rejected synchronization change.', error);
+                        status.textContent = error?.message || 'Unable to retry this change.';
+                        retryButton.disabled = false;
+                    }
+                });
+                item.append(heading, message, retryButton);
+                list.append(item);
+            }
+        }
+        if (!conflicts.length) {
+            status.textContent = rejectedRecords.length
+                ? 'Some changes were rejected. Review their errors and retry after correcting access or data.'
+                : ownerMutations.length
+                    ? 'Your edits are safely queued and will retry automatically.'
+                    : 'Everything is synchronized. There are no conflicts to review.';
+            return;
+        }
+
+        status.textContent = 'Choose which version to keep for each conflicting record.';
+        for (const conflict of conflicts) {
+            const card = document.createElement('section');
+            card.className = 'portal-sync-conflict';
+            const heading = document.createElement('h3');
+            heading.textContent = `${conflict.collection} - ${conflict.recordId}`;
+            const versions = document.createElement('div');
+            versions.className = 'portal-sync-conflict-versions';
+            for (const [label, value] of [['Your version', conflict.localData], ['Cloud version', conflict.remoteData]]) {
+                const version = document.createElement('section');
+                const versionTitle = document.createElement('h4');
+                versionTitle.textContent = label;
+                const preview = document.createElement('pre');
+                preview.textContent = JSON.stringify(value, null, 2) || 'No record data';
+                version.append(versionTitle, preview);
+                versions.append(version);
+            }
+            const actions = document.createElement('div');
+            actions.className = 'portal-sync-conflict-actions';
+            const createChoiceButton = (label, resolution) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = label;
+                button.addEventListener('click', async () => {
+                    actions.querySelectorAll('button').forEach(item => { item.disabled = true; });
+                    status.textContent = 'Saving your choice...';
+                    try {
+                        await resolveConflict(conflict.id, resolution);
+                        await openSyncConflictReview();
+                        await refreshSyncIndicator();
+                    } catch (error) {
+                        console.error('Unable to resolve the synchronization conflict.', error);
+                        status.textContent = error?.message || 'Unable to save your choice. Try again.';
+                        actions.querySelectorAll('button').forEach(item => { item.disabled = false; });
+                    }
+                });
+                return button;
+            };
+            actions.append(
+                createChoiceButton('Keep my version', 'local'),
+                createChoiceButton('Use cloud version', 'remote')
+            );
+            card.append(heading, versions, actions);
+            list.append(card);
+        }
+    } catch (error) {
+        console.error('Unable to load synchronization review.', error);
+        status.textContent = error?.message || 'Unable to load synchronization status. Try again.';
+    }
 }
 
 window.addEventListener('school-portal-sync-status', () => void refreshSyncIndicator());
 window.addEventListener('school-portal-sync-update', () => void refreshSyncIndicator());
+window.addEventListener('school-portal-sync-conflict', () => void refreshSyncIndicator());
 window.addEventListener('school-portal-identity-ready', () => void refreshSyncIndicator());
-window.addEventListener('school-portal-identity-cleared', () => void refreshSyncIndicator());
+window.addEventListener('school-portal-identity-cleared', () => {
+    syncConflictDialog?.close();
+    void refreshSyncIndicator();
+});
 window.addEventListener('online', () => void refreshSyncIndicator());
 window.addEventListener('offline', () => void refreshSyncIndicator());
 document.addEventListener('DOMContentLoaded', () => void refreshSyncIndicator());
@@ -419,7 +658,6 @@ async function listLocal(collectionName) {
 
 async function saveRecord(collectionName, recordId, data) {
     const owner = assertIdentity();
-    if (!navigator.onLine) throw new Error('You are offline. Reconnect before saving changes.');
     assertCollection(collectionName);
     if (!canEditCollection(owner, collectionName)) {
         throw new Error('This account has read-only access to school records.');
@@ -427,12 +665,54 @@ async function saveRecord(collectionName, recordId, data) {
     if (!recordId || !data || typeof data !== 'object' || Array.isArray(data)) {
         throw new Error('A record ID and a record object are required.');
     }
+    const key = makeKey(owner.schoolId, owner.uid, collectionName, recordId);
+    const currentLocal = await readLocal(key);
+    if (currentLocal?.syncState === 'conflict') {
+        throw new Error('Resolve the pending cloud conflict before editing this record again.');
+    }
     const olderMutations = (await listOutbox()).filter(mutation =>
         mutation.schoolId === owner.schoolId
         && mutation.uid === owner.uid
         && mutation.collection === collectionName
         && mutation.recordId === String(recordId)
     );
+    const cleanData = copyValue(data);
+    if (!navigator.onLine) {
+        const existingMutation = olderMutations.sort((left, right) => left.createdAt - right.createdAt)[0];
+        await Promise.all(olderMutations
+            .filter(mutation => mutation !== existingMutation)
+            .map(mutation => deleteOutbox(mutation.mutationId)));
+        const mutation = existingMutation
+            ? { ...existingMutation, data: cleanData }
+            : {
+                mutationId: crypto.randomUUID(),
+                schoolId: owner.schoolId,
+                uid: owner.uid,
+                collection: collectionName,
+                recordId: String(recordId),
+                data: cleanData,
+                baseVersion: currentLocal?.version || 0,
+                createdAt: Date.now()
+            };
+        await putOutbox(mutation);
+        await writeLocal({
+            ...currentLocal,
+            key,
+            schoolId: owner.schoolId,
+            uid: owner.uid,
+            collection: collectionName,
+            recordId: String(recordId),
+            data: cleanData,
+            version: currentLocal?.version || 0,
+            syncState: 'pending',
+            updatedAt: Date.now()
+        });
+        window.dispatchEvent(new CustomEvent('school-portal-sync-update', {
+            detail: { collection: collectionName, recordId: String(recordId), state: 'pending' }
+        }));
+        window.dispatchEvent(new CustomEvent('school-portal-sync-status'));
+        return cleanData;
+    }
     if (olderMutations.length) {
         while (syncRunning) {
             await new Promise(resolve => window.addEventListener('school-portal-sync-status', resolve, { once: true }));
@@ -446,26 +726,51 @@ async function saveRecord(collectionName, recordId, data) {
         );
         if (stillPending) throw new Error('An earlier update is still waiting for cloud sync. Try again shortly.');
     }
-    const mutationId = crypto.randomUUID();
-    const cleanData = copyValue(data);
+    const latestLocal = await readLocal(key);
+    const mutation = {
+        mutationId: crypto.randomUUID(),
+        schoolId: owner.schoolId,
+        uid: owner.uid,
+        collection: collectionName,
+        recordId: String(recordId),
+        data: cleanData,
+        baseVersion: latestLocal?.version || 0,
+        createdAt: Date.now()
+    };
     activeCloudWrites += 1;
     window.dispatchEvent(new CustomEvent('school-portal-sync-update', {
         detail: { collection: collectionName, recordId, state: 'pending' }
     }));
     try {
-        const savedData = await processMutation({
-            mutationId,
+        const result = await processMutation(mutation);
+        if (result?.state === 'conflict') {
+            throw new Error('This record changed in the cloud. Review the conflict before choosing a version.');
+        }
+        cloudWriteErrors = 0;
+        return result?.data ?? cleanData;
+    } catch (error) {
+        if (isPermanentSyncFailure(error) || /changed in the cloud|conflict/i.test(error?.message || '')) throw error;
+        await putOutbox(mutation);
+        await writeLocal({
+            ...latestLocal,
+            key,
             schoolId: owner.schoolId,
             uid: owner.uid,
             collection: collectionName,
             recordId: String(recordId),
-            data: cleanData
+            data: cleanData,
+            version: latestLocal?.version || 0,
+            syncState: 'pending',
+            syncError: error?.message || 'Cloud sync is temporarily unavailable.',
+            updatedAt: Date.now()
         });
-        cloudWriteErrors = 0;
-        return savedData;
-    } catch (error) {
         cloudWriteErrors += 1;
-        throw error;
+        window.dispatchEvent(new CustomEvent('school-portal-sync-update', {
+            detail: { collection: collectionName, recordId: String(recordId), state: 'pending' }
+        }));
+        window.dispatchEvent(new CustomEvent('school-portal-sync-status'));
+        setTimeout(() => void syncOutbox(), 1000);
+        return cleanData;
     } finally {
         activeCloudWrites = Math.max(0, activeCloudWrites - 1);
         window.dispatchEvent(new CustomEvent('school-portal-sync-status'));
@@ -818,17 +1123,29 @@ async function getConflicts() {
     return snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
 }
 
-async function resolveConflict(conflictId) {
+async function resolveConflict(conflictId, resolution = 'remote') {
     const owner = assertIdentity();
-    if (!navigator.onLine) throw new Error('Reconnect to the internet before loading cloud records.');
+    if (!navigator.onLine) throw new Error('Reconnect to the internet before resolving cloud conflicts.');
+    if (!['local', 'remote'].includes(resolution)) {
+        throw new Error('Choose either your local version or the cloud version.');
+    }
     const conflictRef = doc(db, 'schools', owner.schoolId, 'members', owner.uid, 'syncConflicts', conflictId);
     const initialConflict = await getDoc(conflictRef);
     if (!initialConflict.exists() || initialConflict.data().createdBy !== owner.uid) {
         throw new Error('This conflict is unavailable or belongs to another user.');
     }
     const conflict = initialConflict.data();
+    assertCollection(conflict.collection);
+    if (!canEditCollection(owner, conflict.collection)) {
+        throw new Error('This account no longer has permission to resolve the conflict.');
+    }
     const recordRef = cloudRecordRef(owner, conflict.collection, conflict.recordId);
-    const cloudRecord = await runTransaction(db, async transaction => {
+    const newMutationId = crypto.randomUUID();
+    const versionRef = doc(db, 'schools', owner.schoolId, conflict.collection, String(conflict.recordId), 'versions', newMutationId);
+    const localData = resolution === 'local'
+        ? await prepareCloudAssets(conflict.localData, conflict.collection, conflict.recordId)
+        : null;
+    const result = await runTransaction(db, async transaction => {
         const [currentSnapshot, currentConflictSnapshot] = await Promise.all([
             transaction.get(recordRef),
             transaction.get(conflictRef)
@@ -837,27 +1154,83 @@ async function resolveConflict(conflictId) {
             throw new Error('This conflict has already been resolved.');
         }
         const current = currentSnapshot.exists() ? currentSnapshot.data() : null;
+        if (resolution === 'local' && (current?.version || 0) !== conflict.serverVersion) {
+            const nextConflictId = crypto.randomUUID();
+            const nextConflictRef = doc(db, 'schools', owner.schoolId, 'members', owner.uid, 'syncConflicts', nextConflictId);
+            transaction.set(nextConflictRef, {
+                ...conflict,
+                serverVersion: current?.version || 0,
+                remoteData: current?.data || null,
+                createdAt: serverTimestamp(),
+                status: 'open'
+            });
+            transaction.update(conflictRef, {
+                status: 'resolved',
+                resolvedBy: owner.uid,
+                resolvedAt: serverTimestamp()
+            });
+            return { state: 'changed-again', current, nextConflictId };
+        }
+
         transaction.update(conflictRef, { status: 'resolved', resolvedBy: owner.uid, resolvedAt: serverTimestamp() });
-        return current;
+        if (resolution === 'local') {
+            const nextVersion = (current?.version || 0) + 1;
+            const nextRecord = {
+                data: localData,
+                version: nextVersion,
+                updatedBy: owner.uid,
+                updatedAt: new Date().toISOString(),
+                lastMutationId: newMutationId
+            };
+            transaction.set(recordRef, nextRecord);
+            transaction.set(versionRef, {
+                data: localData,
+                version: nextVersion,
+                createdBy: owner.uid,
+                createdAt: serverTimestamp()
+            });
+            return { state: 'resolved-local', current: nextRecord };
+        }
+        return { state: 'resolved-remote', current };
     });
     const key = makeKey(owner.schoolId, owner.uid, conflict.collection, conflict.recordId);
-    if (cloudRecord) {
+    if (result.state === 'changed-again') {
         await writeLocal({
             key,
             schoolId: owner.schoolId,
             uid: owner.uid,
             collection: conflict.collection,
             recordId: String(conflict.recordId),
-            data: cloudRecord.data,
-            version: cloudRecord.version,
+            data: conflict.localData,
+            remoteData: result.current?.data || null,
+            conflictId: result.nextConflictId,
+            version: result.current?.version || 0,
+            syncState: 'conflict',
+            updatedAt: Date.now()
+        });
+        window.dispatchEvent(new CustomEvent('school-portal-sync-conflict', {
+            detail: { collection: conflict.collection, recordId: conflict.recordId, conflictId: result.nextConflictId }
+        }));
+        return;
+    }
+
+    if (!result.current && resolution === 'remote') {
+        await runStoreTransaction('records', 'readwrite', store => store.delete(key));
+    } else {
+        await writeLocal({
+            key,
+            schoolId: owner.schoolId,
+            uid: owner.uid,
+            collection: conflict.collection,
+            recordId: String(conflict.recordId),
+            data: result.current?.data ?? null,
+            version: result.current?.version || 0,
             syncState: 'synced',
             updatedAt: Date.now()
         });
-    } else {
-        await runStoreTransaction('records', 'readwrite', store => store.delete(key));
     }
     window.dispatchEvent(new CustomEvent('school-portal-sync-update', {
-        detail: { collection: conflict.collection, recordId: conflict.recordId, state: cloudRecord ? 'synced' : 'removed' }
+        detail: { collection: conflict.collection, recordId: conflict.recordId, state: 'synced' }
     }));
 }
 
@@ -925,6 +1298,7 @@ window.schoolPortalData = {
     subscribe,
     getConflicts,
     resolveConflict,
+    retryRejectedMutation,
     sync: syncOutbox
 };
 

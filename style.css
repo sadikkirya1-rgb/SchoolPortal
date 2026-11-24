@@ -3372,6 +3372,7 @@ color:#166534;
 font-size:11px;
 font-weight:600;
 white-space:nowrap;
+cursor:pointer;
 }
 
 .portal-sync-indicator[data-state="pending"]{
@@ -3384,6 +3385,128 @@ color:#92400e;
 border-color:#fecaca;
 background:#fef2f2;
 color:#991b1b;
+}
+
+.portal-sync-indicator[data-state="conflict"]{
+border-color:#fca5a5;
+background:#fff1f2;
+color:#9f1239;
+}
+
+.portal-sync-indicator:focus-visible,
+.portal-sync-dialog button:focus-visible{
+outline:3px solid #2563eb;
+outline-offset:2px;
+}
+
+.portal-sync-dialog{
+width:min(900px,calc(100vw - 32px));
+max-width:none;
+max-height:min(85vh,800px);
+padding:20px;
+border:1px solid #dbe3ee;
+border-radius:16px;
+color:#1e293b;
+box-shadow:0 24px 70px rgba(15,23,42,.28);
+}
+
+.portal-sync-dialog::backdrop{
+background:rgba(15,23,42,.55);
+}
+
+.portal-sync-dialog > header,
+.portal-sync-conflict-actions{
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:12px;
+}
+
+.portal-sync-dialog > header h2{
+margin:0;
+font-size:1.2rem;
+}
+
+.portal-sync-dialog button{
+min-height:38px;
+padding:8px 12px;
+border:1px solid #cbd5e1;
+border-radius:8px;
+background:#fff;
+color:#1e293b;
+font:inherit;
+font-weight:600;
+cursor:pointer;
+}
+
+.portal-sync-dialog button:disabled{
+cursor:wait;
+opacity:.6;
+}
+
+.portal-sync-dialog-status{
+color:#475569;
+}
+
+.portal-sync-conflict-list{
+display:grid;
+gap:16px;
+}
+
+.portal-sync-conflict{
+padding:14px;
+border:1px solid #fecaca;
+border-radius:12px;
+background:#fffafa;
+}
+
+.portal-sync-conflict h3{
+margin:0 0 12px;
+font-size:1rem;
+}
+
+.portal-sync-conflict-versions{
+display:grid;
+grid-template-columns:repeat(2,minmax(0,1fr));
+gap:12px;
+}
+
+.portal-sync-conflict-versions h4{
+margin:0 0 6px;
+font-size:.85rem;
+}
+
+.portal-sync-conflict-versions pre{
+max-height:220px;
+margin:0;
+padding:10px;
+overflow:auto;
+border-radius:8px;
+background:#f1f5f9;
+font-size:.75rem;
+white-space:pre-wrap;
+overflow-wrap:anywhere;
+}
+
+.portal-sync-conflict-actions{
+justify-content:flex-end;
+margin-top:12px;
+}
+
+.portal-sync-conflict-actions button:first-child{
+border-color:#2563eb;
+background:#2563eb;
+color:#fff;
+}
+
+@media(max-width:600px){
+    .portal-sync-dialog{
+        padding:14px;
+    }
+
+    .portal-sync-conflict-versions{
+        grid-template-columns:minmax(0,1fr);
+    }
 }
 
 @media (max-width: 760px) {

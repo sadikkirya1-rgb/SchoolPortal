@@ -545,6 +545,32 @@ test('push notification tokens are inaccessible to school clients', async () => 
     await assertFails(setDoc(tokenRef, { token: 'changed-token' }));
 });
 
+test('sync conflicts are private and can only be resolved without rewriting conflict data', async () => {
+    const teacherDb = testEnvironment.authenticatedContext('teacher-1').firestore();
+    const conflictRef = doc(teacherDb, 'schools/SCH-TEST/members/teacher-1/syncConflicts/CONFLICT-1');
+    await assertSucceeds(setDoc(conflictRef, {
+        collection: 'students',
+        recordId: 'STUDENT-A',
+        baseVersion: 1,
+        serverVersion: 2,
+        localData: { fullName: 'Local name' },
+        remoteData: { fullName: 'Cloud name' },
+        createdBy: 'teacher-1',
+        createdAt: serverTimestamp(),
+        status: 'open'
+    }));
+    await assertFails(getDoc(doc(
+        testEnvironment.authenticatedContext('parent-1').firestore(),
+        'schools/SCH-TEST/members/teacher-1/syncConflicts/CONFLICT-1'
+    )));
+    await assertFails(updateDoc(conflictRef, { localData: { fullName: 'Rewritten data' } }));
+    await assertSucceeds(updateDoc(conflictRef, {
+        status: 'resolved',
+        resolvedBy: 'teacher-1',
+        resolvedAt: serverTimestamp()
+    }));
+});
+
 test('school admins can sync representative academic, admissions, payroll, and front-office collections', async () => {
     const firestore = administratorContext().firestore();
     for (const collectionName of ['curriculum', 'classrooms', 'applications', 'payrollReports', 'smsMessages']) {
