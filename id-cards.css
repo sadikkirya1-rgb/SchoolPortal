@@ -122,8 +122,8 @@
     #idCardsModule .idc-scan-result{font-size:12px}
 }
 @media(max-width:768px){
-    #idCardsModule.idc-scanner-open .idc-header [data-idc-new],
-    #idCardsModule.idc-scanner-open .idc-header [data-idc-open-scanner]{display:none!important}
+    #idCardsModule.idc-scanner-open [data-idc-new],
+    #idCardsModule.idc-scanner-open [data-idc-open-scanner]{display:none!important}
 }
 #idCardsModule .idc-face-enrollment-control{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:10px;border:1px solid #dce4ef;border-radius:8px;background:#f8fafc}
 #idCardsModule .idc-face-enrollment-control>[data-idc-face-status]{color:#64748b;font-size:10px}
@@ -136,6 +136,10 @@
 #idCardsModule [data-idc-face-message]{min-height:20px;margin-top:8px;color:#475569;font-size:12px}
 #idCardsModule .idc-face-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 #idCardsModule .idc-record-toolbar{display:flex;flex-wrap:nowrap;align-items:center;gap:8px 12px;overflow-x:auto}
+#idCardsModule .idc-record-toolbar [data-idc-open-scanner]{flex:0 0 auto;white-space:nowrap}
+#idCardsModule .idc-tool-actions{display:flex;flex:0 0 auto;align-items:center;gap:8px;margin-left:auto}
+#idCardsModule .idc-tool-actions .idc-export-btn{margin-left:0}
+#idCardsModule .idc-tool-actions [data-idc-new]{flex:0 0 auto;white-space:nowrap}
 #idCardsModule .idc-record-filters{display:flex;flex:0 0 auto;flex-wrap:nowrap}
 #idCardsModule .idc-filter{flex:0 0 150px}
 #idCardsModule .idc-search{flex:1 0 240px;width:auto;min-width:180px}
