@@ -5496,10 +5496,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <button class="btn-secondary" type="button" data-enquiry-new><i class="fas fa-plus"></i> New Enquiry</button>
-            </div><table><thead><tr><th>Name</th><th>Contact</th><th>Type</th><th>Purpose</th><th>Department</th><th>Assigned To</th><th>Follow-up</th><th>Appointment</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>`;
+            </div><table><thead><tr><th>Name</th><th>Contact</th><th>Type</th><th>Purpose</th><th>Department</th><th>Assigned To</th><th>Follow-up</th><th>Appointment</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead><tbody data-enquiry-table></tbody></table></div></div>
+            <div class="enquiry-resolve-modal hidden" data-enquiry-resolve-modal>
+                <section class="enquiry-resolve-dialog" role="dialog" aria-modal="true" aria-labelledby="enquiry-resolve-title" aria-describedby="enquiry-resolve-description">
+                    <div class="enquiry-resolve-icon"><i class="fas fa-check"></i></div>
+                    <span class="enquiry-resolve-eyebrow">ENQUIRY WORKFLOW</span>
+                    <h2 id="enquiry-resolve-title">Resolve this enquiry?</h2>
+                    <p id="enquiry-resolve-description">Confirm that this enquiry has been addressed and is ready to be marked as resolved.</p>
+                    <div class="enquiry-resolve-summary">
+                        <span>Visitor</span><strong data-enquiry-resolve-name></strong>
+                        <span>Purpose</span><strong data-enquiry-resolve-purpose></strong>
+                    </div>
+                    <div class="enquiry-resolve-actions">
+                        <button class="enquiry-resolve-cancel" type="button" data-enquiry-resolve-cancel>Keep open</button>
+                        <button class="enquiry-resolve-confirm" type="button" data-enquiry-resolve-confirm><i class="fas fa-check"></i> Mark as resolved</button>
+                    </div>
+                </section>
+            </div>`;
 
         const form = sec.querySelector('[data-enquiry-form]');
         const table = sec.querySelector('[data-enquiry-table]');
+        const resolveModal = sec.querySelector('[data-enquiry-resolve-modal]');
+        const resolveCancelButton = sec.querySelector('[data-enquiry-resolve-cancel]');
+        const resolveConfirmButton = sec.querySelector('[data-enquiry-resolve-confirm]');
+        let pendingResolveIndex = null;
+        let resolveTrigger = null;
         const datePeriodButtons = [...sec.querySelectorAll('[data-enquiry-date-period]')];
         const customDateRange = sec.querySelector('[data-enquiry-custom-range]');
         const dateStart = sec.querySelector('[data-enquiry-date-start]');
@@ -5511,6 +5532,59 @@ document.addEventListener('DOMContentLoaded', () => {
             try { return JSON.parse(localStorage.getItem(storageKey)) || []; } catch (error) { return []; }
         };
         const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+        const closeResolveModal = restoreFocus => {
+            resolveModal.classList.add('hidden');
+            pendingResolveIndex = null;
+            if (restoreFocus && resolveTrigger?.isConnected) resolveTrigger.focus();
+            resolveTrigger = null;
+        };
+        const openResolveModal = (index, entry, trigger) => {
+            pendingResolveIndex = index;
+            resolveTrigger = trigger;
+            resolveModal.querySelector('[data-enquiry-resolve-name]').textContent = entry.name || 'Visitor';
+            resolveModal.querySelector('[data-enquiry-resolve-purpose]').textContent = entry.purpose || 'General enquiry';
+            resolveModal.classList.remove('hidden');
+            resolveCancelButton.focus();
+        };
+        resolveCancelButton.addEventListener('click', () => closeResolveModal(true));
+        resolveModal.addEventListener('click', event => {
+            if (event.target === resolveModal) closeResolveModal(true);
+        });
+        resolveModal.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeResolveModal(true);
+                return;
+            }
+            if (event.key !== 'Tab') return;
+            const buttons = [...resolveModal.querySelectorAll('button:not([disabled])')];
+            const firstButton = buttons[0];
+            const lastButton = buttons[buttons.length - 1];
+            if (event.shiftKey && document.activeElement === firstButton) {
+                event.preventDefault();
+                lastButton.focus();
+            } else if (!event.shiftKey && document.activeElement === lastButton) {
+                event.preventDefault();
+                firstButton.focus();
+            }
+        });
+        resolveConfirmButton.addEventListener('click', () => {
+            const index = pendingResolveIndex;
+            closeResolveModal(false);
+            if (index === null) return;
+            const entries = readEntries();
+            const entry = entries[index];
+            if (!entry) return;
+            const timestamp = new Date().toISOString();
+            entry.status = 'Resolved';
+            entry.updatedAt = timestamp;
+            entry.resolvedAt = timestamp;
+            addStatusHistory(entry, 'Resolved', currentActor(), timestamp);
+            entries[index] = entry;
+            localStorage.setItem(storageKey, JSON.stringify(entries));
+            render();
+            table.querySelector(`[data-enquiry-transition="close"][data-enquiry-index="${index}"]`)?.focus();
+        });
         const studentIdSelect = form.elements.studentId;
         const departmentSelect = form.elements.department;
         const assignedToSelect = form.elements.assignedTo;
@@ -5935,7 +6009,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const nextStatus = transitions[transitionButton.dataset.enquiryTransition];
                 if (!nextStatus) return;
                 const previousStatus = normalizeEnquiryStatus(entry.status);
-                if (nextStatus === 'Resolved' && !confirm(`Mark the enquiry for ${entry.name || 'this visitor'} as resolved?`)) return;
+                if (nextStatus === 'Resolved') {
+                    openResolveModal(index, entry, transitionButton);
+                    return;
+                }
                 const timestamp = new Date().toISOString();
                 entry.status = nextStatus;
                 entry.updatedAt = timestamp;

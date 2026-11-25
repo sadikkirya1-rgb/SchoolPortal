@@ -4473,6 +4473,7 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
     cursor:default;
     padding:18px;
 }
+.main > section.enquiry-workflow-module{margin-top:-8px}
 .enquiries-module:hover{transform:none;box-shadow:0 10px 25px rgba(0,0,0,0.06)}
 .enquiries-module .enquiry-summary-card.hidden,
 .enquiries-module .enquiry-entry-card.hidden{display:none !important}
@@ -4518,12 +4519,31 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
     font-size:12px;
 }
 .enquiry-date-options{display:flex!important;flex:0 0 auto;align-items:center;flex-wrap:nowrap;gap:4px;padding:4px;border:1px solid #cbd5e1;border-radius:8px;background:#e2e8f0}
-.enquiry-date-option{display:inline-flex!important;flex:0 0 auto;align-items:center;justify-content:center;width:auto!important;max-width:none!important;min-height:26px;margin:0;padding:3px 7px;border:1px solid #2f4bbd;border-radius:5px;background:#3654d4;color:#fff;font:inherit;font-size:9px;font-weight:700;white-space:nowrap;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease}
-.enquiry-date-option:hover{border-color:#243b9b;background:#2b46b6;color:#fff}
+.enquiries-module .enquiries-table .enquiry-date-option{display:inline-flex!important;flex:0 0 auto;align-items:center;justify-content:center;width:auto!important;max-width:none!important;min-height:24px;margin:0;padding:3px 7px;border:1px solid #2f4bbd;border-radius:5px;background:#3654d4;color:#fff;font:inherit;font-size:10px;font-weight:700;white-space:nowrap;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease}
+.enquiries-module .enquiries-table .enquiry-date-option:hover{border-color:#243b9b;background:#2b46b6;color:#fff;transform:none}
 .enquiry-date-option.is-active{border-color:#1e3282;background:#243b9b;color:#fff;box-shadow:0 2px 5px rgba(30,50,130,.3)}
 .enquiry-date-option:focus-visible{outline:2px solid #1e40af;outline-offset:2px}
 .enquiry-custom-date-range{display:flex;flex-wrap:nowrap;align-items:center;gap:8px}
 .enquiry-custom-date-range label{display:flex;align-items:center;gap:6px}
+.enquiry-resolve-modal{position:fixed;inset:0;z-index:1500;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.58);backdrop-filter:blur(5px)}
+.enquiry-resolve-modal.hidden{display:none!important}
+.enquiry-resolve-dialog{width:min(440px,100%);padding:28px;border:1px solid #dbe5e2;border-radius:20px;background:linear-gradient(145deg,#fff 0%,#f8fffb 100%);box-shadow:0 28px 80px rgba(15,23,42,.28);text-align:center;animation:enquiryResolveEnter .18s ease-out}
+.enquiry-resolve-icon{display:grid;width:54px;height:54px;margin:0 auto 15px;place-items:center;border:1px solid #bbf7d0;border-radius:17px;background:linear-gradient(145deg,#dcfce7,#d1fae5);color:#15803d;font-size:21px}
+.enquiry-resolve-eyebrow{display:block;color:#15803d;font-size:9px;font-weight:800;letter-spacing:1.2px}
+.enquiry-resolve-dialog h2{margin:8px 0;color:#142a24;font-size:20px}
+.enquiry-resolve-dialog>p{margin:0 auto 20px;max-width:340px;color:#64748b;font-size:12px;line-height:1.6}
+.enquiry-resolve-summary{display:grid;grid-template-columns:74px minmax(0,1fr);gap:9px 12px;margin-bottom:22px;padding:14px 16px;border:1px solid #e2eee8;border-radius:12px;background:#f4faf6;text-align:left}
+.enquiry-resolve-summary span{color:#64748b;font-size:10px}
+.enquiry-resolve-summary strong{overflow-wrap:anywhere;color:#1e293b;font-size:11px}
+.enquiries-module .enquiry-resolve-dialog button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;margin:0;padding:9px 13px;border:1px solid transparent;border-radius:9px;font:inherit;font-size:11px;font-weight:700;cursor:pointer;transition:background .15s ease,border-color .15s ease,transform .15s ease}
+.enquiry-resolve-actions{display:flex;justify-content:flex-end;gap:9px}
+.enquiries-module .enquiry-resolve-dialog .enquiry-resolve-cancel{border-color:#dbe3e8;background:#fff;color:#475569}
+.enquiries-module .enquiry-resolve-dialog .enquiry-resolve-cancel:hover{border-color:#cbd5e1;background:#f1f5f9;transform:none}
+.enquiries-module .enquiry-resolve-dialog .enquiry-resolve-confirm{border-color:#15803d;background:linear-gradient(135deg,#15803d,#16a34a);color:#fff;box-shadow:0 4px 10px rgba(22,163,74,.2)}
+.enquiries-module .enquiry-resolve-dialog .enquiry-resolve-confirm:hover{background:linear-gradient(135deg,#166534,#15803d);transform:translateY(-1px)}
+.enquiry-resolve-dialog button:focus-visible{outline:3px solid #86efac;outline-offset:3px}
+@keyframes enquiryResolveEnter{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:480px){.enquiry-resolve-dialog{padding:23px 18px}.enquiry-resolve-actions{flex-direction:column-reverse}.enquiries-module .enquiry-resolve-dialog button{width:100%}}
 .utility-module .utility-entry-card{margin-bottom:16px}
 .utility-module .table-card{box-shadow:none;border:1px solid #e2e8f0}
 .utility-module .table-card table{width:100%;min-width:650px}
@@ -4537,6 +4557,7 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
     margin-bottom:16px;
 }
 .enquiry-workflow-stats,.appointment-workflow-stats{grid-template-columns:repeat(auto-fit,minmax(125px,1fr))}
+.enquiries-module .enquiry-workflow-stats{grid-template-columns:repeat(auto-fit,120px);justify-content:start;gap:8px;margin-bottom:3px}
 .appointments-module .enquiries-stats.appointment-workflow-stats{grid-template-columns:repeat(auto-fit,minmax(125px,1fr))}
 .appointments-module .appointment-workflow-stats .enquiry-stat span{font-size:10px;white-space:nowrap}
 .call-logs-module .enquiries-stats,
@@ -4572,6 +4593,10 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 }
 .enquiry-stat span{display:block;color:#64748b;font-size:11px}
 .enquiry-stat strong{display:block;color:#172033;font-size:20px;margin-top:3px}
+.main > section.enquiries-module .enquiry-workflow-stats .enquiry-stat{display:flex;align-items:center;gap:4px;min-height:45px;padding:3px 6px;border-radius:7px}
+.main > section.enquiries-module .enquiry-workflow-stats .enquiry-stat span{flex:1;min-width:0;overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.main > section.enquiries-module .enquiry-workflow-stats .enquiry-stat strong{flex:0 0 auto;margin:0;font-size:14px;line-height:1}
+.main > section.enquiries-module .enquiry-workflow-stats .enquiry-stat>i{position:static;top:auto;right:auto;width:20px;height:20px;flex:0 0 20px;font-size:10px;transform:none}
 .enquiry-status-badge,.appointment-status-badge{display:inline-flex;padding:5px 8px;border-radius:999px;background:#e2e8f0;color:#334155;font-size:10px;font-weight:700;white-space:nowrap}
 .status-new,.status-requested{background:#dbeafe;color:#1d4ed8}
 .status-in-progress,.status-checked-in{background:#cffafe;color:#0e7490}
@@ -4667,6 +4692,7 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .enquiry-summary-row:last-child{border-bottom:0;padding-bottom:0}
 .enquiry-summary-row span{color:#64748b}.enquiry-summary-row strong{text-align:right;color:#172033;max-width:70%;overflow-wrap:anywhere;white-space:pre-wrap}
 .enquiries-table{margin-top:16px;overflow-x:auto}
+.enquiries-module .enquiries-table{margin-top:4px}
 .enquiries-table .table-card{box-shadow:none;border:1px solid #e2e8f0}
 .enquiries-table .table-title{margin:0;padding:12px 15px}
 .enquiries-table table{min-width:960px}
@@ -4674,7 +4700,7 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .enquiries-module .enquiries-table table{width:max-content;min-width:960px}
 .appointments-module .enquiries-table .table-card{width:max-content;min-width:100%}
 .enquiries-module .enquiries-table .utility-register-heading{margin-bottom:0}
-.enquiries-module .enquiries-table .utility-register-heading{box-sizing:border-box;width:100%;min-width:960px;gap:14px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:10px;background:linear-gradient(135deg,#f8fafc,#f3f6fc)}
+.enquiries-module .enquiries-table .utility-register-heading{box-sizing:border-box;width:100%;min-width:960px;gap:14px;padding:6px 14px;border:1px solid #e2e8f0;border-radius:10px;background:linear-gradient(135deg,#f8fafc,#f3f6fc)}
 .enquiries-module .enquiries-table .enquiry-date-filter{flex:1;min-width:0;flex-wrap:nowrap;margin:0;padding:0;border:0;border-radius:0;background:transparent}
 .enquiries-module .enquiries-table .enquiry-date-filter-label{white-space:nowrap}
 .enquiries-module .enquiries-table .enquiry-custom-date-range{flex-wrap:nowrap;align-items:center}
@@ -4699,8 +4725,12 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .enquiries-table .enquiry-actions .enquiry-action:hover{background:#e2e8f0;color:#0f6670}
 .enquiries-table .enquiry-actions .enquiry-action[data-enquiry-action="delete"]{background:#fff1f2;border-color:#fecaca;color:#b42318}
 .enquiries-table .enquiry-actions .enquiry-action[data-enquiry-action="delete"]:hover{background:#fee2e2;color:#991b1b}
+@media(min-width:1300px){
+    .main > section.enquiries-module .enquiry-workflow-stats{grid-template-columns:repeat(8,120px);grid-template-rows:1fr}
+}
 @media(max-width:768px){
-    .enquiries-stats,.call-logs-module .enquiries-stats,.dispatch-module .enquiries-stats,.appointments-module .enquiries-stats,.incoming-mail-module .enquiries-stats,.follow-ups-module .enquiries-stats{grid-template-columns:repeat(2,1fr)}
+    .main > section.enquiries-module .enquiry-workflow-stats{grid-template-columns:repeat(auto-fit,120px);justify-content:start}
+    .enquiries-stats,.call-logs-module .enquiries-stats,.dispatch-module .enquiries-stats,.appointments-module .enquiries-stats,.incoming-mail-module .enquiries-stats,.follow-ups-module .enquiries-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
     .enquiries-grid,.enquiry-form-grid,.reports-grid{grid-template-columns:1fr}
     .report-kpis{grid-template-columns:repeat(2,1fr)}
     .report-status-grid,.quick-report-grid{grid-template-columns:repeat(2,1fr)}
