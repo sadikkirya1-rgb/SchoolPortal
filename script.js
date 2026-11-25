@@ -6282,29 +6282,48 @@ document.addEventListener('DOMContentLoaded', () => {
         const examResultRecords = [];
         const examResultsPanel = document.createElement('section');
         examResultsPanel.className = 'report-exam-results-panel';
-        examResultsPanel.innerHTML = '<div class="report-cards-panel report-exam-entry"><header class="report-exam-heading"><div><h3>Enter marks after marking papers</h3><p>Save one result per student, subject, and exam/test. Draft marks are private. Publish after checking; published marks can then be loaded into a report card.</p></div></header><form data-exam-result-form><input type="hidden" name="recordId"><div class="report-exam-form-grid"><label>Student *<select name="studentId" required></select></label><label>Subject *<select name="subjectId" required></select></label><label>Exam / test name *<input name="assessmentName" required maxlength="100" placeholder="e.g. Term 1 Mathematics paper"></label><label>Type *<select name="assessmentType" required><option value="">Choose type</option><option value="test">Test</option><option value="exam">Examination</option></select></label><label>Exam date<input name="assessmentDate" type="date"></label><label>Academic year *<input name="year" required value="2026/27"></label><label>Term / period *<select name="period" required><option>Term 1</option><option>Term 2</option><option>Term 3</option><option>Semester 1</option><option>Semester 2</option></select></label><label>Maximum marks *<input name="maxMarks" type="number" min="0.01" step="any" required placeholder="100"></label><label>Marks obtained *<input name="obtainedMarks" type="number" min="0" step="any" required placeholder="85"></label><label>Percentage (automatic)<input name="percentage" readonly aria-label="Calculated percentage"></label><label class="report-exam-remarks">Teacher remarks<textarea name="remarks" maxlength="500" rows="2" placeholder="Optional feedback"></textarea></label></div><div class="report-exam-actions"><button class="btn-secondary" type="button" data-exam-save="Draft">Save draft</button><button class="btn-primary" type="button" data-exam-save="Published">Publish result</button><button class="btn-secondary" type="button" data-exam-reset>Clear form</button></div><p class="report-exam-feedback" data-exam-feedback role="status" aria-live="polite"></p></form></div><div class="report-cards-panel report-exam-list"><header class="report-exam-heading"><div><h3>Saved exam and test marks</h3><p>Review drafts and published marks. Select a row to update or publish it.</p></div></header><div class="report-cards-table-wrap"><table><thead><tr><th>Student ID</th><th>Student</th><th>Subject</th><th>Exam / test</th><th>Type</th><th>Period</th><th>Score</th><th>Percentage</th><th>Status</th><th>Actions</th></tr></thead><tbody data-exam-result-rows><tr><td colspan="10" class="report-empty">Loading saved results…</td></tr></tbody></table></div></div>';
+        examResultsPanel.innerHTML = '<div class="report-cards-panel report-exam-entry"><header class="report-exam-heading"><div><h3>Enter marks after marking papers</h3><p>Save one result per student, subject, and exam/test. Draft marks are private. Publish after checking; published marks can then be loaded into a report card.</p></div></header><form data-exam-result-form><input type="hidden" name="recordId"><div class="report-exam-form-grid"><label>Student *<select name="studentId" required></select></label><label>Subject *<select name="subjectId" required></select></label><label>Exam / test name *<input name="assessmentName" required maxlength="100" placeholder="e.g. Term 1 Mathematics paper"></label><label>Type *<select name="assessmentType" required><option value="">Choose type</option><option value="test">Test</option><option value="exam">Examination</option></select></label><label>Exam date<input name="assessmentDate" type="date"></label><label>Academic year *<input name="year" required value="2026/27"></label><label>Term / period *<select name="period" required><option>Term 1</option><option>Term 2</option><option>Term 3</option><option>Semester 1</option><option>Semester 2</option></select></label><label>Maximum marks *<input name="maxMarks" type="number" min="0.01" step="any" required placeholder="100"></label><label>Marks obtained *<input name="obtainedMarks" type="number" min="0" step="any" required placeholder="85"></label><label>Percentage (automatic)<input name="percentage" readonly aria-label="Calculated percentage"></label><label class="report-exam-remarks">Teacher remarks<textarea name="remarks" maxlength="500" rows="2" placeholder="Optional feedback"></textarea></label></div><div class="report-exam-actions"><button class="btn-secondary" type="button" data-exam-save="Draft">Save draft</button><button class="btn-primary" type="button" data-exam-save="Published">Publish result</button><button class="btn-secondary" type="button" data-exam-reset>Clear form</button></div><p class="report-exam-feedback" data-exam-feedback role="status" aria-live="polite"></p></form></div><div class="report-cards-panel report-exam-list"><header class="report-exam-heading"></header><div class="report-cards-table-wrap"><table><thead><tr><th>Student ID</th><th>Student</th><th>Subject</th><th>Exam / test</th><th>Type</th><th>Period</th><th>Score</th><th>Percentage</th><th>Status</th><th>Actions</th></tr></thead><tbody data-exam-result-rows><tr><td colspan="10" class="report-empty">Loading saved results…</td></tr></tbody></table></div></div>';
         const examResultsModule = document.createElement('section');
         examResultsModule.className = 'module report-cards-module exam-results-module';
         examResultsModule.id = 'module_exam_test_marks';
-        examResultsModule.innerHTML = '<div class="module-header report-cards-header"><div><h2>Exam &amp; Test Marks</h2><p>Record, review, and publish student marks independently from report cards.</p></div><div class="report-cards-user"><span>Administrator</span><small>Academic results access</small></div></div>';
         examResultsModule.append(examResultsPanel);
+        const examSummaryPanel = document.createElement('div');
+        examSummaryPanel.className = 'report-cards-stats report-exam-summary';
+        examSummaryPanel.setAttribute('aria-label', 'Exam and test marks summary');
+        examSummaryPanel.innerHTML = '<div><span>Total results</span><strong data-exam-summary="total">0</strong><i class="fas fa-clipboard-list" aria-hidden="true"></i></div><div><span>Published</span><strong data-exam-summary="published">0</strong><i class="fas fa-check" aria-hidden="true"></i></div><div><span>Drafts</span><strong data-exam-summary="drafts">0</strong><i class="fas fa-pen" aria-hidden="true"></i></div><div><span>Average score</span><strong data-exam-summary="average">—</strong><i class="fas fa-chart-line" aria-hidden="true"></i></div>';
+        examResultsPanel.querySelector('.report-exam-list').before(examSummaryPanel);
+        const examSummaryTotal = examSummaryPanel.querySelector('[data-exam-summary="total"]');
+        const examSummaryPublished = examSummaryPanel.querySelector('[data-exam-summary="published"]');
+        const examSummaryDrafts = examSummaryPanel.querySelector('[data-exam-summary="drafts"]');
+        const examSummaryAverage = examSummaryPanel.querySelector('[data-exam-summary="average"]');
         const examResultForm = examResultsPanel.querySelector('[data-exam-result-form]');
         const examResultRows = examResultsPanel.querySelector('[data-exam-result-rows]');
         const examResultFeedback = examResultsPanel.querySelector('[data-exam-feedback]');
         const examEntryPanel = examResultsPanel.querySelector('.report-exam-entry');
+        examEntryPanel.id = 'exam-marks-entry-panel';
         const examEntryHeading = examEntryPanel.querySelector('.report-exam-heading');
         const examListHeading = examResultsPanel.querySelector('.report-exam-list .report-exam-heading');
         const closeExamFormButton = document.createElement('button');
         closeExamFormButton.type = 'button';
         closeExamFormButton.className = 'btn-secondary report-exam-toggle';
         closeExamFormButton.dataset.examFormToggle = 'close';
+        closeExamFormButton.setAttribute('aria-controls', examEntryPanel.id);
+        closeExamFormButton.setAttribute('aria-expanded', 'true');
         closeExamFormButton.setAttribute('aria-label', 'Close marks form');
         closeExamFormButton.innerHTML = '<i class="fas fa-xmark" aria-hidden="true"></i> Close form';
         examEntryHeading.append(closeExamFormButton);
+        const examListToolbar = document.createElement('div');
+        examListToolbar.className = 'report-exam-toolbar';
+        examListToolbar.innerHTML = '<label class="report-exam-search"><i class="fas fa-search" aria-hidden="true"></i><input type="search" data-exam-search placeholder="Search marks..." aria-label="Search exam and test marks"></label><div class="report-exam-filters" role="group" aria-label="Filter marks by status"><button type="button" class="report-exam-filter" data-exam-status-filter="all" aria-pressed="true">All</button><button type="button" class="report-exam-filter" data-exam-status-filter="published" aria-pressed="false">Published</button><button type="button" class="report-exam-filter" data-exam-status-filter="draft" aria-pressed="false">Draft</button></div>';
+        examListHeading.append(examListToolbar);
+        const examSearchInput = examListToolbar.querySelector('[data-exam-search]');
+        const examStatusFilterButtons = [...examListToolbar.querySelectorAll('[data-exam-status-filter]')];
         const openExamFormButton = document.createElement('button');
         openExamFormButton.type = 'button';
         openExamFormButton.className = 'btn-secondary report-exam-toggle';
         openExamFormButton.dataset.examFormToggle = 'open';
+        openExamFormButton.setAttribute('aria-controls', examEntryPanel.id);
+        openExamFormButton.setAttribute('aria-expanded', 'false');
         openExamFormButton.innerHTML = '<i class="fas fa-plus" aria-hidden="true"></i> Enter marks';
         openExamFormButton.hidden = true;
         examListHeading.append(openExamFormButton);
@@ -6312,7 +6331,10 @@ document.addEventListener('DOMContentLoaded', () => {
             examEntryPanel.hidden = !visible;
             closeExamFormButton.hidden = !visible;
             openExamFormButton.hidden = visible;
+            closeExamFormButton.setAttribute('aria-expanded', String(visible));
+            openExamFormButton.setAttribute('aria-expanded', String(visible));
         };
+        setExamFormVisible(false);
         const getStudentName = student => student.fullName || student.name || student.studentName
             || [student.firstName, student.lastName].filter(Boolean).join(' ') || 'Student';
         const getStudentAdmission = student => String(student.admissionNo || student.admissionNumber
@@ -6365,11 +6387,63 @@ document.addEventListener('DOMContentLoaded', () => {
         const renderExamResults = () => {
             const visibleRecords = examResultRecords.filter(record => record.deleted !== true)
                 .sort((left, right) => String(right.assessmentDate || '').localeCompare(String(left.assessmentDate || '')));
-            examResultRows.innerHTML = visibleRecords.length ? visibleRecords.map(record => {
+            const selectedStatusFilter = examStatusFilterButtons.find(button => button.getAttribute('aria-pressed') === 'true')
+                ?.dataset.examStatusFilter || 'all';
+            const searchQuery = examSearchInput.value.trim().toLowerCase();
+            const filteredRecords = visibleRecords.filter(record => {
+                const status = String(record.status || record.publicationStatus || '').toLowerCase();
+                const isPublished = ['published', 'released'].includes(status)
+                    || record.isPublished === true || record.published === true;
+                const matchesStatus = selectedStatusFilter === 'all'
+                    || (selectedStatusFilter === 'published' && isPublished)
+                    || (selectedStatusFilter === 'draft' && !isPublished && (!status || status === 'draft'));
+                if (!matchesStatus) return false;
+                if (!searchQuery) return true;
+                const student = studentRecords.find(item => String(item.id) === String(record.studentId));
+                const searchText = [
+                    record.studentAdmissionNo,
+                    record.studentId,
+                    record.studentName,
+                    student && getStudentName(student),
+                    record.subjectName,
+                    record.assessmentName,
+                    record.assessmentType,
+                    record.period,
+                    record.year,
+                    record.status || record.publicationStatus
+                ].filter(Boolean).join(' ').toLowerCase();
+                return searchText.includes(searchQuery);
+            });
+            const publishedRecords = visibleRecords.filter(record =>
+                ['published', 'released'].includes(String(record.status || record.publicationStatus || '').toLowerCase())
+                || record.isPublished === true || record.published === true
+            );
+            const draftRecords = visibleRecords.filter(record => {
+                const status = String(record.status || record.publicationStatus || '').toLowerCase();
+                return !['published', 'released'].includes(status)
+                    && record.isPublished !== true && record.published !== true
+                    && (!status || status === 'draft');
+            });
+            const validScores = visibleRecords.filter(record => {
+                const maximum = Number(record.maxMarks);
+                const obtained = Number(record.obtainedMarks);
+                return Number.isFinite(maximum) && maximum > 0 && Number.isFinite(obtained)
+                    && obtained >= 0 && obtained <= maximum;
+            });
+            const averageScore = validScores.length
+                ? validScores.reduce((total, record) => total + Number(record.obtainedMarks) / Number(record.maxMarks) * 100, 0)
+                    / validScores.length
+                : null;
+            examSummaryTotal.textContent = visibleRecords.length.toLocaleString();
+            examSummaryPublished.textContent = publishedRecords.length.toLocaleString();
+            examSummaryDrafts.textContent = draftRecords.length.toLocaleString();
+            examSummaryAverage.textContent = averageScore === null ? '—' : `${averageScore.toFixed(1)}%`;
+            examResultRows.innerHTML = filteredRecords.length ? filteredRecords.map(record => {
                 const student = studentRecords.find(item => String(item.id) === String(record.studentId));
                 return `<tr><td>${escape(record.studentAdmissionNo || record.studentId || '—')}</td><td>${escape(record.studentName || (student && getStudentName(student)) || 'Student')}</td><td>${escape(record.subjectName || '—')}</td><td>${escape(record.assessmentName || '—')}</td><td>${String(record.assessmentType).toLowerCase() === 'exam' ? 'Examination' : 'Test'}</td><td>${escape([record.period, record.year].filter(Boolean).join(' · ') || '—')}</td><td>${escape(record.obtainedMarks ?? '—')} / ${escape(record.maxMarks ?? '—')}</td><td>${Number(record.percentage ?? 0).toFixed(1)}%</td><td><span class="report-status ${escape(String(record.status || 'Draft').toLowerCase())}">${escape(record.status || 'Draft')}</span></td><td><div class="report-row-actions"><button class="icon-button" type="button" data-exam-result-action="edit" data-record-id="${escape(record.id)}" aria-label="Edit marks"><i class="fas fa-pen" aria-hidden="true"></i></button>${String(record.status).toLowerCase() === 'published' ? '' : `<button class="icon-button" type="button" data-exam-result-action="publish" data-record-id="${escape(record.id)}" aria-label="Publish marks"><i class="fas fa-check" aria-hidden="true"></i></button>`}</div></td></tr>`;
-            }).join('') : '<tr><td colspan="10" class="report-empty">No exam or test marks entered yet.</td></tr>';
+            }).join('') : `<tr><td colspan="10" class="report-empty">${visibleRecords.length ? 'No marks match your search or filters.' : 'No exam or test marks entered yet.'}</td></tr>`;
         };
+        examSearchInput.addEventListener('input', renderExamResults);
         const clearExamResultForm = () => {
             examResultForm.reset();
             examResultForm.elements.recordId.value = '';
@@ -6649,6 +6723,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         examResultsPanel.addEventListener('click', event => {
+            const statusFilterButton = event.target.closest('[data-exam-status-filter]');
+            if (statusFilterButton) {
+                examStatusFilterButtons.forEach(button => {
+                    button.setAttribute('aria-pressed', String(button === statusFilterButton));
+                });
+                renderExamResults();
+                return;
+            }
             const formToggle = event.target.closest('[data-exam-form-toggle]');
             if (formToggle) {
                 const isOpening = formToggle.dataset.examFormToggle === 'open';

@@ -18,3 +18,10 @@
 .dark #libraryModule .library-issue,body.dark-mode #libraryModule .library-issue{background:#14532d;border-color:#22c55e;color:#dcfce7}
 .dark #libraryModule .library-return,body.dark-mode #libraryModule .library-return{background:#0c4a6e;border-color:#0ea5e9;color:#e0f2fe}
 .dark #libraryModule .library-delete,body.dark-mode #libraryModule .library-delete{background:#7f1d1d;border-color:#ef4444;color:#fee2e2}
+#libraryModule .library-tool-actions{display:flex;flex:0 0 auto;align-items:center;justify-content:flex-end;gap:8px;margin-left:auto;white-space:nowrap}
+@media(max-width:700px){#libraryModule .library-tool-actions{width:100%;justify-content:flex-end}}
+#libraryModule .library-stat{display:flex;align-items:center;gap:8px;padding:12px}
+#libraryModule .library-stat-label{order:1;min-width:0;flex:1;margin:0;overflow:hidden;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+#libraryModule .library-stat-value{order:2;flex:0 0 auto;margin:0;font-size:19px;line-height:1}
+#libraryModule .library-stat-top{order:3;flex:0 0 32px}
+#libraryModule .library-stat-icon{position:static;width:32px;height:32px;flex:0 0 32px;font-size:14px;transform:none}
