@@ -485,6 +485,41 @@ body.dark-mode,
     font-size: 10px;
 }
 
+.report-cards-module .report-cards-stats > div {
+    display: flex;
+    min-height: 64px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+}
+
+.report-cards-module .report-cards-stats > div > span {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.report-cards-module .report-cards-stats > div > strong {
+    flex: 0 0 auto;
+    margin: 0;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.report-cards-module .report-cards-stats > div > i {
+    position: static;
+    top: auto;
+    right: auto;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    font-size: 12px;
+    transform: none;
+}
+
 .report-cards-actions .report-search input {
     width: 280px;
     padding-top: 8px;
