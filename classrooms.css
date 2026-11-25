@@ -1,6 +1,6 @@
 .classrooms-module {
     min-height: 70vh;
-    padding: 26px;
+    padding: 12px 26px 26px;
     color: #172033;
     background: #f8fafc;
 }
@@ -38,20 +38,37 @@
 
 .classrooms-summary article {
     display: flex;
-    min-height: 82px;
-    flex-direction: column;
-    justify-content: center;
-    gap: 5px;
+    min-height: 68px;
+    align-items: center;
+    gap: 10px;
     padding: 14px 17px;
 }
 
 .classrooms-summary span {
+    flex: 1;
     color: #64748b;
     font-size: 12px;
 }
 
 .classrooms-summary strong {
+    flex: 0 0 auto;
     font-size: 22px;
+}
+
+.classrooms-summary i {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    place-items: center;
+    border-radius: 10px;
+    background: #eef2ff;
+    color: #4f46e5;
+}
+
+.classrooms-summary article:nth-child(2) i {
+    background: #dcfce7;
+    color: #15803d;
 }
 
 .classrooms-content {
@@ -60,10 +77,10 @@
 
 .classrooms-toolbar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 300px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 16px;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
 }
 
 .classrooms-toolbar h2 {
@@ -199,10 +216,13 @@
 }
 
 .classrooms-feedback {
-    min-height: 1.4em;
-    margin: 5px 0 10px;
+    margin: 0 0 6px;
     color: #475569;
     font-size: 12px;
+}
+
+.classrooms-feedback:empty {
+    display: none;
 }
 
 .classrooms-table-wrap {
@@ -275,7 +295,7 @@
 
 @media (max-width: 700px) {
     .classrooms-module {
-        padding: 18px;
+        padding: 12px 18px 18px;
     }
 
     .classrooms-toolbar,
@@ -287,7 +307,6 @@
     .classrooms-toolbar > .classrooms-search {
         justify-self: stretch;
     }
-
     .classrooms-toolbar > .classrooms-primary-button {
         justify-self: end;
     }
@@ -295,6 +314,19 @@
     .classrooms-form-grid .classrooms-description {
         grid-column: auto;
     }
+}
+
+#classroomsModule .classrooms-row-actions {
+    flex-wrap: nowrap;
+    gap: 3px;
+    white-space: nowrap;
+}
+
+#classroomsModule .classrooms-row-actions button {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    padding: 0;
 }
 
 .dark .classrooms-module {

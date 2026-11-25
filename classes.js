@@ -13,12 +13,6 @@
         section.className = 'module classes-module';
         section.id = 'classesModule';
         section.innerHTML = `
-            <header class="classes-header">
-                <div>
-                    <h1>Classes</h1>
-                    <p>Manage school classes. Grade 1 through Grade 12 sample classes are added when missing.</p>
-                </div>
-            </header>
             <section class="classes-summary" aria-label="Class totals">
                 <article><span>Total classes</span><strong data-class-total>0</strong></article>
                 <article><span>Active classes</span><strong data-class-active>0</strong></article>
@@ -90,7 +84,7 @@
                     <td>${escape(record.classTeacherName || '—')}</td>
                     <td>${record.capacity === '' || record.capacity == null ? '—' : escape(record.capacity)}</td>
                     <td><span class="classes-status ${String(record.status || 'Active').toLowerCase() === 'active' ? 'is-active' : 'is-inactive'}">${escape(record.status || 'Active')}</span></td>
-                    <td>${canEdit ? `<div class="classes-row-actions"><button type="button" data-class-edit="${escape(record.id)}" aria-label="Edit ${escape(record.name || record.className)}"><i class="fas fa-pen" aria-hidden="true"></i></button>${String(record.status || 'Active').toLowerCase() === 'active' ? `<button type="button" data-class-deactivate="${escape(record.id)}" aria-label="Deactivate ${escape(record.name || record.className)}"><i class="fas fa-ban" aria-hidden="true"></i></button>` : ''}</div>` : '—'}</td>
+                    <td>${canEdit ? `<div class="classes-row-actions"><button type="button" data-class-edit="${escape(record.id)}" aria-label="Edit ${escape(record.name || record.className)}"><i class="fas fa-pen" aria-hidden="true"></i></button><button type="button" data-class-toggle="${escape(record.id)}" aria-label="${String(record.status || 'Active').toLowerCase() === 'active' ? 'Deactivate' : 'Activate'} ${escape(record.name || record.className)}" title="${String(record.status || 'Active').toLowerCase() === 'active' ? 'Deactivate class' : 'Activate class'}"><i class="fas ${String(record.status || 'Active').toLowerCase() === 'active' ? 'fa-ban' : 'fa-check'}" aria-hidden="true"></i></button><button type="button" data-class-delete="${escape(record.id)}" aria-label="Delete ${escape(record.name || record.className)}" title="Delete class"><i class="fas fa-trash" aria-hidden="true"></i></button></div>` : '—'}</td>
                 </tr>`).join('') : '<tr><td colspan="7" class="classes-empty">No classes found. Add your school classes to get started.</td></tr>';
         };
 
@@ -217,16 +211,35 @@
                 if (record) openForm(record);
                 return;
             }
-            const deactivateButton = event.target.closest('[data-class-deactivate]');
-            if (!deactivateButton) return;
-            const record = records.find(item => String(item.id) === deactivateButton.dataset.classDeactivate);
+            const deleteButton = event.target.closest('[data-class-delete]');
+            if (deleteButton) {
+                const record = records.find(item => String(item.id) === deleteButton.dataset.classDelete);
+                const name = record?.name || record?.className || 'this class';
+                if (!record || !confirm(`Delete "${name}"?`)) return;
+                try {
+                    if (!api?.deleteRecord) throw new Error('School data storage is unavailable. Reload the app and try again.');
+                    await api.deleteRecord('classes', record.id);
+                    feedback.textContent = `Class "${name}" deleted.`;
+                } catch (error) {
+                    showError(error?.message || 'Unable to delete the class.', error);
+                }
+                return;
+            }
+            const toggleButton = event.target.closest('[data-class-toggle]');
+            if (!toggleButton) return;
+            const record = records.find(item => String(item.id) === toggleButton.dataset.classToggle);
             const name = record?.name || record?.className || 'this class';
-            if (!record || !confirm(`Deactivate "${name}"?`)) return;
+            if (!record) return;
+            const isActive = String(record.status || 'Active').toLowerCase() === 'active';
+            const nextStatus = isActive ? 'Inactive' : 'Active';
+            const action = isActive ? 'Deactivate' : 'Activate';
+            if (!confirm(`${action} "${name}"?`)) return;
             try {
-                await api.saveRecord('classes', record.id, { ...record, status: 'Inactive' });
-                feedback.textContent = `Class "${name}" deactivated.`;
+                if (!api?.saveRecord) throw new Error('School data storage is unavailable. Reload the app and try again.');
+                await api.saveRecord('classes', record.id, { ...record, status: nextStatus });
+                feedback.textContent = `Class "${name}" ${isActive ? 'deactivated' : 'activated'}.`;
             } catch (error) {
-                showError(error?.message || 'Unable to deactivate the class.', error);
+                showError(error?.message || `Unable to ${action.toLowerCase()} the class.`, error);
             }
         });
 

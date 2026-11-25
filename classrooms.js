@@ -13,19 +13,12 @@
         section.className = 'module classrooms-module';
         section.id = 'classroomsModule';
         section.innerHTML = `
-            <header class="classrooms-header">
-                <div>
-                    <h1>Classrooms</h1>
-                    <p>Manage the rooms available when scheduling class timetables.</p>
-                </div>
-            </header>
             <section class="classrooms-summary" aria-label="Classroom totals">
-                <article><span>Total classrooms</span><strong data-classroom-total>0</strong></article>
-                <article><span>Active classrooms</span><strong data-classroom-active>0</strong></article>
+                <article><span>Total classrooms</span><strong data-classroom-total>0</strong><i class="fas fa-door-open" aria-hidden="true"></i></article>
+                <article><span>Active classrooms</span><strong data-classroom-active>0</strong><i class="fas fa-circle-check" aria-hidden="true"></i></article>
             </section>
             <section class="classrooms-content">
                 <div class="classrooms-toolbar">
-                    <div><h2>Classroom register</h2><p>Active classrooms are offered in the timetable form.</p></div>
                     <label class="classrooms-search"><span class="visually-hidden">Search classrooms</span><i class="fas fa-search" aria-hidden="true"></i><input type="search" data-classroom-search placeholder="Search name, code, building, or floor"></label>
                     <button class="classrooms-primary-button" type="button" data-classroom-add>
                         <i class="fas fa-plus" aria-hidden="true"></i> Add Classroom
@@ -89,7 +82,7 @@
                     <td>${escape(record.floor || '—')}</td>
                     <td>${record.capacity === '' || record.capacity == null ? '—' : escape(record.capacity)}</td>
                     <td><span class="classrooms-status ${String(record.status || 'Active').toLowerCase() === 'active' ? 'is-active' : 'is-inactive'}">${escape(record.status || 'Active')}</span></td>
-                    <td>${canEdit ? `<div class="classrooms-row-actions"><button type="button" data-classroom-edit="${escape(record.id)}" aria-label="Edit ${escape(record.roomName || record.name)}"><i class="fas fa-pen" aria-hidden="true"></i></button>${String(record.status || 'Active').toLowerCase() === 'active' ? `<button type="button" data-classroom-deactivate="${escape(record.id)}" aria-label="Deactivate ${escape(record.roomName || record.name)}"><i class="fas fa-ban" aria-hidden="true"></i></button>` : ''}</div>` : '—'}</td>
+                    <td>${canEdit ? `<div class="classrooms-row-actions"><button type="button" data-classroom-edit="${escape(record.id)}" aria-label="Edit ${escape(record.roomName || record.name)}"><i class="fas fa-pen" aria-hidden="true"></i></button><button type="button" data-classroom-toggle="${escape(record.id)}" aria-label="${String(record.status || 'Active').toLowerCase() === 'active' ? 'Deactivate' : 'Activate'} ${escape(record.roomName || record.name)}" title="${String(record.status || 'Active').toLowerCase() === 'active' ? 'Deactivate classroom' : 'Activate classroom'}"><i class="fas ${String(record.status || 'Active').toLowerCase() === 'active' ? 'fa-ban' : 'fa-check'}" aria-hidden="true"></i></button><button type="button" data-classroom-delete="${escape(record.id)}" aria-label="Delete ${escape(record.roomName || record.name)}" title="Delete classroom"><i class="fas fa-trash" aria-hidden="true"></i></button></div>` : '—'}</td>
                 </tr>`).join('') : '<tr><td colspan="7" class="classrooms-empty">No classrooms found. Add your classrooms to use them in timetables.</td></tr>';
         };
 
@@ -178,16 +171,35 @@
                 if (record) openForm(record);
                 return;
             }
-            const deactivateButton = event.target.closest('[data-classroom-deactivate]');
-            if (!deactivateButton) return;
-            const record = records.find(item => String(item.id) === deactivateButton.dataset.classroomDeactivate);
+            const deleteButton = event.target.closest('[data-classroom-delete]');
+            if (deleteButton) {
+                const record = records.find(item => String(item.id) === deleteButton.dataset.classroomDelete);
+                const name = record?.roomName || record?.name || 'this classroom';
+                if (!record || !confirm(`Delete "${name}"?`)) return;
+                try {
+                    if (!api?.deleteRecord) throw new Error('School data storage is unavailable. Reload the app and try again.');
+                    await api.deleteRecord('classrooms', record.id);
+                    feedback.textContent = `Classroom "${name}" deleted.`;
+                } catch (error) {
+                    showError(error?.message || 'Unable to delete the classroom.', error);
+                }
+                return;
+            }
+            const toggleButton = event.target.closest('[data-classroom-toggle]');
+            if (!toggleButton) return;
+            const record = records.find(item => String(item.id) === toggleButton.dataset.classroomToggle);
             const name = record?.roomName || record?.name || 'this classroom';
-            if (!record || !confirm(`Deactivate "${name}"?`)) return;
+            if (!record) return;
+            const isActive = String(record.status || 'Active').toLowerCase() === 'active';
+            const nextStatus = isActive ? 'Inactive' : 'Active';
+            const action = isActive ? 'Deactivate' : 'Activate';
+            if (!confirm(`${action} "${name}"?`)) return;
             try {
-                await api.saveRecord('classrooms', record.id, { ...record, status: 'Inactive' });
-                feedback.textContent = `Classroom "${name}" deactivated.`;
+                if (!api?.saveRecord) throw new Error('School data storage is unavailable. Reload the app and try again.');
+                await api.saveRecord('classrooms', record.id, { ...record, status: nextStatus });
+                feedback.textContent = `Classroom "${name}" ${isActive ? 'deactivated' : 'activated'}.`;
             } catch (error) {
-                showError(error?.message || 'Unable to deactivate the classroom.', error);
+                showError(error?.message || `Unable to ${action.toLowerCase()} the classroom.`, error);
             }
         });
 
@@ -204,7 +216,7 @@
                         .sort((left, right) => String(left.roomName || left.name || '').localeCompare(String(right.roomName || right.name || '')));
                     render();
                     feedback.textContent = records.length
-                        ? `${records.length} classroom${records.length === 1 ? '' : 's'} loaded.`
+                        ? ''
                         : 'No classrooms yet. Add your classrooms here.';
                 });
             } catch (error) {
