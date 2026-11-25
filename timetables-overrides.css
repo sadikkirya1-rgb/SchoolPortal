@@ -1,0 +1,86 @@
+.timetables-module .tm-stat {
+    gap: 10px;
+}
+
+.timetables-module .tm-stat > div:first-child {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 10px;
+}
+
+.timetables-module .tm-stat p {
+    flex: 1;
+    margin: 0;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.timetables-module .tm-stat h2 {
+    flex: 0 0 auto;
+    margin: 0;
+    font-size: 20px;
+}
+
+.timetables-module .tm-stat span {
+    display: none;
+}
+
+.timetables-module .tm-stat-icon {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    border-radius: 9px;
+    font-size: 16px;
+}
+
+.timetables-module .tm-section-head {
+    display: block;
+}
+
+.timetables-module .tm-toolbar {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 16px;
+    border: 1px solid var(--tm-border);
+    border-radius: 12px;
+    background: var(--tm-card);
+    box-shadow: var(--tm-shadow);
+}
+
+.timetables-module .tm-toolbar > .tm-search {
+    order: 0;
+    min-width: 0;
+    flex: 1 1 180px;
+}
+
+.timetables-module .tm-toolbar .tm-search input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.timetables-module .tm-toolbar > .tm-filters {
+    display: contents;
+}
+
+.timetables-module .tm-toolbar > .tm-filters > .tm-filter {
+    order: 1;
+    min-width: 0;
+    flex: 1 1 110px;
+}
+
+.timetables-module .tm-toolbar > [data-export],
+.timetables-module .tm-toolbar > [data-add] {
+    order: 2;
+}
+
+.timetables-module .tm-toolbar > [data-export] {
+    margin-left: auto;
+}
+
+.timetables-module .tm-toolbar > .tm-filters select {
+    min-width: 0;
+    box-sizing: border-box;
+}
