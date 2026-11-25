@@ -14,8 +14,8 @@
         section.id = 'subjectsModule';
         section.innerHTML = `
             <section class="subjects-summary" aria-label="Subject totals">
-                <article><span>Total subjects</span><strong data-subject-total>0</strong></article>
-                <article><span>Active subjects</span><strong data-subject-active>0</strong></article>
+                <article><span>Total subjects</span><strong data-subject-total>0</strong><i class="fas fa-book-open" aria-hidden="true"></i></article>
+                <article><span>Active subjects</span><strong data-subject-active>0</strong><i class="fas fa-circle-check" aria-hidden="true"></i></article>
             </section>
             <section class="subjects-content">
                 <div class="subjects-toolbar">

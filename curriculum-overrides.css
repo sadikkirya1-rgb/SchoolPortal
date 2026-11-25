@@ -1,0 +1,61 @@
+.curriculum-module .cm-stat {
+    gap: 10px;
+}
+
+.curriculum-module .cm-stat > div:first-child {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 10px;
+}
+
+.curriculum-module .cm-stat p {
+    flex: 1;
+    margin: 0;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.curriculum-module .cm-stat h2 {
+    flex: 0 0 auto;
+    margin: 0;
+    font-size: 20px;
+}
+
+.curriculum-module .cm-stat span {
+    display: none;
+}
+
+.curriculum-module .cm-stat-icon {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    border-radius: 9px;
+    font-size: 16px;
+}
+
+.curriculum-module .cm-section-head {
+    display: block;
+}
+
+.curriculum-module .cm-toolbar {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 16px;
+    border: 1px solid var(--cm-border);
+    border-radius: 12px;
+    background: var(--cm-card);
+    box-shadow: var(--cm-shadow);
+}
+
+.curriculum-module .cm-toolbar .cm-search {
+    min-width: 0;
+    flex: 1 1 280px;
+}
+
+.curriculum-module .cm-toolbar .cm-search input {
+    width: 100%;
+    box-sizing: border-box;
+}

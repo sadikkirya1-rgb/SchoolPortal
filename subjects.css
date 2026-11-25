@@ -99,19 +99,27 @@
 .subjects-summary article {
     display: flex;
     min-height: 64px;
-    flex-direction: column;
-    justify-content: center;
-    gap: 3px;
+    align-items: center;
+    gap: 10px;
     padding: 8px 14px;
 }
 
 .subjects-summary span {
+    flex: 1;
     color: #64748b;
     font-size: 12px;
+    white-space: nowrap;
 }
 
 .subjects-summary strong {
+    flex: 0 0 auto;
     font-size: 22px;
+}
+
+.subjects-summary article > i {
+    flex: 0 0 auto;
+    color: #4f46e5;
+    font-size: 18px;
 }
 
 .subjects-content {
