@@ -4740,6 +4740,54 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
 .main > section.follow-ups-module .enquiries-table td:last-child{white-space:normal}
 .main > section.follow-ups-module .enquiries-table .enquiry-actions{min-width:0;flex-wrap:wrap}
 .main > section.follow-ups-module .enquiries-table .utility-register-heading{box-sizing:border-box;width:100%;min-width:0;flex-wrap:wrap;margin-bottom:0}
+.main > section.reports-module,
+.main > section#module_notifications,
+.main > section#module_calendar,
+.main > section#module_announcements,
+.main > section#module_documents,
+.main > section.call-logs-module,
+.main > section.dispatch-module{margin-top:-8px}
+.main > section.call-logs-module .enquiries-stats,
+.main > section.dispatch-module .enquiries-stats{width:100%;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:3px}
+.main > section.call-logs-module .enquiries-stats .enquiry-stat,
+.main > section.dispatch-module .enquiries-stats .enquiry-stat{display:flex;align-items:center;gap:4px;min-height:45px;padding:3px 6px;border-radius:7px}
+.main > section.call-logs-module .enquiries-stats .enquiry-stat span,
+.main > section.dispatch-module .enquiries-stats .enquiry-stat span{flex:1;min-width:0;overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.main > section.call-logs-module .enquiries-stats .enquiry-stat strong,
+.main > section.dispatch-module .enquiries-stats .enquiry-stat strong{flex:0 0 auto;margin:0;font-size:14px;line-height:1}
+.main > section.call-logs-module .enquiries-stats .enquiry-stat>i,
+.main > section.dispatch-module .enquiries-stats .enquiry-stat>i{position:static;top:auto;right:auto;width:20px;height:20px;flex:0 0 20px;font-size:10px;transform:none}
+.main > section:is(.call-logs-module,.dispatch-module) .enquiries-table .table-card,
+.main > section:is(#module_notifications,#module_calendar,#module_announcements,#module_documents) .enquiries-table .table-card{box-sizing:border-box;width:100%;min-width:0}
+.main > section:is(.call-logs-module,.dispatch-module) .enquiries-table table,
+.main > section:is(#module_notifications,#module_calendar,#module_announcements,#module_documents) .enquiries-table table{width:100%;min-width:0;table-layout:fixed}
+.main > section:is(.call-logs-module,.dispatch-module) .enquiries-table th,
+.main > section:is(.call-logs-module,.dispatch-module) .enquiries-table td,
+.main > section:is(#module_notifications,#module_calendar,#module_announcements,#module_documents) .enquiries-table th,
+.main > section:is(#module_notifications,#module_calendar,#module_announcements,#module_documents) .enquiries-table td{min-width:0;overflow-wrap:anywhere;white-space:normal}
+.main > section:is(.call-logs-module,.dispatch-module) .enquiries-table .enquiry-actions,
+.main > section:is(#module_notifications,#module_calendar,#module_announcements,#module_documents) .enquiries-table .enquiry-actions{min-width:0;flex-wrap:wrap}
+.main > section:is(.call-logs-module,.dispatch-module) .enquiries-table .utility-register-heading,
+.main > section:is(#module_notifications,#module_calendar,#module_announcements,#module_documents) .enquiries-table .utility-register-heading{box-sizing:border-box;width:100%;min-width:0;flex-wrap:wrap;margin-bottom:0}
+.main > section:is(#module_notifications,#module_calendar,#module_announcements,#module_documents) .report-cards-stats{width:100%;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:0 0 3px}
+.main > section:is(#module_notifications,#module_calendar,#module_announcements,#module_documents) .report-cards-stats>div{display:flex;align-items:center;gap:4px;min-width:0;min-height:45px;padding:3px 6px;border-radius:7px}
+.main > section:is(#module_notifications,#module_calendar,#module_announcements,#module_documents) .report-cards-stats span{flex:1;min-width:0;overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap;text-transform:none}
+.main > section:is(#module_notifications,#module_calendar,#module_announcements,#module_documents) .report-cards-stats strong{flex:0 0 auto;margin:0;font-size:14px;line-height:1}
+.main > section:is(#module_notifications,#module_calendar,#module_announcements,#module_documents) .report-cards-stats>div>i{position:static;top:auto;right:auto;width:20px;height:20px;flex:0 0 20px;font-size:10px;transform:none}
+.main > section.reports-module .report-kpis{width:100%;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:3px}
+.main > section.reports-module .report-kpi{display:flex;align-items:center;gap:4px;min-width:0;min-height:45px;padding:3px 6px;border-radius:7px}
+.main > section.reports-module .report-kpi span{flex:1;min-width:0;overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.main > section.reports-module .report-kpi strong{flex:0 0 auto;margin:0;font-size:14px;line-height:1}
+.main > section.reports-module .report-kpi>i{position:static;top:auto;right:auto;width:20px;height:20px;flex:0 0 20px;font-size:10px;transform:none}
+.main > section.reports-module .report-table-wrap{width:100%;overflow-x:auto}
+.main > section.reports-module .report-table-wrap table{width:100%;min-width:0;table-layout:fixed}
+.main > section.reports-module .report-table-wrap th,
+.main > section.reports-module .report-table-wrap td{min-width:0;overflow-wrap:anywhere;white-space:normal}
+.main > section.reports-module .report-filter-bar{margin-bottom:3px}
+.main > section.reports-module .report-status-grid{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.main > section.reports-module .report-status-grid>div{display:flex;align-items:center;justify-content:space-between;gap:4px;min-width:0;min-height:45px;padding:3px 6px}
+.main > section.reports-module .report-status-grid span{min-width:0;overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.main > section.reports-module .report-status-grid strong{flex:0 0 auto;margin:0;font-size:14px;line-height:1}
 .enquiries-table td:last-child{white-space:nowrap}
 .enquiry-actions{display:flex;gap:5px;flex-wrap:nowrap;white-space:nowrap;min-width:max-content}
 .enquiry-action{
@@ -4770,6 +4818,11 @@ html.parent-portal-active .sidebar>.menu-title[data-access-section]+.nav-links{d
     .main > section.appointments-module .enquiries-stats.appointment-workflow-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
     .main > section.incoming-mail-module .enquiries-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
     .main > section.follow-ups-module .enquiries-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .main > section.call-logs-module .enquiries-stats,
+    .main > section.dispatch-module .enquiries-stats,
+    .main > section:is(#module_notifications,#module_calendar,#module_announcements,#module_documents) .report-cards-stats,
+    .main > section.reports-module .report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .main > section.reports-module .report-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
     .appointments-module .appointment-table-toolbar{grid-template-columns:minmax(0,1fr);gap:8px}
     .appointments-module .appointment-table-toolbar .table-title,
     .appointments-module .appointment-table-controls,
