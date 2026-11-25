@@ -96,6 +96,10 @@
 #idCardsModule .idc-filter{min-width:135px;padding:0 10px}
 #idCardsModule .idc-search{width:100%;padding:0 12px}
 #idCardsModule .idc-export-btn{justify-self:end;white-space:nowrap}
+#idCardsModule .report-cards-stats>div{display:flex;align-items:center;gap:8px;min-height:64px;padding:8px 12px}
+#idCardsModule .report-cards-stats>div>span{flex:1;min-width:0;overflow:hidden;margin:0;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+#idCardsModule .report-cards-stats>div>strong{flex:0 0 auto;margin:0;font-size:18px;line-height:1}
+#idCardsModule .report-cards-stats>div>i{position:static;right:auto;top:auto;width:28px;height:28px;flex:0 0 28px;font-size:12px;transform:none}
 @media(max-width:900px){#idCardsModule .idc-record-toolbar{grid-template-columns:1fr auto}#idCardsModule .idc-record-filters{grid-column:1/-1;grid-row:2}#idCardsModule .idc-search{grid-column:1/-1;grid-row:1;justify-self:center;max-width:420px}#idCardsModule .idc-export-btn{grid-column:2;grid-row:2}}
 @media(max-width:600px){#idCardsModule .idc-record-toolbar{grid-template-columns:1fr;padding:0 14px 14px}#idCardsModule .idc-record-filters{grid-column:auto;grid-row:auto}#idCardsModule .idc-filter{flex:1;min-width:0}#idCardsModule .idc-search{grid-column:auto;grid-row:auto;max-width:none}#idCardsModule .idc-export-btn{grid-column:auto;grid-row:auto;justify-self:stretch}}
 #idCardsModule .idc-camera-frame{height:auto;aspect-ratio:4/3;max-height:560px}
