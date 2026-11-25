@@ -13,19 +13,12 @@
         section.className = 'module subjects-module';
         section.id = 'subjectsModule';
         section.innerHTML = `
-            <header class="subjects-header">
-                <div>
-                    <h1>School Subjects</h1>
-                    <p>Manage the subject catalogue used for recording exam and test marks.</p>
-                </div>
-            </header>
             <section class="subjects-summary" aria-label="Subject totals">
                 <article><span>Total subjects</span><strong data-subject-total>0</strong></article>
                 <article><span>Active subjects</span><strong data-subject-active>0</strong></article>
             </section>
             <section class="subjects-content">
                 <div class="subjects-toolbar">
-                    <div><h2>Subject catalogue</h2><p>Active subjects are available when staff enter exam and test marks.</p></div>
                     <label class="subjects-search"><span class="visually-hidden">Search subjects</span><i class="fas fa-search" aria-hidden="true"></i><input type="search" data-subject-search placeholder="Search name, code, or class"></label>
                     <button class="subjects-primary-button" type="button" data-subject-add>
                         <i class="fas fa-plus" aria-hidden="true"></i> Add Subject
@@ -192,7 +185,7 @@
                         .sort((left, right) => String(left.subjectName || left.name || '').localeCompare(String(right.subjectName || right.name || '')));
                     render();
                     feedback.textContent = records.length
-                        ? `${records.length} subject${records.length === 1 ? '' : 's'} loaded.`
+                        ? ''
                         : 'No school subjects yet. Add your subjects here, then choose them in Exam & Test Marks.';
                 });
             } catch (error) {
