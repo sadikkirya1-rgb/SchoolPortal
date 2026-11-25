@@ -440,10 +440,10 @@ body.dark-mode,
 }
 
 .report-cards-toolbar {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
 }
 
-.report-cards-toolbar > div:first-child {
+.report-cards-toolbar > div:first-child:not(.report-cards-actions) {
     display: flex;
     flex: 0 0 auto;
     align-items: baseline;
@@ -451,8 +451,7 @@ body.dark-mode,
 }
 
 .report-cards-toolbar h3,
-.report-cards-toolbar p,
-.report-cards-actions {
+.report-cards-toolbar p {
     white-space: nowrap;
 }
 
@@ -461,15 +460,41 @@ body.dark-mode,
 }
 
 .report-cards-actions {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
     flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+}
+
+.report-cards-actions > .report-search,
+.report-cards-actions > .report-status-filters,
+.report-cards-actions > .report-dimension-filter,
+.report-cards-actions > [data-report-new] {
+    flex: 0 0 auto;
+}
+
+.report-cards-actions > [data-report-new] {
+    min-height: 34px;
+    width: auto;
+    max-width: none;
+    padding: 7px 12px;
+    gap: 4px;
+    font-size: 10px;
 }
 
 .report-cards-actions .report-search input {
-    width: 180px;
+    width: 280px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    font-size: 11px;
 }
 
 .report-status-filters {
     display: flex;
+    flex: 0 0 auto;
     flex-wrap: nowrap;
     gap: 5px;
 }
@@ -479,8 +504,9 @@ body.dark-mode,
     align-items: center;
 }
 
-.report-dimension-filter select {
-    width: 96px;
+.report-dimension-filter select,
+.report-status-filters select {
+    width: 112px;
     min-height: 36px;
     padding: 6px 20px 6px 7px;
     border: 1px solid #64748b;
@@ -488,48 +514,22 @@ body.dark-mode,
     background: #f1f5f9;
     color: #172033;
     font: inherit;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
 }
 
-.report-dimension-filter select:focus-visible {
+.report-status-filters select {
+    width: 128px;
+}
+
+.report-cards-stats > div > span {
+    font-size: 10px;
+}
+
+.report-dimension-filter select:focus-visible,
+.report-status-filters select:focus-visible {
     outline: 3px solid #93c5fd;
     outline-offset: 2px;
-}
-
-.report-status-filters .report-status-filter {
-    min-height: 36px;
-    margin-top: 0;
-    padding: 7px 11px;
-    border: 1px solid #64748b;
-    border-radius: 7px;
-    background: #f1f5f9;
-    box-shadow: 0 1px 2px rgb(15 23 42 / 12%);
-    color: #172033;
-    font-size: 12px;
-    font-weight: 700;
-    opacity: 1;
-    cursor: pointer;
-}
-
-.report-status-filters .report-status-filter:hover {
-    border-color: #1d4ed8;
-    background: #dbeafe;
-    color: #1e3a8a;
-}
-
-.report-status-filters .report-status-filter:focus-visible,
-.report-cards-actions > [data-report-filter]:focus-visible {
-    outline: 3px solid #93c5fd;
-    outline-offset: 2px;
-}
-
-.report-status-filters .report-status-filter[aria-pressed="true"],
-.report-cards-actions > [data-report-filter][aria-pressed="true"] {
-    border-color: #1d4ed8;
-    background: #1d4ed8;
-    color: #fff;
-    box-shadow: 0 2px 5px rgb(29 78 216 / 30%);
 }
 
 @media (max-width: 1100px) {
@@ -537,9 +537,7 @@ body.dark-mode,
         flex-wrap: wrap;
     }
 
-    .report-cards-toolbar > div:first-child,
-    .report-cards-actions,
-    .report-status-filters {
+    .report-cards-toolbar > div:first-child:not(.report-cards-actions) {
         flex-wrap: wrap;
     }
 }
@@ -899,10 +897,8 @@ body.dark-mode,
     .report-cards-module [data-report-table] td:nth-child(7)::before { content: "Average"; }
     .report-cards-module [data-report-table] td:nth-child(8)::before { content: "Grade"; }
     .report-cards-module [data-report-table] td:nth-child(9)::before { content: "GPA"; }
-    .report-cards-module [data-report-table] td:nth-child(10)::before { content: "Attendance"; }
-    .report-cards-module [data-report-table] td:nth-child(11)::before { content: "Status"; }
-    .report-cards-module [data-report-table] td:nth-child(12)::before { content: "Generated"; }
-    .report-cards-module [data-report-table] td:nth-child(13)::before { content: "Actions"; }
+    .report-cards-module [data-report-table] td:nth-child(10)::before { content: "Status"; }
+    .report-cards-module [data-report-table] td:nth-child(11)::before { content: "Actions"; }
 
     .report-cards-module [data-report-table] td::before {
         color: #64748b;
